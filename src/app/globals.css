@@ -3945,9 +3945,6 @@
   .ui-spinner-xs {
     @apply h-3 w-3 animate-spin;
   }
-  .ui-spinner-2xs {
-    @apply h-2.5 w-2.5 animate-spin;
-  }
   /* Div-based border-ring spinner (used in full-panel loading states) */
   .ui-loading-ring {
     @apply h-5 w-5 animate-spin rounded-full border-2 border-border-subtle;
@@ -4153,10 +4150,6 @@
   .ui-stat-card-sub {
     @apply order-3 text-xs text-text-muted;
     @apply sm:order-none sm:mt-1 sm:block sm:text-sm sm:text-text-secondary;
-  }
-  /* Disclosure header for a panel of one-off setup (People → Fill the book). */
-  .ui-book-panel-toggle {
-    @apply flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised;
   }
   /* Back-to-parent affordance above a flow page's title. -ml-2 so the label
      optically aligns with the title while the tap area still extends left. */
@@ -4756,15 +4749,6 @@
   .ui-btn-save:disabled {
     opacity: 0.4;
   }
-  /* Drawer tab bar — shared by all entity detail drawers */
-  .ui-tab {
-    @apply flex items-center justify-center gap-1.5 border-b-2 border-transparent px-4 py-3 text-xs font-medium text-text-tertiary transition-colors hover:border-border-strong hover:text-text-secondary sm:px-5 sm:py-2.5;
-  }
-  .ui-tab-active {
-    /* The selected tab is a position, not a status — a text-coloured rule,
-       not a green one. */
-    @apply border-text-primary text-text-primary;
-  }
   .ui-tab-badge {
     @apply rounded-full px-1.5 py-0.5 text-micro bg-surface-overlay text-text-muted;
   }
@@ -4779,11 +4763,6 @@
   }
   .ui-settings-navitem-active {
     @apply bg-surface-raised text-text-primary;
-  }
-  /* Text + icon "add" link button. Natural line height where a pointer is
-     reliable; THE TOUCH FLOOR raises it to 44px wherever the pointer is coarse. */
-  .ui-btn-add {
-    @apply flex items-center gap-1.5 text-xs text-text-muted transition-colors hover:text-accent-text;
   }
   /* Same shape, but achievement-flavored sites (habits, commitments, milestones, goals)
      hover green to read as "create something good" rather than generic accent. */
@@ -6405,12 +6384,6 @@
   /* Page refactor, batch A (2026-10-01): the one row idle projects fold behind. */
   /* Page refactor, batch C (2026-10-02): a goal's milestones and sub-goals
      fold behind their own count. */
-  .ui-goal-milestones-toggle {
-    @apply flex min-h-11 w-full min-w-0 items-center gap-1.5 text-left text-xs text-text-tertiary transition-colors hover:text-text-secondary;
-  }
-  .ui-goal-milestones-next {
-    @apply min-w-0 truncate text-text-muted;
-  }
   /* Habit heatmap cells — distinct on the card's own ground in both themes. */
   .ui-habit-cell {
     @apply inline-block h-5 w-5 shrink-0 rounded;
@@ -6432,9 +6405,6 @@
   }
   .ui-habit-legend > .ui-habit-cell {
     @apply ml-2 h-3 w-3 first:ml-0;
-  }
-  .ui-goal-children-toggle {
-    @apply ml-6 flex min-h-11 items-center gap-1.5 pl-5 text-xs text-text-tertiary transition-colors hover:text-text-secondary;
   }
   .ui-control-quiet-toggle {
     @apply flex min-h-11 w-full shrink-0 items-center gap-2 rounded-2xl px-3 text-left text-xs text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary;
@@ -6855,53 +6825,8 @@
      into brief/reason/timeline when asked. Everything here is width-agnostic:
      at 320px a row degrades by dropping its meta line, never by reflowing the
      title into a ragged block. */
-  .ui-crew-hero {
-    @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-2xl border border-border-subtle bg-surface-base px-4 py-3;
-    box-shadow: var(--shadow-panel);
-  }
-  .ui-crew-hero-answer {
-    @apply text-base font-semibold text-text-primary;
-  }
-  .ui-crew-hero-sub {
-    @apply text-sm text-text-tertiary;
-  }
-  .ui-crew-group {
-    @apply space-y-2;
-  }
-  .ui-crew-group-label {
-    @apply flex items-center gap-2 px-1 text-micro font-semibold uppercase tracking-wider text-text-muted;
-  }
-  .ui-crew-task {
-    @apply rounded-xl border border-border-subtle bg-surface-base px-3 py-2.5 transition-colors hover:border-border-default;
-  }
-  /* Their move, not yours — the row you can scroll past. */
-  .ui-crew-task-waiting {
-    @apply border-dashed;
-  }
-  .ui-crew-task-head {
-    @apply flex w-full items-start gap-2 text-left;
-  }
-  .ui-crew-task-title {
-    @apply min-w-0 flex-1 text-sm font-medium leading-snug text-text-primary;
-  }
-  .ui-crew-task-meta {
-    @apply mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary;
-  }
-  .ui-crew-task-body {
-    @apply mt-3 space-y-3 border-t border-border-subtle pt-3;
-  }
   .ui-crew-task-prose {
     @apply whitespace-pre-wrap text-sm leading-relaxed text-text-secondary;
-  }
-  .ui-crew-actions {
-    @apply flex flex-wrap items-center gap-2;
-  }
-  .ui-crew-share {
-    @apply flex flex-wrap items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 py-2;
-  }
-  .ui-crew-share-url {
-    @apply min-w-0 flex-1 truncate text-xs text-text-tertiary;
-    font-family: var(--font-mono);
   }
   .ui-crew-timeline {
     @apply space-y-1.5 text-xs text-text-tertiary;
@@ -6909,17 +6834,174 @@
   .ui-crew-timeline-row {
     @apply flex flex-wrap items-baseline gap-x-2;
   }
-  .ui-crew-member {
-    @apply space-y-2 rounded-xl border border-border-subtle bg-surface-base px-3 py-3;
+
+  /* ── design reset: Life (people, crew, money, goals, habits, events, settings) ──
+     docs/development/design-reset-2026-10.md. Every collection on these pages
+     is a List of ListRows; what a row used to carry as buttons and inline
+     forms opens in a DetailSheet. */
+
+  /* A page's numbers as one sentence ("2 goals, 48% done") — rule 7. */
+  .ui-life-summary {
+    @apply text-base leading-relaxed text-text-secondary;
   }
-  .ui-crew-member-name {
-    @apply text-sm font-medium text-text-primary;
+  .ui-life-summary strong {
+    @apply font-semibold text-text-primary;
   }
-  .ui-crew-member-meta {
-    @apply flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary;
+  /* A row's leading control that is its OWN action (a habit's check-off),
+     drawn above the row's link so a tap on it never opens the row. */
+  .ui-listrow-control {
+    @apply relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center;
   }
-  .ui-crew-skill {
-    @apply rounded-full border border-border-subtle bg-surface-overlay px-2 py-0.5 text-micro text-text-secondary;
+  .ui-habit-check {
+    @apply flex h-11 w-11 items-center justify-center rounded-full text-text-muted transition-colors hover:text-text-secondary disabled:opacity-40;
+  }
+  .ui-habit-check-ring {
+    @apply flex h-6 w-6 items-center justify-center rounded-full border-2 border-border-strong;
+  }
+  .ui-habit-check-done {
+    @apply flex h-6 w-6 items-center justify-center rounded-full bg-status-positive text-text-inverted;
+  }
+  /* A goal's progress as a ring in the leading slot. */
+  .ui-goal-ring {
+    @apply h-9 w-9 -rotate-90;
+  }
+  .ui-goal-ring-track {
+    stroke: var(--border-default);
+  }
+  .ui-goal-ring-fill {
+    stroke: var(--text-secondary);
+    transition: stroke-dashoffset 300ms ease;
+  }
+  .ui-goal-ring-done {
+    stroke: var(--status-positive);
+  }
+  .ui-listrow-avatar:has(.ui-goal-ring) {
+    @apply bg-transparent;
+  }
+  /* A detail page's fields: the name on the left, the value (or the control
+     that changes it) on the right, a hairline between. */
+  .ui-life-fieldrows {
+    @apply mt-2 flex flex-col;
+  }
+  .ui-life-fieldrow {
+    @apply flex min-h-12 items-center justify-between gap-3 border-t border-border-subtle py-1.5 text-base;
+  }
+  .ui-life-fieldrow > dt {
+    @apply text-text-secondary;
+  }
+  .ui-life-fieldrow > dd {
+    @apply min-w-0 text-right text-text-primary;
+  }
+  /* "Add a milestone" — a quiet line at the end of a list, not a button. */
+  .ui-life-add {
+    @apply flex min-h-11 items-center gap-2 text-base text-text-secondary transition-colors hover:text-text-primary;
+  }
+  /* A row on a person's page (a way to reach them, a detail, a conversation):
+     hairline between rows, no box. */
+  .ui-person-row {
+    @apply flex min-h-12 items-center gap-3 text-base;
+  }
+  .ui-person-row + .ui-person-row {
+    @apply border-t border-border-subtle;
+  }
+  /* A goal's milestone: a check, its words, its own remove. */
+  .ui-milestone-row {
+    @apply flex min-h-12 items-center gap-1 text-base;
+  }
+  /* A titled block inside a detail page or sheet: the label is the field's
+     name in plain grey, the value under it in body ink. */
+  .ui-life-field {
+    @apply space-y-1;
+  }
+  .ui-life-field-label {
+    @apply text-sm text-text-tertiary;
+  }
+  .ui-life-prose {
+    @apply whitespace-pre-wrap text-base leading-relaxed text-text-primary;
+  }
+  .ui-life-prose-empty {
+    @apply text-base text-text-muted;
+  }
+  /* A tappable value that edits in place: no box until it is tapped. */
+  .ui-life-editable {
+    @apply -mx-2 block w-[calc(100%+1rem)] rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-raised;
+  }
+  /* The detail sheet: header, body, and the actions as full-width rows. */
+  .ui-detail-sheet-head {
+    @apply flex items-start gap-3 px-5 pb-2 pt-5;
+  }
+  .ui-detail-sheet-title {
+    @apply text-lg font-semibold leading-snug text-text-primary;
+  }
+  .ui-detail-sheet-sub {
+    @apply mt-0.5 text-sm text-text-secondary;
+  }
+  .ui-detail-sheet-body {
+    @apply space-y-5 px-5 pb-5 pt-2;
+  }
+  .ui-detail-sheet-actions {
+    @apply -mx-2 flex flex-col;
+  }
+  .ui-detail-sheet-action {
+    @apply flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-left text-base text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-40;
+  }
+  /* Its icon is one size whoever drew it: LokiDispatchButton and DeleteButton
+     bring their own 12–14px glyph classes, which would otherwise win. The
+     row starts at the left even when the button is DeleteButton's centred
+     trigger. */
+  .ui-detail-sheet-action {
+    justify-content: flex-start;
+  }
+  .ui-detail-sheet-action svg {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    @apply shrink-0 text-text-secondary;
+  }
+  .ui-detail-sheet-action-danger,
+  .ui-detail-sheet-action-danger svg {
+    @apply text-status-negative;
+  }
+  /* Settings. On a phone the page is a list of sections (iOS / Claude
+     settings); one opens with a back row above it. From lg the list is the
+     left rail. Inside a section, the old bordered boxes are flattened: a
+     section is its heading and its rows, separated by a hairline. */
+  .ui-settings-back {
+    @apply -ml-2 mb-2 inline-flex min-h-11 items-center gap-1 rounded-full pl-1 pr-3 text-base text-text-secondary transition-colors hover:text-text-primary;
+  }
+  .ui-settings-pane .ui-settings-section,
+  .ui-settings-pane .ui-settings-subpanel {
+    @apply rounded-none border-0 bg-transparent p-0 sm:p-0;
+    box-shadow: none;
+  }
+  .ui-settings-pane .ui-settings-section + .ui-settings-section,
+  .ui-settings-pane > div > * + .ui-settings-section {
+    @apply border-t border-border-subtle pt-6;
+  }
+  .ui-settings-pane .ui-settings-subpanel {
+    @apply border-t border-border-subtle pt-4;
+  }
+  /* A row that was drawn as a small card inside a section (a member, an
+     invitation, a key) reads as a row: a hairline above it, no box. */
+  .ui-settings-pane .ui-card-shell,
+  .ui-settings-pane .ui-list-item {
+    @apply rounded-none border-0 border-t border-border-subtle bg-transparent;
+    box-shadow: none;
+  }
+  .ui-settings-pane .ui-settings-section > h2,
+  .ui-settings-pane .ui-settings-section > div > h2,
+  .ui-settings-pane .ui-settings-section h2.ui-kicker {
+    font-size: var(--text-section);
+    @apply font-semibold normal-case tracking-normal text-text-primary;
+  }
+  /* A choice in Settings: one row each, a check on the chosen one. */
+  .ui-settings-choice {
+    @apply flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-raised disabled:opacity-60;
+  }
+  .ui-settings-choice-title {
+    @apply block text-base text-text-primary;
+  }
+  .ui-settings-choice-note {
+    @apply block text-sm text-text-secondary;
   }
 
   /* Misc */
@@ -8298,11 +8380,6 @@
   .ui-loki-suggest-chip {
     @apply inline-flex min-h-9 shrink-0 items-center rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-8;
   }
-  /* Drawer scroll body — safe-area padding on phones */
-  .ui-drawer-body {
-    @apply min-h-0 flex-1 overflow-y-auto;
-    padding-bottom: max(1rem, var(--mobile-safe-bottom));
-  }
   /* Grok-style voice overlay — covers the composer while recording/transcribing:
      a live waveform, elapsed timer, and cancel/confirm. */
   /* Staggered, uneven delays so the row reads as an organic waveform, not a
@@ -8660,7 +8737,6 @@
   .ui-btn-primary,
   .ui-btn-secondary,
   .ui-btn-ghost,
-  .ui-btn-add,
   .ui-btn-add-success,
   .ui-btn-confirm,
   .ui-btn-confirm-sm,
@@ -8682,7 +8758,6 @@
   .ui-chip-toggle-compact,
   .ui-chip-toggle-compact-active,
   .ui-link-subtle,
-  .ui-tab,
   .ui-page-back,
   .ui-health-chip-interactive,
   .ui-sidebar-utility,

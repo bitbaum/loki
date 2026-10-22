@@ -87,7 +87,7 @@ export function DetailAttrs({
   return (
     <Section title="Details">
       {detailAttrs.map(([key, value]) => (
-        <div key={key} className="group flex justify-between gap-3 ui-list-row">
+        <div key={key} className="group flex justify-between gap-3 ui-person-row">
           <span className="shrink-0 text-text-secondary">{formatKey(key)}</span>
           {editingKey === key ? (
             <div className="flex flex-1 flex-col items-end gap-1">
@@ -106,18 +106,14 @@ export function DetailAttrs({
                     }
                   }}
                   autoFocus
-                  className="min-w-0 flex-1 rounded-lg border border-border-default bg-surface-overlay px-2 py-1 text-right text-xs text-text-primary outline-none transition-colors focus:border-accent-primary"
+                  className="min-w-0 flex-1 ui-input text-right"
                 />
                 <button
                   onClick={() => saveEdit(key)}
                   disabled={saving}
                   className="ui-btn-icon-accent p-1"
                 >
-                  {saving ? (
-                    <Loader2 className="ui-spinner-2xs" />
-                  ) : (
-                    <Save className="h-2.5 w-2.5" />
-                  )}
+                  {saving ? <Loader2 className="ui-spinner-sm" /> : <Save className="h-4 w-4" />}
                 </button>
                 <button
                   onClick={() => {
@@ -126,7 +122,7 @@ export function DetailAttrs({
                   }}
                   className="shrink-0 ui-btn-icon"
                 >
-                  <X className="h-2.5 w-2.5" />
+                  <X className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => deleteAttr(key)}
@@ -135,9 +131,9 @@ export function DetailAttrs({
                   title="Delete attribute"
                 >
                   {deletingKey === key ? (
-                    <Loader2 className="ui-spinner-2xs" />
+                    <Loader2 className="ui-spinner-sm" />
                   ) : (
-                    <Trash2 className="h-2.5 w-2.5" />
+                    <Trash2 className="h-4 w-4" />
                   )}
                 </button>
               </div>
@@ -156,13 +152,13 @@ export function DetailAttrs({
                 }}
                 className="shrink-0 ui-hover-reveal ui-btn-icon"
               >
-                <Pencil className="h-2.5 w-2.5" />
+                <Pencil className="h-4 w-4" />
               </button>
             </div>
           )}
         </div>
       ))}
-      {detailAttrs.length === 0 && !addingNew && <EmptyState>No details yet</EmptyState>}
+      {detailAttrs.length === 0 && !addingNew && <EmptyState>Nothing else noted.</EmptyState>}
       {addingNew ? (
         <div className="space-y-1 pt-0.5">
           <div className="flex items-center gap-1.5">
@@ -172,8 +168,8 @@ export function DetailAttrs({
                 setNewKey(e.target.value);
                 setSaveError(null);
               }}
-              placeholder="key"
-              className="w-20 ui-input-tight"
+              placeholder="What"
+              className="w-28 ui-input"
             />
             <input
               value={newValue}
@@ -181,7 +177,7 @@ export function DetailAttrs({
                 setNewValue(e.target.value);
                 setSaveError(null);
               }}
-              placeholder="value"
+              placeholder="Value"
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveNew();
                 if (e.key === "Escape") {
@@ -192,7 +188,7 @@ export function DetailAttrs({
                 }
               }}
               autoFocus
-              className="flex-1 ui-input-tight"
+              className="flex-1 ui-input"
             />
             <button
               onClick={saveNew}
@@ -216,8 +212,8 @@ export function DetailAttrs({
           {saveError && <p className="ui-error-xs">{saveError}</p>}
         </div>
       ) : (
-        <button onClick={() => setAddingNew(true)} className="ui-btn-add mt-0.5">
-          <Plus className="h-3 w-3" /> Add detail
+        <button onClick={() => setAddingNew(true)} className="ui-life-add">
+          <Plus className="h-4 w-4" /> Add a detail
         </button>
       )}
     </Section>

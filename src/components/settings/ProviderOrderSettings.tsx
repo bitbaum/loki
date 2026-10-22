@@ -68,11 +68,10 @@ export function ProviderOrderSettings({ initialPrefs }: { initialPrefs: UserPref
   return (
     <section className="ui-settings-section">
       <div className="space-y-1">
-        <h2 className="text-sm font-medium text-text-primary">Provider order</h2>
-        <p className="text-xs text-text-secondary">
-          When the agent building a project hits a rate limit, “Try next provider” walks this list
-          from the top and offers the first one that can actually answer — installed on your
-          builder, and not itself out of quota.
+        <h2 className="text-base font-semibold text-text-primary">Which agent goes next</h2>
+        <p className="text-sm text-text-secondary">
+          When the agent building a project runs out for the day, Loki offers the next one on this
+          list that is installed and still has some left.
         </p>
       </div>
 
@@ -80,9 +79,8 @@ export function ProviderOrderSettings({ initialPrefs }: { initialPrefs: UserPref
         {order.map((id, i) => (
           <li key={id} className="ui-list-item">
             <span className="flex min-w-0 items-baseline gap-2">
-              <span className="text-micro text-text-muted">{i + 1}</span>
-              <span className="truncate text-sm text-text-primary">{providerLabel(id)}</span>
-              {i === 0 && <span className="ui-badge shrink-0">first choice</span>}
+              <span className="text-sm text-text-tertiary">{i + 1}</span>
+              <span className="truncate text-base text-text-primary">{providerLabel(id)}</span>
             </span>
             <span className="flex shrink-0 items-center gap-1">
               <button
@@ -112,7 +110,12 @@ export function ProviderOrderSettings({ initialPrefs }: { initialPrefs: UserPref
 
       {error && <p className="ui-error">{error}</p>}
       <div className="flex items-center gap-3">
-        <button type="button" onClick={save} disabled={!dirty || saving} className="ui-btn-save">
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty || saving}
+          className="ui-btn-secondary"
+        >
           {saving ? <Loader2 className="ui-spinner-xs" /> : null}
           Save order
         </button>

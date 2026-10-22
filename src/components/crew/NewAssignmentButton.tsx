@@ -24,7 +24,9 @@ export function NewAssignmentButton({
   defaultAssigneeId,
   defaultOpen,
   triggerLabel,
+  trigger,
   onCreated,
+  onDismiss,
 }: {
   crew: CrewMember[];
   projects: ProjectOption[];
@@ -32,7 +34,11 @@ export function NewAssignmentButton({
   /** Opens straight into the form — used by the roster's "Assign work". */
   defaultOpen?: boolean;
   triggerLabel?: string;
+  /** See ModalForm: "page-action" for the page's one action, "none" when opened from a row. */
+  trigger?: "button" | "page-action" | "secondary" | "none";
   onCreated?: () => void;
+  /** Called whenever the form closes, saved or not. */
+  onDismiss?: () => void;
 }) {
   const form = useAiForm({
     target: ASSIGNMENT_FORM.key,
@@ -50,6 +56,7 @@ export function NewAssignmentButton({
   const onReset = () => {
     form.reset();
     setError(null);
+    onDismiss?.();
   };
 
   const onSubmit = async () => {
@@ -74,8 +81,9 @@ export function NewAssignmentButton({
 
   return (
     <ModalForm
-      triggerLabel={triggerLabel ?? "New assignment"}
-      title="Assign work to a human"
+      trigger={trigger}
+      triggerLabel={triggerLabel ?? "New ask"}
+      title="Ask someone to do something"
       defaultOpen={defaultOpen}
       submitLabel="Save as draft"
       savingLabel="Saving…"

@@ -30,6 +30,8 @@ import { cn } from "@/lib/utils";
  * - `menu` is the row's own `…` (usually <RowActions>), for the actions that
  *   are not the row's main one. It sits above the row's link, so it never
  *   opens the row by accident.
+ * - `control` replaces the leading icon with a control that is its own action
+ *   (a habit's check-off): like `menu`, it sits above the row's link.
  */
 export function List({
   children,
@@ -62,6 +64,7 @@ export function ListRow({
   chevron = false,
   menu,
   external = false,
+  control,
   className,
 }: {
   /** The row opens this page. */
@@ -85,6 +88,8 @@ export function ListRow({
   chevron?: boolean;
   /** The row's own `…` menu. */
   menu?: React.ReactNode;
+  /** A leading control with its own action, in place of `icon`/`avatar`. */
+  control?: React.ReactNode;
   className?: string;
 }) {
   const interactive = !!href || !!onClick;
@@ -109,10 +114,14 @@ export function ListRow({
 
   return (
     <li className={cn("ui-listrow", interactive && "ui-listrow-interactive", className)}>
-      {(Icon || avatar) && (
-        <span className={cn("ui-listrow-lead", avatar && "ui-listrow-avatar")} aria-hidden>
-          {avatar ?? (Icon && <Icon className="h-5 w-5" />)}
-        </span>
+      {control ? (
+        <span className="ui-listrow-control">{control}</span>
+      ) : (
+        (Icon || avatar) && (
+          <span className={cn("ui-listrow-lead", avatar && "ui-listrow-avatar")} aria-hidden>
+            {avatar ?? (Icon && <Icon className="h-5 w-5" />)}
+          </span>
+        )
       )}
       <div className="ui-listrow-main">
         <div className="ui-listrow-text">

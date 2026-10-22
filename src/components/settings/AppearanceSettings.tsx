@@ -1,23 +1,37 @@
 "use client";
 
-import { ThemeToggle } from "@/components/shell/ThemeToggle";
-import { APP_NAME } from "@/config/brand";
+import { useSyncExternalStore } from "react";
+import { useTheme } from "next-themes";
+import { Segmented } from "@/components/ui/segmented";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { THEME_OPTIONS } from "@/components/shell/ThemeToggle";
 
+const MEANS: Record<string, string> = {
+  light: "Light, whatever the time of day.",
+  dark: "Dark, whatever the time of day.",
+  system: "Follows your phone or computer. Remembered in this browser only.",
+};
+
+const noop = () => () => {};
+
+/** Settings → Appearance: one row of three, what the chosen one means under it. */
 export function AppearanceSettings() {
+  const { theme, setTheme } = useTheme();
+  // The theme is only known in the browser; until then nothing is marked.
+  const mounted = useSyncExternalStore(
+    noop,
+    () => true,
+    () => false,
+  );
   return (
-    <div className="space-y-6">
-      <div className="ui-settings-section">
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary">Theme</h2>
-          <p className="mt-1 text-sm text-text-tertiary">
-            Choose how {APP_NAME} looks. Auto follows your OS preference. The same control sits in
-            the account menu — your avatar, top right — if you want it while working. This choice is
-            remembered in this browser, so a different device starts on Dark until you choose there
-            too.
-          </p>
-        </div>
-        <ThemeToggle variant="select" />
-      </div>
-    </div>
+    <section className="ui-settings-section">
+      <SectionHeading title="Theme" />
+      <Segmented
+        label="Theme"
+        options={THEME_OPTIONS.map((o) => ({ id: o.value, label: o.label, means: MEANS[o.value] }))}
+        value={mounted ? (theme ?? "system") : null}
+        onChange={setTheme}
+      />
+    </section>
   );
 }

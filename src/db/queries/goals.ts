@@ -48,6 +48,8 @@ export type GoalWithChildren = {
   milestones: Milestone[] | null;
   entityId: string | null;
   entityName: string | null;
+  /** The project's title, when it has one — say this, not the folder name. */
+  entityTitle?: string | null;
   children: GoalWithChildren[];
 };
 
@@ -194,6 +196,7 @@ export async function getGoals(userId: string): Promise<GoalWithChildren[]> {
       parentGoalId: goals.parentGoalId,
       entityId: goals.entityId,
       entityName: entities.name,
+      entityTitle: entities.title,
     })
     .from(goals)
     // Defense-in-depth: even if a goal somehow points to another tenant's
@@ -224,6 +227,7 @@ export async function getGoals(userId: string): Promise<GoalWithChildren[]> {
       milestones: g.milestones as GoalWithChildren["milestones"],
       entityId: g.entityId,
       entityName: g.entityName ?? null,
+      entityTitle: g.entityTitle ?? null,
       children: buildTree(g.id),
     }));
   }

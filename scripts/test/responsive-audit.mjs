@@ -272,6 +272,7 @@ export const NOT_MEASURED = {
   "/projects/[id]/watch": "needs a project id (with a run) from the audited environment's database",
   "/atlas/[projectId]": "needs a project id from the audited environment's database",
   "/people/[id]": "needs a person id from the private zone",
+  "/goals/[id]": "needs a goal id from the private zone",
   "/robots/[id]": "needs an agent id from the audited environment",
   "/a/[token]": "needs a live action token from a dispatched approval",
   "/invite/[token]": "needs a live invitation token",

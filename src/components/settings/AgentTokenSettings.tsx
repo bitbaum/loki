@@ -115,13 +115,13 @@ export function AgentTokenSettings() {
 
   return (
     <section className="ui-settings-section">
-      <h2 className="font-medium text-text-primary">Agent Tokens</h2>
+      <h2 className="font-medium text-text-primary">Your computer</h2>
       <p className="text-sm text-text-tertiary">
-        Preferred: install the native{" "}
+        To let agents work on your own computer, install the{" "}
         <a href="/download" className="underline">
-          Fleet Runner desktop app
-        </a>{" "}
-        (the authoritative local runtime). Legacy runner installer below for transition / headless.
+          Fleet Runner app
+        </a>
+        . On a machine with no screen, the command below does the same.
       </p>
       <div className="flex items-center gap-2">
         <code className="flex-1 break-all rounded-lg bg-surface-raised px-3 py-2 font-mono text-xs text-text-secondary">
@@ -191,7 +191,7 @@ export function AgentTokenSettings() {
           {insideFleetRunner && autoPaired?.tokenId === revealed.id ? (
             <div className="self-start inline-flex items-center gap-1.5 rounded-md bg-status-positive-subtle px-3 py-1.5 text-xs text-status-positive">
               <Cpu className="h-3.5 w-3.5" />
-              <span>Paired with this Fleet Runner — runner connecting now.</span>
+              <span>Paired with this computer. It is connecting now.</span>
             </div>
           ) : insideFleetRunner ? (
             <div className="space-y-1 self-start">

@@ -46,7 +46,7 @@ export function ProgressInput({
           if (e.key === "Escape") ie.cancel();
         }}
         autoFocus
-        className="ui-input-inline border-border-strong w-12 px-1.5 py-0.5 text-xs text-text-primary text-right"
+        className="ui-input w-24 text-right"
       />
     );
   }
@@ -54,7 +54,7 @@ export function ProgressInput({
   return (
     <button
       onClick={() => ie.start(String(initial))}
-      className="ui-link-subtle tabular-nums"
+      className="ui-tap text-base tabular-nums text-text-primary"
       title="Click to edit progress"
     >
       {initial}%
@@ -100,7 +100,7 @@ export function DateInput({
           if (e.key === "Escape") ie.cancel();
         }}
         autoFocus
-        className="ui-input-inline border-border-strong px-1.5 py-0.5 text-xs text-text-secondary"
+        className="ui-input w-auto"
       />
     );
   }
@@ -110,24 +110,28 @@ export function DateInput({
       <div className="flex items-center gap-1">
         <button
           onClick={() => ie.start(toDateStr(initial))}
-          className={`text-xs transition-colors hover:text-text-secondary ${overdue ? "text-status-negative" : "text-text-tertiary"}`}
+          className={`ui-tap text-base transition-colors hover:text-text-primary ${overdue ? "text-status-warning" : "text-text-primary"}`}
           title="Click to change deadline"
         >
           {deadlineText}
         </button>
         <button
           onClick={() => commit("")}
-          className="text-text-muted hover:text-text-secondary transition-colors ui-hover-reveal"
+          className="ui-btn-icon text-text-muted"
           title="Clear deadline"
         >
-          <X className="h-2.5 w-2.5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
     );
   }
 
   return (
-    <button onClick={() => ie.start("")} className="ui-link-muted" title="Set deadline">
+    <button
+      onClick={() => ie.start("")}
+      className="ui-tap text-base text-text-secondary"
+      title="Set deadline"
+    >
       Set deadline
     </button>
   );
