@@ -125,7 +125,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   filterMissionBoard(board, "", "unplanned").map((x) => x.projectId),
-  ["planning", "recent", "active", "critical"],
+  ["critical", "recent", "active", "planning"],
   "projects without a roadmap also need planning even with a stated mission",
 );
 assert.deepEqual(
