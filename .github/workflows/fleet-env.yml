@@ -48,6 +48,6 @@ jobs:
           set -euo pipefail
           BOX="ubuntu@$HETZNER_IP"
           SSH="ssh -o BatchMode=yes -i $HOME/.ssh/id_deploy"
-          $SSH "$BOX" 'sudo install -d -m 0755 /opt/fleet && sudo install -d -m 0755 -o ubuntu -g ubuntu /opt/fleet/bin'
+          $SSH "$BOX" 'sudo mkdir -p /opt/fleet/bin && sudo chown ubuntu:ubuntu /opt/fleet /opt/fleet/bin'
           scp -q -o BatchMode=yes -i ~/.ssh/id_deploy scripts/hetzner/fleet-env.sh scripts/hetzner/fleet-keys.conf "$BOX:/opt/fleet/bin/"
-          $SSH "$BOX" "test -f /opt/fleet/env || { sudo install -m 600 -o ubuntu -g ubuntu /dev/null /opt/fleet/env; }; bash /opt/fleet/bin/fleet-env.sh $ACTION"
+          $SSH "$BOX" "test -f /opt/fleet/env || { touch /opt/fleet/env && chmod 600 /opt/fleet/env; }; bash /opt/fleet/bin/fleet-env.sh $ACTION"
