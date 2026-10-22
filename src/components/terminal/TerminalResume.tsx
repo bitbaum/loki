@@ -6,6 +6,8 @@ import { postJson } from "@/lib/api/fetch";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import type { TerminalLaunchProject } from "@/app/api/terminal/context/route";
 import { nextSessionTab } from "@/lib/run-tab";
+import { projectTitle } from "@/lib/project-display";
+import { List, ListRow, RowInitial } from "@/components/ui/list-row";
 
 /** Names a second session's copy of the project. randomUUID exists only in
  *  a secure context, so plain http (a preview, a test) gets a random string. */
@@ -93,43 +95,39 @@ export function TerminalResume({
     return (
       <p className="ui-term-resume-opening" role="status">
         <Loader2 className="ui-spinner h-4 w-4 shrink-0" aria-hidden="true" />
-        Opening {opening} — the session appears here in a moment.
+        Opening {projectTitle({ name: opening })}…
       </p>
     );
   }
 
   return (
     <div className="ui-term-resume">
-      <ul className="ui-term-resume-list" aria-label="Your projects">
+      <List aria-label="Your projects">
         {ordered.map((p) => {
           const agent = agentFor(p);
-          const resumes = canResume(agent);
+          const verb = canResume(agent) ? "Resume" : "Start";
+          const name = projectTitle(p);
           return (
-            <li key={p.name}>
-              <button
-                type="button"
-                className="ui-term-resume-row"
-                onClick={() => void open(p)}
-                aria-label={`${resumes ? "Resume" : "Start"} ${p.name}`}
-              >
-                <span className="min-w-0 flex-1 text-left">
-                  <span className="ui-term-resume-name">{p.name}</span>
-                  <span className="ui-term-resume-detail">
-                    {resumes
-                      ? `${labelOf(agent)} · your last conversation`
-                      : `${labelOf(agent)} · a new session`}
-                  </span>
-                </span>
-                <span className="ui-term-resume-go">{resumes ? "Resume" : "Start"}</span>
-              </button>
-            </li>
+            <ListRow
+              key={p.name}
+              onClick={() => void open(p)}
+              label={`${verb} ${name}`}
+              avatar={<RowInitial name={name} />}
+              title={name}
+              secondary={
+                verb === "Resume"
+                  ? `${labelOf(agent)} · where you left off`
+                  : `${labelOf(agent)} · a new session`
+              }
+              trailing={<span className="ui-term-resume-go">{verb}</span>}
+            />
           );
         })}
-      </ul>
-      {error && <p className="ui-error text-center">{error}</p>}
+      </List>
+      {error && <p className="ui-error">{error}</p>}
       {onAllProjects && (
-        <button type="button" className="ui-btn-ghost min-h-11 self-center" onClick={onAllProjects}>
-          All projects, or another agent
+        <button type="button" className="ui-btn-ghost min-h-11 self-start" onClick={onAllProjects}>
+          Another project
         </button>
       )}
     </div>

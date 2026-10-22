@@ -17,13 +17,16 @@
 // while closed. The words are SSOT in lib/session-list.
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { Check, ChevronRight, Search, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import { getJson } from "@/lib/api/fetch";
 import type { SessionSnapshot, SessionSnapshotItem } from "@/app/api/sessions/snapshot/route";
 import { useOverlayLock } from "@/hooks/use-overlay-lock";
 import { NAV } from "@/config/navigation";
+import { projectTitle } from "@/lib/project-display";
+import { List, ListRow, ListSearch, RowInitial } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const POLL_INTERVAL_MS = 30_000;
 /** Projects listed under "Start in another project" before "Show all". */
@@ -96,21 +99,22 @@ export function SessionsDrawer({ open, onClose }: { open: boolean; onClose: () =
   if (!open) return null;
 
   const needle = query.trim().toLowerCase();
-  const matching = needle ? others.filter((p) => p.name.toLowerCase().includes(needle)) : others;
+  const matching = needle
+    ? others.filter((p) => `${p.name} ${projectTitle(p)}`.toLowerCase().includes(needle))
+    : others;
   const shown = needle || showAll ? matching : matching.slice(0, OTHERS_SHOWN);
   const here = currentTab();
 
   return (
     <>
       <div className="fixed inset-0 z-40 ui-backdrop" onClick={onClose} aria-hidden />
-      <aside className="ui-sessions" role="dialog" aria-label="Sessions">
+      <aside className="ui-sessions" role="dialog" aria-labelledby="sessions-title">
         <header className="ui-sessions-head">
-          <div className="min-w-0 flex-1">
-            <h2 className="ui-sessions-title">Sessions</h2>
-            <p className="ui-sessions-sub">Where each project&apos;s agent works with you</p>
-          </div>
-          <button type="button" onClick={onClose} className="ui-btn-icon" aria-label="Close">
-            <X className="h-4 w-4" />
+          <h2 id="sessions-title" className="ui-sessions-title">
+            Sessions
+          </h2>
+          <button type="button" onClick={onClose} className="ui-topbar-btn" aria-label="Close">
+            <X className="h-5 w-5" />
           </button>
         </header>
 
@@ -119,96 +123,79 @@ export function SessionsDrawer({ open, onClose }: { open: boolean; onClose: () =
           {!snapshot && !error && <p className="ui-sessions-note">Loading…</p>}
 
           {snapshot && (
-            <section aria-labelledby="sessions-open">
-              <h3 id="sessions-open" className="ui-sessions-label">
-                Open now{openNow.length > 0 ? ` · ${openNow.length}` : ""}
-              </h3>
+            <Section title="Open now">
               {openNow.length === 0 ? (
-                <p className="ui-sessions-note">
-                  No agent is open right now. Pick a project below and its agent starts.
-                </p>
+                <EmptyState>Nothing is open. Pick a project below to start it.</EmptyState>
               ) : (
-                <ul className="ui-sessions-list">
+                <List>
                   {openNow.map((p) => {
                     const s = p.session.open ? p.session : null;
                     const current =
                       here !== null &&
                       (p.tab?.toLowerCase() === here || p.name.toLowerCase() === here);
                     return (
-                      <li key={p.id}>
-                        <Link
-                          href={sessionHref(p)}
-                          onClick={onClose}
-                          className="ui-sessions-row"
-                          aria-current={current ? "page" : undefined}
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="ui-sessions-name">{p.name}</span>
-                            <span className="ui-sessions-line">
-                              {s?.status === "working" && (
-                                <span
-                                  className="ui-term-live-dot ui-term-status-working"
-                                  aria-hidden="true"
-                                />
-                              )}
-                              <span className="truncate">{s?.line}</span>
-                            </span>
+                      <ListRow
+                        key={p.id}
+                        href={sessionHref(p)}
+                        onClick={onClose}
+                        avatar={<RowInitial name={projectTitle(p)} />}
+                        title={projectTitle(p)}
+                        secondary={
+                          <span className="inline-flex min-w-0 items-center gap-1.5">
+                            {s?.status === "working" && (
+                              <span
+                                className="ui-term-live-dot ui-term-status-working"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className="truncate">{s?.line}</span>
                           </span>
-                          {current ? (
-                            <Check className="h-4 w-4 shrink-0" aria-label="You are here" />
-                          ) : (
-                            <ChevronRight className="ui-sessions-chev" aria-hidden="true" />
-                          )}
-                        </Link>
-                      </li>
+                        }
+                        trailing={
+                          current ? (
+                            <Check
+                              className="h-5 w-5 text-text-primary"
+                              aria-label="You are here"
+                            />
+                          ) : undefined
+                        }
+                        chevron={!current}
+                      />
                     );
                   })}
-                </ul>
+                </List>
               )}
-            </section>
+            </Section>
           )}
 
           {snapshot && others.length > 0 && (
-            <section aria-labelledby="sessions-others">
-              <h3 id="sessions-others" className="ui-sessions-label">
-                Start in another project
-              </h3>
+            <Section title="Start another project">
               {others.length > OTHERS_SHOWN && (
-                <label className="relative block">
-                  <Search className="ui-sessions-search-icon" aria-hidden="true" />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Find a project"
-                    aria-label="Find a project"
-                    className="ui-sessions-search"
-                  />
-                </label>
+                <ListSearch value={query} onChange={setQuery} placeholder="Find a project" />
               )}
               {shown.length === 0 ? (
-                <p className="ui-sessions-note">No project matches “{query.trim()}”.</p>
+                <EmptyState>No project matches “{query.trim()}”.</EmptyState>
               ) : (
-                <ul className="ui-sessions-list">
+                <List>
                   {shown.map((p) => {
                     const last = p.session.open ? null : p.session.lastWorkedAt;
                     return (
-                      <li key={p.id}>
-                        <Link href={sessionHref(p)} onClick={onClose} className="ui-sessions-row">
-                          <span className="min-w-0 flex-1">
-                            <span className="ui-sessions-name">{p.name}</span>
-                            <span className="ui-sessions-line">
-                              {last
-                                ? `Agent last worked ${timeAgo(new Date(last).getTime())}`
-                                : "No agent has worked here yet"}
-                            </span>
-                          </span>
-                          <ChevronRight className="ui-sessions-chev" aria-hidden="true" />
-                        </Link>
-                      </li>
+                      <ListRow
+                        key={p.id}
+                        href={sessionHref(p)}
+                        onClick={onClose}
+                        avatar={<RowInitial name={projectTitle(p)} />}
+                        title={projectTitle(p)}
+                        secondary={
+                          last
+                            ? `Last worked ${timeAgo(new Date(last).getTime())}`
+                            : "Not started yet"
+                        }
+                        chevron
+                      />
                     );
                   })}
-                </ul>
+                </List>
               )}
               {!needle && !showAll && matching.length > OTHERS_SHOWN && (
                 <button
@@ -219,7 +206,7 @@ export function SessionsDrawer({ open, onClose }: { open: boolean; onClose: () =
                   Show all {matching.length}
                 </button>
               )}
-            </section>
+            </Section>
           )}
         </div>
       </aside>

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { TerminalPageClient } from "@/components/terminal/TerminalPageClient";
-import { PageTitle } from "@/components/ui/page-title";
+import { PageHead, PageTitle } from "@/components/ui/page-title";
 import { isRuntimeAvailable } from "@/lib/runtime";
-import { EXECUTOR_COPY } from "@/config/executor-copy";
 
 export const metadata: Metadata = { title: "Sessions" };
 
@@ -19,17 +18,15 @@ export default function TerminalPage() {
       data-fc-place="tab"
       className="app-page app-page-compact app-viewport-pane flex flex-col gap-3 md:gap-4"
     >
-      {/* Mobile-hidden: the top bar already names the page on a phone, and
-          this block would only add the parent flex gap above a pane fighting
-          for every row. From sm the h1 names what the page IS — "Sessions"
-          alone read as a heading for a list, not live agents at work (owner,
-          2026-10-20). */}
-      <div className="ui-page-header hidden sm:flex">
-        <div>
-          <PageTitle title="Live Terminal – AI Agent Sessions" />
-          <p className="ui-page-subtitle">{EXECUTOR_COPY.terminal.pageSubtitle}</p>
+      {/* The page's one title, named as the nav names it. On a phone the top
+          bar already says "Sessions", so it is read there, not drawn. It
+          used to be "Live Terminal – AI Agent Sessions" over a sentence
+          explaining the page (design reset rules 1 and 2). */}
+      <PageHead title="Sessions" onlyTitle>
+        <div className="ui-page-header">
+          <PageTitle title="Sessions" />
         </div>
-      </div>
+      </PageHead>
       <Suspense
         fallback={<div className="ui-empty-page text-sm text-text-muted">Loading sessions…</div>}
       >

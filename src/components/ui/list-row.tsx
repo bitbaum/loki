@@ -62,10 +62,12 @@ export function ListRow({
   chevron = false,
   menu,
   className,
+  label,
 }: {
   /** The row opens this page. */
   href?: string;
-  /** Or the row does this. Ignored when `href` is set. */
+  /** Or the row does this. With `href` it runs as the link is followed
+   *  (to record the tap), and the link still navigates. */
   onClick?: () => void;
   /** Leading icon (20px, secondary ink). */
   icon?: LucideIcon;
@@ -83,15 +85,28 @@ export function ListRow({
   /** The row's own `…` menu. */
   menu?: React.ReactNode;
   className?: string;
+  /** The row's accessible name, when the title alone does not say what a tap
+   *  does ("Resume loki" for a row titled "loki"). */
+  label?: string;
 }) {
   const interactive = !!href || !!onClick;
   const titleNode = <span className="ui-listrow-title">{title}</span>;
   const hit = href ? (
-    <Link href={href} className="ui-listrow-hit ui-listrow-title">
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-label={label}
+      className="ui-listrow-hit ui-listrow-title"
+    >
       {title}
     </Link>
   ) : onClick ? (
-    <button type="button" onClick={onClick} className="ui-listrow-hit ui-listrow-title">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="ui-listrow-hit ui-listrow-title"
+    >
       {title}
     </button>
   ) : (

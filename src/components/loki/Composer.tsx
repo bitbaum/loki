@@ -11,6 +11,7 @@ import {
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
 import type { SiteContext } from "@/hooks/use-site-handoff";
 import { Composer } from "@/components/composer/Composer";
+import { projectTitle } from "@/lib/project-display";
 import { readLokiDraft, writeLokiDraft } from "@/lib/loki/draft";
 import type { Attachment, LokiProject, ModelChoice } from "./types";
 
@@ -127,7 +128,11 @@ export function LokiComposer({
   // Starters belong on an empty thread. Mid-conversation the project chips
   // (Move forward / Review / Fix tests) stay one tap away on wider screens, but
   // on a phone they were a full row taken from the transcript every turn.
-  const chips = showStarters || selectedProjects.length > 0 ? allChips : [];
+  // With projects and none chosen, the empty chat's rows ("Build next") are
+  // the openers and the Project button is the scope: three generic chips over
+  // the box said the same things a third time (owner, 2026-10-21). With no
+  // project yet, "New project" / "Import" are the way in, so they stay.
+  const chips = selectedProjects.length > 0 || (showStarters && projectCount === 0) ? allChips : [];
   const chipsPhoneHidden = !showStarters;
 
   // The carried-in context goes with the first message, then is spent.
@@ -165,7 +170,7 @@ export function LokiComposer({
   const placeholder = context
     ? "What should Loki do with this?"
     : scopedProject
-      ? `Ask, or send work to ${scopedProject}…`
+      ? `Ask, or send work to ${projectTitle({ name: scopedProject })}…`
       : selectedProjects.length > 1
         ? `Ask, or send work to ${selectedProjects.length} projects…`
         : projectCount === 0
@@ -252,10 +257,10 @@ export function LokiComposer({
               onClick={onOpenProjects}
               title="Change project scope"
             >
-              {project}
+              {projectTitle({ name: project })}
             </button>
           ) : (
-            <span className="truncate">{project}</span>
+            <span className="truncate">{projectTitle({ name: project })}</span>
           )}
           {onRemoveProject && (
             <button

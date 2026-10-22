@@ -15,6 +15,7 @@ import {
   SquarePen,
 } from "lucide-react";
 import { ThreadTitle } from "./ThreadTitle";
+import { projectTitle } from "@/lib/project-display";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 
 /**
@@ -57,12 +58,12 @@ export function ThreadHeader({
   const close = useCallback(() => setMenuOpen(false), []);
   useEscapeToClose(close, !menuOpen);
 
-  const subtitle =
-    projects.length === 0
-      ? "No project — answers only"
-      : projects.length === 1
-        ? projects[0]
-        : `${projects[0]} +${projects.length - 1} more`;
+  const first = projects[0] ? projectTitle({ name: projects[0] }) : null;
+  const subtitle = !first
+    ? "No project"
+    : projects.length === 1
+      ? first
+      : `${first} and ${projects.length - 1} more`;
 
   const item = (label: string, Icon: typeof History, run: () => void) => (
     <button

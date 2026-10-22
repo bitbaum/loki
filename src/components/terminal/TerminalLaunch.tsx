@@ -6,6 +6,7 @@ import { postJson } from "@/lib/api/fetch";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import type { TerminalLaunchProject } from "@/app/api/terminal/context/route";
 import { MAX_PARALLEL_LANES_PER_PROJECT, nextSessionTab, sessionsOfProject } from "@/lib/run-tab";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * Start an agent from the empty session view, in place.
@@ -138,10 +139,7 @@ export function TerminalLaunch({
           : "flex w-full flex-col gap-3 text-left"
       }
     >
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">Start an agent</h2>
-        <p className="text-xs text-text-muted">Choose a project and agent for this session.</p>
-      </div>
+      <h2 className="ui-section-heading">New session</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
           <span className="ui-micro-label">Project</span>
@@ -153,7 +151,7 @@ export function TerminalLaunch({
           >
             {projects.map((p) => (
               <option key={p.name} value={p.name}>
-                {p.name}
+                {projectTitle(p)}
               </option>
             ))}
           </select>
@@ -177,8 +175,8 @@ export function TerminalLaunch({
       {running.length > 0 && (
         <p className="text-xs text-text-secondary">
           {full
-            ? `“${projectName}” already has ${running.length} sessions, the most one project runs at once. Close one to start another.`
-            : `“${projectName}” already has a session. Another one works in its own copy of the project, so the two never get in each other’s way.`}
+            ? `${projectTitle({ name: projectName })} already has ${running.length} sessions, the most one project runs at once. Close one to start another.`
+            : `${projectTitle({ name: projectName })} already has a session. Another one works in its own copy, so the two never get in each other’s way.`}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
@@ -189,9 +187,7 @@ export function TerminalLaunch({
           disabled={busy || !project || !agentId || full}
         >
           {busy ? <Loader2 className="ui-spinner" /> : <Play className="h-3.5 w-3.5" />}
-          {running.length > 0
-            ? "Start another session"
-            : `Start agent on ${channel === "cloud" ? "Cloud builder" : "your computer"}`}
+          {running.length > 0 ? "Start another session" : "Start"}
         </button>
         {running.length > 0 && onOpenSession ? (
           <button
@@ -201,11 +197,7 @@ export function TerminalLaunch({
           >
             Go to its session
           </button>
-        ) : (
-          <span className="text-xs text-text-muted">
-            The project&apos;s default stays unchanged.
-          </span>
-        )}
+        ) : null}
       </div>
       {error && <p className="ui-error">{error}</p>}
     </div>
