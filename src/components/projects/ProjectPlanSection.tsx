@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Plus, Target } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { ProjectDossier } from "@/db/queries/project-dossier";
 import { GoalEditor } from "./GoalEditor";
 import { AddAttrInline, AttrRow } from "./project-overview-helpers";
@@ -42,31 +42,22 @@ export function ProjectPlanSection({
 
   return (
     <section className="ui-project-section" aria-labelledby="project-plan-title">
-      <div className="flex items-center gap-2">
-        <Target className="h-4 w-4 text-accent-text" aria-hidden="true" />
-        <h2 id="project-plan-title" className="text-lg font-semibold text-text-primary">
-          Plan
-        </h2>
-      </div>
-
       {/* The roadmap first. It was the last block on this tab, under an empty
           "Next action" and a "Completion contract" — the plan itself, the thing
-          a person opens Plan to see, was the one part you had to scroll for. */}
-      <section className="mt-5">
-        <div className="flex min-h-11 items-center justify-between gap-3 border-b border-border-subtle">
-          <h3 className="text-sm font-medium text-text-primary">
+          a person opens Plan to see, was the one part you had to scroll for.
+          Its heading is the section's: the tab already says "Plan". */}
+      <section>
+        <div className="ui-section-head">
+          <h2 id="project-plan-title" className="ui-project-section-title">
             Roadmap
             {roadmap.length > 0 && (
               <span className="ml-2 font-normal text-text-tertiary">
                 {doneCount} of {roadmap.length} done
               </span>
             )}
-          </h3>
-          <Link
-            href="/goals"
-            className="inline-flex min-h-11 items-center gap-1 text-sm text-accent-text hover:underline"
-          >
-            Edit in Goals <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </h2>
+          <Link href="/goals" className="ui-section-link">
+            Edit in Goals
           </Link>
         </div>
         {roadmap.length > 0 ? (
@@ -170,13 +161,13 @@ export function ProjectPlanSection({
         </section>
 
         <section>
-          <h3 className="ui-projects-section-label mb-1">When a run counts as done</h3>
+          <h3 className="ui-projects-section-label mb-1">When the work counts as done</h3>
           <dl className="border-y border-border-subtle py-3">
             {readonly ? (
               <div>
                 <dt className="text-sm font-medium text-text-primary">Definition of done</dt>
                 <dd className="mt-1 text-sm leading-relaxed text-text-secondary">
-                  {answer(attrs.definition_of_done) ?? "No completion contract is recorded."}
+                  {answer(attrs.definition_of_done) ?? "Nothing written yet."}
                 </dd>
               </div>
             ) : (

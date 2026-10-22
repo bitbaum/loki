@@ -406,7 +406,7 @@ check("what the repository shows rides on the track: commits as facts, checks as
   const pr = t.stages.find((s) => s.id === "pr")!;
   assert.equal(pr.note, "#113 · fix(home): 14px");
   assert.equal(pr.at, "2026-10-17T09:58:02Z", "dated by the repository");
-  assert.match(t.stages.find((s) => s.id === "merged")!.label, /Checks running/);
+  assert.match(t.stages.find((s) => s.id === "merged")!.label, /Testing/);
 
   const red = buildRunTrack({
     ...live,
@@ -417,7 +417,7 @@ check("what the repository shows rides on the track: commits as facts, checks as
     "attention",
     "a red check needs eyes",
   );
-  assert.match(red.summary, /A check failed on the pull request — Claude Code usually fixes it/);
+  assert.match(red.summary, /A test failed on the pull request — Claude Code usually fixes it/);
 
   const green = buildRunTrack({
     ...live,
@@ -425,7 +425,7 @@ check("what the repository shows rides on the track: commits as facts, checks as
     phase: "done",
     repo: { ...live.repo!, pr: { ...live.repo!.pr!, checks: "passed" } },
   });
-  assert.match(green.stages.find((s) => s.id === "merged")!.label, /Checks passed — merging/);
+  assert.match(green.stages.find((s) => s.id === "merged")!.label, /Tested — merging/);
   assert.equal(green.settled, false, "merging is still movement");
 
   const branchOnly: RunTrackInput = { ...live, repo: { ...live.repo!, pr: null } };

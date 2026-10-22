@@ -1,5 +1,7 @@
-import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Eye, Globe } from "lucide-react";
+import { List, ListRow } from "@/components/ui/list-row";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { ownerSiteUrl } from "@/lib/feedback/owner-pass";
 import type { ProjectDossier } from "@/db/queries/project-dossier";
 import { ProjectWorkspaceHeader } from "./ProjectWorkspaceHeader";
 import { ProjectIdentitySettings } from "./ProjectIdentitySettings";
@@ -38,7 +40,7 @@ import { MemberProjectView } from "./MemberProjectView";
 import { ProjectBuiltFrom } from "@/components/packages/ProjectBuiltFrom";
 import { KitPlanPreview } from "./KitPlanPreview";
 import { ProjectPlannedKits } from "./ProjectPlannedKits";
-import { answer, cleanDescription, projectHeadline, projectTitle } from "@/lib/project-display";
+import { answer, cleanDescription, plainWords, projectTitle } from "@/lib/project-display";
 import { formatBtc } from "@/lib/format";
 
 export function ProjectWorkspaceView({
@@ -155,29 +157,25 @@ export function ProjectWorkspaceView({
       buildBusy: showKickoff || isBuildActive(buildStatus),
     });
 
-  // Attention-worthy flags outrank routine build state.
+  // Attention-worthy flags outrank routine build state. A section with a
+  // plain heading and one row per problem — the problem in a sentence, the
+  // button that fixes it beside it (rules 4, 8 and 9).
   const flagsBlock =
     healthSignals.length > 0 ? (
-      <section className="ui-project-flags-lead" aria-labelledby="project-flags-title">
-        <h2 id="project-flags-title" className="ui-section-label text-status-warning">
-          {healthSignals.length === 1
-            ? "1 flag on this project"
-            : `${healthSignals.length} flags on this project`}
-        </h2>
-        <div className="divide-y divide-border-subtle">
+      <section aria-labelledby="project-flags-title">
+        <SectionHeading id="project-flags-title" title="Needs fixing" />
+        <ul className="ui-project-flag-list">
           {healthSignals.map((signal) => {
             const signalKey = HEALTH_SIGNAL_CONFIG.find((c) => c.kind === signal.kind)?.key;
             return (
-              <div
-                key={signal.kind}
-                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-baseline sm:gap-3"
-              >
-                <span className="shrink-0 text-sm font-medium text-status-warning">
-                  {signal.label}
-                </span>
-                <span className="flex-1 text-sm leading-relaxed text-text-secondary">
-                  {signal.value}
-                </span>
+              <li key={signal.kind} className="ui-project-flag">
+                <div className="min-w-0 flex-1">
+                  <p className="ui-project-flag-title">
+                    <span className="ui-dot ui-dot-negative" aria-hidden />
+                    {signal.label}
+                  </p>
+                  <p className="ui-project-flag-text">{plainWords(signal.value)}</p>
+                </div>
                 {!dossier.readonly && signalKey && (
                   <FixSignalButton
                     projectId={project.id}
@@ -185,11 +183,42 @@ export function ProjectWorkspaceView({
                     signalKey={signalKey}
                   />
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </section>
+    ) : null;
+
+  // Where to go from Overview, as rows: the live site, and a review of it.
+  const siteHref = links.prodUrl
+    ? ownerPass
+      ? ownerSiteUrl(links.prodUrl, ownerPass)
+      : links.prodUrl
+    : null;
+  const shortcuts =
+    siteHref || (!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath)) ? (
+      <List aria-label="Shortcuts">
+        {siteHref && links.prodUrl && (
+          <ListRow
+            href={siteHref}
+            external
+            icon={Globe}
+            title="Open the site"
+            secondary={plainWords(links.prodUrl)}
+            chevron
+          />
+        )}
+        {!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath) && (
+          <ListRow
+            href={`/projects/${project.id}/review`}
+            icon={Eye}
+            title="Review it"
+            secondary="See it through your users’ eyes, then pick what to improve"
+            chevron
+          />
+        )}
+      </List>
     ) : null;
 
   const memberRole =
@@ -218,9 +247,6 @@ export function ProjectWorkspaceView({
         projectId={project.id}
         name={projectTitle(project)}
         workspaceKey={workspaceKey}
-        description={projectHeadline(project.description)}
-        liveUrl={links.prodUrl}
-        ownerPass={ownerPass}
         readonly={dossier.readonly}
         viewerRole={dossier.viewerRole}
         quiet={showKickoff}
@@ -276,25 +302,15 @@ export function ProjectWorkspaceView({
                     setupNeeded={showKickoff}
                     hasNextStep={Boolean(nextStep)}
                   />
-                  {!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath) && (
-                    <section
-                      className="ui-project-section flex flex-wrap items-center justify-between gap-4"
-                      aria-label="Project review"
-                    >
-                      <div>
-                        <h2 className="text-lg font-semibold">See it through your users’ eyes</h2>
-                        <p className="mt-1 text-base text-text-secondary">
-                          Review the site with Loki and choose what to improve.
-                        </p>
-                      </div>
-                      <Link
-                        href={`/projects/${project.id}/review`}
-                        className="ui-btn-secondary min-h-11"
-                      >
-                        Review project →
-                      </Link>
-                    </section>
+                  {!showKickoff && (
+                    <NextSection
+                      dossier={dossier}
+                      interactive={false}
+                      showGoals={false}
+                      ownerView={!dossier.readonly}
+                    />
                   )}
+                  {shortcuts}
                   {!dossier.readonly && (!showKickoff || autoInterview) && (
                     <ProjectInterview
                       projectId={project.id}
@@ -329,21 +345,6 @@ export function ProjectWorkspaceView({
                     />
                   )}
                   {showKickoff && <KitPlanPreview dossier={dossier} clientWork={clientWork} />}
-                  {!showKickoff && (
-                    <section className="scroll-mt-28" aria-labelledby="project-overview-title">
-                      <h2 id="project-overview-title" className="sr-only">
-                        Overview
-                      </h2>
-                      <div className="space-y-5">
-                        <NextSection
-                          dossier={dossier}
-                          interactive={false}
-                          showGoals={false}
-                          ownerView={!dossier.readonly}
-                        />
-                      </div>
-                    </section>
-                  )}
                 </>
               ),
             },
@@ -430,13 +431,7 @@ export function ProjectWorkspaceView({
               label: "Activity",
               content: (
                 <>
-                  <section className="ui-project-section" aria-labelledby="project-activity-title">
-                    <h2
-                      id="project-activity-title"
-                      className="mb-4 text-lg font-semibold text-text-primary"
-                    >
-                      Activity and evidence
-                    </h2>
+                  <section className="space-y-6" aria-label="Activity">
                     <NowSection dossier={dossier} interactive={false} showBrief={false} />
                     <DoneSection dossier={dossier} />
                     {primaryOrangeCatLink &&

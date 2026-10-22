@@ -15,7 +15,16 @@ import { PREVIEW_FORM } from "@/config/ai-forms";
  * access code, and Loki's widget on it so they can say what to change.
  * Lands on the new project, which shows the link and the owner link.
  */
-export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
+export function NewPreviewButton({
+  savedCode = "",
+  open,
+  onOpenChange,
+}: {
+  savedCode?: string;
+  /** Controlled by the "New project" choice sheet (NewProjectChooser). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const form = useAiForm({
     target: PREVIEW_FORM.key,
     fields: PREVIEW_FORM.fields,
@@ -49,8 +58,11 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
 
   return (
     <ModalForm
-      title="Build a preview — a first website for someone"
-      triggerLabel="Build a preview"
+      title="Build a site"
+      triggerLabel="Build a site"
+      trigger={open === undefined ? "button" : "none"}
+      open={open}
+      onOpenChange={onOpenChange}
       submitLabel="Build it"
       savingLabel="Starting…"
       canSubmit={missing.length === 0}

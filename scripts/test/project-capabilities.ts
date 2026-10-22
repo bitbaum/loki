@@ -188,7 +188,10 @@ check("the chat knows where a shared project is changed", () => {
   // Today and Control lead with the shared project, not "Add a project" or a download.
   assert.match(read("src/app/(app)/today/page.tsx"), /<SharedProjectsCard/);
   assert.match(read("src/components/control/ControlPanel.tsx"), /onlyShared && \(/);
-  assert.match(read("src/components/projects/ProjectWorkspaceHeader.tsx"), /member \? "#ask"/);
+  assert.match(
+    read("src/components/projects/ProjectWorkspaceHeader.tsx"),
+    /member\s*\?\s*\{\s*href: "#ask"/,
+  );
 });
 
 console.log(`\nproject-capabilities: ${passed} checks passed`);

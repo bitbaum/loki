@@ -17,7 +17,14 @@ interface Props {
    * action (a round + in the phone top bar, a pill in the header from md up)
    * — render it inside <PageAction>, or pass it as PageLayout's `action`.
    */
-  trigger?: "button" | "page-action";
+  trigger?: "button" | "page-action" | "none";
+  /**
+   * Controlled open state, for a form opened by something else (a choice
+   * sheet). With `trigger="none"` nothing is drawn until `open` is true.
+   */
+  open?: boolean;
+  /** Called with false when the dialog closes, in controlled mode. */
+  onOpenChange?: (open: boolean) => void;
   /** Modal header title. */
   title: string;
   /** Submit button text when idle. */
@@ -62,6 +69,8 @@ export function ModalForm({
   savingLabel = "Saving…",
   size = "sm",
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
   canSubmit,
   saving,
   error,
@@ -71,7 +80,12 @@ export function ModalForm({
   assistPlaceholder,
   children,
 }: Props) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [ownOpen, setOwnOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next);
+    onOpenChange?.(next);
+  };
 
   // Kept in a ref and read at call time: `useAiForm` returns a new object every
   // render, so publishing it directly would notify subscribers on every
@@ -101,7 +115,7 @@ export function ModalForm({
   // dialog rendered inside it would vanish with it. It opens only after a
   // click, so `document` is always there.
   const portal = (node: React.ReactNode) =>
-    trigger === "page-action" ? createPortal(node, document.body) : node;
+    trigger === "button" ? node : createPortal(node, document.body);
 
   const handleSubmit = async () => {
     const ok = await onSubmit();
@@ -110,7 +124,7 @@ export function ModalForm({
 
   return (
     <>
-      {trigger === "page-action" ? (
+      {trigger === "none" ? null : trigger === "page-action" ? (
         <PageActionButton label={triggerLabel} onClick={() => setOpen(true)} />
       ) : (
         <button onClick={() => setOpen(true)} className="ui-btn-confirm">

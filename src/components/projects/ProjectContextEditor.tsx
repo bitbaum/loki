@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Brain, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ProjectBriefFill } from "./ProjectBriefFill";
 import { ProjectDocSync } from "./ProjectDocSync";
 import { ProjectResources } from "./ProjectResources";
@@ -65,14 +65,14 @@ export function ProjectContextEditor({
     <section className="ui-project-section" aria-labelledby="project-context-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <Brain className="h-4 w-4 text-accent-text" aria-hidden="true" />
-            <h2 id="project-context-title" className="text-lg font-semibold text-text-primary">
-              Agent context
-            </h2>
-          </div>
-          <p className="mt-1 text-sm text-text-secondary">
-            Exact project context · {filledCount}/{fieldCount} core fields complete
+          {/* Every request an agent gets is briefed from these answers, so
+              this is where the owner tells the project. Said plainly, with
+              how much is told — not "Agent context · 5/9 core fields". */}
+          <h2 id="project-context-title" className="ui-project-section-title">
+            The story
+          </h2>
+          <p className="mt-0.5 text-sm text-text-tertiary">
+            {filledCount} of {fieldCount} answered
           </p>
         </div>
         {editable && (

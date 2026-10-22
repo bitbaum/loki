@@ -21,6 +21,7 @@ import { attrValuesFromMeta, fetchAttributesWithMetaByEntityIds, getOrgPeerIds }
 import { findProjectEntityByName } from "./project-merge";
 import { z } from "zod";
 import { AUTO_INJECT_MODE_VALUES, type AutoInjectMode } from "@/config/beacon";
+import { deriveBuildStatus } from "@/lib/project-build-status";
 
 export const RECENT_INTERACTION_LIMIT = 5;
 
@@ -182,7 +183,8 @@ export async function getProjectCore(userId: string, id: string) {
       eq(entities.userId, userId),
       eq(entities.type, ENTITY_TYPE.PROJECT),
     ),
-    columns: { id: true, name: true, gitUrl: true },
+    // title + description: what projectTitle() needs to name it to a person.
+    columns: { id: true, name: true, title: true, description: true, gitUrl: true },
   });
   return row ?? null;
 }
@@ -414,6 +416,73 @@ export async function getProjectsLastDispatch(userId: string): Promise<Record<st
     if (!r.projectId || !r.last) continue;
     const at = r.last.toISOString();
     if (!out[r.projectId] || at > out[r.projectId]) out[r.projectId] = at;
+  }
+  return out;
+}
+
+/**
+ * What is running on each project right now, for the /projects list: entity
+ * id → "building" / "queued" / "stalled". Projects with nothing running are
+ * absent.
+ *
+ * The same answer the project page gives (lib/project-build-status), from the
+ * same two sources — the runner's last observation and the run ledger — so a
+ * row never says "Building now" while its page says nothing is. Only the last
+ * day of runs is read: an open run older than that is long past "stalled".
+ */
+export async function getProjectsRunNow(
+  userId: string,
+  nowMs = Date.now(),
+): Promise<Record<string, "building" | "queued" | "stalled">> {
+  const since = new Date(nowMs - 24 * 60 * 60 * 1000);
+  const [runs, states] = await Promise.all([
+    db
+      .select({
+        projectId: orchestrationRuns.projectId,
+        startedAt: orchestrationRuns.startedAt,
+        finishedAt: orchestrationRuns.finishedAt,
+        outcome: orchestrationRuns.outcome,
+        state: orchestrationRuns.state,
+      })
+      .from(orchestrationRuns)
+      .where(
+        and(
+          eq(orchestrationRuns.userId, userId),
+          isNotNull(orchestrationRuns.projectId),
+          sql`${orchestrationRuns.startedAt} >= ${since}`,
+        ),
+      ),
+    db
+      .select({
+        projectId: projectStates.projectId,
+        agentRunning: projectStates.agentRunning,
+        runtimeObservedAt: projectStates.runtimeObservedAt,
+        currentPromptLabel: projectStates.currentPromptLabel,
+        currentPromptStartedAt: projectStates.currentPromptStartedAt,
+      })
+      .from(projectStates)
+      .where(
+        and(
+          eq(projectStates.userId, userId),
+          isNotNull(projectStates.projectId),
+          eq(projectStates.agentRunning, true),
+        ),
+      ),
+  ]);
+  const ids = new Set<string>();
+  for (const r of runs) if (r.projectId) ids.add(r.projectId);
+  for (const s of states) if (s.projectId) ids.add(s.projectId);
+  const out: Record<string, "building" | "queued" | "stalled"> = {};
+  for (const id of ids) {
+    const status = deriveBuildStatus({
+      state: states.find((s) => s.projectId === id) ?? null,
+      runs: runs
+        .filter((r) => r.projectId === id)
+        .map((r) => ({ ...r, summary: null, payload: null })),
+      commits: null,
+      nowMs,
+    });
+    if (status.kind !== "idle") out[id] = status.kind;
   }
   return out;
 }

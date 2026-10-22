@@ -148,7 +148,11 @@ async function main() {
         await page.getByRole("link", { name: "Ask Loki" }).getAttribute("href"),
         "/loki?project=loki",
       );
-      assert.equal(await page.getByRole("link", { name: "Open site", exact: true }).count(), 1);
+      assert.equal(
+        await page.getByRole("link", { name: "Open the site", exact: true }).count(),
+        1,
+        "the live site is Overview's first row, not a third header button",
+      );
       assert.equal(await page.locator('main [data-fc-place="tab"]').count(), 1);
       assert.equal(await page.getByText("STAGE", { exact: true }).isVisible(), false);
       assert.equal(
@@ -165,14 +169,44 @@ async function main() {
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
       );
+      // On a phone the section is ONE button naming where you are, which
+      // opens the rest as a sheet (design reset rule 7) — not a <select>.
+      const LABELS: Record<string, string> = {
+        now: "Overview",
+        context: "Story",
+        feedback: "Feedback",
+        plan: "Plan",
+        activity: "Activity",
+        people: "People",
+        settings: "Settings",
+      };
+      const sections = {
+        button: () => page.getByRole("button", { name: /^Project section: / }),
+        open: async () => {
+          await sections.button().click();
+          await page.getByRole("listbox").waitFor();
+        },
+        pick: async (id: string) => {
+          await sections.open();
+          await page.getByRole("option", { name: new RegExp(`^${LABELS[id]}`) }).click();
+          await page.getByRole("listbox").waitFor({ state: "hidden" });
+        },
+        current: async () =>
+          ((await sections.button().getAttribute("aria-label")) ?? "").replace(
+            /^Project section: /,
+            "",
+          ),
+      };
       if (width === 320) {
-        const sections = page.getByRole("combobox", { name: "Project section" });
+        await sections.open();
         assert.equal(
-          await sections.locator("option").count(),
+          await page.getByRole("option").count(),
           7,
           "all sections available without horizontal clipping",
         );
-        await sections.selectOption("context");
+        await page.keyboard.press("Escape");
+        await page.getByRole("listbox").waitFor({ state: "hidden" });
+        await sections.pick("context");
         await page.getByRole("button", { name: "Edit project name" }).click();
         await page
           .getByRole("textbox", { name: "Project name", exact: true })
@@ -187,11 +221,11 @@ async function main() {
         await page.getByTitle("Edit description").click();
         const textarea = page.locator("#context textarea").first();
         await textarea.fill("Draft that must survive section changes.");
-        await sections.selectOption("activity");
-        await sections.selectOption("context");
+        await sections.pick("activity");
+        await sections.pick("context");
         assert.equal(await textarea.inputValue(), "Draft that must survive section changes.");
         await page.keyboard.press("Escape");
-        await sections.selectOption("settings");
+        await sections.pick("settings");
         // Every action in a settings row is one shape: "Website", "Own
         // domain", "Share", "List publicly" were ghost text beside a bordered
         // "Open repository" and a bare pencil (owner, 2026-10-19).
@@ -301,8 +335,7 @@ async function main() {
         await mount("?shared=1&role=editor");
         assert.equal(await page.getByText("Shared with you · Builder").count(), 1);
         assert.equal(await page.getByRole("link", { name: "Ask Loki" }).count(), 0);
-        const sections = page.getByRole("combobox", { name: "Project section" });
-        await sections.selectOption("activity");
+        await sections.pick("activity");
         await page.getByRole("link", { name: "Ask for a change" }).click();
         const box = page.getByRole("textbox", { name: "Ask for a change to Loki" });
         await box.waitFor();
@@ -310,7 +343,11 @@ async function main() {
           const r = document.getElementById("ask")?.getBoundingClientRect();
           return !!r && r.top >= 0 && r.top < innerHeight;
         });
-        assert.equal(await sections.inputValue(), "now", "the box's section opens from any other");
+        assert.match(
+          await sections.current(),
+          /^Overview/,
+          "the box's section opens from any other",
+        );
         await box.fill("Make the Log today link bigger");
         await page.keyboard.press("Enter");
         await page.getByText("Loki is building it now.", { exact: false }).waitFor();
@@ -336,18 +373,18 @@ async function main() {
         );
         await page.waitForFunction(() => {
           const action = Array.from(document.querySelectorAll("a")).find(
-            (el) => el.textContent?.trim() === "Open site",
+            (el) => el.textContent?.trim() === "Open the site",
           );
-          const summary = document.querySelector(".ui-project-summary");
+          const title = document.querySelector("h1");
           return (
-            action && summary && getComputedStyle(action).color === getComputedStyle(summary).color
+            action && title && getComputedStyle(action).color === getComputedStyle(title).color
           );
         });
         assert.equal(
           await page
-            .getByRole("link", { name: "Open site", exact: true })
+            .getByRole("link", { name: "Open the site", exact: true })
             .evaluate((e) => getComputedStyle(e).color),
-          await page.locator(".ui-project-summary").evaluate((e) => getComputedStyle(e).color),
+          await page.locator("h1").evaluate((e) => getComputedStyle(e).color),
           "secondary actions inherit the correct theme contrast",
         );
         await page

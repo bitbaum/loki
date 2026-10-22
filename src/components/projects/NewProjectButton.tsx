@@ -17,12 +17,17 @@ interface Props {
   initialName?: string;
   /** Prefill the description (deep link: …&description=…). */
   initialDescription?: string;
+  /** Controlled by the "New project" choice sheet (NewProjectChooser). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function NewProjectButton({
   autoOpen = false,
   initialName = "",
   initialDescription = "",
+  open,
+  onOpenChange,
 }: Props) {
   const form = useAiForm({
     target: PROJECT_FORM.key,
@@ -67,8 +72,11 @@ export function NewProjectButton({
 
   return (
     <ModalForm
-      title="Add Project"
-      submitLabel="Add Project"
+      title="Add an existing project"
+      submitLabel="Add project"
+      trigger={open === undefined ? "button" : "none"}
+      open={open}
+      onOpenChange={onOpenChange}
       savingLabel="Adding…"
       defaultOpen={autoOpen}
       canSubmit={!!form.text("name").trim()}
