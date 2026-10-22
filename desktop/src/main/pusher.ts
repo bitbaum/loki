@@ -37,9 +37,10 @@ import { DAEMON_HEARTBEAT_MS } from '@/lib/constants/daemon'
 import { parseProjectsConf, resolveEffectiveTab } from '@/lib/agent-config'
 import { getAgentProcesses, readFastState } from '@/lib/control-fast-state'
 import { listAgentRegistry } from '@/lib/agent-registry'
+import { probeProviderInventory, usableAgents, type ProviderInventoryEntry } from '@/lib/agents/provider-inventory'
 import type { PaneRecord } from '@/db/schema/runtime-snapshots'
 import { loadToken, clearToken, isDevBaseOverride } from './token-store'
-import { listPtyTabs, runnerWorkspaceId } from './pty-runtime'
+import { listPtyTabs, ptyAgentForTab, ptyDirForTab, runnerWorkspaceId } from './pty-runtime'
 import { fleetSessionsDir, legacyClaudeSessionsDir } from '@/lib/session-paths'
 
 // Runner version is reported in the runtime-state heartbeat. The desktop sets
@@ -88,6 +89,7 @@ async function pushOnce(): Promise<void> {
   let openTabs: string[] = []
   let projects: ReturnType<typeof buildProjectRuntimePayload> = []
   let installedAgents: string[] = []
+  let providerInventory: ProviderInventoryEntry[] | undefined
   let panes: PaneRecord[] = []
   // "Open tabs" = tabs backed by a live owned PTY. Nothing else hosts an agent
   // on this runner, so nothing else is a tab.
@@ -98,6 +100,18 @@ async function pushOnce(): Promise<void> {
     installedAgents = listAgentRegistry()
       .filter((entry) => entry.available)
       .map((entry) => entry.id)
+    // Failover reads installedAgents. Narrow it by the measured inventory:
+    // an agent with no credential, or whose last real probe failed (for a
+    // reason other than quota), is not somewhere to send work.
+    try {
+      const channel = (process.env.LOKI_RUNNER_PRESENCE_CHANNEL ?? 'local').trim() === 'cloud' ? 'cloud' : 'local'
+      providerInventory = await probeProviderInventory(channel)
+      const usable = new Set(usableAgents(providerInventory))
+      const known = new Set(providerInventory.map((e) => e.id))
+      installedAgents = installedAgents.filter((id) => !known.has(id) || usable.has(id))
+    } catch (err) {
+      console.warn('[pusher] provider inventory failed:', (err as Error).message)
+    }
     projects = buildProjectRuntimePayload(openTabs)
     panes = buildPaneTopology(openTabs)
   } catch (err) {
@@ -120,6 +134,7 @@ async function pushOnce(): Promise<void> {
       body: JSON.stringify({
         openTabs,
         installedAgents,
+        providerInventory,
         projects,
         panes,
         runnerVersion: runnerVersion(),
@@ -216,7 +231,7 @@ type ProjectRuntimePayload = {
  */
 function buildPaneTopology(openTabs: string[]): PaneRecord[] {
   const registry = listAgentRegistry()
-  const agentProcesses = getAgentProcesses(registry)
+  const agentProcesses = withSealedAgents(getAgentProcesses(registry))
   const conf = parseProjectsConf()
 
   const byTab = new Map<string, typeof agentProcesses>()
@@ -313,7 +328,7 @@ function projectEntries(agentProcesses: ReturnType<typeof getAgentProcesses>): {
 
 function buildProjectRuntimePayload(openTabs: string[]): ProjectRuntimePayload[] {
   const agentRegistry = listAgentRegistry()
-  const agentProcesses = getAgentProcesses(agentRegistry)
+  const agentProcesses = withSealedAgents(getAgentProcesses(agentRegistry))
   const projects = projectEntries(agentProcesses).map(({ tab, dir }) => {
     const resolvedTab = resolveEffectiveTab(tab, openTabs)
     const projectProcesses = agentProcesses.filter((p) => p.cwd === dir || p.cwd.startsWith(`${dir}/`))
@@ -414,4 +429,23 @@ export async function pushNow(): Promise<void> {
 export function restartPusher(): void {
   stopPusher()
   startPusher()
+}
+
+/**
+ * A sealed build's agent runs inside gVisor, where the host's /proc scan never
+ * sees it — so Control said "0 working" and the project page "Queued for a
+ * builder" while Antigravity worked (2026-10-21). The runner owns those PTYs;
+ * count each live one as that tab's agent in its launch directory.
+ */
+function withSealedAgents(found: ReturnType<typeof getAgentProcesses>): ReturnType<typeof getAgentProcesses> {
+  if (process.env.LOKI_EXECUTOR !== 'sandbox') return found
+  const out = [...found]
+  for (const tab of listPtyTabs()) {
+    const dir = ptyDirForTab(tab)
+    const agent = ptyAgentForTab(tab)
+    if (!dir || !agent) continue
+    if (out.some((p) => p.cwd === dir || p.cwd.startsWith(`${dir}/`))) continue
+    out.push({ agentId: agent, cwd: dir, sessionLifecycleSignals: false, pid: 0 })
+  }
+  return out
 }

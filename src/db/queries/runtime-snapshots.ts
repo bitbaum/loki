@@ -2,6 +2,7 @@ import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
 import { db } from "@/db";
 import { runtimeSnapshots, type PaneRecord } from "@/db/schema/runtime-snapshots";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
+import type { ProviderInventoryEntry } from "@/lib/agents/provider-inventory";
 
 /**
  * Named fields rather than positionals. This was seven positional parameters,
@@ -20,6 +21,7 @@ export type RuntimeSnapshotUpsert = {
   runnerVersion?: string;
   /** Absent = the runner could not tell us. Stored as NULL, read as UNKNOWN. */
   powerSource?: "ac" | "battery";
+  providerInventory?: ProviderInventoryEntry[];
 };
 
 export async function upsertRuntimeSnapshotIfNewer(input: RuntimeSnapshotUpsert) {
@@ -32,6 +34,7 @@ export async function upsertRuntimeSnapshotIfNewer(input: RuntimeSnapshotUpsert)
     panes,
     runnerVersion,
     powerSource,
+    providerInventory,
   } = input;
   const snapshot = {
     userId,
@@ -43,6 +46,7 @@ export async function upsertRuntimeSnapshotIfNewer(input: RuntimeSnapshotUpsert)
     ...(panes ? { panes } : {}),
     ...(runnerVersion ? { runnerVersion } : {}),
     ...(powerSource ? { powerSource } : {}),
+    ...(providerInventory ? { providerInventory } : {}),
   };
   const [inserted] = await db
     .insert(runtimeSnapshots)

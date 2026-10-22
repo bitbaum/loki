@@ -370,6 +370,15 @@ Adding any visual element — ask in order:
 
 #### Rows of choices never wrap on their own terms
 
+This is one instance of the fleet-wide rule, stated once in
+[bitbaum/fleet AGENTS.md → "One shape per kind"](https://github.com/bitbaum/fleet/blob/main/AGENTS.md):
+things of the same kind look the same, sit in the same place and are the same
+size; siblings share one frame; rows of one list have one anatomy; actions
+that belong together are equal cells; every label says what happens; an icon
+promises its screen. Read it before building a screen, and run its pre-PR
+checklist (390px, siblings, labels, one primary, the gates).
+
+
 Pick one of a few → `<Segmented>` (`components/ui/segmented.tsx`): equal cells
 in one row, or an even grid with `columns`, and the chosen one's meaning under
 it. Many filters → `ui-filter-chip-row` (one line that scrolls on a phone). On/off

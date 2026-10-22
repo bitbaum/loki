@@ -41,6 +41,11 @@ overrides:
   qs@6: ^6.16.0
   "@humanfs/node": ^0.16.8
   postcss-selector-parser@7: ^7.1.3
+  # High transitives (2026-10-21): source-map-js via Sentry/Next/postcss,
+  # brace-expansion via minimatch. Build-time tooling; patched within major.
+  source-map-js@1: ^1.2.2
+  brace-expansion@1: ^1.1.21
+  brace-expansion@5: ^5.0.12
 
 # pnpm refuses packages published within its minimum-release-age window — a
 # supply-chain guard against a compromised release being installed before
@@ -61,3 +66,11 @@ minimumReleaseAgeExclude:
   - "@bitbaum/mail-kit"
   - "bip-kit"
   - "limitkit"
+  - "@bitbaum/chatkit"
+
+# braces GHSA-vfj7-8cjw-p6xm has NO patched release (<=3.0.3 = every version).
+# Reached only via shadcn's CLI (fast-glob > micromatch) at dev time, never at
+# runtime. Remove once braces ships a fix.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm

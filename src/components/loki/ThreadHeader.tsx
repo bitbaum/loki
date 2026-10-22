@@ -4,8 +4,12 @@ import { useCallback, useState } from "react";
 import {
   ArrowLeft,
   BookmarkPlus,
+  Check,
   FolderKanban,
+  Ghost,
   History,
+  Home,
+  LayoutGrid,
   MoreVertical,
   MessageSquareWarning,
   PanelLeft,
@@ -16,20 +20,33 @@ import {
 } from "lucide-react";
 import { ThreadTitle } from "./ThreadTitle";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
+import { TEMPORARY_CHAT_LABEL } from "@/lib/loki/temporary-chat";
 
 /**
- * The thread's own header on a phone: back, what this conversation is, and a
- * menu — one line, like every texting app. Replaces the app top bar, the
- * bottom tabs and the old row of two icons while a conversation is open (see
+ * The chat's own header on a phone: one line, like every texting app, floating
+ * over the conversation (ChatScreen). Replaces the app top bar, the bottom
+ * tabs and the old row of two icons on the whole of /loki (see
  * useImmersiveChat). From md up the shell's chrome stays and this is hidden.
+ *
+ * Two shapes, one component. In a thread: back · the thread's name · menu.
+ * On the start screen: chats · "Loki" · menu — the chat list is behind the
+ * left pill, the way the ChatGPT and Claude apps keep history, and the menu
+ * carries the way to the rest of the app (Home, every other page) now that
+ * the bottom tabs no longer sit under the composer.
  */
 export function ThreadHeader({
   title,
+  subtitle: subtitleOverride,
   projects,
+  leading = "back",
   onBack,
   onOpenLokis,
   onNewChat,
   onOpenProjects,
+  onGoHome,
+  onOpenMore,
+  temporary = false,
+  onToggleTemporary,
   onSaveContext,
   onReportProblem,
   pinned = false,
@@ -37,11 +54,22 @@ export function ThreadHeader({
   onRename,
 }: {
   title: string;
+  /** Under the name; by default the project scope. */
+  subtitle?: string;
   projects: string[];
-  onBack: () => void;
+  /** The left pill: back out of a thread, or the chats behind the start screen. */
+  leading?: "back" | "chats";
+  onBack?: () => void;
   onOpenLokis: () => void;
   onNewChat: () => void;
   onOpenProjects: () => void;
+  /** The start screen's way out, with the app bars gone: Home, and every page. */
+  onGoHome?: () => void;
+  onOpenMore?: () => void;
+  /** The next chat (start screen) or this one (thread) is temporary:
+   *  never listed, gone when the person leaves it (lib/loki/temporary-chat). */
+  temporary?: boolean;
+  onToggleTemporary?: () => void;
   /** Save the exchange into a project's context — an occasional act, so it
    *  lives here rather than as a line under every phone conversation. */
   onSaveContext?: () => void;
@@ -58,11 +86,13 @@ export function ThreadHeader({
   useEscapeToClose(close, !menuOpen);
 
   const subtitle =
-    projects.length === 0
+    subtitleOverride ??
+    (projects.length === 0
       ? "No project — answers only"
       : projects.length === 1
         ? projects[0]
-        : `${projects[0]} +${projects.length - 1} more`;
+        : `${projects[0]} +${projects.length - 1} more`);
+  const inThread = leading === "back";
 
   const item = (label: string, Icon: typeof History, run: () => void) => (
     <button
@@ -81,14 +111,25 @@ export function ThreadHeader({
 
   return (
     <header className="ui-loki-thread-header">
-      <button
-        type="button"
-        className="ui-loki-topbar-btn"
-        onClick={onBack}
-        aria-label="Back to chats"
-      >
-        <ArrowLeft className="h-5 w-5" aria-hidden />
-      </button>
+      {inThread ? (
+        <button
+          type="button"
+          className="ui-loki-topbar-btn"
+          onClick={onBack}
+          aria-label="Back to chats"
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="ui-loki-topbar-btn"
+          onClick={onOpenLokis}
+          aria-label="Show chats"
+        >
+          <PanelLeft className="h-5 w-5" aria-hidden />
+        </button>
+      )}
       {renaming && onRename ? (
         <div className="ui-loki-thread-header-title">
           <ThreadTitle title={title} onRename={onRename} editing onEditingChange={setRenaming} />
@@ -109,7 +150,7 @@ export function ThreadHeader({
           type="button"
           className="ui-loki-topbar-btn"
           onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Conversation menu"
+          aria-label={inThread ? "Conversation menu" : "Loki menu"}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
         >
@@ -125,8 +166,26 @@ export function ThreadHeader({
             />
             <div className="ui-menu" role="menu">
               {item("New chat", SquarePen, onNewChat)}
-              {item("All chats", History, onOpenLokis)}
+              {inThread && item("All chats", History, onOpenLokis)}
               {item("Projects", FolderKanban, onOpenProjects)}
+              {onToggleTemporary && (
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={temporary}
+                  className="ui-menu-item ui-tap"
+                  onClick={() => {
+                    close();
+                    onToggleTemporary();
+                  }}
+                >
+                  <Ghost className="h-4 w-4" aria-hidden />
+                  {TEMPORARY_CHAT_LABEL}
+                  {temporary && <Check className="ml-auto h-4 w-4" aria-hidden />}
+                </button>
+              )}
+              {onGoHome && item("Home", Home, onGoHome)}
+              {onOpenMore && item("Everything else", LayoutGrid, onOpenMore)}
               {onReportProblem && item("Report a problem", MessageSquareWarning, onReportProblem)}
               {onSaveContext && item("Save to project context", BookmarkPlus, onSaveContext)}
               {onTogglePin &&

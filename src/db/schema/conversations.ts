@@ -1,4 +1,13 @@
-import { pgTable, uuid, text, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  jsonb,
+  index,
+  uniqueIndex,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
@@ -32,6 +41,10 @@ export const conversations = pgTable(
     /** Pinned threads stay at the top of the rail: the few being juggled
      *  today, chosen by the person, not guessed from recency. */
     pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+    /** A temporary chat: never listed, never read into memory or suggestions,
+     *  deleted when the person leaves it and by the daily sweep in any case
+     *  (lib/loki/temporary-chat.ts). */
+    ephemeral: boolean("ephemeral").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

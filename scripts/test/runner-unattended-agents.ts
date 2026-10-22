@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { codexAdapter } from "@/lib/agents/codex";
 import { cursorAdapter } from "@/lib/agents/cursor";
+import { geminiAdapter } from "@/lib/agents/gemini";
 import { grokAdapter } from "@/lib/agents/grok";
 import { addTrustedGrokFolder } from "../../desktop/src/main/grok-prep";
 
@@ -38,3 +39,10 @@ assert.doesNotMatch(upgraded, /trusted = false/);
 assert.equal(addTrustedGrokFolder(added, "/tmp/project", 456), added, "already trusted is stable");
 
 console.log("✓ unattended agent launch preparation");
+
+// Gemini 0.65 stopped at "Allow execution of [Shell]?" on Substrata (2026-10-21).
+assert.match(
+  geminiAdapter.buildLaunchCommand({ dir: "/tmp/project" }),
+  /gemini --skip-trust --approval-mode=yolo$/,
+);
+console.log("✓ gemini launches with auto-approve");

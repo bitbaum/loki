@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, timestamp, jsonb, primaryKey } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import type { RunnerChannel } from "./pending-commands";
+import type { ProviderInventoryEntry } from "@/lib/agents/provider-inventory";
 
 /**
  * One row per owned PTY the runner observed in the last heartbeat — a
@@ -36,6 +37,8 @@ export const runtimeSnapshots = pgTable(
     openTabs: text("open_tabs").array().notNull().default([]),
     installedAgents: text("installed_agents").array().notNull().default([]),
     runnerVersion: text("runner_version"),
+    /** Measured provider inventory from the runner's heartbeat (src/lib/agents/provider-inventory.ts). Null = runner predates it. */
+    providerInventory: jsonb("provider_inventory").$type<ProviderInventoryEntry[]>(),
     /**
      * Per-pane topology as the runner last reported it. Heartbeat report
      * only: the cold-start restore that treated this as "desired state" is

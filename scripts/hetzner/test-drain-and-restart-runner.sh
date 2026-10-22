@@ -117,6 +117,18 @@ got="$(PROC_ROOT="$tmp/proc" session_status 9999)"
   || no "a missing session file produced '$got'"
 rm -rf "$tmp"
 
+# A sealed (gVisor) agent is visible only as its `podman run --name fc-ws-…`.
+tmp="$(mktemp -d)"; mkdir -p "$tmp/proc/8181" "$tmp/proc/8282"
+printf 'podman\0run\0--rm\0-i\0-t\0--name\0fc-ws-0123456789abcdef01234567\0loki-agent:latest\0gemini\0' > "$tmp/proc/8181/cmdline"
+printf 'podman\0images\0' > "$tmp/proc/8282/cmdline"
+PROC_ROOT="$tmp/proc" sealed_container 8181 && [ "$(busy sealed-agent "")" = busy ] \
+  && ok "a sealed agent's podman run holds the restart" \
+  || no "a sealed agent did not hold the restart (21:01 runsc kill)"
+PROC_ROOT="$tmp/proc" sealed_container 8282 \
+  && no "any podman counted as an agent" || ok "other podman commands do not hold it"
+[ "$(busy gemini "")" = busy ] && ok "an unsealed gemini holds the restart" || no "gemini ignored"
+rm -rf "$tmp"
+
 # ── The cap never kills. 2026-09-25 09:01: a Skif agent 30 minutes into a
 # multi-hour brief was force-restarted away because a deploy changed runner
 # code. Waiting longer is free; killing work is not recoverable.

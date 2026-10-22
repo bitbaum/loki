@@ -55,6 +55,7 @@ export function summarizeRunStep(input: {
   deliveredAt: string | null;
   lastProgressAt: string | null;
   blocked?: string | null;
+  blockedQuestion?: string | null;
   /** Pending command still unclaimed (local or hosted). */
   pendingUnclaimed?: boolean;
   /** Hermes / hosted_dispatch id present. */
@@ -76,6 +77,20 @@ export function summarizeRunStep(input: {
   queuedBehind?: { label: string | null } | null;
   now?: number;
 }): RunStepSnapshot {
+  if (input.blocked === "exited") {
+    return {
+      kind: "blocked",
+      summary: "Agent stopped",
+      detail: input.blockedQuestion?.trim() || "The agent process ended before the run finished.",
+    };
+  }
+  if (input.blocked === "permission") {
+    return {
+      kind: "blocked",
+      summary: "Needs you to answer the agent",
+      detail: input.blockedQuestion?.trim() || "The agent is asking for permission to run a tool.",
+    };
+  }
   if (input.blocked === "auth") {
     return {
       kind: "blocked",

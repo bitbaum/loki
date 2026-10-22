@@ -65,7 +65,7 @@ log() { logger -t loki-drain "$*" 2>/dev/null || true; echo "[drain] $*"; }
 # that is behind (src/lib/runner-update-hold.ts), no new task started at all.
 agent_is_busy() { # <comm> <status or empty> [age in seconds]
   case "$1" in
-    claude|hermes|codex|cursor-agent|grok) ;;
+    claude|hermes|codex|cursor-agent|grok|gemini|sealed-agent) ;;
     *) return 1 ;;
   esac
   [ "$1" = claude ] && { [ "$2" = idle ] || [ "$2" = dialog ]; } && return 1
@@ -101,6 +101,11 @@ drain_decision() {
   echo leave
 }
 
+# sealed_container <pid> — is this `podman run` a sealed agent build (fc-ws-…)?
+sealed_container() {
+  { tr '\0' ' ' < "${PROC_ROOT:-/proc}/$1/cmdline"; } 2>/dev/null | grep -qE '(^| )run .*--name fc-ws-[0-9a-f]+'
+}
+
 if [ -n "${DRAIN_LIB_ONLY:-}" ]; then return 0; fi
 
 count_agents() {
@@ -108,6 +113,11 @@ count_agents() {
   local c=0 p comm
   for p in $(cat "$CGROUP" 2>/dev/null); do
     comm="$(cat "/proc/$p/comm" 2>/dev/null || true)"
+    # A sealed build's agent lives inside gVisor: the unit's cgroup holds only
+    # the `podman run --name fc-ws-…` that owns it, never a process named
+    # gemini/claude. 2026-10-21 21:01 a restart killed a working Antigravity
+    # run that way (runsc kill). Its podman is the agent.
+    [ "$comm" = podman ] && sealed_container "$p" && comm=sealed-agent
     agent_is_busy "$comm" "$(session_status "$p")" "$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')" && c=$((c + 1))
   done
   echo "$c"

@@ -7603,7 +7603,23 @@
     @apply flex min-w-0 flex-col gap-1;
   }
   .ui-loki-build-row {
-    @apply -mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1;
+    @apply -mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
+  }
+  /* On a phone the edge reads as "more this way", never as a chip cut in
+     half, and never as the grey scrollbar Android drew under the row. */
+  @media (max-width: 639px) {
+    .ui-loki-build-row {
+      mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+      -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+      scroll-snap-type: x proximity;
+    }
+    .ui-loki-build-row > * {
+      scroll-snap-align: start;
+    }
+    .ui-loki-build-row::after {
+      content: "";
+      flex: 0 0 2.5rem;
+    }
   }
   .ui-loki-build-chip {
     @apply inline-flex min-h-11 max-w-72 items-center gap-2 rounded-full border border-border-default bg-surface-raised px-4 text-sm text-text-primary transition-colors hover:border-border-strong;
@@ -7837,21 +7853,6 @@
   }
   .ui-loki-msg-image img {
     @apply block max-h-56 w-auto max-w-full object-contain;
-  }
-  /* Actions stay out of the way until the turn is hovered or focused — but a
-     touch device has no hover, so there they are simply always visible. */
-  .ui-loki-turn-actions {
-    @apply mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover/turn:opacity-100 group-focus-within/turn:opacity-100;
-  }
-  @media (hover: none) {
-    .ui-loki-turn-actions {
-      @apply opacity-100;
-    }
-  }
-  /* Icon-only on phones (the label stays for screen readers), so it needs the
-     full 44px target there instead of a 32px pill. */
-  .ui-loki-turn-action {
-    @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary max-sm:h-11 max-sm:w-11 max-sm:justify-center max-sm:px-0;
   }
   /* Suggested follow-ups under the newest answer: quiet rows, each a full
      44px tap target, read as "what you might say next" rather than buttons
@@ -8586,8 +8587,21 @@
   /* Stop takes the SAME slot as send. Two separate controls would mean the
      button you want moves depending on state, which is how people cancel a
      turn they meant to send. */
+  /* The starters above the composer: one line that scrolls on a phone (the
+     rule for rows of choices — never chips in a flex-wrap box), wrapping
+     from sm up where there is room. */
   .ui-loki-suggest-row {
-    @apply flex min-w-0 flex-wrap gap-1.5;
+    @apply flex min-w-0 gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible;
+  }
+  .ui-loki-suggest-row > * {
+    @apply shrink-0 whitespace-nowrap;
+  }
+  /* Room after the last chip, so it can scroll clear of the fade. */
+  @media (max-width: 639px) {
+    .ui-loki-suggest-row::after {
+      content: "";
+      flex: 0 0 1.5rem;
+    }
   }
   .ui-loki-suggest-chip {
     @apply inline-flex min-h-9 shrink-0 items-center rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-8;
@@ -9214,18 +9228,33 @@
   backdrop-filter: blur(16px) saturate(1.4);
   color: var(--text-primary);
 }
-/* Start screen: nothing to scroll under yet, so the composer sits in the
-   flow — docked to the bottom on a phone, centred with the greeting from sm
-   up, as before. */
-.ui-loki-stage-empty .ck-screen-dock {
-  position: static;
-  padding-inline: 0;
-  background: none;
-}
+/* Start screen. On a phone it is laid out exactly like a thread: the header
+   and the composer float, and whatever is on the screen — the greeting, the
+   recent chats, Build next — scrolls under them with the page's gutter and
+   the measured insets as its padding, so nothing is ever clipped between
+   two bars (owner, 2026-10-21: the spiral and Build next both cut off
+   inside an inner scroller). From sm up the composer sits in the flow,
+   centred with the greeting, as before. */
 .ui-loki-stage-empty .ck-screen-body {
   flex: 1;
 }
+@media (max-width: 39.99rem) {
+  .ui-loki-stage-empty .ui-loki-start {
+    padding: var(--ck-top-inset, 0px) var(--ck-gutter) calc(var(--ck-bottom-inset, 0px) + 0.5rem);
+    scroll-padding-top: var(--ck-top-inset, 0px);
+    scroll-padding-bottom: var(--ck-bottom-inset, 0px);
+    scrollbar-width: none;
+  }
+  .ui-loki-stage-empty .ui-loki-start::-webkit-scrollbar {
+    display: none;
+  }
+}
 @media (min-width: 40rem) {
+  .ui-loki-stage-empty .ck-screen-dock {
+    position: static;
+    padding-inline: 0;
+    background: none;
+  }
   .ui-loki-stage-empty > .ck-screen {
     justify-content: center;
     gap: 1rem;
@@ -9248,6 +9277,38 @@
 .ui-loki-answer .ck-md {
   font-size: inherit;
   line-height: inherit;
+}
+/* The row under an answer is chatkit's (Copy · Listen · Share · Try again ·
+   Bad answer). In Loki's turn it stays out of the way until the turn is
+   hovered or focused; a touch screen has no hover, so there it is simply
+   there. Icon-only on phones (the label stays for screen readers), with the
+   full 44px target. The player that replaces it while an answer is read
+   keeps its words. */
+@media (hover: hover) {
+  .ui-loki-turn .ck-turn-actions:not(.ck-player) {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .ui-loki-turn:hover .ck-turn-actions,
+  .ui-loki-turn:focus-within .ck-turn-actions {
+    opacity: 1;
+  }
+}
+@media (max-width: 639px) {
+  .ui-loki-turn .ck-turn-actions:not(.ck-player) .ck-action {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+    padding: 0;
+  }
+  .ui-loki-turn .ck-turn-actions:not(.ck-player) .ck-action > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
 }
 .ui-loki-answer-sources {
   margin-top: 0.5rem;

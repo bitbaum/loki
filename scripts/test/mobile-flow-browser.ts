@@ -99,14 +99,32 @@ async function main() {
       await mount("");
       const fresh = await page.evaluate(() => ({
         composer: document.querySelector("textarea")!.getBoundingClientRect().toJSON(),
-        nav: document.querySelector(".ui-mobile-nav")!.getBoundingClientRect().toJSON(),
+        viewport: innerHeight,
+        navShown: getComputedStyle(document.querySelector(".ui-mobile-nav")!).display !== "none",
+        topbarShown: getComputedStyle(document.querySelector(".ui-app-topbar")!).display !== "none",
+        header: document.querySelector(".ui-loki-thread-header")?.getBoundingClientRect().toJSON(),
         places: [...document.querySelectorAll("[data-fc-place]")].map((e) =>
           e.getAttribute("data-fc-place"),
         ),
         overflow: document.documentElement.scrollWidth > innerWidth,
       }));
-      assert(fresh.composer.bottom <= fresh.nav.top, "the phone navigation cannot cover the input");
+      // The start screen owns the phone like a thread does: no bottom tabs
+      // under the composer, no app bar over the greeting, the page's own
+      // floating header instead (owner, 2026-10-21).
+      assert.equal(fresh.navShown, false, "the start screen has no bottom tabs");
+      assert.equal(fresh.topbarShown, false, "the start screen has no app top bar");
+      assert(fresh.header && fresh.header.top >= 0, "the start screen's own header is on screen");
+      assert(fresh.composer.bottom <= fresh.viewport, "the input sits inside the screen");
       assert.equal(fresh.overflow, false);
+      await page.getByRole("button", { name: "Loki menu" }).click();
+      await page.getByRole("menuitem", { name: "Home" }).click();
+      assert.equal(
+        await page.evaluate(
+          () => (window as unknown as { __lastNavigation: string }).__lastNavigation,
+        ),
+        "/control",
+        "Home is one tap from the start screen's menu",
+      );
       assert.equal(resolvePlaceDirective(fresh.places), "tab");
       await mount("?c=00000000-0000-4000-8000-000000000001");
       await page.locator(".ui-loki-workspace").waitFor();

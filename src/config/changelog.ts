@@ -29,6 +29,90 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.58",
+    tag: "fleet-runner-v0.8.58",
+    date: "2026-10-21T23:35:00Z",
+    highlights: [
+      "A run whose pull request was already merged automatically also closes as Done with that link once the agent goes quiet.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.57",
+    tag: "fleet-runner-v0.8.57",
+    date: "2026-10-21T22:45:00Z",
+    highlights: [
+      "When the agent has opened its pull request and sits idle with nothing left uncommitted, the run closes as Done with that PR link and the agent is stopped, instead of staying Working.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.56",
+    tag: "fleet-runner-v0.8.56",
+    date: "2026-10-21T22:30:00Z",
+    highlights: [
+      "Control counts a sealed run as working or awaiting you from the run's own progress, the same reading every other page uses.",
+      'A sealed container that never starts now says "container failed to start" with the reason, instead of blaming the AI provider for not accepting the prompt.',
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.55",
+    tag: "fleet-runner-v0.8.55",
+    date: "2026-10-21T20:00:00Z",
+    highlights: [
+      'Sealed Antigravity runs stay unattended: Loki answers Gemini\'s own "Allow once" safety prompt inside the sandbox (logged), sealed agents count as working everywhere, a dead agent fails the run with its cause, and work it left behind is pushed as a draft PR.',
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.54",
+    tag: "fleet-runner-v0.8.54",
+    date: "2026-10-21T19:30:00Z",
+    highlights: [
+      "Antigravity runs unattended (auto-approve), and when any agent stops at a permission question the run shows Needs you with that question instead of Working.",
+      "Sealed builds can commit and push (git identity + the run's GitHub token), a builder restart waits for sealed agents instead of killing them, and an agent whose process dies shows Agent stopped at once.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.53",
+    tag: "fleet-runner-v0.8.53",
+    date: "2026-10-21T18:30:00Z",
+    highlights: [
+      'Antigravity works in sealed builds again: the sealed container now gives the agent a real terminal and its sign-in key, and the runner recognises Gemini CLI 0.65\'s working screen, so runs no longer fail as "never accepted the prompt".',
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.52",
+    tag: "fleet-runner-v0.8.52",
+    date: "2026-10-21T17:30:00Z",
+    highlights: [
+      "The Fleet Runner now measures which AI providers it can actually build with — installed, signed in or keyed, and a real one-line prompt answered — and reports it, so Settings → Agent shows each provider's status and the exact next step, and failover only picks agents that can run.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.51",
+    tag: "fleet-runner-v0.8.51",
+    date: "2026-10-21T17:00:00Z",
+    highlights: [
+      "A terminal watching an agent no longer types its own replies to the agent's terminal questions into the agent's input, which kept Antigravity from ever receiving its task.",
+      "A run only shows as working once the agent has visibly started on the prompt; otherwise it fails with the reason and moves to the next AI provider.",
+      "Every cloud run starts on its own fresh branch off the main branch, instead of whatever branch the last run left behind.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.50",
     tag: "fleet-runner-v0.8.50",
     date: "2026-10-20T10:00:00Z",

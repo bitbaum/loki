@@ -47,6 +47,11 @@ export const FLEET_SITES: readonly FleetSite[] = [
     blurb: "Schweizerdeutsch verstehen. Wir fangen mit Zürichdeutsch an.",
   },
   {
+    name: "kivvi",
+    url: "https://kivvi.orangecat.ch",
+    blurb: "Open-Source-ERP für Kreislaufbetriebe.",
+  },
+  {
     name: "Petvity",
     url: "https://petvity.orangecat.ch",
     blurb: "Track your pet's health, vets, sitters and essentials.",
