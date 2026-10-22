@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Play, ShieldAlert } from "lucide-react";
-import {
-  DispatchedNote,
-  useProjectDispatch,
-} from "@/components/projects/ProjectActionButtons";
+import { DispatchedNote, useProjectDispatch } from "@/components/projects/ProjectActionButtons";
 import type { MissionContinueOffer } from "@/lib/missions/continue-offer";
 
 /**
