@@ -48,10 +48,6 @@ export const TERMINAL_SOURCES: TerminalModeOption<TerminalSource>[] = [
   },
 ];
 
-export function terminalSourceHint(id: TerminalSource): string {
-  return TERMINAL_SOURCES.find((s) => s.id === id)?.hint ?? "";
-}
-
 /**
  * How the session is SHOWN — orthogonal to source and input. `chat` reads
  * Claude Code's own session log and renders it as a conversation (the phone
