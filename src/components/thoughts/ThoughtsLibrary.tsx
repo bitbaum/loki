@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Search, BookOpen } from "lucide-react";
-import { ScrollAffordance } from "@/components/ui/scroll-affordance";
+import { BookOpen } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { List, ListRow, ListSearch } from "@/components/ui/list-row";
 import type { ThoughtMeta } from "@/lib/thoughts-content";
 import { filterByQuery, type SearchSpec } from "@/lib/search";
 
@@ -18,6 +19,20 @@ const ESSAY_SEARCH_SPEC: SearchSpec<ThoughtArticle> = {
     { name: "excerpt", get: (a) => a.excerpt },
   ],
 };
+
+/** "Oct 10" this year, "Oct 10, 2025" before it — the row's one trailing fact. */
+function shortDate(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const sameYear = d.getUTCFullYear() === new Date().getUTCFullYear();
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+    timeZone: "UTC",
+  });
+}
 
 function formatMeta(article: ThoughtArticle) {
   const parts = [article.publishedAt, `${article.readingTimeMin} min`].filter(Boolean);
@@ -90,131 +105,111 @@ export function ThoughtsLibrary({
     else archiveByYear.set(year, [article]);
   }
 
+  // One list, like the essay index of any reading app: the featured essay
+  // leads as a plain heading and excerpt, the search is the list's first row,
+  // and every other essay is one row — title, one grey line, the date on the
+  // right. No cards, no tag chips on every row.
   return (
-    <div className="space-y-6">
-      {/* Featured essay — leads the page, first thing visible */}
+    <div className="space-y-8">
       {featuredVisible && (
-        <Link
-          href={`/thoughts/${featuredVisible.slug}`}
-          className="ui-card-shell-raised block space-y-4 p-6 transition hover:bg-surface-raised md:p-8"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="ui-kicker">Featured</span>
-            <span className="ui-badge">{formatMeta(featuredVisible)}</span>
-          </div>
-          <h2 className="text-2xl font-medium leading-tight text-text-primary md:text-3xl">
-            {featuredVisible.title}
-          </h2>
-          <p className="text-base leading-relaxed text-text-secondary md:text-lg">
-            {featuredVisible.excerpt}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {featuredVisible.tags.map((tag) => (
-              <span key={tag} className="ui-tag ui-tag-neutral">
-                {tag}
-              </span>
-            ))}
-          </div>
+        <Link href={`/thoughts/${featuredVisible.slug}`} className="ui-thoughts-lead">
+          <span className="ui-thoughts-lead-meta">{formatMeta(featuredVisible)}</span>
+          <span className="ui-thoughts-lead-title">{featuredVisible.title}</span>
+          <span className="ui-thoughts-lead-excerpt">{featuredVisible.excerpt}</span>
         </Link>
       )}
 
-      {/* Search + count + horizontal-scroll tag strip */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search essays"
-              className="ui-input pl-12"
-            />
-          </div>
-          <span className="shrink-0 text-sm text-text-tertiary">
-            {filtered.length} of {articles.length}
-          </span>
-        </div>
+      <div>
+        <ListSearch value={query} onChange={setQuery} placeholder="Search essays" />
 
-        {/* Single scrollable row — no wrapping. Fifth horizontal-scroll
-            surface in the codebase; uses the extracted ScrollAffordance
-            (0429728) for the mobile chevron + fade rather than re-inlining
-            the pattern. Adds ui-scroll-fade-right that was previously
-            missing here too. */}
-        <ScrollAffordance childCount={visibleTags.length + 2} threshold={4}>
-          <div className="flex gap-2 overflow-x-auto ui-scroll-fade-right pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {/* One line of topics that scrolls sideways on a phone and fades at
+            the edge, so no word is cut. */}
+        <div
+          className="ui-filter-chip-row ui-scroll-fade-right pb-1"
+          role="group"
+          aria-label="Topics"
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTag("all")}
+            aria-pressed={activeTag === "all"}
+            className={activeTag === "all" ? "ui-chip-filter-active" : "ui-chip-filter"}
+          >
+            All
+          </button>
+          {visibleTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setActiveTag(tag)}
+              aria-pressed={activeTag === tag}
+              className={activeTag === tag ? "ui-chip-filter-active" : "ui-chip-filter"}
+            >
+              {tag}
+            </button>
+          ))}
+          {hiddenTagCount > 0 && (
             <button
               type="button"
-              onClick={() => setActiveTag("all")}
-              className={`shrink-0 ${activeTag === "all" ? "ui-chip-filter-active" : "ui-chip-filter"}`}
+              onClick={() => setShowAllTags((v) => !v)}
+              className="ui-chip-filter"
             >
-              All
+              {showAllTags ? "Fewer topics" : `${hiddenTagCount} more`}
             </button>
-            {visibleTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => setActiveTag(tag)}
-                className={`shrink-0 ${activeTag === tag ? "ui-chip-filter-active" : "ui-chip-filter"}`}
-              >
-                {tag}
-              </button>
-            ))}
-            {hiddenTagCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAllTags((v) => !v)}
-                className="ui-chip-filter shrink-0"
-              >
-                {showAllTags ? "fewer tags" : `+${hiddenTagCount} more`}
-              </button>
-            )}
-          </div>
-        </ScrollAffordance>
+          )}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="ui-empty-panel py-12 text-text-secondary">
-          <BookOpen className="h-8 w-8 text-text-tertiary" />
-          <div className="text-lg text-text-primary">No essays match this filter</div>
-          <p className="max-w-md text-sm text-text-tertiary">
-            Try a broader search or switch topics.
-          </p>
-        </div>
+        <EmptyState
+          icon={BookOpen}
+          title="No essays match that"
+          action={
+            <button
+              type="button"
+              className="ui-public-text-link"
+              onClick={() => {
+                setQuery("");
+                setActiveTag("all");
+              }}
+            >
+              Show every essay
+            </button>
+          }
+        />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            {recent.map((article) => (
-              <Link
-                key={article.slug}
-                href={`/thoughts/${article.slug}`}
-                className="ui-card-shell-raised block space-y-2 p-5 transition hover:bg-surface-raised md:p-6"
-              >
-                <span className="ui-badge">{formatMeta(article)}</span>
-                <h3 className="text-xl font-medium text-text-primary">{article.title}</h3>
-                <p className="line-clamp-2 text-sm text-text-secondary">{article.summary}</p>
-              </Link>
-            ))}
-          </div>
+          {recent.length > 0 && (
+            <List aria-label="Recent essays">
+              {recent.map((article) => (
+                <ListRow
+                  key={article.slug}
+                  href={`/thoughts/${article.slug}`}
+                  title={article.title}
+                  secondary={article.summary}
+                  trailing={shortDate(article.publishedAt)}
+                />
+              ))}
+            </List>
+          )}
 
           {archive.length > 0 && (
-            <div className="space-y-4 border-t border-border-subtle pt-6">
+            <div className="space-y-1 border-t border-border-subtle pt-4">
               {[...archiveByYear.entries()].map(([year, group]) => (
                 <details key={year} className="ui-public-archive">
                   <summary className="ui-public-archive-summary">
                     {year} — {group.length} {group.length === 1 ? "essay" : "essays"}
                   </summary>
-                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  <List aria-label={`Essays from ${year}`} className="mt-1">
                     {group.map((article) => (
-                      <Link
+                      <ListRow
                         key={article.slug}
                         href={`/thoughts/${article.slug}`}
-                        className="ui-public-archive-item"
-                      >
-                        <span className="text-text-primary">{article.title}</span>
-                        <span className="ui-public-archive-item-meta">{formatMeta(article)}</span>
-                      </Link>
+                        title={article.title}
+                        trailing={shortDate(article.publishedAt)}
+                      />
                     ))}
-                  </div>
+                  </List>
                 </details>
               ))}
             </div>

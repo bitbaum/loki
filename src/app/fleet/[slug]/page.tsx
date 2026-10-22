@@ -9,6 +9,7 @@ import { humanizeAttrKey } from "@/config/project-attrs";
 import { longDate } from "@/lib/dates";
 import type { FleetMapEntry, MapRoadmapItem } from "@/lib/register/map";
 import { recordText } from "@/lib/register/record-links";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * A project's public build profile — what Loki publishes about ONE project to
@@ -66,7 +67,7 @@ export default async function PublicProjectProfile({
         <Link href="/fleet" className="ui-public-link">
           All projects
         </Link>
-        <h1 className="ui-public-page-title mt-6">{project.name}</h1>
+        <h1 className="ui-public-page-title mt-6">{projectTitle(project)}</h1>
         <p className="ui-public-lede mt-4">
           {project.what ?? "Purpose has not been recorded yet."}
         </p>

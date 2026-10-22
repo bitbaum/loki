@@ -19,7 +19,7 @@
 // running, so the hero never claims "LIVE" falsely.
 
 import { getShowcaseProjects } from "./user-projects";
-import { publicHeroNote } from "@/lib/project-display";
+import { publicHeroNote, projectTitle } from "@/lib/project-display";
 
 export type HeroFleetRow = {
   name: string;
@@ -130,7 +130,7 @@ export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
   const running = new Set(runningKeys.map((r) => r.projectKey.toLowerCase()));
 
   const projects: HeroFleetRow[] = showcase.map((p) => ({
-    name: p.name,
+    name: projectTitle(p),
     state: running.has(p.name.toLowerCase()) ? "running" : "idle",
     note: publicHeroNote(p.description) ?? "",
     by: byline(p.owner),

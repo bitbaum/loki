@@ -795,43 +795,6 @@
   .ui-public-surface {
     @apply relative min-h-screen overflow-hidden bg-background text-text-primary;
   }
-  .ui-public-backdrop {
-    @apply pointer-events-none absolute inset-0 overflow-hidden;
-    background:
-      radial-gradient(
-        ellipse 700px 480px at 50% -8%,
-        var(--public-glow-accent) 0%,
-        transparent 60%
-      ),
-      radial-gradient(
-        ellipse var(--public-backdrop-primary-width) var(--public-backdrop-primary-height) at 50% 0%,
-        var(--public-glow-primary) 0%,
-        var(--public-glow-primary-2) 40%,
-        transparent 70%
-      ),
-      radial-gradient(
-        ellipse var(--public-backdrop-secondary-width) var(--public-backdrop-secondary-height) at
-          50% 33%,
-        var(--public-glow-secondary) 0%,
-        transparent 60%
-      );
-  }
-  .ui-public-backdrop::after {
-    content: "";
-    @apply absolute inset-0;
-    background-image:
-      linear-gradient(var(--public-grid-stroke) 1px, transparent 1px),
-      linear-gradient(90deg, var(--public-grid-stroke) 1px, transparent 1px);
-    background-size: var(--public-backdrop-grid-size) var(--public-backdrop-grid-size);
-    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 70%, transparent 100%);
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      black 15%,
-      black 70%,
-      transparent 100%
-    );
-  }
   .ui-public-nav-brand-row {
     @apply flex min-w-0 items-center gap-3 sm:gap-8;
   }
@@ -879,7 +842,7 @@
     @apply min-w-0;
   }
   .ui-public-nav-panel-section-label {
-    @apply px-4 pb-2 pt-1 text-micro font-semibold uppercase tracking-caps text-text-muted;
+    @apply px-4 pb-2 pt-1 text-xs font-medium text-text-tertiary;
   }
   .ui-public-nav-panel-item {
     @apply block rounded-xl px-4 py-3 transition-colors hover:bg-surface-raised;
@@ -894,7 +857,7 @@
      44px is the WCAG 2.5.5 floor; the old 36px square failed it on every
      public page. */
   .ui-public-nav-toggle {
-    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border-subtle text-text-secondary transition-colors hover:border-border-default hover:text-text-primary active:scale-[0.97];
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary active:scale-[0.97];
   }
   /* Full-screen drawer for the mobile public nav. Background colour is set
      directly (not via bg-background) so it stays fully opaque on top of the
@@ -912,7 +875,7 @@
     @apply flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-4 py-2.5;
   }
   .ui-public-drawer-body {
-    @apply flex-1 space-y-8 overflow-y-auto px-4 pb-10 pt-5;
+    @apply flex-1 space-y-6 overflow-y-auto px-4 pb-10 pt-4;
   }
   /* The two conversion actions, full width and thumb-sized, above the link
      lists — a visitor who opened the menu to sign up should not have to read
@@ -921,18 +884,18 @@
     @apply flex flex-col gap-2.5;
   }
   .ui-public-drawer-section-label {
-    @apply mb-2 px-1 text-micro font-semibold uppercase tracking-caps text-text-muted;
+    @apply mb-1 px-1 text-section font-semibold text-text-primary;
   }
   .ui-public-drawer-section {
     @apply space-y-1;
   }
   .ui-public-drawer-subsection-label {
-    @apply px-1 pb-1 pt-4 text-micro font-semibold uppercase tracking-caps text-text-muted first:pt-0;
+    @apply px-1 pb-1 pt-4 text-sm text-text-tertiary first:pt-0;
   }
   /* min-h-14 (56px) rows: a comfortable phone target, and tall enough to carry
      the label + its one-line description without the two colliding. */
   .ui-public-drawer-item {
-    @apply flex min-h-14 items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors hover:border-border-subtle hover:bg-surface-raised active:bg-surface-raised;
+    @apply flex min-h-14 items-center justify-between gap-3 border-b border-border-subtle px-1 py-2.5 transition-colors last:border-b-0 hover:bg-surface-raised active:bg-surface-raised;
   }
   .ui-public-drawer-item-icon {
     @apply h-4 w-4 shrink-0 text-text-muted;
@@ -1009,7 +972,7 @@
     @apply mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6 sm:pb-32 sm:pt-12;
   }
   .ui-changelog-eyebrow {
-    @apply text-micro font-medium uppercase tracking-[0.18em] text-white/40;
+    @apply text-micro font-medium text-white/40;
   }
   .ui-changelog-title {
     @apply mt-3 text-4xl font-medium tracking-tight text-white sm:text-5xl;
@@ -1023,7 +986,7 @@
     @apply mt-12 sm:mt-20;
   }
   .ui-changelog-entry {
-    @apply border-t border-white/[0.12] py-9 first:border-t-0 first:pt-0 sm:py-14;
+    @apply border-t border-border-subtle py-9 first:border-t-0 first:pt-0 sm:py-14;
   }
   .ui-changelog-meta {
     @apply flex flex-wrap items-center gap-x-3 gap-y-1;
@@ -1031,13 +994,13 @@
   /* white/60 (was /40) — dates and version numbers are primary scanning
      targets on a changelog, not decoration; /40 failed WCAG AA on black. */
   .ui-changelog-date {
-    @apply text-micro font-medium uppercase tracking-[0.16em] text-white/60;
+    @apply text-micro font-medium text-white/60;
   }
   .ui-changelog-version {
-    @apply font-mono text-micro uppercase text-white/60;
+    @apply font-mono text-micro text-white/60;
   }
   .ui-changelog-current {
-    @apply rounded-full border border-white/15 px-2 py-0.5 text-micro font-medium uppercase tracking-[0.12em] text-white/75;
+    @apply rounded-full border border-white/15 px-2 py-0.5 text-micro font-medium text-white/75;
   }
   .ui-changelog-entry-title {
     @apply mt-3 text-xl font-medium tracking-tight text-white sm:text-2xl;
@@ -1056,7 +1019,7 @@
     @apply mt-[0.6rem] h-1 w-1 shrink-0 rounded-full bg-white/25;
   }
   .ui-changelog-breaking-label {
-    @apply mb-3 mt-9 text-micro font-medium uppercase tracking-[0.16em] text-status-warning;
+    @apply mb-3 mt-9 text-micro font-medium text-status-warning;
   }
   .ui-changelog-breaking .ui-changelog-bullet {
     @apply bg-status-warning/60;
@@ -1068,7 +1031,7 @@
     @apply inline-flex min-h-11 items-center text-white/45 underline-offset-4 transition-colors hover:text-white;
   }
   .ui-changelog-tag {
-    @apply font-mono text-micro uppercase tracking-[0.1em] text-white/30;
+    @apply font-mono text-micro text-white/30;
   }
   .ui-changelog-code {
     @apply font-mono text-white;
@@ -1101,7 +1064,7 @@
     @apply text-xs font-normal text-white/40;
   }
   .ui-public-release-section-heading {
-    @apply mb-2 mt-4 text-micro uppercase tracking-caps text-white/40;
+    @apply mb-2 mt-4 text-micro text-white/40;
   }
   /* Breaking-changes section uses the status-warning hue to draw the eye —
      these are the bits a returning user needs to read before upgrading. */
@@ -1129,7 +1092,7 @@
     @apply text-text-muted;
   }
   .ui-public-primary-action {
-    @apply rounded-full bg-text-primary px-8 py-3 text-sm font-semibold text-text-inverted transition-opacity hover:opacity-85;
+    @apply rounded-full bg-accent-warm px-8 py-3 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover;
   }
   .ui-public-feature-card {
     @apply rounded-2xl border border-border-subtle bg-surface-base p-6 text-left;
@@ -1144,7 +1107,7 @@
     @apply text-sm leading-relaxed text-text-muted;
   }
   .ui-public-footer {
-    @apply mt-12 text-xs tracking-[0.04em] text-text-muted sm:mt-16;
+    @apply mt-12 text-xs text-text-muted sm:mt-16;
   }
   /* break-words, because these carry bare URLs in the legal pages. An unbroken
      "github.com/maonakamoto/loki/issues" is 331px wide — wider than a
@@ -1172,7 +1135,7 @@
     @apply mb-8 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border-subtle pt-8 sm:grid-cols-3 sm:gap-12;
   }
   .ui-public-footer-heading {
-    @apply mb-1 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+    @apply mb-1 text-sm font-medium text-text-primary;
   }
   .ui-public-footer-bottom {
     @apply flex flex-wrap items-center justify-between gap-3 text-xs text-text-tertiary;
@@ -1181,7 +1144,7 @@
     @apply mb-8 border-t border-border-subtle pt-8;
   }
   .ui-public-footer-fleet-summary {
-    @apply inline-flex cursor-pointer list-none items-center text-micro font-semibold uppercase tracking-caps text-text-tertiary transition-colors hover:text-text-secondary;
+    @apply inline-flex min-h-11 cursor-pointer list-none items-center text-sm text-text-tertiary transition-colors hover:text-text-secondary;
   }
   .ui-public-footer-fleet-summary::-webkit-details-marker {
     display: none;
@@ -1208,7 +1171,7 @@
     @apply mb-10 grid gap-4 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:mb-12 sm:grid-cols-2 sm:p-5;
   }
   .ui-public-steps-label {
-    @apply mb-2 flex items-center gap-2 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+    @apply mb-2 flex items-center gap-2 text-micro font-semibold text-text-tertiary;
   }
   .ui-public-steps-list {
     @apply flex flex-col;
@@ -1222,7 +1185,7 @@
   /* Marker on a heading whose step cannot be done from the device you are
      probably holding. */
   .ui-public-step-badge {
-    @apply ml-2 inline-flex translate-y-[-2px] items-center rounded-full border border-border-subtle px-2 py-0.5 align-middle text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+    @apply ml-2 inline-flex translate-y-[-2px] items-center rounded-full border border-border-subtle px-2 py-0.5 align-middle text-micro font-semibold text-text-tertiary;
   }
   .ui-icon-btn {
     @apply inline-flex items-center justify-center;
@@ -1246,10 +1209,10 @@
      the label wrapped to two lines and the pill grew past the right edge of a
      390px viewport, clipping the action the whole header exists to offer. */
   .ui-public-primary-action-compact {
-    @apply inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full bg-text-primary !px-4 text-sm font-semibold text-text-inverted transition-opacity hover:opacity-85 active:scale-[0.97] sm:!px-5;
+    @apply inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-full border border-border-default px-4 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised active:scale-[0.97];
   }
   .ui-public-section-kicker {
-    @apply mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted;
+    @apply mb-3 text-xs font-semibold text-text-muted;
   }
   .ui-public-section-title {
     @apply text-2xl font-bold tracking-tight text-text-secondary;
@@ -1261,10 +1224,10 @@
     @apply mb-8 sm:mb-12 text-sm text-text-muted;
   }
   .ui-public-pricing-popular {
-    @apply mb-4 inline-flex items-center rounded-full bg-surface-raised px-2.5 py-1 text-micro font-semibold uppercase tracking-widest text-text-tertiary;
+    @apply mb-4 inline-flex items-center rounded-full bg-surface-raised px-2.5 py-1 text-micro font-semibold text-text-tertiary;
   }
   .ui-public-pricing-plan {
-    @apply mb-1 text-xs font-semibold uppercase tracking-widest text-text-muted;
+    @apply mb-1 text-xs font-semibold text-text-muted;
   }
   .ui-public-pricing-price-row {
     @apply flex items-baseline gap-1;
@@ -1296,15 +1259,6 @@
   .ui-public-doc-header {
     @apply mb-10 border-b border-border-subtle pb-8 sm:mb-16 sm:pb-12;
   }
-  .ui-public-doc-meta-row {
-    @apply mb-4 flex flex-wrap items-center gap-2 sm:mb-6 sm:gap-3;
-  }
-  .ui-public-doc-badge {
-    @apply rounded-full border border-border-subtle bg-surface-raised px-3 py-1 font-mono text-xs text-text-muted;
-  }
-  .ui-public-doc-meta {
-    @apply font-mono text-xs text-text-muted;
-  }
   .ui-public-doc-title {
     @apply mb-4 font-bold tracking-tight text-text-primary sm:mb-5;
     font-size: clamp(1.875rem, 8vw, 3.25rem);
@@ -1327,10 +1281,10 @@
      between the title and the document. Open by default from `sm` up, where
      that list costs one column and no scrolling. */
   .ui-public-doc-toc {
-    @apply mb-10 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:mb-14 sm:p-6;
+    @apply mb-10 border-y border-border-subtle py-2 sm:mb-14 sm:py-6;
   }
   .ui-public-doc-toc-title {
-    @apply flex cursor-pointer list-none items-center justify-between gap-2 text-micro font-semibold uppercase tracking-caps text-text-tertiary sm:mb-4 sm:cursor-auto;
+    @apply flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 text-base font-medium text-text-primary sm:mb-3 sm:min-h-0 sm:cursor-auto;
   }
   .ui-public-doc-toc-title::-webkit-details-marker {
     display: none;
@@ -1385,24 +1339,16 @@
      app ships the look, because each app in the fleet must keep looking like
      itself. */
   .ui-fleet-searchbar {
-    @apply flex gap-2 pb-2;
+    @apply relative pb-2;
   }
   .ui-fleet-search-input {
-    @apply w-full rounded-xl border border-border-default bg-surface-overlay px-4 py-3 text-base text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-border-interactive;
-  }
-  .ui-fleet-search-go {
-    @apply shrink-0 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+    @apply min-h-12 w-full rounded-full border border-border-subtle bg-surface-raised py-3 pl-11 pr-4 text-base text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-border-strong;
   }
   .ui-fleet-facet-row {
-    @apply flex flex-col gap-1.5 border-t border-border-subtle py-3 sm:flex-row sm:items-center sm:gap-4;
+    @apply flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-4;
   }
   .ui-fleet-facet-label {
-    @apply shrink-0 font-mono text-[11px] uppercase tracking-caps text-text-muted sm:w-16;
-  }
-  /* One scrolling line on a phone, wrapping from sm. A filter bar that wraps to
-     four rows on a small screen pushes the list it filters off the fold. */
-  .ui-fleet-chips {
-    @apply -mx-1 flex gap-1.5 overflow-x-auto px-1 sm:flex-wrap sm:overflow-visible;
+    @apply shrink-0 text-sm text-text-tertiary sm:w-20;
   }
   .ui-fleet-chip {
     @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-base px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
@@ -1411,54 +1357,45 @@
     @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border border-accent-primary/40 bg-accent-muted px-3 py-1.5 text-xs font-medium text-text-primary ring-1 ring-accent-primary/30;
   }
   .ui-fleet-chip-count {
-    @apply font-mono text-[10px] text-text-muted;
+    @apply text-xs text-text-muted;
   }
   /* The facet rows, collapsible on a phone and always open from md up.
      <details> so it works with no JavaScript — this page deliberately has
      none, and a filter panel that needs a bundle to open would be the one
      thing on it that does. */
   .ui-fleet-filters {
-    @apply border-b border-border-subtle md:border-b-0;
+    @apply border-t border-border-subtle;
   }
   .ui-fleet-filters-summary {
-    @apply flex min-h-11 cursor-pointer list-none items-center gap-2 py-2 font-mono text-xs uppercase tracking-caps text-text-muted transition-colors hover:text-text-primary;
+    @apply flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary;
   }
   /* Safari still paints the default triangle without this. */
   .ui-fleet-filters-summary::-webkit-details-marker {
     display: none;
   }
   .ui-fleet-filters-badge {
-    @apply inline-flex min-w-5 items-center justify-center rounded-full bg-accent-muted px-1.5 font-mono text-[10px] text-accent-text;
+    @apply inline-flex min-w-5 items-center justify-center rounded-full bg-surface-raised px-1.5 text-xs text-text-primary;
   }
   /* Hiding the closed panel has to be explicit. The UA hides a closed
      <details>'s children with `display: none`, but AUTHOR styles outrank the UA
      sheet and .ui-fleet-facet-row is `@apply flex` — so the rows stayed visible
      while the element reported open=false. Measured that way: the toggle
      rendered and changed nothing. */
-  @media (max-width: 767px) {
-    .ui-fleet-filters:not([open]) > *:not(summary) {
-      display: none;
-    }
+  .ui-fleet-filters:not([open]) > *:not(summary) {
+    display: none;
   }
-  /* From md the panel is simply always open and the toggle goes away with it —
-     no JS, no second copy of the markup, and the rows keep their own display so
-     nothing here has to know they are flex. */
-  @media (min-width: 768px) {
-    .ui-fleet-filters-summary {
-      display: none;
-    }
-  }
+  /* The toggle stays at every width. It used to be hidden from md up on the
+     belief that CSS "forced the panel open" there — but a closed <details>
+     hides its content however wide the screen, so on a desktop the filters
+     were simply gone, with nothing to press to get them back. */
   .ui-fleet-resultbar {
-    @apply flex flex-col gap-3 border-t border-border-subtle py-3 sm:flex-row sm:items-center sm:justify-between;
+    @apply flex items-center justify-between gap-3 border-t border-border-subtle py-2;
   }
   .ui-fleet-count {
-    @apply font-mono text-xs uppercase tracking-caps text-text-muted;
-  }
-  .ui-fleet-sorts {
-    @apply -mx-1 flex items-center gap-1.5 overflow-x-auto px-1 sm:overflow-visible;
+    @apply text-sm text-text-tertiary;
   }
   .ui-fleet-empty {
-    @apply rounded-2xl border border-dashed border-border-subtle px-6 py-10 text-center;
+    @apply py-12 text-center;
   }
   /* An address that answers 200 with a scaffold behind it. Warning-coloured
      because it IS a warning: clicking it gets you nothing to read. */
@@ -1548,10 +1485,10 @@
      one line of consequence. The accented variant is reserved for the
      commercial band; six equally loud numbers on one page is no hierarchy. */
   .ui-public-fleet-stats {
-    @apply grid grid-cols-1 gap-4 sm:grid-cols-3;
+    @apply grid grid-cols-1 sm:grid-cols-3 sm:gap-x-8;
   }
   .ui-public-fleet-stat {
-    @apply flex flex-col gap-2 rounded-2xl border border-border-subtle bg-surface-base p-5;
+    @apply flex flex-col gap-1 border-t border-border-subtle py-4;
   }
   /* Coverage counts: loud, but not the loudest. Six equally accented numbers
      on one page is no hierarchy at all — the accent is reserved for the
@@ -1567,19 +1504,13 @@
     text-wrap: pretty;
   }
   .ui-public-archive {
-    @apply rounded-2xl border border-border-subtle bg-surface-base px-5 py-4;
+    @apply border-b border-border-subtle last:border-b-0;
   }
   .ui-public-archive-summary {
-    @apply cursor-pointer list-none text-sm font-medium text-text-secondary transition-colors hover:text-text-primary;
+    @apply flex min-h-12 cursor-pointer list-none items-center text-base font-medium text-text-secondary transition-colors hover:text-text-primary;
   }
   .ui-public-archive-summary::-webkit-details-marker {
     display: none;
-  }
-  .ui-public-archive-item {
-    @apply flex flex-col gap-0.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-surface-raised;
-  }
-  .ui-public-archive-item-meta {
-    @apply text-xs text-text-tertiary;
   }
   /* Bare inline disclosure trigger — for collapsed detail bullets inside
      prose sections (roadmap items). */
@@ -1633,7 +1564,7 @@
     @apply overflow-x-auto rounded-xl border border-border-subtle bg-surface-raised p-4 sm:p-5;
   }
   .ui-public-code-lang {
-    @apply mb-3 font-mono text-micro uppercase tracking-widest text-text-muted;
+    @apply mb-3 font-mono text-micro text-text-muted;
   }
   /* Wraps on a phone instead of scrolling sideways. A code block that needs a
      second scroll axis inside a page that already scrolls vertically is a trap
@@ -1646,7 +1577,7 @@
   /* Whitepaper (2026-10-02): the short version above the long one, and
      diagrams that wrap instead of running off a phone's edge. */
   .ui-whitepaper-summary {
-    @apply mb-8 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
+    @apply mb-10 border-l-2 border-border-default pl-4 sm:pl-6;
   }
   .ui-whitepaper-body pre {
     white-space: pre-wrap;
@@ -1656,7 +1587,7 @@
     @apply mt-14 border-t border-border-subtle pt-10 text-center sm:mt-24 sm:pt-16;
   }
   .ui-public-doc-footer-title {
-    @apply mb-2 text-sm font-medium text-text-secondary;
+    @apply mb-2 text-lg font-semibold text-text-primary;
   }
   .ui-public-doc-footer-note {
     @apply mb-8 text-sm text-text-muted;
@@ -1665,21 +1596,14 @@
      and the /why, /how-it-works, /compare, /investors, /roadmap subpages. Theme-aware:
      every colour resolves through theme tokens that flip with .dark. */
   .ui-public-eyebrow {
-    @apply text-[11px] uppercase tracking-[0.14em] text-text-tertiary sm:text-xs sm:tracking-[0.18em];
+    @apply text-sm text-text-tertiary;
   }
   /* One line, always. A pill whose label wraps stops reading as a status badge
      and starts reading as a paragraph someone drew a border around — so the
      phone gets the short positioning string (see MARKETING_POSITIONING_SHORT)
      and the tracking steps down with it. */
   .ui-public-hero-badge {
-    @apply mb-6 inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-full border border-border-subtle bg-white/[0.03] px-3.5 py-1.5 text-[11px] uppercase tracking-[0.1em] text-text-secondary backdrop-blur-sm sm:mb-8 sm:gap-2.5 sm:px-4 sm:text-xs sm:tracking-[0.15em];
-  }
-  /* Live status dot leading the hero badge — warm accent with a soft halo. */
-  .ui-public-hero-badge::before {
-    content: "";
-    @apply h-1.5 w-1.5 shrink-0 rounded-full;
-    background: var(--public-accent);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--public-accent) 22%, transparent);
+    @apply mb-5 inline-flex max-w-full items-center whitespace-nowrap text-sm text-text-tertiary sm:mb-6;
   }
   /* Display sizes are viewport-relative so a phone gets a headline, not a
      billboard. The old floors (2.75rem / 3.25rem) were tuned on a laptop: at
@@ -1731,22 +1655,25 @@
   .ui-public-hero-actions > * {
     @apply w-full sm:w-auto;
   }
-  /* x.ai/SpaceX-style entrance: a short, eased rise+fade. Staggered down the
-     hero fold. Disabled under reduced-motion. */
+  /* A short eased rise, staggered down the hero fold — movement only, never
+     opacity. It used to fade in from 0 with `both` fill, so until the
+     animation ran the headline was not there at all: a slow phone, a
+     screenshot or a page still loading showed a blank hole where the promise
+     should be. Content is visible by default; the motion is the extra.
+     Disabled under reduced motion. */
   @keyframes ui-public-rise {
     from {
-      opacity: 0;
       transform: translateY(14px);
     }
     to {
-      opacity: 1;
       transform: translateY(0);
     }
   }
   @media (prefers-reduced-motion: reduce) {
     .ui-public-hero-title,
     .ui-public-hero-lede,
-    .ui-public-hero-sublede {
+    .ui-public-hero-sublede,
+    .ui-consult-turn {
       animation: none;
     }
   }
@@ -1756,32 +1683,21 @@
      same status language the real Control view uses. Data is sourced from
      HOME_HERO_CONSOLE (marketing-content.ts) — no inline literals. */
   .ui-public-hero-console {
-    @apply relative mx-auto mt-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-border-default bg-surface-raised p-4 text-left sm:mt-16 sm:p-6;
-    box-shadow:
-      var(--shadow-panel-strong),
-      0 50px 90px -50px rgba(0, 0, 0, 0.85);
-    animation: ui-public-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both;
-  }
-  .ui-public-hero-console::before {
-    content: "";
-    @apply pointer-events-none absolute inset-x-0 top-0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    @apply relative mx-auto mt-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-border-subtle bg-surface-base p-4 text-left sm:mt-16 sm:p-6;
   }
   .ui-public-hero-console-bar {
     @apply mb-4 flex items-center justify-between gap-2 border-b border-border-subtle pb-3 sm:mb-5 sm:pb-4;
   }
   .ui-public-hero-console-label {
-    @apply font-mono text-[11px] uppercase tracking-[0.12em] text-text-tertiary sm:text-xs sm:tracking-[0.18em];
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-hero-console-live {
-    @apply inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-text-tertiary;
+    @apply inline-flex items-center gap-2 text-sm text-text-tertiary;
   }
   .ui-public-hero-console-live::before {
     content: "";
     @apply h-1.5 w-1.5 rounded-full;
-    background: var(--public-accent);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--public-accent) 22%, transparent);
+    background: var(--status-positive);
   }
   /* Idle state — no agent running. Honest: a neutral dot, no warm "live" halo. */
   .ui-public-hero-console-live-idle::before {
@@ -1792,14 +1708,14 @@
     @apply mb-5 font-mono text-lg text-text-primary;
   }
   .ui-public-hero-console-rows {
-    @apply space-y-px overflow-hidden rounded-xl border border-border-subtle;
+    @apply divide-y divide-border-subtle;
   }
   /* Two lines on a phone, one from `sm` up. Squeezing name + description onto
      one 358px line truncated every description to "Life OS + AI agent …",
      which tells a visitor nothing — the whole point of showing a real fleet.
      The dot spans both lines via items-start + a nudge. */
   .ui-public-hero-console-row {
-    @apply flex flex-col gap-1 bg-surface-base px-3.5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4;
+    @apply flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-3;
   }
   .ui-public-hero-console-row-head {
     @apply flex items-center gap-2.5 sm:contents;
@@ -1869,19 +1785,13 @@
      stayed on one line, and collapsed below the tap-target floor whenever it
      didn't. */
   .ui-public-cta {
-    @apply inline-flex min-h-12 items-center justify-center rounded-xl bg-text-primary px-6 py-3 text-[15px] font-medium text-text-inverted transition-all hover:opacity-90 active:scale-[0.98] sm:px-7;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 8px 24px -8px rgba(255, 255, 255, 0.25);
+    @apply inline-flex min-h-12 items-center justify-center rounded-full bg-accent-warm px-6 py-3 text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:scale-[0.98] sm:px-7;
   }
   .ui-public-cta-ghost {
-    @apply inline-flex min-h-12 items-center justify-center rounded-xl border border-border-default bg-white/[0.02] px-6 py-3 text-[15px] font-medium text-text-secondary transition-all hover:border-border-strong hover:bg-white/[0.05] hover:text-text-primary active:scale-[0.98] sm:px-7;
+    @apply inline-flex min-h-12 items-center justify-center rounded-full border border-border-default px-6 py-3 text-base font-medium text-text-primary transition-colors hover:bg-surface-raised active:scale-[0.98] sm:px-7;
   }
   .ui-public-cta-lg {
-    @apply inline-flex min-h-13 items-center justify-center rounded-xl bg-text-primary px-7 py-3.5 text-base font-medium text-text-inverted transition-all hover:opacity-90 active:scale-[0.98] sm:px-9 sm:text-lg;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 10px 30px -10px rgba(255, 255, 255, 0.3);
+    @apply inline-flex min-h-13 items-center justify-center rounded-full bg-accent-warm px-7 py-3.5 text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:scale-[0.98] sm:px-9 sm:text-lg;
   }
   .ui-public-lede {
     @apply text-[17px] leading-snug text-text-secondary sm:text-2xl;
@@ -1909,11 +1819,11 @@
      the desktop padding: at 390px an 80px gap already reads as a hard section
      break, while the 96px the desktop uses reads as the page having ended. */
   .ui-public-section {
-    @apply py-14 sm:py-20 lg:py-24;
+    @apply py-12 sm:py-20 lg:py-24;
   }
   /* The gap between a section's heading block and its content grid. */
   .ui-public-section-gap {
-    @apply mt-8 sm:mt-12 lg:mt-14;
+    @apply mt-6 sm:mt-10 lg:mt-12;
   }
   /* Standard marketing gutter. 16px on a phone matches the header and the hero
      fold, so nothing on the page steps in or out as you scroll. */
@@ -2002,7 +1912,7 @@
     @apply flex flex-col gap-10 sm:gap-14;
   }
   .ui-journey-headline {
-    @apply flex flex-col gap-4 rounded-3xl border border-border-subtle bg-surface-base p-5 sm:p-8;
+    @apply flex flex-col gap-4;
   }
   .ui-journey-percent {
     @apply font-semibold leading-none text-text-primary tabular-nums;
@@ -2023,7 +1933,7 @@
     @apply bg-status-positive;
   }
   .ui-journey-bar-seg[data-phase="now"] {
-    background: var(--accent-warm);
+    background: var(--text-primary);
   }
   .ui-journey-bar-seg[data-phase="next"] {
     @apply bg-text-tertiary;
@@ -2044,7 +1954,7 @@
     @apply bg-status-positive;
   }
   .ui-journey-legend-item[data-phase="now"] .ui-journey-legend-dot {
-    background: var(--accent-warm);
+    background: var(--text-primary);
   }
   .ui-journey-legend-item[data-phase="next"] .ui-journey-legend-dot {
     @apply bg-text-tertiary;
@@ -2071,7 +1981,7 @@
     @apply hidden;
   }
   .ui-journey-stop[data-phase="now"]::before {
-    background: linear-gradient(var(--accent-warm), var(--border-default));
+    background: linear-gradient(var(--text-primary), var(--border-default));
   }
   .ui-journey-stop[data-phase="next"]::before,
   .ui-journey-stop[data-phase="later"]::before {
@@ -2091,7 +2001,7 @@
   .ui-journey-stop[data-here] .ui-journey-marker::after {
     content: "";
     @apply absolute inset-0 rounded-full border-2;
-    border-color: var(--accent-warm);
+    border-color: var(--text-primary);
     animation: ui-journey-beacon 2.2s ease-out infinite;
   }
   .ui-journey-ring {
@@ -2110,7 +2020,7 @@
     animation: ui-journey-ring-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
   .ui-journey-stop[data-phase="now"] .ui-journey-ring-fill {
-    stroke: var(--accent-warm);
+    stroke: var(--text-primary);
   }
   .ui-journey-ring-text {
     @apply font-semibold tabular-nums;
@@ -2118,23 +2028,19 @@
     font-size: 11px;
   }
   .ui-journey-card {
-    @apply flex min-w-0 flex-1 flex-col gap-2 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-6;
-  }
-  .ui-journey-stop[data-here] .ui-journey-card {
-    border-color: oklch(from var(--accent-warm) l c h / 45%);
-    box-shadow: var(--shadow-panel);
+    @apply flex min-w-0 flex-1 flex-col gap-2 pb-4 pt-2.5;
   }
   .ui-journey-card-quiet {
     @apply border-transparent bg-transparent p-0 pt-2.5 sm:p-0 sm:pt-2.5;
   }
-  /* The one warm thing on the page, where the work is happening. */
+  /* "You are here": the stop being built. Neutral ink — on the public site
+     orange belongs to the one primary action. */
   .ui-journey-here {
     @apply inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold;
-    background: oklch(from var(--accent-warm) l c h / 14%);
-    color: var(--accent-warm);
+    @apply bg-surface-raised text-text-primary;
   }
   .ui-journey-kicker {
-    @apply text-xs font-medium uppercase tracking-wider text-text-tertiary;
+    @apply text-xs font-medium text-text-tertiary;
   }
   .ui-journey-title {
     @apply text-lg font-semibold text-text-primary sm:text-xl;
@@ -2246,34 +2152,21 @@
     }
   }
   .ui-public-band {
-    @apply border-t border-border-default bg-surface-page;
+    @apply border-t border-border-subtle;
   }
   .ui-public-surface-card {
-    /* min-h 200px (was 320px) — typical card content is ~120px tall, so 320px
-       painted ~200px of dead space per card; 200px keeps rows aligned without
-       the void. Phones drop it entirely: cards stack there, so nothing needs
-       aligning and the floor only adds scroll. */
-    @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-5 text-left sm:min-h-[200px] sm:p-6;
+    @apply flex flex-col border-t border-border-subtle py-5 text-left;
   }
   .ui-public-surface-card-label {
-    @apply mb-4 font-mono text-[11px] uppercase tracking-[0.14em] text-text-secondary sm:mb-8 sm:text-xs sm:tracking-[0.18em];
+    @apply mb-1 text-sm text-text-tertiary;
   }
   .ui-public-surface-card-title {
-    @apply text-xl font-semibold leading-tight text-text-primary sm:text-2xl;
+    @apply text-lg font-semibold leading-snug text-text-primary sm:text-xl;
     text-wrap: balance;
   }
   .ui-public-surface-card-body {
-    @apply mt-3 text-sm leading-relaxed text-text-secondary sm:mt-4;
+    @apply mt-2 text-base leading-relaxed text-text-secondary;
     text-wrap: pretty;
-  }
-  /* Chips, not a mono run-on. "Desktop app · CLI agent fallback · agent
-     tokens" wrapped mid-phrase on a phone and read as broken output; each
-     term now wraps as its own unit. */
-  .ui-public-surface-card-meta {
-    @apply mt-auto flex flex-wrap gap-1.5 pt-5 sm:pt-8;
-  }
-  .ui-public-surface-card-meta-chip {
-    @apply inline-flex items-center rounded-md border border-border-subtle px-2 py-1 font-mono text-[11px] text-text-tertiary;
   }
   /* Pricing card — reuses the surface-card shell; the featured variant lifts
      the recommended tier with an accent border + panel shadow. */
@@ -2281,8 +2174,7 @@
     @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-6 text-left;
   }
   .ui-public-price-card-featured {
-    @apply border-accent-primary;
-    box-shadow: var(--shadow-panel-strong);
+    @apply border-border-strong;
   }
   .ui-public-price-amount {
     @apply font-heading text-4xl font-semibold text-text-primary;
@@ -2295,7 +2187,7 @@
     box-shadow: var(--shadow-panel-strong);
   }
   .ui-public-terminal-row {
-    @apply mb-8 flex items-center justify-between font-mono text-xs uppercase tracking-[0.16em] text-white/45;
+    @apply mb-8 flex items-center justify-between font-mono text-xs text-white/45;
   }
   .ui-public-terminal-line {
     @apply font-mono text-xl leading-snug text-white;
@@ -2343,29 +2235,29 @@
     @apply mt-2 w-full max-w-full border-dashed border-border-default bg-transparent;
   }
   .ui-public-ear-who {
-    @apply text-[11px] uppercase tracking-[0.14em] text-text-tertiary;
+    @apply text-micro text-text-tertiary;
   }
   .ui-public-ear-line {
     @apply text-sm leading-relaxed text-text-primary sm:text-base;
   }
   .ui-public-howto {
-    @apply grid gap-3 sm:gap-4 md:grid-cols-3;
+    @apply grid md:grid-cols-3 md:gap-x-10;
   }
   .ui-public-howto-step {
-    @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-5 text-left sm:p-6;
+    @apply flex flex-col border-t border-border-subtle py-5 text-left;
   }
   .ui-public-howto-num {
-    @apply font-mono text-3xl font-semibold text-text-muted sm:text-4xl;
+    @apply font-mono text-sm text-text-tertiary;
   }
   .ui-public-howto-title {
-    @apply mt-4 text-lg font-semibold text-text-primary sm:mt-6 sm:text-xl;
+    @apply mt-1 text-lg font-semibold text-text-primary sm:text-xl;
   }
   .ui-public-howto-body {
-    @apply mt-2.5 text-sm leading-relaxed text-text-secondary;
+    @apply mt-2 text-base leading-relaxed text-text-secondary;
     text-wrap: pretty;
   }
   .ui-public-howto-note {
-    @apply mx-auto mt-6 max-w-2xl text-center text-sm leading-relaxed text-text-tertiary sm:mt-8;
+    @apply mt-6 max-w-2xl text-sm leading-relaxed text-text-tertiary;
     text-wrap: pretty;
   }
   /* Comparison table (/compare). Scrolls inside its own box on a phone so the
@@ -2377,7 +2269,7 @@
     @apply w-full min-w-[640px] border-collapse text-left text-sm;
   }
   .ui-public-compare th {
-    @apply border-b border-border-default px-3 py-2.5 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+    @apply border-b border-border-default px-3 py-2.5 text-micro font-semibold text-text-tertiary;
   }
   .ui-public-compare td {
     @apply border-b border-border-subtle px-3 py-3 align-top leading-relaxed text-text-secondary;
@@ -2386,20 +2278,95 @@
     @apply font-medium text-text-primary;
   }
   .ui-public-compare-group td {
-    @apply pt-6 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+    @apply pt-6 text-micro font-semibold text-text-tertiary;
   }
   .ui-public-start-card {
-    @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-5 text-left transition-colors hover:border-border-default active:border-border-default sm:min-h-[260px] sm:p-6;
+    @apply flex flex-col border-t border-border-subtle py-5 text-left;
   }
   .ui-public-start-card-title {
-    @apply text-lg font-semibold text-text-primary sm:text-xl;
+    @apply text-lg font-semibold leading-snug text-text-primary underline decoration-transparent underline-offset-4 transition-colors sm:text-xl;
   }
   .ui-public-start-card-body {
-    @apply mt-2.5 text-sm leading-relaxed text-text-secondary sm:mt-4;
+    @apply mt-2 text-base leading-relaxed text-text-secondary;
     text-wrap: pretty;
   }
   .ui-public-start-card-link {
-    @apply mt-auto inline-flex min-h-11 items-center pt-4 text-sm font-medium text-text-primary sm:pt-8;
+    @apply mt-3 inline-flex items-center text-sm font-medium text-text-primary;
+  }
+  /* ── design reset: Public ──────────────────────────────────────────────
+     The signed-out site on the same bar as the app
+     (docs/development/design-reset-2026-10.md): a section is a plain
+     sentence-case heading over rows, not an eyebrow label over a grid of
+     boxed cards; orange is on the page's one primary action only. */
+  .ui-public-h2 {
+    @apply text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl;
+    text-wrap: balance;
+  }
+  .ui-public-h3 {
+    @apply text-lg font-semibold text-text-primary;
+  }
+  /* Rows with a hairline above each, one column on a phone. The rows carry
+     their own top border, so the list needs no box around it. */
+  .ui-public-rows {
+    @apply grid md:grid-cols-2 md:gap-x-10 lg:grid-cols-3;
+  }
+  .ui-public-rows-2 {
+    @apply lg:grid-cols-2;
+  }
+  .ui-public-start-card:hover .ui-public-start-card-title {
+    @apply decoration-border-interactive;
+  }
+  /* A secondary action written as a link: one line, underlined, 44px tall so
+     a thumb can hit it. */
+  .ui-public-text-link {
+    @apply inline-flex min-h-11 items-center text-base font-medium text-text-primary underline decoration-border-default underline-offset-4 transition-colors hover:decoration-text-primary;
+  }
+  /* A page's one-line facts under its title ("34 projects, 12 sites"). */
+  .ui-public-facts {
+    @apply mt-3 text-sm text-text-tertiary;
+  }
+  .ui-fleet-search-icon {
+    @apply pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-text-muted;
+  }
+  /* /thoughts: the lead essay, on the page rather than in a card. */
+  .ui-thoughts-lead {
+    @apply flex flex-col gap-2 border-b border-border-subtle pb-8;
+  }
+  .ui-thoughts-lead-meta {
+    @apply text-sm text-text-tertiary;
+  }
+  .ui-thoughts-lead-title {
+    @apply text-2xl font-semibold leading-tight text-text-primary underline decoration-transparent underline-offset-4 transition-colors sm:text-3xl;
+    text-wrap: balance;
+  }
+  .ui-thoughts-lead:hover .ui-thoughts-lead-title {
+    @apply decoration-border-interactive;
+  }
+  .ui-thoughts-lead-excerpt {
+    @apply text-base leading-relaxed text-text-secondary sm:text-lg;
+  }
+  /* A 44px round icon link beside a page title (RSS on /thoughts). */
+  .ui-public-icon-link {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-public-price-check {
+    @apply mt-0.5 h-4 w-4 shrink-0 text-text-tertiary;
+  }
+  .ui-share-row {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-1 text-sm;
+  }
+  /* A closed <details> still laid its children out: author `display` on
+     them outranks the UA's hiding, so the footer's list of studio sites sat
+     630px tall and invisible under the copyright line, clipped only by the
+     surface's overflow. Hidden means not laid out. */
+  .ui-public-footer-fleet:not([open]) > *:not(summary) {
+    display: none;
+  }
+  .ui-public-drawer-item-label {
+    @apply block text-base font-medium text-text-primary;
+  }
+  .ui-public-drawer-item-desc {
+    @apply mt-0.5 block truncate text-sm text-text-tertiary;
   }
 
   /* Desktop Fleet Runner download/install promo — x.ai-style pure-black band for the
@@ -2408,9 +2375,6 @@
      semantic names + layout utilities. */
   .ui-public-download {
     @apply border-t border-white/10 bg-black py-14 text-white sm:py-20;
-  }
-  .ui-public-download-eyebrow {
-    @apply mb-3 font-mono text-micro tracking-[2px] text-white/40 sm:tracking-[3.5px];
   }
   .ui-public-download-title {
     font-size: clamp(2rem, 9vw, 3.5rem);
@@ -2425,39 +2389,37 @@
     text-wrap: pretty;
   }
   .ui-public-download-note {
-    @apply text-center text-xs text-white/40 tracking-widest mb-8;
+    @apply text-center text-xs text-white/40 mb-8;
   }
   /* Stacks label over note and goes full width on a phone. Side by side, the
      ~30-character label and its ~45-character note each wrapped to three lines
      inside one pill, which read as a paragraph someone had painted white. */
   .ui-public-download-cta {
-    @apply inline-flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-white px-6 py-3.5 text-center text-base font-medium text-black transition-all active:scale-[0.985] sm:w-auto sm:flex-row sm:gap-0 sm:rounded-full sm:px-9 sm:py-[17px] sm:text-[17px];
+    @apply inline-flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-accent-warm px-6 py-3.5 text-center text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:scale-[0.985] sm:w-auto sm:flex-row sm:gap-0 sm:rounded-full sm:px-9 sm:py-4 sm:text-lg;
   }
   .ui-public-download-cta:hover {
-    background-color: var(--public-accent);
-    color: white;
-    box-shadow: 0 4px 12px color-mix(in oklch, var(--public-accent) 20%, transparent);
+    @apply bg-accent-warm-hover;
   }
   .ui-public-download-cta-note {
-    @apply text-xs text-black/50 transition-colors sm:ml-2;
+    @apply text-xs font-normal opacity-70 sm:ml-2;
   }
   .ui-public-download-cta:hover .ui-public-download-cta-note {
-    color: rgba(255, 255, 255, 0.6);
+    @apply opacity-70;
   }
   .ui-public-download-secondary {
     @apply inline-flex min-h-11 items-center rounded-full border border-white/20 px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:border-white/40 hover:text-white;
   }
   .ui-public-download-platform-bar {
-    @apply mb-8 flex justify-center gap-1.5 sm:mb-12;
+    @apply mx-auto mb-8 flex w-full max-w-sm gap-1 rounded-full border border-white/15 p-1 sm:mb-12;
   }
   .ui-public-download-platform {
-    @apply inline-flex min-h-11 items-center rounded-full border px-4 text-xs tracking-[1.5px] transition-all;
+    @apply inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-sm font-medium transition-colors;
   }
   .ui-public-download-platform-active {
-    @apply border-white bg-white text-black shadow-sm;
+    @apply bg-white text-black;
   }
   .ui-public-download-platform-idle {
-    @apply border-white/20 hover:border-white/40 text-white/70 hover:text-white transition-all hover:scale-[1.04] active:scale-95;
+    @apply text-white/70 hover:text-white;
   }
   .ui-public-download-command {
     @apply mb-10 rounded-2xl border border-white/10 bg-white/5 p-4 text-left;
@@ -2486,10 +2448,10 @@
     @apply mb-10 border-t border-white/10 pt-9 text-left;
   }
   .ui-public-download-prereqs-heading {
-    @apply mb-4 text-center text-micro font-mono uppercase tracking-[3.5px] text-white/40;
+    @apply mb-4 text-center text-micro font-mono text-white/40;
   }
   .ui-public-download-prereq-card {
-    @apply rounded-2xl border border-white/10 bg-white/[0.03] p-4;
+    @apply border-t border-white/10 py-5;
   }
   .ui-public-download-prereq-title {
     @apply text-sm font-medium text-white;
@@ -2536,7 +2498,7 @@
      collapsed developer drawer. All live inside the same dark Fleet Runner
      band, so they keep the existing white-on-black token vocabulary. */
   .ui-public-download-compare {
-    @apply mb-3 grid gap-3 md:grid-cols-2;
+    @apply mb-3 grid md:grid-cols-2 md:gap-x-8;
   }
   /* The web-vs-desktop comparison, folded below the download (2026-10-02). */
   /* /change (2026-10-02): what was said, shown back as the brief to build. */
@@ -2550,7 +2512,7 @@
     @apply min-w-0 truncate text-sm font-medium text-text-primary;
   }
   .ui-change-brief-label {
-    @apply block text-xs font-medium uppercase tracking-caps text-text-tertiary;
+    @apply block text-xs font-medium text-text-tertiary;
   }
   /* /change (2026-10-19): the instant preview — the visitor's own site as a
      phone shows it, then with their change drawn on it, compared by a slider.
@@ -2752,16 +2714,16 @@
     display: none;
   }
   .ui-public-download-compare-card {
-    @apply rounded-2xl border border-white/12 bg-white/[0.06] p-6 text-left;
+    @apply border-t border-white/12 py-5 text-left;
   }
   .ui-public-download-compare-card-emphasis {
-    @apply border-white/30 bg-white/[0.10];
+    @apply border-white/30;
   }
   .ui-public-download-compare-label {
     @apply text-sm font-medium text-white;
   }
   .ui-public-download-compare-tagline {
-    @apply mt-1 text-xs uppercase tracking-caps text-white/45;
+    @apply mt-1 text-xs text-white/45;
   }
   .ui-public-download-compare-list {
     @apply mt-4 space-y-2 text-sm text-white/65;
@@ -2778,7 +2740,7 @@
   }
 
   .ui-public-download-platform-soon {
-    @apply ml-1.5 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[1px] text-white/55;
+    @apply ml-1.5 rounded-full bg-white/10 px-1.5 py-0.5 text-micro font-medium text-white/55;
   }
 
   .ui-public-download-panel {
@@ -2794,7 +2756,7 @@
     @apply mb-10 rounded-2xl border border-white/12 bg-white/[0.06] p-5 text-left sm:p-6;
   }
   .ui-public-download-handoff-badge {
-    @apply mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[10px] font-medium uppercase tracking-[1.5px] text-white/65;
+    @apply mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-micro font-medium text-white/65;
   }
   .ui-public-download-handoff-title {
     @apply text-xl font-semibold leading-snug text-white;
@@ -2825,7 +2787,7 @@
     @apply rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center;
   }
   .ui-public-download-soon-badge {
-    @apply mb-3 inline-block rounded-full bg-white/10 px-3 py-1 text-[10px] font-medium uppercase tracking-[2px] text-white/65;
+    @apply mb-3 inline-block rounded-full bg-white/10 px-3 py-1 text-micro font-medium text-white/65;
   }
   .ui-public-download-soon-message {
     @apply mx-auto mb-6 max-w-md text-sm leading-relaxed text-white/65;
@@ -2835,13 +2797,13 @@
     @apply mb-12 border-t border-white/10 pt-10;
   }
   .ui-public-download-steps-heading {
-    @apply mb-6 text-center text-micro font-mono uppercase tracking-[3.5px] text-white/40;
+    @apply mb-6 text-center text-micro font-mono text-white/40;
   }
   .ui-public-download-steps-grid {
-    @apply grid gap-4 md:grid-cols-3;
+    @apply grid md:grid-cols-3 md:gap-x-8;
   }
   .ui-public-download-step {
-    @apply rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left;
+    @apply border-t border-white/10 py-5 text-left;
   }
   .ui-public-download-step-num {
     @apply mb-3 font-mono text-xs text-white/40;
@@ -2860,16 +2822,16 @@
     @apply mx-auto mb-6 max-w-xl text-center text-sm leading-relaxed text-white/60;
   }
   .ui-public-download-prereqs-grid {
-    @apply grid gap-3 grid-cols-[repeat(auto-fit,minmax(16rem,1fr))];
+    @apply grid gap-x-8 grid-cols-[repeat(auto-fit,minmax(16rem,1fr))];
   }
   .ui-public-download-prereq-head {
     @apply mb-3 flex items-start justify-between gap-3;
   }
   .ui-public-download-prereq-required {
-    @apply rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[1px] text-white;
+    @apply rounded-full bg-white/10 px-2 py-0.5 text-micro font-medium text-white;
   }
   .ui-public-download-prereq-optional {
-    @apply rounded-full border border-white/15 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[1px] text-white/45;
+    @apply rounded-full border border-white/15 px-2 py-0.5 text-micro font-medium text-white/45;
   }
   .ui-public-download-prereq-why {
     @apply mb-3 text-sm leading-relaxed text-white/65;
@@ -3802,7 +3764,7 @@
      separate namespace so they can diverge if the auth UX ever does. */
   .ui-auth-main {
     min-height: calc(100svh - var(--public-nav-height));
-    @apply relative z-10 flex items-center justify-center px-4 pt-8 pb-16;
+    @apply relative z-10 flex items-start justify-center px-4 pt-10 pb-16 sm:items-center sm:pt-8;
   }
   .ui-auth-label {
     @apply block text-sm font-medium text-text-secondary;
@@ -3815,10 +3777,10 @@
     @apply min-h-12 w-full rounded-xl border border-border-subtle bg-surface-raised px-4 py-3 text-base text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-border-strong sm:text-sm;
   }
   .ui-auth-card {
-    @apply space-y-5 rounded-2xl border border-border-subtle bg-surface-base p-6 sm:p-8 backdrop-blur-[12px];
+    @apply space-y-5;
   }
   .ui-auth-submit-btn {
-    @apply min-h-12 w-full rounded-xl bg-text-primary py-3 text-sm font-semibold text-text-inverted transition-colors hover:opacity-90 active:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-raised disabled:text-text-muted;
+    @apply min-h-12 w-full rounded-xl bg-accent-warm py-3 text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .ui-auth-title {
     font-size: clamp(var(--auth-title-min), var(--auth-title-preferred), var(--auth-title-max));
@@ -3843,7 +3805,7 @@
     @apply inline-flex min-h-11 items-center justify-center transition-colors hover:text-text-secondary;
   }
   .ui-auth-secondary-btn {
-    @apply flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface-base py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-40;
+    @apply flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border-default py-3 text-base font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-40;
   }
   .ui-auth-secondary-btn-strong {
     @apply border-border-default bg-surface-raised text-text-primary hover:border-border-strong;
@@ -3986,10 +3948,10 @@
      orange stripe: on a phone it read as a banner bolted above the page,
      louder than the sign-in it sits on (2026-10-04). */
   .ui-auth-demo {
-    @apply space-y-2.5 rounded-2xl border border-accent-primary/25 bg-accent-muted p-4;
+    @apply mt-6 space-y-3;
   }
   .ui-auth-demo-note {
-    @apply text-center text-xs leading-relaxed text-text-muted;
+    @apply text-center text-xs leading-relaxed text-text-tertiary;
   }
   .ui-auth-row-actions {
     @apply flex gap-2;

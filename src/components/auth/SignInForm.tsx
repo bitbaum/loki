@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AUTH_COPY, fromSiteWidget, keepCallback, ROUTES } from "@/config/auth";
 import { goAfterSignIn } from "@/lib/auth/after-sign-in";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/config/demo";
-import { APP_NAME } from "@/config/brand";
 import {
   AuthShell,
   AuthCard,
@@ -16,6 +15,7 @@ import {
   AuthDivider,
   AuthHeading,
   AuthModeTabs,
+  AuthSecondaryButton,
 } from "@/components/auth/AuthShell";
 import { OAuthButtons, hasAnyOAuth } from "@/components/auth/OAuthButtons";
 import Link from "next/link";
@@ -60,6 +60,7 @@ function FormInner({
   const [error, setError] = useState(urlErrorMsg);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [demoError, setDemoError] = useState("");
 
   async function handleEmailPassword(e: React.FormEvent) {
     e.preventDefault();
@@ -92,7 +93,7 @@ function FormInner({
   // are printed below the button). What makes the demo safe is the sandbox in
   // src/config/demo.ts, not secrecy about how to get in.
   async function handleDemo() {
-    setError("");
+    setDemoError("");
     setDemoLoading(true);
     const res = await signIn("email-password", {
       email: DEMO_EMAIL,
@@ -101,7 +102,7 @@ function FormInner({
     });
     setDemoLoading(false);
     if (res?.ok) goAfterSignIn(router.push, safeCallback);
-    else setError("The demo is being reset — try again in a moment.");
+    else setDemoError("The demo is being reset — try again in a moment.");
   }
 
   function switchMode(next: Mode) {
@@ -113,10 +114,7 @@ function FormInner({
 
   return (
     <AuthShell>
-      <AuthHeading
-        title={AUTH_COPY.signIn.title}
-        description={AUTH_COPY.signIn.description(APP_NAME)}
-      />
+      <AuthHeading title={AUTH_COPY.signIn.title} />
       {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signIn}</p>}
 
       {/* Mode tabs — only show owner key tab when LOCAL_AUTH_PASSWORD is configured */}
@@ -129,29 +127,6 @@ function FormInner({
           active={mode}
           onChange={(id) => switchMode(id as Mode)}
         />
-      )}
-
-      {/* The demo sits ABOVE the form on purpose: a visitor who arrived from an
-          essay has no account and no reason to make one yet, and the login wall
-          is where they bounce. Give them the product first. */}
-      {demoEnabled && mode === "email" && (
-        <>
-          <div className="ui-auth-demo">
-            <button
-              type="button"
-              onClick={handleDemo}
-              disabled={demoLoading}
-              className="ui-btn-primary w-full"
-            >
-              {demoLoading ? "Opening the demo…" : "Explore the demo — no account needed"}
-            </button>
-            <p className="ui-auth-demo-note">
-              A sandboxed fleet with real history. Dispatching agents, terminals and outbound
-              messages are off; everything else is live. Resets nightly.
-            </p>
-          </div>
-          <AuthDivider label="or sign in" />
-        </>
       )}
 
       {mode === "email" ? (
@@ -201,12 +176,7 @@ function FormInner({
               </div>
             </AuthField>
             {error && <p className="ui-error">{error}</p>}
-            <AuthSubmitButton
-              loading={loading}
-              disabled={!email || !password}
-              label="Sign in →"
-              loadingLabel="Signing in…"
-            />
+            <AuthSubmitButton loading={loading} label="Sign in" loadingLabel="Signing in…" />
             <p className="ui-auth-hint">
               No account?{" "}
               <Link
@@ -245,6 +215,23 @@ function FormInner({
             />
           </form>
         </AuthCard>
+      )}
+
+      {/* The demo is the one other way in, so it is one secondary button
+          under the form — not a filled button above it competing with Sign
+          in. A visitor from an essay still finds it on the first screen. */}
+      {demoEnabled && mode === "email" && (
+        <div className="ui-auth-demo">
+          <AuthDivider label="or" />
+          <AuthSecondaryButton type="button" onClick={handleDemo} disabled={demoLoading}>
+            {demoLoading ? "Opening the demo…" : "Explore the demo"}
+          </AuthSecondaryButton>
+          {demoError && <p className="ui-error">{demoError}</p>}
+          <p className="ui-auth-demo-note">
+            No account needed. A sample workspace with real history — starting agents and sending
+            messages are switched off. It resets every night.
+          </p>
+        </div>
       )}
     </AuthShell>
   );

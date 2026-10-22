@@ -192,8 +192,8 @@ function DrawerRow({
   const body = (
     <>
       <span className="min-w-0">
-        <span className="ui-public-nav-panel-item-label">{label}</span>
-        {description && <span className="ui-public-nav-panel-item-desc">{description}</span>}
+        <span className="ui-public-drawer-item-label">{label}</span>
+        {description && <span className="ui-public-drawer-item-desc">{description}</span>}
       </span>
       {external ? (
         <ExternalLink className="ui-public-drawer-item-icon" aria-hidden />
@@ -261,22 +261,20 @@ function PublicNavDrawer({ signedIn, onClose }: { signedIn: boolean; onClose: ()
           )}
         </div>
 
-        {PUBLIC_NAV.filter((e) => e.kind === "menu").map((entry) => (
-          <section key={entry.label} className="ui-public-drawer-section">
-            <div className="ui-public-drawer-section-label">{entry.label}</div>
-            {entry.sections.map((section) => (
-              <div key={section.title}>
-                <div className="ui-public-drawer-subsection-label">{section.title}</div>
-                {section.items.map((item) => (
-                  <DrawerRow
-                    key={item.href}
-                    label={item.label}
-                    description={item.description}
-                    href={item.href}
-                    onClose={onClose}
-                  />
-                ))}
-              </div>
+        {/* A sheet of rows: each group a plain heading over hairline rows.
+            The single top-level "Product" label above two groups said
+            nothing a heading below it did not. */}
+        {PUBLIC_NAV.flatMap((e) => (e.kind === "menu" ? e.sections : [])).map((section) => (
+          <section key={section.title} className="ui-public-drawer-section">
+            <h2 className="ui-public-drawer-section-label">{section.title}</h2>
+            {section.items.map((item) => (
+              <DrawerRow
+                key={item.href}
+                label={item.label}
+                description={item.description}
+                href={item.href}
+                onClose={onClose}
+              />
             ))}
           </section>
         ))}
@@ -285,7 +283,7 @@ function PublicNavDrawer({ signedIn, onClose }: { signedIn: boolean; onClose: ()
             each inherited the 32px inter-section gap, so four single links
             spread over a screen and a half of mostly empty drawer. */}
         <section className="ui-public-drawer-section">
-          <div className="ui-public-drawer-section-label">More</div>
+          <h2 className="ui-public-drawer-section-label">More</h2>
           {PUBLIC_NAV.filter((e) => e.kind !== "menu").map((entry) => (
             <DrawerRow
               key={entry.label}

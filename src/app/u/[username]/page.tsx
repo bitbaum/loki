@@ -13,7 +13,7 @@ import { getPublicProjects } from "@/db/queries/user-projects";
 import { getRecentOrchestrationRuns } from "@/db/queries/today";
 import { listThoughts } from "@/lib/thoughts-content";
 import { HEALTH_TAG_STYLE } from "@/config/ui";
-import { projectHeadline } from "@/lib/project-display";
+import { projectHeadline, projectTitle } from "@/lib/project-display";
 import { compactRelativeDate } from "@/lib/dates";
 import type { DevLogEntry } from "@/db/schema/user-projects";
 
@@ -110,7 +110,9 @@ export default async function PublicProfilePage({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-text-primary">{project.name}</span>
+                          <span className="font-medium text-text-primary">
+                            {projectTitle(project)}
+                          </span>
                           <ExternalLink className="h-3.5 w-3.5 shrink-0 text-text-muted" />
                         </div>
                         {desc && (

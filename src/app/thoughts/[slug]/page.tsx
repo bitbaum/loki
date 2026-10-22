@@ -14,6 +14,7 @@ import { NewsletterSignup } from "@/components/thoughts/NewsletterSignup";
 import { ThoughtArticleBody } from "@/components/thoughts/ThoughtArticleBody";
 import { SupersededNotice } from "@/components/thoughts/SupersededNotice";
 import { supersededNotice } from "@/lib/thought-superseded";
+import { longDate } from "@/lib/dates";
 import {
   getAdjacentThoughts,
   getRelatedThoughts,
@@ -73,35 +74,36 @@ export default async function ThoughtArticlePage({
   return (
     <PublicSurface right={<PublicHeaderActions />}>
       <ReadingProgress />
-      <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-6 pb-24 pt-16 sm:px-10">
-        <div className="ui-public-doc-header">
+      <div className="relative z-10 mx-auto max-w-5xl px-4 pb-20 pt-10 sm:px-10 sm:pt-16">
+        <header className="ui-public-doc-header">
           <h1 className="ui-public-doc-title">{article.title}</h1>
           {article.summary && <p className="ui-public-doc-subtitle">{article.summary}</p>}
-        </div>
+          {/* One quiet line of facts, not a row of chips and tags. */}
+          <p className="ui-public-facts">
+            {article.publishedAt && (
+              <>
+                <time dateTime={article.publishedAt}>{longDate(article.publishedAt)}</time> ·{" "}
+              </>
+            )}
+            {article.readingTimeMin} min read ·{" "}
+            <Link href="/thoughts" className="ui-public-link-standalone">
+              All essays
+            </Link>
+          </p>
+        </header>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/thoughts" className="ui-btn-chip">
-            All essays
-          </Link>
-          <span className="ui-badge">{article.publishedAt}</span>
-          <span className="ui-badge">{article.readingTimeMin} min</span>
-          {article.tags.map((tag) => (
-            <span key={tag} className="ui-tag ui-tag-neutral">
-              {tag}
-            </span>
-          ))}
-          <div className="ml-auto">
-            <ShareBar url={`${APP_URL}/thoughts/${slug}`} title={article.title} />
+        {superseded && (
+          <div className="mb-8">
+            <SupersededNotice notice={superseded} />
           </div>
-        </div>
-
-        {superseded && <SupersededNotice notice={superseded} />}
+        )}
 
         {/* On xl the sticky TOC gets a right rail; the article column keeps
             bip-kit's measured line length regardless. Toc hides itself under
-            3 headings, so short essays render a clean single column. */}
+            3 headings, so short essays render a clean single column. The
+            essay sits on the page, not in a card. */}
         <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_240px] xl:items-start xl:gap-8">
-          <article className="ui-card-shell-raised p-6 md:p-8">
+          <article>
             <ThoughtArticleBody blocks={blocks} />
           </article>
           <aside className="hidden xl:block">
@@ -109,9 +111,14 @@ export default async function ThoughtArticlePage({
           </aside>
         </div>
 
-        <NewsletterSignup source={slug} />
+        <div className="mt-10 border-t border-border-subtle pt-6">
+          <ShareBar url={`${APP_URL}/thoughts/${slug}`} title={article.title} />
+        </div>
 
-        <ThoughtArticleNav previous={previous} next={next} related={related} />
+        <div className="mt-10 space-y-10">
+          <ThoughtArticleNav previous={previous} next={next} related={related} />
+          <NewsletterSignup source={slug} />
+        </div>
       </div>
     </PublicSurface>
   );

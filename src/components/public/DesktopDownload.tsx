@@ -86,7 +86,6 @@ export function DesktopDownload() {
     <div className="ui-public-download">
       <div className="mx-auto max-w-[960px] px-6">
         <div className="text-center mb-12">
-          <div className="ui-public-download-eyebrow">{DESKTOP_DOWNLOAD.hero.eyebrow}</div>
           {/* The page's one h1 — it was an h2, so /download had no title at
               all to a screen reader or a search engine (audit 2026-10-01). */}
           <h1 className="ui-public-download-title">{DESKTOP_DOWNLOAD.hero.title}</h1>

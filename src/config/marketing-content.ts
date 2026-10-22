@@ -42,37 +42,12 @@ export const HOME_STEPS = [
 export const HOME_SAFETY_NOTE =
   "Every change to a site is checked on a phone-sized screen before and after it goes online. If it made the page worse, Loki puts the previous version back.";
 
-// ── Homepage: who it is for ─────────────────────────────────────────────────
-// Three doors instead of one pitch. Loki's flows serve all three; the old page
-// addressed only the last.
-export const HOME_AUDIENCES = [
-  {
-    title: "You have an idea",
-    body: "No code needed. Describe what you want, answer a few questions, and follow along as it is built.",
-    href: "/sign-up",
-    cta: "Start a project",
-  },
-  {
-    title: "You have a website to change",
-    body: "Say which site and what should be different — type it or just speak. Loki turns it into a brief for an agent — free.",
-    href: "/change",
-    cta: "Change a website",
-  },
-  {
-    title: "You already work with AI agents",
-    body: "Run Claude Code, Codex, Cursor, Antigravity and Grok across all your projects from one place — on the cloud builder or your own computer.",
-    href: "/how-it-works",
-    cta: "How it works",
-  },
-] as const;
-
 // ── Homepage: where the work runs ───────────────────────────────────────────
 // Honest about eligibility: the cloud builder and repositories in the bitbaum
 // GitHub organisation are fleet infrastructure, allowed for the founder and an
 // explicit allowlist only (src/lib/execution-access.ts
 // isFleetInfrastructureAllowed). Everyone else connects Fleet Runner.
 export const WHERE_IT_RUNS = {
-  eyebrow: "WHERE THE WORK RUNS",
   title: "In the cloud, or on your own computer.",
   lede: "Loki itself runs in your browser and on your phone. The agents need a computer to work on — you choose which one, per project.",
   options: [
@@ -96,7 +71,6 @@ export const WHERE_IT_RUNS = {
 
 // Mission — one striking statement, minimal elaboration
 export const MISSION = {
-  eyebrow: "WHY WE EXIST",
   title: "Mission",
   statement: "Direct the creation of everything you can imagine.",
   paragraphs: [
@@ -108,9 +82,7 @@ export const MISSION = {
 
 // Philosophy — short, declarative maxims with concrete reasoning
 export const PHILOSOPHY = {
-  eyebrow: "PRINCIPLES",
   title: "Principles",
-  lede: "The constraints we hold while building Loki — the place where AI agents do your work and you stay in charge of it.",
   values: [
     {
       name: "Choose where agents run.",
@@ -166,7 +138,6 @@ export const PHILOSOPHY = {
 
 // Investors — sharp thesis, declarative bullets
 export const INVESTORS = {
-  eyebrow: "FOR INVESTORS",
   headline: "Where AI agents do the work — and people stay in charge.",
   thesis:
     "One person directing many agents is the new unit of leverage. Loki is where that person describes the work, the agents build and ship it, and every change stays visible and reversible.",
@@ -222,24 +193,18 @@ export type RoadmapBucket = {
 // as forthcoming, see the git history of this file); a record next to the
 // code, reviewed in the same PR as the change, is the fix.
 export const ROADMAP: {
-  eyebrow: string;
   title: string;
   lede: string;
   throughlines: {
-    eyebrow: string;
     title: string;
-    lede: string;
     items: { title: string; body: string }[];
   };
   closer: string;
 } = {
-  eyebrow: "PRODUCT DIRECTION",
   title: "Roadmap",
   lede: "What Loki is building, in order: what is being worked on now, what comes next, what comes later — and what has already shipped.",
   throughlines: {
-    eyebrow: "WHAT STAYS CONSTANT",
-    title: "Throughlines",
-    lede: "These do not change as the phases ship. They are constraints we hold across every stage.",
+    title: "What stays constant",
     items: [
       {
         title: "The execution location is visible and chosen.",
@@ -290,12 +255,10 @@ export const FINAL_CTA = {
 // instead of pretending the source tree is a download.
 export const DESKTOP_DOWNLOAD = {
   // Top-level back-compat fields (used by /download page metadata + homepage).
-  eyebrow: "DESKTOP APP",
   title: "Get Fleet Runner",
   lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Home to see the execution options available to your account.",
 
   hero: {
-    eyebrow: "DESKTOP APP",
     title: "Get Fleet Runner",
     lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Home to see the execution options available to your account.",
   },

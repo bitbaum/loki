@@ -81,3 +81,12 @@
 .bp-deep-body > .bp-article > :last-child {
   margin-bottom: 0.75rem;
 }
+
+/* The essay starts on the same left edge as its title. bip-kit insets the
+   article 16px on a phone and centres it on a wide screen; inside the public
+   page container that put the body a step to the right of the header above
+   it, which read as a second box. */
+.ui-public-surface .bp-article {
+  margin-inline: 0;
+  padding-inline: 0;
+}
