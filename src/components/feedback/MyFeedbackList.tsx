@@ -89,5 +89,10 @@ export function MyFeedbackList({
 
 /** The report as a row's title: its first words, on one line. */
 function oneLine(text: string): string {
-  return text.split(/\s*---\s*technical details/i)[0]!.replace(/\s+/g, " ").trim() || "A report";
+  return (
+    text
+      .split(/\s*---\s*technical details/i)[0]!
+      .replace(/\s+/g, " ")
+      .trim() || "A report"
+  );
 }

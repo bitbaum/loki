@@ -185,9 +185,13 @@ for (const tone of ["neutral", "accent", "warning", "positive"] satisfies Report
 // The reporter page must render report bodies through the SHARED clamp, not its
 // own markup. This is the pin that #783 needed and did not have.
 {
-  // The page draws each report with ReporterFeedbackCard, which the
-  // no-account tracking page shares — so the pins read the page AND the card.
-  const myPage = readFileSync(join(REPO, "src", "app", "(app)", "my-feedback", "page.tsx"), "utf8");
+  // The page lists reports as rows (MyFeedbackList) and opens each one with
+  // ReporterFeedbackCard, which the no-account tracking page shares — so the
+  // pins read the page, its list AND the card.
+  const myPage =
+    readFileSync(join(REPO, "src", "app", "(app)", "my-feedback", "page.tsx"), "utf8") +
+    readFileSync(join(REPO, "src", "components", "feedback", "MyFeedbackList.tsx"), "utf8");
+  assert.ok(myPage.includes("<MyFeedbackList"), "My feedback draws its list");
   assert.ok(myPage.includes("<ReporterFeedbackCard"), "My feedback draws the shared card");
   assert.ok(
     readFileSync(join(REPO, "src", "app", "claim-feedback", "page.tsx"), "utf8").includes(

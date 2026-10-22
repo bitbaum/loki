@@ -355,21 +355,26 @@ export function FeedbackInbox() {
                   key={f.id}
                   onClick={() => setOpenId(f.id)}
                   title={reportTitle(f)}
+                  // Where, and when — Loki's call is the button at the end, and
+                  // named here only when it is not the button's own word.
                   secondary={
                     isTaken(f, rec)
                       ? `Done: ${rec.label.toLowerCase()}`
-                      : [projectOf(f) ? titleOf(f.projectName) : null, kindWord(rec)]
+                      : [
+                          projectOf(f) ? titleOf(f.projectName) : null,
+                          rec.kind === RECOMMEND.BUILD ? null : kindWord(rec),
+                          compactRelativeDate(f.createdAt),
+                        ]
                           .filter(Boolean)
                           .join(" · ")
                   }
-                  trailing={compactRelativeDate(f.createdAt)}
                   menu={
                     isTaken(f, rec) || !oneTap(rec) ? undefined : (
                       <button
                         type="button"
                         onClick={() => void take(f, rec, f.read?.ask ?? undefined)}
                         disabled={busyId !== null}
-                        className="ui-fb-row-go"
+                        className="ui-row-verb"
                         aria-label={`${rec.label}: ${reportTitle(f)}`}
                       >
                         {busyId === f.id && <Loader2 className="ui-spinner-xs" />}
@@ -383,9 +388,30 @@ export function FeedbackInbox() {
           </Section>
         )}
 
-        <ItemSection title="Under way" items={underWay} limit={10} onOpen={setOpenId} titleOf={titleOf} showProject={!projectFilter && projects.length > 1} />
-        <ItemSection title="Done" items={done} limit={5} onOpen={setOpenId} titleOf={titleOf} showProject={!projectFilter && projects.length > 1} />
-        <ItemSection title="Filed away" items={archived} limit={5} onOpen={setOpenId} titleOf={titleOf} showProject={!projectFilter && projects.length > 1} />
+        <ItemSection
+          title="Under way"
+          items={underWay}
+          limit={10}
+          onOpen={setOpenId}
+          titleOf={titleOf}
+          showProject={!projectFilter && projects.length > 1}
+        />
+        <ItemSection
+          title="Done"
+          items={done}
+          limit={5}
+          onOpen={setOpenId}
+          titleOf={titleOf}
+          showProject={!projectFilter && projects.length > 1}
+        />
+        <ItemSection
+          title="Filed away"
+          items={archived}
+          limit={5}
+          onOpen={setOpenId}
+          titleOf={titleOf}
+          showProject={!projectFilter && projects.length > 1}
+        />
 
         <p className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-text-tertiary">
           <span className="min-w-0">
@@ -580,7 +606,10 @@ function ItemSection({
                   ? "negative"
                   : undefined
               }
-              secondary={[showProject ? titleOf(f.projectName) : null, story.headline.replace(/\.$/, "")]
+              secondary={[
+                showProject ? titleOf(f.projectName) : null,
+                story.headline.replace(/\.$/, ""),
+              ]
                 .filter(Boolean)
                 .join(" · ")}
               trailing={compactRelativeDate(f.createdAt)}
