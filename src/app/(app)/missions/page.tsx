@@ -26,7 +26,7 @@ export default async function MissionsPage() {
   const [projects, goalTree, lastDispatch] = await Promise.all([
     getProjects(userId),
     getGoals(userId),
-    getProjectsLastDispatch(userId).catch(() => ({} as Record<string, string>)),
+    getProjectsLastDispatch(userId).catch(() => ({}) as Record<string, string>),
   ]);
   // The same entity ID that Projects/Goals already use. No new mission rows.
   const goalsByProject = new Map<string, MissionGoalInput[]>();
@@ -67,44 +67,62 @@ export default async function MissionsPage() {
       <section aria-label="Mission overview" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-border-subtle p-4">
           <p className="text-xs text-text-tertiary">Projects</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">{missions.length}</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">
+            {missions.length}
+          </p>
         </div>
         <div className="rounded-xl border border-border-subtle p-4">
           <p className="text-xs text-text-tertiary">Objectives stated</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">{withObjective}</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">
+            {withObjective}
+          </p>
         </div>
         <div className="col-span-2 rounded-xl border border-border-subtle p-4 sm:col-span-1">
           <p className="text-xs text-text-tertiary">With roadmaps</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">{withRoadmap}</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">
+            {withRoadmap}
+          </p>
         </div>
       </section>
 
       <p className="text-sm text-text-secondary">
-        These missions are views of your existing projects. Progress comes from your saved Goals;
-        it is <strong>reported progress, not independent verification</strong>. Agent runs and
+        These missions are views of your existing projects. Progress comes from your saved Goals; it
+        is <strong>reported progress, not independent verification</strong>. Agent runs and
         deliverables keep their own evidence in the project workspace.
       </p>
 
       {missions.length === 0 ? (
         <div className="rounded-xl border border-border-subtle px-5 py-12 text-center">
           <Compass className="mx-auto h-8 w-8 text-text-tertiary" aria-hidden />
-          <h2 className="mt-4 text-lg font-semibold text-text-primary">Your first mission starts with a project</h2>
+          <h2 className="mt-4 text-lg font-semibold text-text-primary">
+            Your first mission starts with a project
+          </h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-text-secondary">
-            Create a project, state what success looks like, then build a roadmap. Loki will
-            display its actual progress here.
+            Create a project, state what success looks like, then build a roadmap. Loki will display
+            its actual progress here.
           </p>
-          <Link href="/projects?new=1" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent-text hover:underline">
+          <Link
+            href="/projects?new=1"
+            className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent-text hover:underline"
+          >
             Create project <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
       ) : (
         <section aria-label="Your missions" className="grid gap-4 md:grid-cols-2">
           {missions.map((mission) => (
-            <article key={mission.projectId} className="flex min-w-0 flex-col rounded-xl border border-border-subtle p-5">
+            <article
+              key={mission.projectId}
+              className="flex min-w-0 flex-col rounded-xl border border-border-subtle p-5"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-text-tertiary">{phaseLabel[mission.phase]}</p>
-                  <h2 className="mt-1 break-words text-lg font-semibold text-text-primary">{mission.name}</h2>
+                  <p className="text-xs font-medium text-text-tertiary">
+                    {phaseLabel[mission.phase]}
+                  </p>
+                  <h2 className="mt-1 break-words text-lg font-semibold text-text-primary">
+                    {mission.name}
+                  </h2>
                 </div>
                 <Target className="h-5 w-5 shrink-0 text-accent-text" aria-hidden />
               </div>
@@ -119,10 +137,14 @@ export default async function MissionsPage() {
                       : "No roadmap goals yet"}
                   </span>
                   {mission.reportedProgress !== null && (
-                    <span className="tabular-nums text-text-primary">{mission.reportedProgress}% reported</span>
+                    <span className="tabular-nums text-text-primary">
+                      {mission.reportedProgress}% reported
+                    </span>
                   )}
                 </div>
-                {mission.reportedProgress !== null && <GoalProgressBar value={mission.reportedProgress} />}
+                {mission.reportedProgress !== null && (
+                  <GoalProgressBar value={mission.reportedProgress} />
+                )}
               </div>
               <div className="mt-4 min-h-12 border-t border-border-subtle pt-3">
                 <p className="text-xs text-text-tertiary">Next objective</p>
@@ -132,15 +154,22 @@ export default async function MissionsPage() {
               </div>
               {lastDispatch[mission.projectId] && (
                 <p className="mt-2 text-xs text-text-muted">
-                  Last agent dispatch: {new Date(lastDispatch[mission.projectId]).toLocaleDateString("en-CH")}
-                  {" "}— not proof of completion
+                  Last agent dispatch:{" "}
+                  {new Date(lastDispatch[mission.projectId]).toLocaleDateString("en-CH")} — not
+                  proof of completion
                 </p>
               )}
               <div className="mt-auto flex flex-wrap gap-4 border-t border-border-subtle pt-4">
-                <Link href={`/missions/${mission.projectId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-text hover:underline">
+                <Link
+                  href={`/missions/${mission.projectId}`}
+                  className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-text hover:underline"
+                >
                   Open mission <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
-                <Link href={`/projects/${mission.projectId}#plan`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-text-secondary hover:underline">
+                <Link
+                  href={`/projects/${mission.projectId}#plan`}
+                  className="inline-flex min-h-11 items-center gap-1.5 text-sm text-text-secondary hover:underline"
+                >
                   <FolderKanban className="h-4 w-4" aria-hidden /> Edit roadmap
                 </Link>
               </div>
