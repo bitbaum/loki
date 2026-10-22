@@ -1,5 +1,6 @@
 "use client";
 
+import { ThinkingRow } from "@bitbaum/chatkit/react";
 import { AnswerMarkdown } from "./AnswerMarkdown";
 import { userMessageDisplay } from "@/lib/loki/message-display";
 import { readWork } from "@/lib/loki/work";
@@ -98,6 +99,11 @@ export function MessageTurn({
       {kind && <span className="ui-loki-kind">{kind}</span>}
 
       {work.length > 0 && <WorkTrail work={work} live={false} />}
+
+      {/* "Thought for 42s ›" — the turn this session watched, closed, with
+          the steps it named under it. Not stored: a reopened thread has the
+          work trail above instead, so the row never appears twice. */}
+      {message.thinking && <ThinkingRow thinking={message.thinking} />}
 
       {update ? (
         <ProgressUpdateCard update={update} />

@@ -2,8 +2,14 @@
 
 import { useCallback, useRef, useState } from "react";
 import { extractReplies } from "@bitbaum/chatkit";
+import type { Thinking, ThinkingStep } from "@bitbaum/chatkit/react";
 import { readEventStream } from "@/lib/api/read-event-stream";
-import type { LokiStatusLabel, LokiStreamEvent, WireMessage } from "@/lib/loki/stream";
+import {
+  LOKI_STATUS_COPY,
+  type LokiStatusLabel,
+  type LokiStreamEvent,
+  type WireMessage,
+} from "@/lib/loki/stream";
 import { applyNote, applyToolStep, type WorkStep } from "@/lib/loki/work";
 
 /** One tool the turn ran, as the operator sees it happen. */
@@ -29,6 +35,10 @@ export type LiveTurn = {
   work: WorkStep[];
   status: LokiStatusLabel | null;
   round: number;
+  /** What the turn has been doing, one line each in order — every status it
+   *  named and every further model round — for chatkit's "Thinking" row,
+   *  open while the turn runs. `status` stays the newest of them. */
+  steps: ThinkingStep[];
   /** When the turn was sent (ms epoch), for the elapsed counter. */
   startedAt: number;
 };
@@ -39,8 +49,15 @@ const EMPTY: LiveTurn = {
   work: [],
   status: null,
   round: 0,
+  steps: [],
   startedAt: 0,
 };
+
+/** Append a step unless it repeats the last one — a status the server names
+ *  twice in a row is one thing happening, not two. */
+function appendStep(steps: ThinkingStep[], label: string): ThinkingStep[] {
+  return steps.at(-1)?.label === label ? steps : [...steps, { label }];
+}
 
 export type UseLokiStream = {
   /** The turn in flight, or null. */
@@ -69,7 +86,11 @@ export function useLokiStream({
   onMessage,
 }: {
   /** The persisted turn. This is the record; the preview was never it. */
-  onMessage: (message: WireMessage) => void;
+  /** The persisted turn. This is the record; the preview was never it.
+   *  `thinking` is what this session watched it do — how long, and the
+   *  steps — for the "Thought for 42s ›" row on the finished answer. It is
+   *  not stored: a reopened thread shows the work trail alone. */
+  onMessage: (message: WireMessage, thinking: Thinking) => void;
 }): UseLokiStream {
   const [live, setLive] = useState<LiveTurn | null>(null);
   const [sending, setSending] = useState(false);
@@ -90,12 +111,15 @@ export function useLokiStream({
       setSending(true);
       setStopped(false);
       setError(null);
-      setLive({ ...EMPTY, startedAt: Date.now() });
+      const startedAt = Date.now();
+      setLive({ ...EMPTY, startedAt });
 
       // Accumulated outside React state: deltas arrive far faster than renders,
       // and reading the previous value out of a setState callback for every
-      // token makes the reducer the hot path.
+      // token makes the reducer the hot path. The steps are kept here too so
+      // the finished message can carry them without a round trip through state.
       let preview = "";
+      let steps: ThinkingStep[] = [];
 
       try {
         const res = await fetch(url, {
@@ -141,7 +165,9 @@ export function useLokiStream({
               });
               break;
             case "round":
-              setLive((prev) => ({ ...(prev ?? EMPTY), round: event.round }));
+              // The first round is the turn itself; a further one is a step.
+              if (event.round > 1) steps = appendStep(steps, `Round ${event.round}`);
+              setLive((prev) => ({ ...(prev ?? EMPTY), round: event.round, steps }));
               break;
             case "tool":
               setLive((prev) => {
@@ -172,11 +198,12 @@ export function useLokiStream({
               });
               break;
             case "status":
-              setLive((prev) => ({ ...(prev ?? EMPTY), status: event.label }));
+              steps = appendStep(steps, LOKI_STATUS_COPY[event.label]);
+              setLive((prev) => ({ ...(prev ?? EMPTY), status: event.label, steps }));
               break;
             case "message":
               landed = true;
-              onMessage(event.message);
+              onMessage(event.message, { durationMs: Date.now() - startedAt, steps });
               setLive(null);
               break;
             case "error":

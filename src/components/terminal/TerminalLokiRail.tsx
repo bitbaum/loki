@@ -336,7 +336,12 @@ export function TerminalLokiRail({
                 : { ...m, content: body };
             })}
             onReply={(text) => void session.reply(text)}
-            live={session.live ? { text: session.live.preview, status: liveStatus } : null}
+            live={
+              session.live
+                ? { text: session.live.preview, status: liveStatus, steps: session.live.steps }
+                : null
+            }
+            labels={liveStatus ? { thinking: liveStatus } : undefined}
             stopped={session.stopped}
             onStop={session.stop}
             renderFooter={(m) => {

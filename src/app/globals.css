@@ -7777,22 +7777,8 @@
   }
 
   /* ── The turn in flight ───────────────────────────────────────────────────*/
-  .ui-loki-live-status {
-    @apply flex items-center gap-2 py-1 text-sm text-text-tertiary;
-  }
-  .ui-loki-live-dots {
-    @apply inline-flex items-center gap-1;
-  }
-  .ui-loki-live-dots > span {
-    @apply h-1.5 w-1.5 rounded-full bg-text-muted;
-    animation: ui-loki-dot 1.2s ease-in-out infinite;
-  }
-  .ui-loki-live-dots > span:nth-child(2) {
-    animation-delay: 0.15s;
-  }
-  .ui-loki-live-dots > span:nth-child(3) {
-    animation-delay: 0.3s;
-  }
+  /* The live line is chatkit's "Thinking" row (.ck-thinking-live): the clock
+     and what it is doing in the title, the steps it named under it. */
   /* A turn you cannot cancel is what makes a slow answer feel broken. There
      was no stop control at all before this. */
   .ui-loki-stop {
@@ -8091,19 +8077,6 @@
   /* What is left on one model, under its description in the menu. */
   .ui-loki-model-row-left {
     @apply block text-xs text-text-secondary;
-  }
-
-  @keyframes ui-loki-dot {
-    0%,
-    60%,
-    100% {
-      opacity: 0.25;
-      transform: translateY(0);
-    }
-    30% {
-      opacity: 1;
-      transform: translateY(-2px);
-    }
   }
 
   /* Kind badge above an assistant turn (dispatch / chat / command). */

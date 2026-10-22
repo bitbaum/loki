@@ -265,7 +265,12 @@ export function RunModal({
           <div className="ui-prompt-sheet-answer">
             <ChatThread
               messages={ask.messages}
-              live={ask.live ? { text: ask.live.preview, status: liveStatus } : null}
+              live={
+                ask.live
+                  ? { text: ask.live.preview, status: liveStatus, steps: ask.live.steps }
+                  : null
+              }
+              labels={liveStatus ? { thinking: liveStatus } : undefined}
               stopped={ask.stopped}
               onStop={ask.stop}
               onReply={(text) => void ask.reply(text)}

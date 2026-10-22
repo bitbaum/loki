@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { ChatMessageData } from "@bitbaum/chatkit/react";
+import type { ChatMessageData, Thinking } from "@bitbaum/chatkit/react";
 import { postJson } from "@/lib/api/fetch";
 import type { Attachment, ModelChoice } from "@/components/loki/types";
 import { useLokiStream, type UseLokiStream } from "@/hooks/use-loki-stream";
@@ -51,7 +51,7 @@ export function useSessionAsk(project: string | null): SessionAsk {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const stream = useLokiStream({
-    onMessage: (message: WireMessage) => {
+    onMessage: (message: WireMessage, thinking: Thinking) => {
       if (message.role !== "assistant" || !message.content) return;
       setMessages((all) => [
         ...all,
@@ -66,6 +66,8 @@ export function useSessionAsk(project: string | null): SessionAsk {
           // Stored apart from the text by the messages route; chatkit's
           // thread shows them under the latest answer.
           replies: readReplies(message.meta),
+          // "Thought for 42s ›" — what this session watched the turn do.
+          thinking,
         },
       ]);
     },
