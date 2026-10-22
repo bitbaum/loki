@@ -492,6 +492,85 @@ async function main() {
       await close();
     }
 
+    // 8d. Minimize: the long-press / right-click menu folds the pill into the
+    //     slim edge tab where the person left it; the tab opens Loki, survives
+    //     a reload, keeps its own menu with Expand, and Expand brings the
+    //     button back. A pill left over the text someone is reading was the
+    //     owner's complaint (2026-10-22: "kind of disturbing").
+    {
+      const { p, close } = await open(browser, page(filler), 390, 844, js);
+      const menuItems = () =>
+        p.evaluate(() =>
+          Array.from(
+            document
+              .getElementById("loki-feedback-host")
+              ?.shadowRoot?.querySelectorAll(".fabmenu-item") ?? [],
+          )
+            .filter((e) => getComputedStyle(e).display !== "none")
+            .map((e) => e.textContent),
+        );
+      const press = async (label: string) =>
+        p.evaluate((label) => {
+          const item = Array.from(
+            document
+              .getElementById("loki-feedback-host")!
+              .shadowRoot!.querySelectorAll(".fabmenu-item"),
+          ).find((e) => e.textContent === label) as HTMLElement | undefined;
+          item?.click();
+        }, label);
+      const holdMenu = async () => {
+        const f = (await fab(p))!;
+        await p.mouse.click((f.left + f.right) / 2, (f.top + f.bottom) / 2, { button: "right" });
+        await p.waitForTimeout(200);
+      };
+      const isTab = () =>
+        p.evaluate(() =>
+          document
+            .getElementById("loki-feedback-host")
+            ?.shadowRoot?.querySelector(".fab")
+            ?.classList.contains("tab"),
+        );
+
+      const full = (await fab(p))!;
+      await holdMenu();
+      const first = await menuItems();
+      ok(first[0] === "Minimize", `minimize: the menu leads with Minimize (${first.join(" | ")})`);
+      ok(first.includes("Hide on this site"), "minimize: Hide on this site is still there");
+      await press("Minimize");
+      await p.waitForTimeout(300);
+      const small = (await fab(p))!;
+      ok(!!(await isTab()), "minimize: the launcher is the edge tab");
+      ok(
+        small.right >= 389 && small.right - small.left <= 32,
+        `minimize: flush right and slim (w=${small.right - small.left})`,
+      );
+      ok(
+        small.right - small.left < full.right - full.left,
+        "minimize: smaller than the button was",
+      );
+      ok(small.visible, "minimize: still on screen, never gone");
+      await p.reload();
+      await p.waitForFunction(() =>
+        Boolean(document.getElementById("loki-feedback-host")?.shadowRoot?.querySelector(".fab")),
+      );
+      await settle(p);
+      ok(!!(await isTab()), "minimize: remembered on this site after a reload");
+
+      await holdMenu();
+      const second = await menuItems();
+      ok(second[0] === "Expand", `minimize: the tab's menu offers Expand (${second.join(" | ")})`);
+      await press("Expand");
+      await p.waitForTimeout(300);
+      ok(!(await isTab()), "minimize: Expand brings the button back");
+      await p.reload();
+      await p.waitForFunction(() =>
+        Boolean(document.getElementById("loki-feedback-host")?.shadowRoot?.querySelector(".fab")),
+      );
+      await settle(p);
+      ok(!(await isTab()), "minimize: Expand is remembered too");
+      await close();
+    }
+
     // 9. Every corner slot is a control: the launcher becomes the edge tab —
     //    narrow, flush against the side — instead of vanishing. A launcher
     //    that is there on some pages and gone on others reads as broken.

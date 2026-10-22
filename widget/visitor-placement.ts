@@ -125,6 +125,32 @@ export function writeDragPosition(token: string, value: DragPosition | null): vo
   }
 }
 
+/**
+ * Whether the person minimized the launcher on this site: the owner's wide
+ * "Watching" pill (with its microphone and remark bubbles) folded into the slim
+ * edge tab, which still shows the live dot and the unread count. Their choice,
+ * per token, until they expand it. A pill left over the text they are reading
+ * was the complaint (owner, 2026-10-22): "it is kind of disturbing".
+ */
+const MIN_KEY = (token: string) => `fc-widget-min:${token.slice(0, 24)}`;
+
+export function readMinimized(token: string): boolean {
+  try {
+    return localStorage.getItem(MIN_KEY(token)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function writeMinimized(token: string, on: boolean): void {
+  try {
+    if (on) localStorage.setItem(MIN_KEY(token), "1");
+    else localStorage.removeItem(MIN_KEY(token));
+  } catch {
+    /* storage unavailable — the choice just does not persist */
+  }
+}
+
 /** Edge margin of a snapped launcher, in px. */
 export const SNAP_MARGIN = 16;
 

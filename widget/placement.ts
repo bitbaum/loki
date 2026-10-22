@@ -280,8 +280,19 @@ export function chooseTabTop(
   viewportHeight: number,
   tabHeight: number,
   verdict: (top: number) => SlotVerdict,
+  /** A height (px) the person already chose: tried before the standard ones, so
+   *  a minimized launcher folds into the edge where they left it. */
+  preferredTop?: number,
 ): number {
   const topAt = (f: number) => Math.round(viewportHeight * f - tabHeight / 2);
+  if (
+    preferredTop !== undefined &&
+    preferredTop >= 0 &&
+    preferredTop + tabHeight <= viewportHeight &&
+    verdict(preferredTop) !== "blocked"
+  ) {
+    return preferredTop;
+  }
   for (const f of TAB_HEIGHTS) {
     const top = topAt(f);
     if (verdict(top) !== "blocked") return top;
