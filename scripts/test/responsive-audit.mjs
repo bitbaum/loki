@@ -265,6 +265,7 @@ export const NOT_MEASURED = {
   "/change/requests/[id]":
     "needs a build request filed by the audited account (one per brief, signed in); checked at 390px by hand on 2026-10-19 with no horizontal scroll",
   "/projects/[id]": "needs a project id from the audited environment's database",
+  "/missions/[id]": "needs an accessible project id from the audited environment; rendered from the same owner-scoped project dossier",
   "/projects/[id]/review":
     "needs an owned project id; actual review component and styles are measured at four widths in inspection-workspace-browser.ts",
   "/projects/[id]/watch": "needs a project id (with a run) from the audited environment's database",
