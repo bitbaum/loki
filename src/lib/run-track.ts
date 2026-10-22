@@ -456,7 +456,7 @@ function prStage(f: Facts): TrackStage {
 function mergedStage(f: Facts): TrackStage {
   const fix = f.input.fix;
   if (f.ship && MERGED_STATES.has(f.ship))
-    return stage("merged", "Checks passed and merged", "done", {
+    return stage("merged", "Tested and merged", "done", {
       at: fix?.mergedAt ?? null,
       facts: [
         { text: "Every check on the pull request passed." },
@@ -469,7 +469,7 @@ function mergedStage(f: Facts): TrackStage {
     });
   const checksLink = f.prUrl ? `${f.prUrl}/checks` : null;
   if (f.checks === "failed" && f.prUrl)
-    return stage("merged", "A check failed", "attention", {
+    return stage("merged", "A test failed", "attention", {
       note: f.finished
         ? "It cannot merge until the check passes — open the pull request to see which."
         : "The agent usually sees it and fixes it; it cannot merge until the check passes.",
@@ -478,13 +478,13 @@ function mergedStage(f: Facts): TrackStage {
       facts: [{ text: "One of the checks on the pull request came back red.", href: checksLink }],
     });
   if (f.checks === "passed" && f.prUrl)
-    return stage("merged", "Checks passed — merging", "now", {
+    return stage("merged", "Tested — merging", "now", {
       note: "Every check is green; it merges by itself in the next sweep.",
       at: f.prAt,
       facts: [{ text: "Every check on the pull request passed.", href: checksLink }],
     });
   if (f.ship === FIX_SHIP_STATE.PR_OPEN || (f.checks === "running" && f.prUrl))
-    return stage("merged", "Checks running", "now", {
+    return stage("merged", "Testing", "now", {
       note: "It merges by itself once they pass.",
       at: f.prAt,
       facts: [
@@ -494,7 +494,7 @@ function mergedStage(f: Facts): TrackStage {
         },
       ],
     });
-  return stage("merged", "Checks and merge", "next");
+  return stage("merged", "Tested and merged", "next");
 }
 
 function liveStage(f: Facts): TrackStage {
@@ -566,8 +566,8 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   }
   if (f.checks === "failed" && f.prUrl)
     return f.finished
-      ? "A check failed on the pull request — it cannot merge until that passes."
-      : `A check failed on the pull request — ${p} usually fixes it.`;
+      ? "A test failed on the pull request — it cannot merge until that passes."
+      : `A test failed on the pull request — ${p} usually fixes it.`;
   if (f.checks === "passed" && f.prUrl) return "Checks passed — it merges and deploys by itself.";
   if (f.prUrl)
     return f.finished

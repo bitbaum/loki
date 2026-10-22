@@ -3,23 +3,30 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, MessageSquare, Pencil, Settings, UserPlus } from "lucide-react";
+import { ArrowLeft, MessageSquare, Pencil } from "lucide-react";
+import { PageAction, PageActionButton } from "@/components/ui/page-action";
 import { patchJson } from "@/lib/api/fetch";
 import { rememberFleetProject } from "@/lib/fleet-context";
-import { summarizeDescription } from "@/lib/project-display";
-import { ownerSiteUrl } from "../../../widget/owner-pass";
 import { trackUsage } from "@/lib/usage/track";
 import { ROLE_LABELS } from "@/lib/project-capabilities";
 import type { ProjectRole } from "@/db/schema/project-memberships";
 
-/** Identity and the two everyday actions. Configuration belongs in Settings. */
+/**
+ * A project's header: the way back, its name, and its ONE primary action
+ * (design reset rules 1, 2 and 5, docs/development/design-reset-2026-10.md).
+ *
+ * It used to carry a settings gear, a two-line summary and three outlined
+ * buttons in a row (Ask Loki · Open site · Invite). Settings and People are
+ * sections of this page; "Open the site" is the first row of Overview; the
+ * description is the Story. What is left is what a person opens a project
+ * to do: ask for something — "Ask Loki", or, on someone else's project,
+ * "Ask for a change". It sits where every page's primary action sits: the
+ * phone's top bar, the right of this header from md up.
+ */
 export function ProjectWorkspaceHeader({
   projectId,
   name,
   workspaceKey,
-  description,
-  liveUrl,
-  ownerPass,
   readonly,
   viewerRole = null,
   quiet = false,
@@ -28,84 +35,61 @@ export function ProjectWorkspaceHeader({
   /** What a person calls it (projectTitle). The owner renames it in place. */
   name: string;
   workspaceKey: string;
-  description: string | null;
-  liveUrl: string | null;
-  ownerPass: string | null;
   readonly: boolean;
   /** Named on a shared project. "View only" was said to a Builder who had
    *  just joined to fix things (walk-through, 2026-10-17). */
   viewerRole?: "owner" | ProjectRole | null;
   /** The page below already leads with its own primary action (the kickoff's
-   *  "Make it happen"): Ask Loki steps down to secondary, so the screen has
-   *  one orange button, not two a thumb apart (walk-through, 2026-10-17). */
+   *  "Make it happen"), so the header offers none: one primary per screen. */
   quiet?: boolean;
 }) {
   useEffect(() => {
     rememberFleetProject(workspaceKey);
     trackUsage({ surface: "projects.workspace", action: "shown", target: "header" });
   }, [workspaceKey]);
-  const summary = summarizeDescription(description, 145);
   const member = readonly && viewerRole !== null && viewerRole !== "owner";
-  const track = (target: string) =>
-    trackUsage({ surface: "projects.workspace", action: "tap", target });
+  // Someone on another person's project asks in the box on this page
+  // (MemberGuide → ProjectAskBox). The chat runs in THEIR account, which has
+  // no builder for this project: it told a Builder to edit HTML and install
+  // the desktop app (walk as Manu, 2026-10-18).
+  const ask = member
+    ? { href: "#ask", label: "Ask for a change", target: "ask" }
+    : {
+        href: `/loki?project=${encodeURIComponent(workspaceKey)}`,
+        label: "Ask Loki",
+        target: "chat",
+      };
   return (
     <header className="ui-project-header">
-      <div className="flex items-center justify-between gap-3">
-        <Link href="/projects" className="ui-project-back">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Projects
-        </Link>
-        {!readonly && (
-          <a href="#settings" className="ui-btn-icon h-11 w-11" aria-label="Project settings">
-            <Settings className="h-4 w-4" aria-hidden="true" />
-          </a>
-        )}
-      </div>
-      <div className="mt-4 sm:mt-6">
-        {readonly ? (
-          <h1 className="ui-project-title">{name}</h1>
-        ) : (
-          <ProjectTitle projectId={projectId} name={name} />
-        )}
-        {summary && <p className="ui-project-summary">{summary}</p>}
-        {readonly && (
-          <p className="mt-2 text-sm text-text-tertiary">
-            Shared with you
-            {viewerRole && viewerRole !== "owner" && ` · ${ROLE_LABELS[viewerRole].label}`}
-          </p>
-        )}
-      </div>
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        {/* Someone on another person's project asks in the box on this page
-            (MemberGuide → ProjectAskBox). The chat runs in THEIR account,
-            which has no builder for this project: it told a Builder to edit
-            HTML and install the desktop app (walk as Manu, 2026-10-18). */}
-        <Link
-          href={member ? "#ask" : `/loki?project=${encodeURIComponent(workspaceKey)}`}
-          className={`${quiet ? "ui-btn-secondary" : "ui-btn-primary"} min-h-11 gap-2`}
-          onClick={() => track(member ? "ask" : "chat")}
-        >
-          <MessageSquare className="h-4 w-4" aria-hidden="true" />{" "}
-          {member ? "Ask for a change" : "Ask Loki"}
-        </Link>
-        {liveUrl && (
-          <a
-            href={ownerPass ? ownerSiteUrl(liveUrl, ownerPass) : liveUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="ui-btn-secondary min-h-11 gap-2"
-            onClick={() => track("site")}
-          >
-            Open site <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-          </a>
-        )}
-        {!readonly && (
-          <a
-            href="#people"
-            className="ui-btn-secondary min-h-11 gap-2"
-            onClick={() => track("invite")}
-          >
-            <UserPlus className="h-4 w-4" aria-hidden="true" /> Invite
-          </a>
+      <Link href="/projects" className="ui-page-back">
+        <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        Projects
+      </Link>
+      <div className="ui-project-title-row">
+        <div className="min-w-0 flex-1">
+          {readonly ? (
+            <h1 className="ui-project-title">{name}</h1>
+          ) : (
+            <ProjectTitle projectId={projectId} name={name} />
+          )}
+          {readonly && (
+            <p className="ui-project-shared">
+              Shared with you
+              {viewerRole && viewerRole !== "owner" && ` · ${ROLE_LABELS[viewerRole].label}`}
+            </p>
+          )}
+        </div>
+        {!quiet && (
+          <PageAction>
+            <span
+              className="contents"
+              onClickCapture={() =>
+                trackUsage({ surface: "projects.workspace", action: "tap", target: ask.target })
+              }
+            >
+              <PageActionButton label={ask.label} icon={MessageSquare} href={ask.href} />
+            </span>
+          </PageAction>
         )}
       </div>
     </header>
@@ -125,19 +109,24 @@ function ProjectTitle({ projectId, name }: { projectId: string; name: string }) 
   const save = async () => {
     const next = draft?.trim() ?? "";
     if (!next || next === name) return setDraft(null);
-    const response = await patchJson(`/api/projects/${projectId}`, { title: next });
-    if (!response.ok) return setError("That name was not saved. Try again.");
+    // The title, not the name: the name keys the project's history (activity,
+    // runs, jobs), so a rename must never hide its past. A failure keeps the
+    // draft in the box.
+    const response = await patchJson(`/api/projects/${projectId}`, { title: next }).catch(
+      () => null,
+    );
+    if (!response?.ok) return setError("That name was not saved. Your draft is still here.");
     setDraft(null);
     setError("");
     router.refresh();
   };
   if (draft === null)
     return (
-      <div className="flex items-start gap-2">
+      <div className="flex items-center gap-1">
         <h1 className="ui-project-title min-w-0">{name}</h1>
         <button
           type="button"
-          className="ui-btn-icon mt-1 h-11 w-11 shrink-0"
+          className="ui-topbar-btn shrink-0"
           aria-label="Rename the project"
           onClick={() => setDraft(name)}
         >

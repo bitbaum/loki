@@ -131,7 +131,7 @@ export function ProjectMembersPanel({
       aria-labelledby="project-people-title"
     >
       <div>
-        <h2 id="project-people-title" className="text-lg font-semibold text-text-primary">
+        <h2 id="project-people-title" className="ui-project-section-title">
           Invite someone to {projectName}
         </h2>
         <p className="mt-1 text-sm text-text-secondary">

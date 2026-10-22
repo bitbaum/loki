@@ -4,6 +4,7 @@ import { LiveUrlField } from "./LiveUrlField";
 import { OwnDomainButton } from "./OwnDomainButton";
 import { RegisterSiteButton } from "./RegisterSiteButton";
 import type { siteAddresses } from "@/lib/site-domain";
+import { plainWords } from "@/lib/project-display";
 
 /** The repository's owner/name, which is what a person recognises it by. */
 function repoName(url: string): string {
@@ -36,7 +37,7 @@ export function ProjectConnectionsSection({
       <SettingRows>
         <SettingRow
           title="Website address"
-          note={<span className="break-all">{liveUrl ?? "Not set yet."}</span>}
+          note={<span className="break-all">{liveUrl ? plainWords(liveUrl) : "Not set yet."}</span>}
         >
           <LiveUrlField
             userProjectId={userProjectId}

@@ -71,26 +71,29 @@ export function ActionButtons({ actionId, compact }: { actionId: string; compact
   }
 
   if (compact) {
+    // Words, not a bare tick and cross a person had to guess at (design
+    // reset, 2026-10): the yes as an outlined pill, the no as plain text.
     return (
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
         {error && <span className="ui-error-xs mr-1">{error}</span>}
         <button
+          type="button"
           onClick={onApprove}
           disabled={busy}
-          className="flex items-center justify-center rounded p-3 min-h-11 min-w-11 hover:bg-status-positive/20 text-status-positive/60 hover:text-status-positive transition-colors disabled:opacity-50"
-          title="Done — mark as completed"
-          aria-label="Mark action as done"
+          className="ui-home-fix"
+          aria-label="Approve"
         >
-          <Check className="h-4 w-4" />
+          <Check className="h-4 w-4" aria-hidden />
+          Approve
         </button>
         <button
+          type="button"
           onClick={onReject}
           disabled={busy}
-          className="flex items-center justify-center rounded p-3 min-h-11 min-w-11 hover:bg-surface-raised text-text-muted hover:text-text-secondary transition-colors disabled:opacity-50"
-          title="Skip — dismiss this action"
-          aria-label="Skip this action"
+          className="ui-btn-ghost min-h-9 text-sm"
+          aria-label="Decline"
         >
-          <X className="h-4 w-4" />
+          Decline
         </button>
       </div>
     );

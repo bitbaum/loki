@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, Loader2, X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { createCronJob } from "@/lib/api/crons";
 import type { PromptTemplate } from "@/config/prompt-library";
 import type { Project } from "./types";
@@ -22,10 +22,11 @@ import {
   type SchedulePick,
 } from "@/lib/cron-words";
 import { PromptProjectField, usePromptProject } from "./PromptProjectField";
+import { PromptVariableFields } from "./PromptPreview";
 
 /** The four picks in words, as an even 2 × 2: five cells in one row on a
- *  phone broke "Weekdays" mid-word. A cron line is the expert's way, one tap
- *  below, not a fifth cell. */
+ *  phone broke "Weekdays" mid-word. An exact schedule line is the expert's
+ *  way, one tap below, not a fifth cell. */
 const KIND_OPTIONS: { id: Exclude<ScheduleKind, "custom">; label: string; means: string }[] = [
   { id: "daily", label: "Every day", means: "Every day, at the time below." },
   { id: "weekdays", label: "Weekdays", means: "Monday to Friday, at the time below." },
@@ -57,10 +58,11 @@ export function ScheduleModal({
   pinnedProjectId?: string | null;
   onClose: () => void;
 }) {
+  const titleId = useId();
   const needed = needsProject(template);
   const { project, projectId, setProjectId } = usePromptProject(projects, pinnedProjectId);
   const [varValues, setVarValues] = useState<Record<string, string>>({});
-  // A person picks a schedule in words; the cron line is written for them.
+  // A person picks a schedule in words; the schedule line is written for them.
   // The prompt's suggested line opens as the pick it stands for.
   const [pick, setPick] = useState<SchedulePick>(() =>
     pickFromCron(template.suggestedSchedule ?? "0 9 * * 1"),
@@ -115,35 +117,45 @@ export function ScheduleModal({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(
-          typeof data.error === "string" ? data.error : "Could not create the job — try again.",
-        );
+        setError(typeof data.error === "string" ? data.error : "Could not save it. Try again.");
         return;
       }
       setDone(true);
       setTimeout(onClose, MODAL_AUTO_CLOSE_MS);
     } catch {
-      setError("Network error — try again.");
+      setError("No connection. Try again.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal onClose={onClose} size="lg" padded={false} className="flex flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle p-5">
-        <div className="text-xl font-semibold text-text-primary">Schedule this prompt</div>
-        <button onClick={onClose} className="ui-btn-overlay p-2" aria-label="Close">
-          <X className="h-4 w-4" />
+    <Modal
+      onClose={onClose}
+      size="lg"
+      position="bottom-mobile"
+      padded={false}
+      labelledBy={titleId}
+      className="flex flex-col"
+    >
+      <div className="ui-prompt-sheet-head">
+        <div className="min-w-0">
+          <h2 id={titleId} className="ui-prompt-sheet-title">
+            Repeat {template.name}
+          </h2>
+          <p className="ui-prompt-sheet-desc">Loki runs it for you on the days you pick.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="ui-topbar-btn shrink-0"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-        <div className="ui-card-shell p-4">
-          <div className="mb-1 text-base font-medium text-text-primary">{template.name}</div>
-          <div className="text-sm text-text-secondary">{template.description}</div>
-        </div>
-
+      <div className="ui-prompt-sheet-body">
         {needed && (
           <PromptProjectField
             id="schedule-project"
@@ -151,35 +163,18 @@ export function ScheduleModal({
             value={projectId}
             onChange={setProjectId}
             required
-            hint="Each run goes to this project's session."
           />
         )}
 
-        {extraVars.length > 0 && (
-          <div className="space-y-3">
-            <div className="ui-kicker text-text-tertiary">Fill in</div>
-            {extraVars.map((v) => (
-              <div key={v.name}>
-                <label className="ui-micro-label mb-1 block" htmlFor={`sched-var-${v.name}`}>
-                  {v.name.replace(/_/g, " ")}
-                  {v.defaultValue !== undefined && (
-                    <span className="text-text-muted"> · defaults to {v.defaultValue}</span>
-                  )}
-                </label>
-                <input
-                  id={`sched-var-${v.name}`}
-                  value={varValues[v.name] ?? ""}
-                  onChange={(e) => setVarValues((prev) => ({ ...prev, [v.name]: e.target.value }))}
-                  placeholder={v.defaultValue ?? `Value for ${v.name.replace(/_/g, " ")}`}
-                  className="ui-input"
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        <PromptVariableFields
+          idPrefix="sched-var"
+          variables={extraVars}
+          values={varValues}
+          onChange={(name, value) => setVarValues((prev) => ({ ...prev, [name]: value }))}
+        />
 
-        <div className="space-y-3">
-          <div className="ui-kicker text-text-tertiary">How often</div>
+        <div className="flex flex-col gap-3">
+          <p className="ui-prompt-field-label">How often</p>
           {pick.kind !== "custom" && (
             <Segmented
               label="How often"
@@ -201,8 +196,8 @@ export function ScheduleModal({
 
           {pick.kind === "custom" ? (
             <div>
-              <label className="ui-micro-label mb-1 block" htmlFor="schedule-cron">
-                Cron line — minute, hour, day of the month, month, day of the week
+              <label className="ui-prompt-field-label" htmlFor="schedule-cron">
+                Exact schedule: minute, hour, day of the month, month, day of the week
               </label>
               <input
                 id="schedule-cron"
@@ -229,7 +224,7 @@ export function ScheduleModal({
             <div className="grid grid-cols-2 gap-3">
               {pick.kind === "monthly" && (
                 <div>
-                  <label className="ui-micro-label mb-1 block" htmlFor="schedule-day">
+                  <label className="ui-prompt-field-label" htmlFor="schedule-day">
                     Date
                   </label>
                   <select
@@ -247,7 +242,7 @@ export function ScheduleModal({
                 </div>
               )}
               <div>
-                <label className="ui-micro-label mb-1 block" htmlFor="schedule-time">
+                <label className="ui-prompt-field-label" htmlFor="schedule-time">
                   Time
                 </label>
                 <input
@@ -269,44 +264,38 @@ export function ScheduleModal({
               onClick={() => set({ kind: "custom", cron })}
               className="ui-btn-ghost min-h-11 text-xs"
             >
-              Write it as a cron line instead
+              Type an exact schedule instead
             </button>
           )}
         </div>
       </div>
 
       {/* Pinned under the form, so on a phone the schedule in words — and
-          whose clock it keeps — sits right above Create, never a scroll away. */}
-      <div className="shrink-0 space-y-3 border-t border-border-subtle p-5">
+          whose clock it keeps — sits right above the button, never a scroll away. */}
+      <div className="ui-sheet-foot flex flex-col gap-2">
         {inWords && (
           <p className="text-sm text-text-primary">
             {inWords}, {zone}.{" "}
-            <Link
-              href="/settings#location"
-              className="text-xs text-text-tertiary underline underline-offset-2"
-            >
+            <Link href="/settings#location" className="ui-link-muted text-sm">
               Change time zone
             </Link>
           </p>
         )}
         {error && <p className="ui-error-xs">{error}</p>}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleCreate}
-            disabled={!!blocked || saving || done}
-            className="ui-btn-primary min-h-11 shrink-0"
-          >
-            {done ? (
-              <Check className="h-4 w-4" />
-            ) : saving ? (
-              <Loader2 className="ui-spinner" />
-            ) : (
-              <Clock className="h-4 w-4" />
-            )}
-            {done ? "Scheduled" : saving ? "Creating…" : "Create scheduled job"}
-          </button>
-          {blocked && <p className="min-w-0 text-xs text-text-secondary">{blocked}</p>}
-        </div>
+        {blocked && <p className="text-sm text-text-secondary">{blocked}</p>}
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={!!blocked || saving || done}
+          className="ui-btn-primary min-h-12 w-full"
+        >
+          {done ? (
+            <Check className="h-4 w-4" />
+          ) : saving ? (
+            <Loader2 className="ui-spinner" />
+          ) : null}
+          {done ? "Saved" : saving ? "Saving…" : "Repeat it"}
+        </button>
       </div>
     </Modal>
   );

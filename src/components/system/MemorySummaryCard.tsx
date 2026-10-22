@@ -1,5 +1,5 @@
 import { Brain, Database, Link2 } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { getEntityStats } from "@/db/queries/memory";
 import { requirePageUserId } from "@/lib/session";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
@@ -31,19 +31,19 @@ export async function MemorySummaryCard() {
 
   if (!stats) {
     return (
-      <Card>
-        <CardHeader icon={Brain} title="Memory" />
+      <SystemBlock>
+        <SystemBlockHeader icon={Brain} title="Memory" />
         <p className="text-sm text-text-tertiary">
           Couldn&apos;t load knowledge-graph stats. The rest of System is unaffected; this section
           will refresh on the next page load.
         </p>
-      </Card>
+      </SystemBlock>
     );
   }
 
   return (
-    <Card>
-      <CardHeader
+    <SystemBlock>
+      <SystemBlockHeader
         icon={Brain}
         title="Memory"
         right={
@@ -77,6 +77,6 @@ export async function MemorySummaryCard() {
           ))}
         </div>
       </div>
-    </Card>
+    </SystemBlock>
   );
 }

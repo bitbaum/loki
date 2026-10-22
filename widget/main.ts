@@ -48,7 +48,9 @@ import { attachSheet } from "./sheet";
 import {
   isHiddenByVisitor,
   readHiddenMarker,
+  STATUS_EVENT,
   VISIBILITY_EVENT,
+  type LauncherStatus,
   readVisitorPlacement,
   restoreRequested,
   writeVisitorPlacement,
@@ -110,6 +112,18 @@ interface LokiApi {
   hide(): void;
   /** Whether this person has the launcher hidden on this site. */
   readonly hidden: boolean;
+  /**
+   * Open the panel — what a tap on the launcher does. For a host that draws
+   * its own launcher (`data-fc-place="host"`, Loki's top bar). Like report()
+   * it brings back a launcher the person had hidden.
+   */
+  open(): void;
+  /**
+   * What the launcher would show: the owner's watching state and the count of
+   * what Loki said while the panel was closed. Changes are announced as a
+   * `loki:status` event on `window` (detail: the same object).
+   */
+  readonly status: LauncherStatus;
 }
 
 (() => {
@@ -183,6 +197,23 @@ interface LokiApi {
    *  explicit report()/ask()/show() can still mount it. */
   let bootedThemes: WidgetThemes | null = null;
   let mounted = false;
+  /** Last status announced — see LokiApi.status. */
+  let status: LauncherStatus = { owner: false, watching: false, unread: 0 };
+  const announceStatus = (next: LauncherStatus) => {
+    if (
+      next.owner === status.owner &&
+      next.watching === status.watching &&
+      next.unread === status.unread
+    )
+      return;
+    status = next;
+    window.dispatchEvent(new CustomEvent(STATUS_EVENT, { detail: { ...next } }));
+  };
+  /** `ready` flipped: say so, so a host-drawn launcher can start answering. */
+  const markReady = () => {
+    api.ready = true;
+    window.dispatchEvent(new CustomEvent(STATUS_EVENT, { detail: { ...status } }));
+  };
   /** Set by mount(): bring back a launcher hidden during this page view. */
   let liveShow: (() => void) | null = null;
   /** Set by mount(): hide a launcher that is on screen, toast optional. */
@@ -228,6 +259,12 @@ interface LokiApi {
     hide,
     get hidden() {
       return isHiddenByVisitor(visitorOverride);
+    },
+    open() {
+      api.report();
+    },
+    get status() {
+      return { ...status };
     },
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
@@ -408,6 +445,7 @@ interface LokiApi {
       madeWith.hidden = !!ownerPass;
       // The owner's launcher carries the same state as this header.
       launcher.setOwnerStatus(ownerPass ? { watching: on, unread } : null);
+      announceStatus({ owner: !!ownerPass, watching: !!ownerPass && on, unread });
       quickTalk?.sync();
       conversation?.refresh();
     }
@@ -678,7 +716,7 @@ interface LokiApi {
     // live since their last visit is announced before they open anything.
     changes.start();
     // Only now can a click actually open something — see LokiApi.ready.
-    api.ready = true;
+    markReady();
     if (ownerDenied) {
       openPanel();
       conversation.say(
@@ -735,7 +773,7 @@ interface LokiApi {
       // operator's kill switch outranks the preference. The API stays usable:
       // report()/ask()/show() from the host page bring the widget back.
       if (isHiddenByVisitor(visitorOverride)) {
-        api.ready = true;
+        markReady();
         w.__lokiWidgetBooting = false;
         return;
       }

@@ -1,4 +1,8 @@
-import { VISIBILITY_EVENT } from "../../widget/visitor-placement";
+import {
+  STATUS_EVENT,
+  VISIBILITY_EVENT,
+  type LauncherStatus,
+} from "../../widget/visitor-placement";
 
 /**
  * Loki's own feedback widget, from the app's side: open it from a control on
@@ -12,9 +16,11 @@ import { VISIBILITY_EVENT } from "../../widget/visitor-placement";
 type LokiWidgetApi = {
   ready?: boolean;
   report?: () => void;
+  open?: () => void;
   hide?: () => void;
   show?: () => void;
   hidden?: boolean;
+  status?: LauncherStatus;
 };
 
 const lokiApi = (): LokiWidgetApi | undefined =>
@@ -22,7 +28,8 @@ const lokiApi = (): LokiWidgetApi | undefined =>
 
 export function openFeedback(fallback: () => void): void {
   const api = lokiApi();
-  if (api?.ready && typeof api.report === "function") api.report();
+  if (api?.ready && typeof api.open === "function") api.open();
+  else if (api?.ready && typeof api.report === "function") api.report();
   else fallback();
 }
 
@@ -57,4 +64,31 @@ export function subscribeFeedbackButton(onChange: () => void): () => void {
     window.removeEventListener(VISIBILITY_EVENT, onChange);
     window.clearInterval(poll);
   };
+}
+
+export type { LauncherStatus };
+
+const NO_STATUS: LauncherStatus = { owner: false, watching: false, unread: 0 };
+let lastStatus = NO_STATUS;
+
+/**
+ * What the widget's launcher would show, for the top bar's own launcher
+ * (`data-fc-place="host"`). The same object while nothing changed, so it can
+ * be a useSyncExternalStore snapshot.
+ */
+export function feedbackLauncherStatus(): LauncherStatus {
+  const next = lokiApi()?.status ?? NO_STATUS;
+  if (
+    next.owner !== lastStatus.owner ||
+    next.watching !== lastStatus.watching ||
+    next.unread !== lastStatus.unread
+  )
+    lastStatus = { ...next };
+  return lastStatus;
+}
+
+/** Call `onChange` when the launcher's status may have changed. */
+export function subscribeFeedbackStatus(onChange: () => void): () => void {
+  window.addEventListener(STATUS_EVENT, onChange);
+  return () => window.removeEventListener(STATUS_EVENT, onChange);
 }

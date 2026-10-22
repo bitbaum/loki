@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { Bell } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { NARROW_QUERY } from "@/hooks/use-is-narrow";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
-import { NotificationPanel, bellAlerts } from "./NotificationPanel";
+import { splitBell } from "@/lib/alerts/relevance";
+import { NotificationPanel } from "./NotificationPanel";
 import type { Alert } from "@/db/schema/alerts";
 
 /**
@@ -23,7 +28,9 @@ const onServer = () => false;
 
 export function NotificationsPill() {
   const [panelOpen, setPanelOpen] = useState(false);
-  const { data } = useFetch<{ alerts: Alert[] }>("/api/alerts");
+  const { data, refetch } = useFetch<{ alerts: (Alert & { earlier?: boolean })[] }>("/api/alerts");
+  const phone = useMediaQuery(NARROW_QUERY);
+  const sheetTitleId = useId();
 
   /**
    * Render NOTHING until mounted, so the server and the first client render
@@ -54,8 +61,15 @@ export function NotificationsPill() {
   // queue is not one of them: it is work waiting, and Home's "To review"
   // already counts it — the bell added it again and read "9+" beside a
   // "Feedback to triage 13" row on the same screen (owner, 2026-10-19).
-  // The count is exactly what the panel lists.
-  const totalCount = bellAlerts(data?.alerts ?? []).length;
+  // It counts only what is still news (lib/alerts/relevance): a red "9+"
+  // over nudges 8, 19 and 28 days old was a number no action could lower
+  // (owner, 2026-10-21). Older ones are listed under "Earlier", uncounted.
+  const totalCount = splitBell(data?.alerts ?? []).current.length;
+  const close = () => {
+    setPanelOpen(false);
+    // A dismissal inside the panel lowers the count when it closes.
+    refetch();
+  };
   const hasAlerts = totalCount > 0;
 
   // Icon-only — the bell state communicates whether there are notifications.
@@ -66,28 +80,43 @@ export function NotificationsPill() {
       <button
         type="button"
         onClick={() => setPanelOpen(!panelOpen)}
-        className={cn("ui-topbar-btn relative", hasAlerts && "text-accent-text")}
+        className={cn("ui-topbar-btn relative", hasAlerts && "text-text-primary")}
         title={
           hasAlerts ? `${totalCount} notification${totalCount === 1 ? "" : "s"}` : "Notifications"
         }
         aria-label={hasAlerts ? `${totalCount} notifications` : "Notifications"}
       >
-        <Bell className="h-4 w-4" />
+        <Bell className="h-5 w-5" />
         {hasAlerts && (
           <span className="ui-notification-badge">{totalCount > 9 ? "9+" : totalCount}</span>
         )}
       </button>
 
-      {panelOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setPanelOpen(false)}
-            aria-hidden="true"
-          />
-          <NotificationPanel onClose={() => setPanelOpen(false)} />
-        </>
-      )}
+      {panelOpen &&
+        (phone ? (
+          // A bottom sheet on a phone, to <body> so the top bar hiding while
+          // a dialog is open cannot take it with it.
+          createPortal(
+            <Modal
+              onClose={close}
+              position="bottom-mobile"
+              size="md"
+              padded={false}
+              labelledBy={sheetTitleId}
+              className="ui-notification-modal"
+            >
+              <NotificationPanel onClose={close} titleId={sheetTitleId} />
+            </Modal>,
+            document.body,
+          )
+        ) : (
+          <>
+            <div className="fixed inset-0 z-40" onClick={close} aria-hidden="true" />
+            <div className="ui-notification-panel">
+              <NotificationPanel onClose={close} />
+            </div>
+          </>
+        ))}
     </>
   );
 }

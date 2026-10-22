@@ -22,10 +22,23 @@ export function projectTitle(project: {
   const own = project.title?.trim();
   if (own) return own;
   const legacy = /^(.+)-refresh-[0-9a-f]{32}$/.exec(project.name);
-  if (!legacy) return project.name;
+  if (!legacy) return readableName(project.name);
   const host = /https?:\/\/(?:www\.)?([a-z0-9-]+)\./i.exec(project.description ?? "")?.[1];
   const word = host ?? legacy[1].split("-")[0]!;
   return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+/**
+ * A folder name, said as a word: "murphys-bar" → "Murphys bar", "loki" →
+ * "Loki". Only an all-lowercase slug is rewritten — a name someone typed with
+ * capitals ("BiasLens") is already how they say it. The owner read Home as a
+ * list of folder names (2026-10-21); a project with no title was shown by its
+ * folder everywhere this helper is used.
+ */
+function readableName(name: string): string {
+  if (!/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(name)) return name;
+  const words = name.replace(/[-_]+/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /**
@@ -217,4 +230,25 @@ const TEST_ARTIFACT_NAME = /^smoke-\d{6,}/i;
 /** True when a project name is an obvious test/dogfood artifact — never show it publicly. */
 export function isPublicTestArtifact(name: string | null | undefined): boolean {
   return TEST_ARTIFACT_NAME.test((name ?? "").trim());
+}
+
+/**
+ * A sentence an agent wrote, said the way a person would (design reset rule
+ * 9): a web address becomes its host ("https://substrata.orangecat.ch/x" →
+ * "substrata.orangecat.ch"), and a bare status code becomes what it means.
+ * Flags and next steps are written by agents for agents — "the public site
+ * returned HTTP 307" reached the owner as the reason his project was red.
+ */
+export function plainWords(text: string): string {
+  return text
+    .replace(/https?:\/\/(?:www\.)?([^\s/)]+)[^\s)]*/gi, "$1")
+    .replace(/\bHTTP\s*(?:status\s*)?([1-5]\d\d)\b/gi, (_m, code: string) => {
+      if (code.startsWith("3")) return "a redirect";
+      if (code === "404") return "“not found”";
+      if (code.startsWith("4")) return "a refusal";
+      if (code.startsWith("5")) return "a server error";
+      return "an answer";
+    })
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }

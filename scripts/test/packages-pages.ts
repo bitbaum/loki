@@ -68,11 +68,11 @@ check("the list links every package to its page and counts who is behind", () =>
   assert.match(html, /href="\/packages\/listkit"/);
   assert.match(html, /latest v1\.20\.1/);
   assert.match(html, /latest —/, "an unknown latest says so rather than inventing one");
-  assert.match(html, /Used by 3 projects/);
-  assert.match(html, /1 on latest/);
-  assert.match(html, /1 behind/);
-  assert.match(html, /1 unknown/);
-  assert.match(html, /Not in your projects/);
+  // One line per row (design reset): who uses it, and only the counts that
+  // need a word — on latest is what "used by" means unless the line says so.
+  assert.match(html, /used by 3 projects, 1 behind, 1 unknown/);
+  assert.match(html, /not in your projects/);
+  assert.ok(!/ui-tag|ui-badge/.test(html), "no badge stack on a package row");
   assert.match(html, /type="search"/);
 });
 

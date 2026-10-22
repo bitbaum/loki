@@ -26,10 +26,14 @@ import { SIDEBAR_COLLAPSE_STORAGE_KEY } from "@/config/shell";
 export function AppShell({
   children,
   orangecatEnabled = false,
+  feedbackWidget = false,
 }: {
   children: React.ReactNode;
   /** Whether the OrangeCat provider is configured (server fact from the layout). */
   orangecatEnabled?: boolean;
+  /** Whether Loki's own feedback widget is loaded here (server fact): the top
+   *  bar then draws its launcher (FeedbackLauncher). */
+  feedbackWidget?: boolean;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
@@ -67,7 +71,7 @@ export function AppShell({
           onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         />
         <div className="app-main-column">
-          <AppTopBar onOpenSessions={() => setSessionsOpen(true)} />
+          <AppTopBar onOpenSessions={() => setSessionsOpen(true)} feedbackWidget={feedbackWidget} />
           <DemoBanner />
           <OrangeCatConnectBanner
             enabled={orangecatEnabled}

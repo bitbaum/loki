@@ -68,7 +68,7 @@ export function TeamSettings({ invitations: initial }: Props) {
       {/* Current members */}
       {uniqueMembers.length > 1 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+          <p className="text-sm text-text-secondary">
             <Users className="mr-1 inline-block h-3 w-3" />
             Members ({uniqueMembers.length})
           </p>

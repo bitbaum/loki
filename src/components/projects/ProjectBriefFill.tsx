@@ -82,8 +82,8 @@ export function ProjectBriefFill({
             className="ui-btn-chip ui-tap gap-1.5 px-3 text-xs"
             title="Write what this project is and should become, in your own words — AI fills mission, vision, customers, stack and next step for you."
           >
-            <Sparkles className="h-3.5 w-3.5 text-accent-text" />
-            Describe it — AI fills the profile
+            <Sparkles className="h-3.5 w-3.5" />
+            Describe it
           </button>
         )}
         {hasRepo && (
@@ -96,9 +96,9 @@ export function ProjectBriefFill({
             {busy === "enrich" ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <GitBranch className="h-3.5 w-3.5 text-accent-text" />
+              <GitBranch className="h-3.5 w-3.5" />
             )}
-            Fill from repo
+            Read the code
           </button>
         )}
       </div>

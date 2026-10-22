@@ -33,24 +33,20 @@ export type TerminalModeOption<T extends string> = {
 export const TERMINAL_SOURCES: TerminalModeOption<TerminalSource>[] = [
   {
     id: "cloud",
-    label: "Cloud builder",
-    hint: "Run and follow agents in Loki’s cloud. This choice does not change project defaults.",
+    label: "Cloud",
+    hint: "Works from any device.",
   },
   {
     id: "machine",
     label: "Your computer",
-    hint: "Run and follow agents on your connected computer. Control it from any device.",
+    hint: "The computer where Fleet Runner is open.",
   },
   {
     id: "shell",
     label: "Server shell",
-    hint: "An advanced command-line session on this server, without an AI agent.",
+    hint: "A command line on this server, with no agent.",
   },
 ];
-
-export function terminalSourceHint(id: TerminalSource): string {
-  return TERMINAL_SOURCES.find((s) => s.id === id)?.hint ?? "";
-}
 
 /**
  * How the session is SHOWN — orthogonal to source and input. `chat` reads

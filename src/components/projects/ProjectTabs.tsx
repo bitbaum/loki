@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChoiceMenu } from "@/components/ui/choice-menu";
 import { cn } from "@/lib/utils";
 import { trackUsage } from "@/lib/usage/track";
 
@@ -76,28 +76,23 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
 
   return (
     <>
-      {/* One full-width control naming the section you are in. It was a
-          grey "Section" word on the left and a boxed native select pushed to
-          the right, two halves of one control drawn as two things. */}
+      {/* Seven sections do not fit a phone as tabs, and a cut row of them
+          is what rule 7 forbids: on a phone the section is ONE button naming
+          where you are, which opens the rest as a sheet. It was a boxed
+          native select pinned under the top bar (design reset, 2026-10-21).
+          Nothing here sticks — the page scrolls as one. */}
       <div className="ui-project-mobile-sections">
-        <label htmlFor="project-section" className="sr-only">
-          Section
-        </label>
-        <select
-          id="project-section"
-          aria-label="Project section"
+        <ChoiceMenu
+          bare
+          align="start"
+          label="Project section"
           value={active}
-          onChange={(event) => select(event.target.value)}
-          className="ui-project-section-select"
-        >
-          {tabs.map((tab) => (
-            <option key={tab.id} value={tab.id}>
-              {tab.label}
-              {tab.count ? ` (${tab.count})` : ""}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="ui-project-section-chevron" aria-hidden="true" />
+          options={tabs.map((tab) => ({
+            value: tab.id,
+            label: tab.count ? `${tab.label} (${tab.count})` : tab.label,
+          }))}
+          onChange={select}
+        />
       </div>
       <div role="tablist" aria-label="Project sections" className="ui-project-tabs">
         {tabs.map((tab, i) => (
@@ -116,12 +111,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
             {tab.label}
             {!!tab.count && (
               <span
-                className={cn(
-                  "rounded-full px-1.5 py-0.5 text-micro font-semibold tabular-nums",
-                  tab.urgent
-                    ? "bg-status-negative-subtle text-status-negative"
-                    : "bg-surface-overlay text-text-secondary",
-                )}
+                className={cn("ui-project-tab-count", tab.urgent && "ui-project-tab-count-urgent")}
               >
                 {tab.count}
               </span>
@@ -138,7 +128,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
           that was inside a HIDDEN panel — native anchor behaviour racing the
           tab logic over the same name. One element per anchor removes the race,
           and what the browser scrolls to is now what becomes visible.
-          `scroll-mt-28` clears the sticky tab bar. */}
+          Nothing sticks above it any more, so no scroll margin is needed. */}
       {tabs.map((tab) => (
         <div
           key={tab.id}
@@ -146,7 +136,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
           role="tabpanel"
           aria-labelledby={`tab-${tab.id}`}
           hidden={active !== tab.id}
-          className="scroll-mt-28 space-y-6"
+          className="space-y-6"
         >
           {/* Mounted even while hidden, on purpose. These panels contain forms
               with unsaved drafts and lists that poll while work is in flight;

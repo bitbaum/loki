@@ -10,7 +10,8 @@ import {
   X,
   Users,
 } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import { getPendingActions, getRecentActions, type ActionRow } from "@/db/queries/actions";
 import { requirePageUserId } from "@/lib/session";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
@@ -24,6 +25,7 @@ import { getPeopleSummaries, type PersonSummary } from "@/db/queries/people";
 import { resolvePersonToReach } from "@/lib/people-resolve";
 import { CHECKIN_TITLE_PREFIX } from "@/lib/actions/checkin-proposal";
 import { compactRelativeDate } from "@/lib/dates";
+import { LocalWhen } from "@/components/shared/LocalWhen";
 
 const TYPE_ICONS: Record<ActionType, typeof Send> = {
   [ACTION_TYPE.SEND_MESSAGE]: MessageCircle,
@@ -127,202 +129,178 @@ export async function ActionQueueCard({
     });
   }
 
-  if (pending.length === 0 && recent.length === 0) return emptyState;
+  // What was decided lately, as rows: a tick or a cross, the title, when.
+  const recentSection =
+    recent.length > 0 ? (
+      <Section title="Recently decided">
+        <List aria-label="Recently decided">
+          {recent.map((action) => {
+            const done =
+              action.status === ACTION_STATUS.APPROVED || action.status === ACTION_STATUS.EXECUTED;
+            return (
+              <ListRow
+                key={action.id}
+                icon={done ? Check : X}
+                title={action.title}
+                secondary={done ? "Approved" : "Declined"}
+                trailing={action.reviewedAt ? compactRelativeDate(action.reviewedAt) : undefined}
+              />
+            );
+          })}
+        </List>
+      </Section>
+    ) : null;
 
   if (pending.length === 0) {
+    if (!emptyState && !recentSection) return null;
     return (
-      <div id="actions" className="md:col-span-2">
-        <Card>
-          <CardHeader icon={Inbox} title="Action Queue" />
-          <div className="space-y-1.5">
-            {recent.map((action) => {
-              const done =
-                action.status === ACTION_STATUS.APPROVED ||
-                action.status === ACTION_STATUS.EXECUTED;
-              return (
-                <div key={action.id} className="flex items-center gap-3 px-1 py-1 rounded">
-                  {done ? (
-                    <Check className="h-3.5 w-3.5 text-status-positive shrink-0" />
-                  ) : (
-                    <X className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                  )}
-                  <span
-                    className="flex-1 truncate text-sm text-text-secondary"
-                    title={action.title}
-                  >
-                    {action.title}
-                  </span>
-                  {action.reviewedAt && (
-                    <span className="text-xs text-text-tertiary shrink-0">
-                      {compactRelativeDate(action.reviewedAt)}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      </div>
+      <>
+        {emptyState}
+        {recentSection}
+      </>
     );
   }
 
   const { groups, standalone } = groupSimilarActions(pending, people);
 
+  // Waiting for you, first and unboxed: each proposal is one item between
+  // hairlines, its yes/no on it. It was a card titled "Action Queue" holding
+  // a bordered box per proposal (design reset rule 3: never a card in a card).
   return (
-    <div id="actions" className="md:col-span-2">
-      <Card>
-        <CardHeader
-          icon={Inbox}
-          title="Action Queue"
-          right={
-            <span className="text-xs text-status-warning font-medium">
-              {pending.length} pending
-            </span>
-          }
-        />
-        <div className="space-y-3">
-          {/* Grouped check-ins */}
-          {groups.map((group, gi) => (
-            <CheckinGroup key={`group-${gi}`} people={group.actions} />
-          ))}
+    <Section
+      title="Waiting for you"
+      right={<span className="ui-approvals-count">{pending.length}</span>}
+    >
+      <div id="actions" className="ui-approvals-list scroll-mt-24">
+        {/* Grouped check-ins */}
+        {groups.map((group, gi) => (
+          <CheckinGroup key={`group-${gi}`} people={group.actions} />
+        ))}
 
-          {/* Standalone actions */}
-          {standalone.map((action, index) => {
-            const payload = action.payload;
+        {/* Standalone actions */}
+        {standalone.map((action, index) => {
+          const payload = action.payload;
 
-            if (action.title.startsWith(CHECKIN_TITLE_PREFIX)) {
-              return (
-                <div
-                  key={action.id}
-                  className="border border-border-subtle rounded-md p-3 bg-surface-base"
-                >
-                  <CheckinPersonRow person={toCheckinPerson(action, people)} />
-                </div>
-              );
-            }
-
-            if (
-              action.type === ACTION_TYPE.SEND_MESSAGE ||
-              action.type === ACTION_TYPE.SEND_EMAIL
-            ) {
-              const person =
-                (action.entityId ? people.get(action.entityId) : undefined) ??
-                resolvedByAction.get(action.id);
-              const name =
-                person?.name ?? (typeof payload?.to === "string" ? payload.to : action.title);
-              const channel = typeof payload?.channel === "string" ? payload.channel : null;
-              const address =
-                typeof payload?.address === "string"
-                  ? payload.address
-                  : person
-                    ? (person.attrs["channel:whatsapp"] ??
-                      person.attrs["channel:email"] ??
-                      person.attrs["channel:phone"] ??
-                      null)
-                    : null;
-              return (
-                <div
-                  key={action.id}
-                  className="border border-border-subtle rounded-md p-3 bg-surface-base"
-                >
-                  <MessageReachCard
-                    actionId={action.id}
-                    name={name}
-                    personId={person?.id ?? action.entityId}
-                    channel={channel}
-                    address={address ? String(address).replace(/^e164:/, "") : null}
-                    body={typeof payload?.body === "string" ? payload.body : ""}
-                    profession={person?.attrs["profession"] ?? person?.attrs["role"] ?? null}
-                  />
-                </div>
-              );
-            }
-
-            const Icon = TYPE_ICONS[action.type] ?? Inbox;
-
+          if (action.title.startsWith(CHECKIN_TITLE_PREFIX)) {
             return (
-              <div
-                key={action.id}
-                className="border border-border-subtle rounded-md p-3 bg-surface-base"
-              >
-                <div className="flex items-start gap-3">
-                  <Icon className="h-4 w-4 text-text-tertiary shrink-0 mt-1" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm md:text-base font-medium">{action.title}</div>
+              <div key={action.id} className="ui-approvals-item">
+                <CheckinPersonRow person={toCheckinPerson(action, people)} />
+              </div>
+            );
+          }
 
-                    {payload?.to != null && (
-                      <div className="text-xs md:text-sm text-text-tertiary mt-0.5">
-                        {"To: "}
-                        {String(payload.to)}
-                        {payload.channel != null ? ` via ${String(payload.channel)}` : ""}
-                      </div>
-                    )}
+          if (action.type === ACTION_TYPE.SEND_MESSAGE || action.type === ACTION_TYPE.SEND_EMAIL) {
+            const person =
+              (action.entityId ? people.get(action.entityId) : undefined) ??
+              resolvedByAction.get(action.id);
+            const name =
+              person?.name ?? (typeof payload?.to === "string" ? payload.to : action.title);
+            const channel = typeof payload?.channel === "string" ? payload.channel : null;
+            const address =
+              typeof payload?.address === "string"
+                ? payload.address
+                : person
+                  ? (person.attrs["channel:whatsapp"] ??
+                    person.attrs["channel:email"] ??
+                    person.attrs["channel:phone"] ??
+                    null)
+                  : null;
+            return (
+              <div key={action.id} className="ui-approvals-item">
+                <MessageReachCard
+                  actionId={action.id}
+                  name={name}
+                  personId={person?.id ?? action.entityId}
+                  channel={channel}
+                  address={address ? String(address).replace(/^e164:/, "") : null}
+                  body={typeof payload?.body === "string" ? payload.body : ""}
+                  profession={person?.attrs["profession"] ?? person?.attrs["role"] ?? null}
+                />
+              </div>
+            );
+          }
 
-                    {/* Calendar events: show when/where so nothing is approved blind. */}
-                    {(payload?.eventStart != null || payload?.eventDate != null) && (
-                      <div className="text-xs md:text-sm text-text-tertiary mt-0.5">
-                        {"When: "}
-                        {String(payload.eventStart ?? payload.eventDate)}
-                        {payload?.eventEnd != null ? ` – ${String(payload.eventEnd)}` : ""}
-                        {payload?.eventLocation != null
-                          ? ` · ${String(payload.eventLocation)}`
-                          : ""}
-                      </div>
-                    )}
+          const Icon = TYPE_ICONS[action.type] ?? Inbox;
 
-                    {/* The prompt body is what an agent would receive, not what
+          return (
+            <div key={action.id} className="ui-approvals-item">
+              <div className="flex items-start gap-3">
+                <Icon className="h-4 w-4 text-text-tertiary shrink-0 mt-1" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-base font-medium">{action.title}</div>
+
+                  {payload?.to != null && (
+                    <div className="text-xs md:text-sm text-text-tertiary mt-0.5">
+                      {"To: "}
+                      {String(payload.to)}
+                      {payload.channel != null ? ` via ${String(payload.channel)}` : ""}
+                    </div>
+                  )}
+
+                  {/* Calendar events: show when/where so nothing is approved blind. */}
+                  {(payload?.eventStart != null || payload?.eventDate != null) && (
+                    <div className="mt-0.5 text-sm text-text-secondary">
+                      <LocalWhen value={String(payload.eventStart ?? payload.eventDate)} />
+                      {payload?.eventEnd != null && (
+                        <>
+                          {" – "}
+                          <LocalWhen value={String(payload.eventEnd)} />
+                        </>
+                      )}
+                      {payload?.eventLocation != null ? ` · ${String(payload.eventLocation)}` : ""}
+                    </div>
+                  )}
+
+                  {/* The prompt body is what an agent would receive, not what
                         a triager needs to read — the Decide popup summarises it.
                         Collapsed so the card stays scannable but the exact text
                         stays one click away (nothing is approved blind). */}
-                    {/* Tonight's plan IS the text; it is what is being approved,
+                  {/* Tonight's plan IS the text; it is what is being approved,
                         so it reads in the open, not behind a disclosure. */}
-                    {action.type === ACTION_TYPE.AUTOPILOT_PLAN && payload?.body != null && (
-                      <p className="mt-1 text-xs md:text-sm text-text-secondary">
-                        {String(payload.body)}
-                      </p>
-                    )}
-                    {action.type !== ACTION_TYPE.AUTOPILOT_PLAN &&
-                      (payload?.body != null || payload?.subject != null) && (
-                        <details className="mt-2 rounded bg-surface-base border border-border-subtle">
-                          <summary className="cursor-pointer px-2 py-1.5 text-xs text-text-tertiary">
-                            Show the exact text that would be sent
-                          </summary>
-                          <div className="px-2 pb-2">
-                            {payload?.subject != null && (
-                              <div className="text-xs font-medium text-text-secondary mb-1">
-                                {"Subject: "}
-                                {String(payload.subject)}
-                              </div>
-                            )}
-                            <pre className="text-xs text-text-secondary whitespace-pre-wrap">
-                              {String(payload?.body ?? "")}
-                            </pre>
-                          </div>
-                        </details>
-                      )}
-
-                    {action.reasoning && (
-                      <div className="text-xs md:text-sm text-text-secondary mt-2 italic">
-                        Loki: {action.reasoning}
-                      </div>
+                  {action.type === ACTION_TYPE.AUTOPILOT_PLAN && payload?.body != null && (
+                    <p className="mt-1 text-xs md:text-sm text-text-secondary">
+                      {String(payload.body)}
+                    </p>
+                  )}
+                  {action.type !== ACTION_TYPE.AUTOPILOT_PLAN &&
+                    (payload?.body != null || payload?.subject != null) && (
+                      <details className="mt-2">
+                        <summary className="ui-approvals-summary">
+                          Show the exact text that would be sent
+                        </summary>
+                        <div className="mt-1 rounded-lg bg-surface-raised px-3 py-2">
+                          {payload?.subject != null && (
+                            <div className="text-xs font-medium text-text-secondary mb-1">
+                              {"Subject: "}
+                              {String(payload.subject)}
+                            </div>
+                          )}
+                          <pre className="text-xs text-text-secondary whitespace-pre-wrap">
+                            {String(payload?.body ?? "")}
+                          </pre>
+                        </div>
+                      </details>
                     )}
 
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      {action.type === ACTION_TYPE.DISPATCH_PROMPT && (
-                        <ActionDecideButton
-                          actionId={action.id}
-                          autoOpen={autoOpenTop && index === 0}
-                        />
-                      )}
-                      <ActionButtons actionId={action.id} compact />
-                    </div>
+                  {action.reasoning && (
+                    <div className="mt-2 text-sm text-text-secondary">Loki: {action.reasoning}</div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    {action.type === ACTION_TYPE.DISPATCH_PROMPT && (
+                      <ActionDecideButton
+                        actionId={action.id}
+                        autoOpen={autoOpenTop && index === 0}
+                      />
+                    )}
+                    <ActionButtons actionId={action.id} compact />
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </Card>
-    </div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
   );
 }

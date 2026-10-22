@@ -7,6 +7,10 @@ import { Lock, RotateCcw, Sparkles } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { deleteJson, postJson } from "@/lib/api/fetch";
 import { CardSkeleton } from "@/components/ui/card";
+import { ChoiceMenu } from "@/components/ui/choice-menu";
+import { EmptyState } from "@/components/ui/empty-state";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import { AVENUE_BY_ID, type AvenueId } from "@/config/suggestion-avenues";
 import type { SuggestionBoard } from "@/lib/suggestions/board";
 import {
@@ -23,7 +27,10 @@ type Filter = "all" | AvenueId;
 type LastDismissed = { suggestion: Suggestion; decisionId: string | null };
 
 /**
- * The board: momentum on top, one filter row, then every avenue's cards.
+ * The board: one line of what was chosen and a "Show: All ▾" menu, then each
+ * avenue as a section of rows (design reset, 2026-10). It opened on three
+ * bordered boxes of big numbers — all 0 on a new account — over a chip row
+ * cut off mid-word at the phone's edge.
  *
  * Decisions are optimistic — a card leaves the moment it is answered, and
  * the server is told in the background. "Not now" leaves one undo line in
@@ -48,12 +55,15 @@ export function SuggestionsBoard() {
   if (loading && !data) return <CardSkeleton />;
   if (error || !data) {
     return (
-      <div className="ui-sugg-empty">
-        <span className="ui-error">Could not load your suggestions.</span>
-        <button type="button" className="ui-btn-secondary" onClick={refetch}>
-          Try again
-        </button>
-      </div>
+      <EmptyState
+        icon={Sparkles}
+        title="Your suggestions did not load."
+        action={
+          <button type="button" className="ui-btn-secondary" onClick={refetch}>
+            Try again
+          </button>
+        }
+      />
     );
   }
 
@@ -120,42 +130,27 @@ export function SuggestionsBoard() {
     else undone.current.add(suggestion.id);
   };
 
+  const filterOptions = [
+    { value: "all" as Filter, label: total > 0 ? `All (${total})` : "All" },
+    ...avenues.map((a) => ({
+      value: a.id as Filter,
+      label: a.locked
+        ? `${AVENUE_BY_ID[a.id].label} (locked)`
+        : a.suggestions.length > 0
+          ? `${AVENUE_BY_ID[a.id].label} (${a.suggestions.length})`
+          : AVENUE_BY_ID[a.id].label,
+    })),
+  ];
+  const nothingAtAll = total === 0 && !avenues.some((a) => a.locked);
+
   return (
     <div className="ui-sugg-board">
-      <MomentumStrip momentum={momentum} />
-
-      <div className="ui-filter-chip-row ui-scroll-fade-right" role="tablist" aria-label="Avenues">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === "all"}
-          className={filter === "all" ? "ui-chip-filter-active" : "ui-chip-filter"}
-          onClick={() => setFilter("all")}
-        >
-          All {total}
-        </button>
-        {avenues.map((a) => {
-          const meta = AVENUE_BY_ID[a.id];
-          const active = filter === a.id;
-          return (
-            <button
-              key={a.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              className={active ? "ui-chip-filter-active" : "ui-chip-filter"}
-              onClick={() => setFilter(a.id)}
-            >
-              {meta.label}
-              {a.locked ? (
-                <Lock className="ml-1.5 inline h-3 w-3 align-[-1px]" aria-label="locked" />
-              ) : (
-                a.suggestions.length > 0 && ` ${a.suggestions.length}`
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {!nothingAtAll && (
+        <div className="ui-sugg-top">
+          <MomentumStrip momentum={momentum} />
+          <ChoiceMenu label="Show" value={filter} options={filterOptions} onChange={setFilter} />
+        </div>
+      )}
 
       {lastDismissed && (
         <div className="ui-sugg-undo" role="status">
@@ -169,60 +164,49 @@ export function SuggestionsBoard() {
         </div>
       )}
 
-      {total === 0 && filter === "all" && !avenues.some((a) => a.locked) && (
-        <div className="ui-sugg-empty">
-          <Sparkles className="h-5 w-5 text-text-tertiary" aria-hidden />
-          <p className="text-sm text-text-secondary">
-            Nothing to suggest right now. Suggestions come from your own records — add a project, a
-            goal, a habit or a person, and this page fills in.
-          </p>
-        </div>
+      {nothingAtAll && filter === "all" && (
+        <EmptyState
+          icon={Sparkles}
+          title="Nothing to suggest yet"
+          action={
+            <Link href="/projects?new=1" className="ui-btn-secondary">
+              Add a project
+            </Link>
+          }
+        />
       )}
 
       {shown.map((a) => {
         const meta = AVENUE_BY_ID[a.id];
-        const Icon = meta.icon;
         // In the "All" view a quiet avenue is one line at the end, not a
         // heading over nothing; filtered, it is the page and says the way in.
         if (filter === "all" && a.suggestions.length === 0 && !a.locked) return null;
         return (
-          <section key={a.id} className="ui-sugg-avenue" aria-label={meta.label}>
-            <div className="ui-sugg-avenue-head">
-              <div className="flex min-w-0 items-center gap-2">
-                <Icon className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
-                <h2 className="ui-sugg-avenue-title">{meta.label}</h2>
-                <span className="ui-sugg-avenue-q">{meta.question}</span>
-              </div>
-              <Link href={meta.source.href} className="ui-sugg-avenue-source">
-                {meta.source.label}
-              </Link>
-            </div>
+          <Section
+            key={a.id}
+            title={meta.label}
+            link={a.locked ? undefined : { href: meta.source.href, label: meta.source.label }}
+          >
             {a.locked ? (
-              <Link
-                href="/unlock?next=/suggestions"
-                className="ui-locked-banner group gap-2 py-2.5"
-              >
-                <Lock className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden />
-                <span className="min-w-0 flex-1 truncate text-sm text-text-secondary">
-                  Behind your private-zone PIN.
-                </span>
-                <span className="ui-locked-banner-cta">Unlock</span>
-              </Link>
+              <List aria-label={`${meta.label}, locked`}>
+                <ListRow
+                  href="/unlock?next=/suggestions"
+                  icon={Lock}
+                  title="Unlock to see these"
+                  secondary="They are behind your private-zone PIN."
+                  chevron
+                />
+              </List>
             ) : a.suggestions.length === 0 ? (
-              <p className="ui-sugg-quiet">
-                Nothing from {meta.label.toLowerCase()} right now.{" "}
-                <Link href={meta.source.href} className="ui-sugg-link">
-                  {meta.source.label}
-                </Link>
-              </p>
+              <EmptyState>Nothing from {meta.label.toLowerCase()} right now.</EmptyState>
             ) : (
-              <ul className="ui-sugg-list">
+              <List aria-label={meta.label}>
                 {a.suggestions.map((s) => (
                   <SuggestionCard key={s.id} suggestion={s} onTake={take} onDismiss={dismiss} />
                 ))}
-              </ul>
+              </List>
             )}
-          </section>
+          </Section>
         );
       })}
 

@@ -2,8 +2,11 @@
 
 import type { ComponentProps } from "react";
 import Link from "next/link";
-import { Check, Loader2, SearchX } from "lucide-react";
+import { Check, Loader2, SearchX, SquareTerminal } from "lucide-react";
 import { TerminalResume } from "./TerminalResume";
+import { projectTitle } from "@/lib/project-display";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { useKickoffRunForTab, type KickoffRun } from "@/lib/kickoff-run";
 import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
@@ -25,10 +28,8 @@ import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
  */
 export function TerminalSessionMiss({
   requestedTab,
-  sourceLabel,
-  otherSourceLabel,
-  hasOthers,
-  onSwitchSource,
+  openSessions = [],
+  onOpenSession,
   resume,
 }: {
   /** What a Resume row needs (TerminalResume's props): this project's row is
@@ -37,13 +38,10 @@ export function TerminalSessionMiss({
    *  many (2026-10-19). */
   resume?: Omit<ComponentProps<typeof TerminalResume>, "activeProject" | "onAllProjects">;
   requestedTab: string;
-  /** Where we looked — "Cloud" / "This computer". */
-  sourceLabel: string;
-  /** The one place we haven't looked, offered as the next thing to try. */
-  otherSourceLabel: string | null;
-  /** Other sessions are running here — the tab strip above lists them. */
-  hasOthers: boolean;
-  onSwitchSource: () => void;
+  /** The sessions that ARE open here. A computer shows them in the tab strip
+   *  above; a phone has no strip, so they are listed under the miss there. */
+  openSessions?: { id: string; label: string; detail?: string | null }[];
+  onOpenSession?: (id: string) => void;
 }) {
   // Someone who pressed "Make it happen" and came here to watch is not looking
   // for a session by name — they are asking "is it starting?". Answer that.
@@ -55,41 +53,45 @@ export function TerminalSessionMiss({
     (p) => p.name.toLowerCase() === requestedTab.toLowerCase(),
   );
   const canResume = Boolean(resume) && own.length > 0;
+  const name = projectTitle({ name: requestedTab });
+  const others =
+    openSessions.length > 0 && onOpenSession ? (
+      <Section title="Open now" className="md:hidden">
+        <List>
+          {openSessions.map((s) => (
+            <ListRow
+              key={s.id}
+              onClick={() => onOpenSession(s.id)}
+              icon={SquareTerminal}
+              title={s.label}
+              secondary={s.detail ?? undefined}
+              chevron
+            />
+          ))}
+        </List>
+      </Section>
+    ) : null;
 
+  // One line, then the one row that opens it. It used to say "“substrata”
+  // isn’t running on Cloud builder", offer "Look on Your computer" and
+  // "Start “substrata” from Loki" — two buttons in the product's own
+  // vocabulary for one wish (owner, 2026-10-21). Where else it might run is
+  // the session sheet's "Where it runs"; a session open elsewhere is in the
+  // list under this one.
   return (
     <div className="ui-term-miss">
-      <SearchX className="h-6 w-6 text-status-warning" aria-hidden="true" />
-      <p className="ui-term-miss-title">
-        {canResume
-          ? `“${requestedTab}” isn’t open right now`
-          : `“${requestedTab}” isn’t running on ${sourceLabel}`}
-      </p>
-      {/* The sessions that ARE running are the tab strip above: listing them
-          again here was a second copy of the same list, with raw ids. */}
-      <p className="ui-term-miss-body">
-        {canResume
-          ? "Open it and its agent starts here, where you left off."
-          : hasOthers
-            ? "Choose an available session above, or start this project to continue."
-            : "Start a session for this project to continue here."}
-      </p>
-      {canResume && resume && <TerminalResume {...resume} projects={own} />}
-
-      <div className="ui-term-miss-actions">
-        {otherSourceLabel && (
-          <button type="button" className="ui-btn-secondary" onClick={onSwitchSource}>
-            Look on {otherSourceLabel}
-          </button>
-        )}
-        {!canResume && (
-          <Link
-            href={`/loki?project=${encodeURIComponent(requestedTab)}`}
-            className="ui-btn-secondary"
-          >
-            Start “{requestedTab}” from Loki
-          </Link>
-        )}
-      </div>
+      <p className="ui-term-miss-title">{name} isn’t open</p>
+      {canResume && resume ? (
+        <TerminalResume {...resume} projects={own} />
+      ) : (
+        <Link
+          href={`/loki?project=${encodeURIComponent(requestedTab)}`}
+          className="ui-btn-secondary self-start"
+        >
+          Ask Loki to start it
+        </Link>
+      )}
+      {others}
     </div>
   );
 }
@@ -103,14 +105,14 @@ function KickoffInProgress({ run, tab }: { run: KickoffRun; tab: string }) {
   let title: string;
   let body: string;
   if (run.running) {
-    title = `Setting up “${tab}”`;
+    title = `Setting up ${projectTitle({ name: tab })}`;
     body = current
       ? `${KICKOFF_STEP_LABEL[current.id]}… The agent's session opens here as soon as setup finishes.`
       : "The agent's session opens here as soon as setup finishes.";
   } else if (run.dispatch === "queued-offline") {
-    title = "Queued — waiting for a builder";
+    title = "Waiting to start";
     body =
-      "Setup is done and the work is saved. No builder is connected right now, so the session opens here the moment one comes online.";
+      "Setup is done and the work is saved. It starts here as soon as a computer to run it is connected.";
   } else {
     title = "The agent has not been started";
     body = run.interrupted

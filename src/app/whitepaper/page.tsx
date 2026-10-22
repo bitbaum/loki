@@ -42,19 +42,17 @@ export default function WhitepaperPage() {
     <PublicSurface right={<PublicHeaderActions />}>
       <div className="relative z-10 mx-auto max-w-3xl px-4 pb-20 pt-10 sm:px-10 sm:pb-32 sm:pt-16">
         <div className="ui-public-doc-header">
-          <div className="ui-public-doc-meta-row">
-            <span className="ui-public-doc-badge">WHITEPAPER</span>
-            <span className="ui-public-doc-meta">v{version}</span>
-            {publishedAt && <span className="ui-public-doc-meta">{publishedAt}</span>}
-            <span className="ui-public-doc-meta">{minutes} min read</span>
-          </div>
           <h1 className="ui-public-doc-title">{title}</h1>
           {subtitle && <p className="ui-public-doc-subtitle">{subtitle}</p>}
+          <p className="ui-public-facts">
+            Whitepaper · v{version}
+            {publishedAt ? ` · ${publishedAt}` : ""} · {minutes} min read
+          </p>
         </div>
 
         {summary.length > 0 && (
           <section className="ui-whitepaper-summary" aria-labelledby="in-short">
-            <h2 id="in-short" className="ui-public-eyebrow">
+            <h2 id="in-short" className="ui-public-h3">
               In short
             </h2>
             <ul className="mt-3 space-y-2">
@@ -80,12 +78,9 @@ export default function WhitepaperPage() {
             Create an account and give {APP_NAME} your first project. It is free while prices are
             not announced.
           </p>
-          <div className="mx-auto flex max-w-sm flex-col gap-2.5 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
+          <div className="mx-auto max-w-sm sm:max-w-none">
             <Link href={ROUTES.SIGN_UP} className="ui-public-cta w-full sm:w-auto">
-              Get started →
-            </Link>
-            <Link href="/" className="ui-public-cta-ghost w-full sm:w-auto">
-              ← Back to home
+              Get started
             </Link>
           </div>
         </div>

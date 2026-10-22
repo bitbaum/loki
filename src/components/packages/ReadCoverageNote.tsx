@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { timeAgo } from "@/lib/dates";
 import type { ReadCoverage } from "@/lib/packages/load";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * How much of the picture the page is showing: how many repositories were
@@ -10,9 +12,12 @@ import type { ReadCoverage } from "@/lib/packages/load";
 export function ReadCoverageNote({
   coverage,
   catalogueSource,
+  refresh,
 }: {
   coverage: ReadCoverage;
   catalogueSource: "live" | "snapshot";
+  /** "Read again", at the end of the line. */
+  refresh?: ReactNode;
 }) {
   const parts: string[] = [];
   if (coverage.withRepo === 0) {
@@ -23,16 +28,13 @@ export function ReadCoverageNote({
     );
     if (coverage.lastReadAt) parts.push(`last ${timeAgo(coverage.lastReadAt.getTime())}`);
   }
-  parts.push(
-    catalogueSource === "live"
-      ? "package list from bitbaum/fleet"
-      : "package list from Loki's saved copy of bitbaum/fleet (it did not answer just now)",
-  );
+  // Only worth a word when it is the fallback.
+  if (catalogueSource !== "live") parts.push("the package list is Loki's saved copy for now");
 
   return (
-    <div className="space-y-2 text-xs text-text-tertiary">
+    <div className="space-y-2 text-sm text-text-tertiary">
       <p>
-        {parts.join(" · ")}.
+        {parts.join(" · ")}. {refresh}
         {coverage.withRepo === 0 && (
           <>
             {" "}
@@ -43,19 +45,19 @@ export function ReadCoverageNote({
         )}
       </p>
       {coverage.failures.length > 0 && (
-        <details className="ui-disclosure">
-          <summary className="ui-disclosure-summary">
+        <details className="ui-coverage-more">
+          <summary>
             {coverage.failures.length}{" "}
             {coverage.failures.length === 1 ? "repository" : "repositories"} could not be read
           </summary>
-          <ul className="space-y-2 px-4 pb-3">
+          <ul className="mt-2 space-y-2">
             {coverage.failures.map((f) => (
               <li key={f.projectId} className="flex flex-col gap-0.5">
                 <Link
                   href={f.href}
                   className="font-medium text-text-secondary hover:text-text-primary"
                 >
-                  {f.projectName}
+                  {projectTitle({ name: f.projectName })}
                 </Link>
                 <span>{f.detail}</span>
               </li>

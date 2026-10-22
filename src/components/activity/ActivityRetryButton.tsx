@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { postJson } from "@/lib/api/fetch";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
-import { dispatchToneDotClass } from "@/lib/dispatch-status";
 import type { StatusTone } from "@/lib/constants/statuses";
 import type { ActivityEvent } from "@/lib/activity-events";
+import { projectTitle } from "@/lib/project-display";
 
 /** The dispatch pipeline caps a custom prompt at 4000 chars (see the zod
  *  schema on /api/inject). Trim here so a long replay fails visibly at the
@@ -97,19 +96,6 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
     }
   };
 
-  // The button says what CLICKING does; the line under it says what the last
-  // click led to. Folding the lifecycle into the button label (as this first
-  // shipped) meant a settled run left no way back — and, worse, no colour: a
-  // failed retry read exactly like a working one.
-  const label =
-    state === "sending"
-      ? "Sending…"
-      : state === "error"
-        ? "Try again"
-        : state === "sent" && live && !live.terminal
-          ? "Sent"
-          : "Run it again";
-
   // Errors and refusals come from the POST itself. Once a dispatch is
   // accepted the polled lifecycle is more current than the message stamped at
   // accept time, so it takes over — same tone vocabulary the Loki transcript,
@@ -124,32 +110,39 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
           ? { tone: "neutral", text: message ?? "Checking status…" }
           : null;
 
+  // At the end of a list row: one small button whose word is the state —
+  // "Run again", "Sending…", "Sent", "Running", "Try again". The line of
+  // status words that used to sit beside it does not fit a row; it is the
+  // button's title instead.
+  const word =
+    state === "sending"
+      ? "Sending…"
+      : state === "error"
+        ? "Try again"
+        : state === "sent"
+          ? live?.status === "failed"
+            ? "Try again"
+            : live?.status === "working" || live?.status === "delivered"
+              ? "Running"
+              : live?.terminal
+                ? "Done"
+                : "Sent"
+          : "Run again";
   return (
-    <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2">
-      <button
-        type="button"
-        onClick={() => void run()}
-        disabled={state === "sending"}
-        title={
-          isCustom
-            ? "Re-send the same instruction to this project."
-            : `Re-run "${event.intentLabel}" on ${event.projectKey}.`
-        }
-        className={cn("ui-needs-you-action", state === "error" && "text-status-warning")}
-      >
-        {state === "sending" ? (
-          <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-        ) : (
-          <RotateCcw className="h-3 w-3" aria-hidden />
-        )}
-        {label}
-      </button>
-      {note && (
-        <span className="ui-needs-you-note" role="status" aria-live="polite">
-          <span className={dispatchToneDotClass(note.tone)} />
-          {note.text}
-        </span>
-      )}
-    </span>
+    <button
+      type="button"
+      onClick={() => void run()}
+      disabled={state === "sending" || (state === "sent" && live?.status !== "failed")}
+      title={note?.text}
+      aria-label={`${word}: ${projectTitle({ name: event.projectKey })}`}
+      className="ui-row-verb"
+    >
+      {state === "sending" ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+      ) : state === "idle" || state === "error" ? (
+        <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+      ) : null}
+      {word}
+    </button>
   );
 }

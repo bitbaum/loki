@@ -1,5 +1,5 @@
 import { Bell } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { getActiveAlerts } from "@/db/queries/alerts";
 import { requirePageUserId } from "@/lib/session";
 import { ALERT_SEVERITY } from "@/lib/constants/statuses";
@@ -30,10 +30,10 @@ export async function SystemAlertsCard() {
 
   return (
     <div id="system-alerts">
-      <Card>
-        <CardHeader
+      <SystemBlock>
+        <SystemBlockHeader
           icon={Bell}
-          title="System alerts"
+          title="Alarms"
           right={<span className="text-xs text-text-tertiary">{count}</span>}
         />
         {items.length === 0 ? (
@@ -43,7 +43,7 @@ export async function SystemAlertsCard() {
             <SystemAlertList alerts={items} />
           </div>
         )}
-      </Card>
+      </SystemBlock>
     </div>
   );
 }

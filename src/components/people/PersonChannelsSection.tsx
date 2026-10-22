@@ -4,14 +4,9 @@ import { useState } from "react";
 import { Loader2, Plus, Save, X } from "lucide-react";
 import { setAttr, removeAttr } from "@/lib/api/attrs";
 import { throwApiError } from "@/lib/api/fetch";
-import {
-  CHANNEL_NAMES,
-  isChannelAttrKey,
-  stripChannelPrefix,
-  withChannelPrefix,
-} from "@/config/channels";
+import { CHANNEL_NAMES, isChannelAttrKey, withChannelPrefix } from "@/config/channels";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Section, ChannelIcon } from "./PersonDetailHelpers";
+import { Section, ChannelIcon, channelLabel } from "./PersonDetailHelpers";
 import { formatChannelValue } from "./person-detail-types";
 import { channelHref } from "@/lib/people-reach";
 import { TOAST_SHORT_MS } from "@/lib/constants/timings";
@@ -74,11 +69,11 @@ export function ChannelsSection({
   };
 
   return (
-    <Section title="Channels">
+    <Section title="Reach them">
       {channels.map(([key, value]) => (
-        <div key={key} className="group flex items-center gap-3 ui-list-row">
+        <div key={key} className="group flex items-center gap-3 ui-person-row">
           <ChannelIcon channel={key} />
-          <span className="shrink-0 text-text-secondary">{stripChannelPrefix(key)}</span>
+          <span className="shrink-0 text-text-secondary">{channelLabel(key)}</span>
           {(() => {
             // Same treatment as Today's check-in row: a contact value the
             // operator has to select and copy is not a contact method. One
@@ -86,7 +81,7 @@ export function ChannelsSection({
             // schemes are safe to open.
             const shown = formatChannelValue(value);
             const href = channelHref(key, shown);
-            const cls = "flex-1 truncate font-mono text-xs text-text-tertiary";
+            const cls = "flex-1 truncate text-text-secondary";
             return href ? (
               <a
                 href={href}
@@ -110,25 +105,27 @@ export function ChannelsSection({
             className="shrink-0 ui-hover-reveal ui-btn-icon"
           >
             {deletingKey === key ? (
-              <Loader2 className="ui-spinner-2xs" />
+              <Loader2 className="ui-spinner-sm" />
             ) : (
-              <X className="h-2.5 w-2.5" />
+              <X className="h-4 w-4" />
             )}
           </button>
         </div>
       ))}
-      {channels.length === 0 && !adding && <EmptyState>No channels yet</EmptyState>}
+      {channels.length === 0 && !adding && (
+        <EmptyState>No email, phone or chat on file.</EmptyState>
+      )}
       {adding ? (
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
             <select
               value={channelType}
               onChange={(e) => setChannelType(e.target.value)}
-              className="ui-input-tight shrink-0"
+              className="ui-input shrink-0"
             >
               {CHANNEL_NAMES.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {channelLabel(c)}
                 </option>
               ))}
             </select>
@@ -148,7 +145,7 @@ export function ChannelsSection({
                 }
               }}
               autoFocus
-              className="flex-1 min-w-0 ui-input-tight"
+              className="flex-1 min-w-0 ui-input"
             />
             <button
               onClick={saveChannel}
@@ -171,8 +168,8 @@ export function ChannelsSection({
           {saveError && <p className="ui-error-xs">{saveError}</p>}
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} className="ui-btn-add mt-0.5">
-          <Plus className="h-3 w-3" /> Add channel
+        <button onClick={() => setAdding(true)} className="ui-life-add">
+          <Plus className="h-4 w-4" /> Add a way to reach them
         </button>
       )}
     </Section>

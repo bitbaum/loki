@@ -58,7 +58,7 @@ export async function ProjectBuiltFrom({
     <section className="ui-project-section" aria-labelledby="project-built-from-title">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="project-built-from-title" className="text-lg font-semibold text-text-primary">
+          <h2 id="project-built-from-title" className="ui-project-section-title">
             Built from
           </h2>
           <p className="text-xs text-text-tertiary">

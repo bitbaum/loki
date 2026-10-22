@@ -22,12 +22,12 @@ export default async function PackagesPage() {
   const registerUrl = `https://github.com/${FLEET_REPO.owner}/${FLEET_REPO.repo}/blob/${FLEET_REPO.branch}/registers/packages.json`;
 
   return (
-    <PageLayout
-      title="Packages"
-      subtitle="The fleet's shared packages, and which version each of your projects is on."
-      right={<PackagesRefresh autoStart={coverage.stale} />}
-    >
-      <ReadCoverageNote coverage={coverage} catalogueSource={catalogue.source} />
+    <PageLayout title="Packages" maxWidth="max-w-2xl">
+      <ReadCoverageNote
+        coverage={coverage}
+        catalogueSource={catalogue.source}
+        refresh={<PackagesRefresh autoStart={coverage.stale} variant="link" label="Read again" />}
+      />
       <NpmPublishPanel />
       {rows.length === 0 ? (
         <EmptyState
@@ -43,9 +43,7 @@ export default async function PackagesPage() {
               Open the register
             </a>
           }
-        >
-          Packages appear here once bitbaum/fleet registers them.
-        </EmptyState>
+        />
       ) : (
         <PackagesList rows={rows} />
       )}

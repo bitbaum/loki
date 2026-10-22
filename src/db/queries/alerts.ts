@@ -1,16 +1,27 @@
 import { db } from "@/db";
 import { alerts } from "@/db/schema";
 import type { Alert, NewAlert } from "@/db/schema/alerts";
-import { eq, and, desc, notInArray } from "drizzle-orm";
+import { eq, and, desc, inArray, notInArray } from "drizzle-orm";
 import { ALERT_TYPE_IDS } from "@/config/alert-types";
+import { isAlertCurrent } from "@/lib/alerts/relevance";
 
-/** Insert an alert only if the user has no active (undismissed) alert of the
- *  same type — so a periodic checker (e.g. runner-stall) raises the flag once
- *  and stops spamming until the operator dismisses it. Returns the new row, or
- *  null when an active one already existed. */
+/** Insert an alert only if the user has no CURRENT active alert of the same
+ *  type — so a periodic checker (e.g. runner-stall) raises the flag once and
+ *  stops spamming. Returns the new row, or null when a current one existed.
+ *
+ *  An open alert that has outlived its relevance (lib/alerts/relevance) no
+ *  longer blocks: it is closed and the new occurrence raised fresh. Deduping
+ *  against ANY open row meant one alert nobody dismissed swallowed every later
+ *  stall of the same kind — the bell showed a 3-week-old one and never the
+ *  stall happening now. */
 export async function insertActiveAlertOnce(alert: NewAlert): Promise<Alert | null> {
-  const [existing] = await db
-    .select({ id: alerts.id })
+  const open = await db
+    .select({
+      id: alerts.id,
+      type: alerts.type,
+      severity: alerts.severity,
+      createdAt: alerts.createdAt,
+    })
     .from(alerts)
     .where(
       and(
@@ -18,9 +29,20 @@ export async function insertActiveAlertOnce(alert: NewAlert): Promise<Alert | nu
         eq(alerts.type, alert.type),
         eq(alerts.dismissed, false),
       ),
-    )
-    .limit(1);
-  if (existing) return null;
+    );
+  const now = Date.now();
+  if (open.some((row) => isAlertCurrent(row, now))) return null;
+  if (open.length > 0) {
+    await db
+      .update(alerts)
+      .set({ dismissed: true, dismissedAt: new Date() })
+      .where(
+        inArray(
+          alerts.id,
+          open.map((row) => row.id),
+        ),
+      );
+  }
   const [row] = await db.insert(alerts).values(alert).returning();
   return row;
 }
@@ -34,9 +56,19 @@ export async function insertActiveAlertOnce(alert: NewAlert): Promise<Alert | nu
  */
 export async function refreshOrInsertActiveAlert(
   alert: NewAlert,
+  opts: {
+    /**
+     * Given the open alert's metadata, is this a NEW episode — the thing got
+     * worse (more items waiting than when it was raised)? Then the alert is
+     * dated now, so it is news again (lib/alerts/relevance), instead of
+     * keeping the date it first went up. Without it a summary first raised
+     * 28 days ago said "28d ago" over a count that grew yesterday.
+     */
+    renew?: (previous: Record<string, unknown> | null) => boolean;
+  } = {},
 ): Promise<{ alert: Alert | null; created: boolean }> {
   const [existing] = await db
-    .select({ id: alerts.id })
+    .select({ id: alerts.id, metadata: alerts.metadata })
     .from(alerts)
     .where(
       and(
@@ -56,6 +88,7 @@ export async function refreshOrInsertActiveAlert(
         description: alert.description,
         metadata: alert.metadata,
         actionUrl: alert.actionUrl,
+        ...(opts.renew?.(existing.metadata ?? null) ? { createdAt: new Date() } : {}),
       })
       .where(eq(alerts.id, existing.id))
       .returning();

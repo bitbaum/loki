@@ -17,6 +17,7 @@
     "install-app": "bash scripts/install-loki-app.sh",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
+    "seed:showcase": "npx tsx scripts/seed-showcase.ts",
     "check:schema": "npx tsx scripts/check-schema-drift.ts",
     "lint": "eslint --cache --cache-location node_modules/.cache/eslint src/ home/ widget/ extension/src/",
     "check:design": "bash scripts/check-design-system.sh",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { DescriptionEditor, StatusEditor, ProjectNameEditor } from "./ProjectInlineEditors";
+import { DescriptionEditor, StatusEditor } from "./ProjectInlineEditors";
 import { HealthScoreBar } from "./HealthScore";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import { setAttr } from "@/lib/api/attrs";
@@ -11,7 +11,6 @@ import type { ProjectHealth } from "@/lib/project-health";
 /** Full, editable metadata. Nothing is clipped while the person is editing. */
 export function ProjectIdentitySettings({
   projectId,
-  name,
   userProjectId,
   description,
   status,
@@ -19,7 +18,6 @@ export function ProjectIdentitySettings({
   readonly,
 }: {
   projectId: string;
-  name: string;
   userProjectId: string | null;
   description: string | null;
   status: string | null;
@@ -29,24 +27,12 @@ export function ProjectIdentitySettings({
   const router = useRouter();
   return (
     <section className="ui-project-detail-block" aria-labelledby="project-description-title">
+      {/* No Name field: the project is renamed where its name stands, in the
+          header (ProjectWorkspaceHeader) — two editors for one name was one
+          too many. */}
       <h2 id="project-description-title" className="ui-project-section-title">
-        Project details
+        About it
       </h2>
-      <div>
-        <p className="text-sm font-medium text-text-secondary">Name</p>
-        <ProjectNameEditor
-          value={name}
-          editable={!readonly}
-          onSave={async (next) => {
-            // The title, not the name: the name keys the project's history
-            // (activity, runs, jobs), so a rename used to hide its past.
-            const response = await patchJson(`/api/projects/${projectId}`, { title: next });
-            if (!response.ok) await throwApiError(response, "Could not save name");
-            router.refresh();
-          }}
-        />
-      </div>
-      <p className="text-sm font-medium text-text-secondary">Description</p>
       <DescriptionEditor
         value={description}
         editable={!readonly}
@@ -76,7 +62,7 @@ export function ProjectIdentitySettings({
         />
       </div>
       <p className="mt-2 text-sm text-text-tertiary">
-        These checks describe the project profile, not a deployment or a running test suite.
+        How much of the profile is filled in — not a test of the site.
       </p>
     </section>
   );

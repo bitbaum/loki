@@ -49,12 +49,3 @@ export function OptionRow({
     </button>
   );
 }
-
-export function SheetSection({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <section className="ui-sheet-section">
-      <h3 className="ui-sheet-label">{label}</h3>
-      {children}
-    </section>
-  );
-}

@@ -68,26 +68,10 @@ export function getHealthSignals(
 // MaturityBar is retired: the score is derived from named checks now — see
 // HealthScoreBar (HealthScore.tsx) + computeProjectHealth (lib/project-health.ts).
 
-const STATUS_COLOR_MAP: Record<string, string> = {
-  active: "bg-status-positive-subtle text-status-positive border-status-positive/25",
-  production: "bg-status-positive-subtle text-status-positive border-status-positive/25",
-  live: "bg-status-positive-subtle text-status-positive border-status-positive/25",
-  launched: "bg-status-positive-subtle text-status-positive border-status-positive/25",
-  planning: "bg-status-warning-subtle text-status-warning border-status-warning/25",
-  "pre-launch": "bg-status-warning-subtle text-status-warning border-status-warning/25",
-  blueprint: "bg-status-warning-subtle text-status-warning border-status-warning/25",
-  early: "bg-status-warning-subtle text-status-warning border-status-warning/25",
-  "in-progress": "bg-accent-muted text-accent-text border-accent-primary/25",
-  development: "bg-accent-muted text-accent-text border-accent-primary/25",
-  paused: "bg-surface-raised text-text-muted border-border-default",
-  archived: "bg-surface-raised text-text-muted border-border-default",
-  deprecated: "bg-surface-raised text-text-muted border-border-default",
-};
-
 export function StatusBadge({ value }: { value: string }) {
   /* Resolve to a real stage, or say the value is not one.
 
-     STATUS_COLOR_MAP keyed on 13 strings and `shortProjectStatus` returned
+     A colour map keyed on 13 strings and `shortProjectStatus` returned
      null for anything else — so a project whose stage read "Early Stage" or
      "MVP" showed NO badge at all, indistinguishable from a project that had
      never set one. That is the shape George called a hard-coded demo: a
@@ -100,7 +84,9 @@ export function StatusBadge({ value }: { value: string }) {
      operator should see, not a blank. */
   const stage = resolveProjectStage(value);
   const cls = stage
-    ? (STATUS_COLOR_MAP[stage] ?? "bg-surface-raised text-text-tertiary border-border-subtle")
+    ? // Colour means state worth acting on (design reset rule 8); a stage
+      // is a fact, so every stage is drawn alike.
+      "bg-surface-raised text-text-secondary border-border-subtle"
     : "bg-surface-raised text-text-muted border-border-subtle border-dashed";
   // The badge is inline-flex; truncate on the outer text node won't add
   // an ellipsis because flex layout doesn't apply text-overflow to anonymous

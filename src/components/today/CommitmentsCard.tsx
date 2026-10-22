@@ -1,11 +1,15 @@
-import { CheckCircle } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
 import { getActiveCommitments } from "@/db/queries/today";
 import { requirePageUserId } from "@/lib/session";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
+import { Section } from "@/components/ui/section-heading";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CommitmentItem } from "./CommitmentItem";
 import { AddCommitmentButton } from "./AddCommitmentButton";
 
+/**
+ * What you promised, as rows (design reset, 2026-10). It was a card headed
+ * "Commitments · N active" with a three-line empty state inside it.
+ */
 export async function CommitmentsCard() {
   const userId = await requirePageUserId();
   // Commitments are personal life management — gated alongside the rest of
@@ -16,25 +20,12 @@ export async function CommitmentsCard() {
   const items = await getActiveCommitments(userId);
 
   return (
-    <div id="commitments">
-      <Card>
-        <CardHeader
-          icon={CheckCircle}
-          title="Commitments"
-          right={
-            <span className="text-xs md:text-sm text-text-tertiary">{items.length} active</span>
-          }
-        />
+    <div id="commitments" className="scroll-mt-24">
+      <Section title="Commitments">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 py-4 text-center">
-            <CheckCircle className="h-6 w-6 text-text-tertiary" />
-            <div className="text-sm text-text-secondary">No active commitments</div>
-            <div className="text-xs text-text-tertiary">
-              Use the button below to track things you&apos;ve promised
-            </div>
-          </div>
+          <EmptyState>Nothing promised right now.</EmptyState>
         ) : (
-          <div className="space-y-3">
+          <div className="ui-today-rows">
             {items.map((item) => (
               <CommitmentItem
                 key={item.id}
@@ -47,7 +38,7 @@ export async function CommitmentsCard() {
           </div>
         )}
         <AddCommitmentButton />
-      </Card>
+      </Section>
     </div>
   );
 }

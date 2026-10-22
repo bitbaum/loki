@@ -5,6 +5,7 @@ import { timeAgo } from "@/lib/dates";
 import type { DependentRow } from "@/lib/packages/view";
 import { OpenUpdateLine } from "./OpenUpdateLine";
 import { PackageStatusTag } from "./PackageStatusTag";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * Which of the person's projects use one package, and at what version —
@@ -52,7 +53,7 @@ export function PackageDependents({
                 href={row.href}
                 className="wrap-anywhere font-medium text-text-primary hover:underline"
               >
-                {row.projectName}
+                {projectTitle({ name: row.projectName })}
               </Link>
               <span className="block truncate font-mono text-xs text-text-muted" title={row.spec}>
                 {row.spec}

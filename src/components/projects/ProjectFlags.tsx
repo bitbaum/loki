@@ -78,7 +78,7 @@ export function ProjectFlags({
 
   return (
     <section className="ui-project-section" aria-labelledby="project-flags-title">
-      <h2 id="project-flags-title" className="text-lg font-semibold text-text-primary">
+      <h2 id="project-flags-title" className="ui-project-section-title">
         Flags
       </h2>
       <p className="mt-1 text-sm text-text-secondary">

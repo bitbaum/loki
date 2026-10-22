@@ -139,7 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(
       {
         error:
-          "No git URL and no local project directory — Enable & install cannot land the snippet. Add the GitHub URL on the project, or paste the widget snippet manually from the project Widget card.",
+          "No git URL and no local project directory — “Put it on the site” cannot land the snippet. Add the GitHub URL on the project, or paste the widget snippet manually from the project Widget card.",
         ...watch,
         code: "no_repo",
       },
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ...watch,
         code: "site_unreachable",
         tokenReady: !!token,
-        hint: "Fix the live site on the box, then click Enable & install again. Or open the project Widget card and copy the snippet by hand.",
+        hint: "Fix the live site on the box, then tap “Put it on the site” again. Or open the project Widget card and copy the snippet by hand.",
       },
       { status: 422 },
     );

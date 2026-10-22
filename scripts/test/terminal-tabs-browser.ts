@@ -56,9 +56,9 @@ async function main() {
               backHref="/control" onOpenSheet={()=>setSheet(true)} onOpenMore={()=>{}}
               view="chat" onViewChange={()=>{}}/>
             {sheet&&<TerminalSessionSheet onClose={()=>setSheet(false)} source="cloud" sources={['cloud','machine']}
-              onSourceChange={()=>{}} tabs={sessions.map(s=>({id:s.id,label:s.label,badge:s.status}))} activeTab={active}
+              onSourceChange={()=>{}} tabs={sessions.map(s=>({id:s.id,label:s.label,status:s.status}))} activeTab={active}
               onSelectTab={setActive} onCloseTab={()=>{}} onNewSession={()=>setOpen(true)} agents={[]} activeAgentId="claude"
-              onSwitchAgent={()=>{}} switchingAgent={false} agentSwitchDisabledReason={null} honesty={null}/>}
+              onSwitchAgent={()=>{}} switchingAgent={false} agentSwitchDisabledReason={null}/>}
             {q.has('notice')&&<TerminalSessionNotice tabs={sessions} onOpen={setActive}
               news={{statuses:{},notice:{tab:'orangecat',status:'needs-you'},dismissNotice(){}}}/>}
             {open&&<TerminalNewSessionSheet onClose={()=>setOpen(false)}
@@ -161,9 +161,9 @@ async function main() {
       // switches.
       await page.locator(".ui-term-mhead-btn").click();
       const sheet = page.getByRole("dialog", { name: "Sessions" });
-      await sheet.getByText("Sessions · 4").waitFor();
+      await sheet.getByRole("heading", { name: "Open now", exact: true }).waitFor();
       assert.equal(
-        await sheet.getByText("running needs-you").count(),
+        await sheet.getByText("needs you", { exact: true }).count(),
         1,
         "a session waiting says so",
       );

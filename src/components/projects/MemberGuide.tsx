@@ -47,7 +47,7 @@ export function MemberGuide({
   return (
     <section className="ui-project-section" aria-labelledby="member-guide-title">
       {joined && <p className="ui-kicker">You’re in</p>}
-      <h2 id="member-guide-title" className="text-lg font-semibold">
+      <h2 id="member-guide-title" className="ui-project-section-title">
         How you ask for a change to {projectName}
       </h2>
       <p className="mt-2 text-base text-text-secondary">{guide.then}</p>

@@ -145,8 +145,14 @@ export type SlotVerdict = (typeof SLOT_VERDICTS)[number];
  * - `hidden`: no launcher at all while the region is rendered. The host's
  *   off switch, for a checkout or a full-screen editor; the page should then
  *   offer its own control that calls `Loki.report()`.
+ * - `host`: the host page draws the launcher itself — this region IS the
+ *   launcher (Loki's own top bar: a round icon that calls `Loki.open()` and
+ *   shows `Loki.status`). The floating button stays off while the region is
+ *   rendered, and the owner's status counts as on screen, so watch mode does
+ *   not add its own bar. When the region goes (an immersive page hides the
+ *   top bar), the launcher comes back on its own.
  */
-export type PlaceDirective = "left" | "right" | "tab" | "hidden";
+export type PlaceDirective = "left" | "right" | "tab" | "hidden" | "host";
 
 /** Move a corner to the side a host or visitor asked for, keeping its edge. */
 export function withSide(corner: Corner, side: "left" | "right"): Corner {
@@ -240,20 +246,24 @@ export function chooseSlot(
  * page region overrides a site-wide default on <html> — except that a REGION
  * saying "hidden" (an open dialog) always wins: Loki's phone tab bar asks for
  * the tab on every page, and a dialog rendered earlier in the document must
- * still keep the launcher off itself. Unknown values are ignored rather than
- * guessed at.
+ * still keep the launcher off itself. A rendered "host" (the page draws its
+ * own launcher) outranks every position, since there is then nothing to
+ * position; a hidden region still outranks it. Unknown values are ignored
+ * rather than guessed at.
  */
 export function resolvePlaceDirective(
   values: Array<string | null | undefined>,
 ): PlaceDirective | null {
   let out: PlaceDirective | null = null;
   let regionHidden = false;
+  let host = false;
   values.forEach((raw, i) => {
     const v = (raw ?? "").trim().toLowerCase();
     if (v === "left" || v === "right" || v === "tab" || v === "hidden") out = v;
     if (v === "hidden" && i > 0) regionHidden = true;
+    if (v === "host") host = true;
   });
-  return regionHidden ? "hidden" : out;
+  return regionHidden ? "hidden" : host ? "host" : out;
 }
 
 /**

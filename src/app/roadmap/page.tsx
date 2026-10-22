@@ -33,10 +33,8 @@ export default async function RoadmapPage() {
     : undefined;
   return (
     <PublicSurface right={<PublicHeaderActions />}>
-      <div className="ui-public-container-mid py-12 sm:py-24 lg:py-32">
-        <div className="ui-public-eyebrow">{ROADMAP.eyebrow}</div>
-        <h1 className="ui-public-page-title mt-3 sm:mt-4">{ROADMAP.title}</h1>
-        <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">{ROADMAP.lede}</p>
+      <div className="ui-public-container-mid pb-6 pt-10 sm:pb-10 sm:pt-16">
+        <h1 className="ui-public-page-title">{ROADMAP.title}</h1>
       </div>
 
       <div className="ui-public-container-mid pb-14 sm:pb-24">
@@ -53,25 +51,24 @@ export default async function RoadmapPage() {
         )}
       </div>
 
-      <div className="ui-public-section border-t border-border-subtle">
+      <section className="ui-public-band ui-public-section" aria-labelledby="constant">
         <div className="ui-public-container-mid">
-          <div className="ui-public-eyebrow">{ROADMAP.throughlines.eyebrow}</div>
-          <h2 className="ui-public-display-md mt-3 sm:mt-4">{ROADMAP.throughlines.title}</h2>
-          <p className="ui-public-section-lede mt-4 sm:mt-6">{ROADMAP.throughlines.lede}</p>
-
-          <div className="mt-10 grid gap-8 sm:mt-16 sm:gap-12 md:grid-cols-2">
+          <h2 id="constant" className="ui-public-h2">
+            {ROADMAP.throughlines.title}
+          </h2>
+          <ol className="ui-public-section-gap ui-public-rows ui-public-rows-2">
             {ROADMAP.throughlines.items.map((item, i) => (
-              <div key={i} className="flex flex-col gap-1.5 sm:flex-row sm:gap-6">
-                <div className="ui-public-step-num sm:pt-2">{String(i + 1).padStart(2, "0")}</div>
-                <div>
-                  <div className="ui-public-prose-strong text-lg">{item.title}</div>
-                  <p className="ui-public-body-lg mt-2 sm:mt-3">{item.body}</p>
-                </div>
-              </div>
+              <li key={i} className="ui-public-howto-step">
+                <span className="ui-public-howto-num" aria-hidden="true">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3 className="ui-public-howto-title">{item.title}</h3>
+                <p className="ui-public-howto-body">{item.body}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
-      </div>
+      </section>
 
       <div className="ui-public-container-mid pb-14 sm:pb-24">
         <p className="ui-public-meta max-w-2xl border-t border-border-subtle pt-8 sm:pt-12">
@@ -91,14 +88,14 @@ export default async function RoadmapPage() {
             </>
           )}
         </p>
-        <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
-          <Link href="/thoughts" className="ui-btn-chip">
-            Thoughts
+        <p className="mt-4 flex gap-6">
+          <Link href="/changelog" className="ui-public-text-link">
+            Changelog →
           </Link>
-          <Link href="/changelog" className="ui-btn-chip">
-            Changelog
+          <Link href="/thoughts" className="ui-public-text-link">
+            Thoughts →
           </Link>
-        </div>
+        </p>
       </div>
 
       <FinalCta />

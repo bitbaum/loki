@@ -263,7 +263,7 @@ export function activityHeadline(summary: ActivitySummary): string {
     return `${running} ${running === 1 ? "agent is" : "agents are"} working right now.`;
   }
   if (queued > 0) {
-    return `${queued} ${queued === 1 ? "dispatch is" : "dispatches are"} waiting on a builder.`;
+    return `${queued} ${queued === 1 ? "task is" : "tasks are"} waiting on a builder.`;
   }
   return "Nothing ran in this window.";
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { Section } from "@/components/ui/section-heading";
+import { OptionRow } from "@/components/terminal/sheet-rows";
 
 /**
  * The opt-out, where the thing it opts out of lives.
@@ -57,48 +58,29 @@ export function StandingApprovals({
     }
   }
 
+  // Rows you switch, under a plain heading — no card, no paragraph over them
+  // (design reset rules 2 and 3). Each row's own line says what it allows.
   return (
-    <div className="ui-card space-y-3 p-4">
-      <div className="flex items-start gap-3">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-text-tertiary" />
-        <div className="min-w-0">
-          <h2 className="text-sm font-medium">Standing approvals</h2>
-          <p className="mt-0.5 text-xs text-text-secondary">
-            Decide once instead of every time. Loki carries these out as you ask for them and tells
-            you what it did. Everything that reaches other people always waits for your yes.
-          </p>
-        </div>
+    <Section title="Standing approvals" className="ui-approvals-standing">
+      <div className="flex flex-col">
+        {options.map((option) => (
+          <OptionRow
+            key={option.type}
+            toggle
+            title={option.label}
+            detail={option.detail}
+            active={enabled.includes(option.type)}
+            busy={saving === option.type}
+            disabled={saving !== null}
+            onSelect={() => void toggle(option.type)}
+          />
+        ))}
       </div>
-
-      <ul className="space-y-2">
-        {options.map((option) => {
-          const on = enabled.includes(option.type);
-          return (
-            <li key={option.type}>
-              <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-surface-raised">
-                <input
-                  type="checkbox"
-                  checked={on}
-                  disabled={saving !== null}
-                  onChange={() => toggle(option.type)}
-                  className="mt-1 h-4 w-4 shrink-0"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 text-sm">
-                    {option.label}
-                    {saving === option.type && (
-                      <Loader2 className="h-3 w-3 animate-spin text-text-tertiary" />
-                    )}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-text-secondary">{option.detail}</span>
-                </span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
-
-      {error && <p className="ui-error text-xs">{error}</p>}
-    </div>
+      {error && (
+        <p className="ui-error mt-2 text-sm" role="status">
+          {error}
+        </p>
+      )}
+    </Section>
   );
 }

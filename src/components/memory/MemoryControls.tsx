@@ -3,67 +3,70 @@
 /**
  * Client-side mutation controls for the Memory page (data controls).
  *
- * - MemoryEntityList: the "Recently Added" list with a per-entity forget
- *   button (two-step inline confirm via DeleteButton).
+ * - MemoryEntityList: the "Recently added" rows, each with its own `…` menu
+ *   holding Forget (a two-step confirm inside the menu, via DeleteButton).
  * - ForgetAllMemory: guarded "forget everything" — wipes the knowledge graph
- *   AND the RAG index via DELETE /api/memory?all=true.
+ *   AND the RAG index via DELETE /api/memory?all=true. The last row of the
+ *   page, quiet until pressed, red only once it asks to be confirmed.
  *
- * Both refresh the server-rendered page after a successful delete so the stat
- * cards and distribution bars stay truthful.
+ * Both refresh the server-rendered page after a successful delete so the
+ * counts stay truthful.
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { deleteJson, throwApiError } from "@/lib/api/fetch";
 import { DeleteButton } from "@/components/ui/delete-button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { List, ListRow } from "@/components/ui/list-row";
+import { RowActions } from "@/components/ui/row-actions";
 import { compactRelativeDate } from "@/lib/dates";
-import type { EntityType } from "@/lib/constants/statuses";
+import { memoryKind } from "@/config/memory";
 
 type RecentEntity = {
   id: string;
   name: string;
-  type: EntityType;
+  type: string;
   description: string | null;
   createdAt: Date | string;
-  /** Precomputed on the server (TYPE_COLOR is the page's SSOT) — functions can't cross the RSC boundary. */
-  badgeClass: string;
 };
 
 export function MemoryEntityList({ entities }: { entities: RecentEntity[] }) {
   const router = useRouter();
-
-  if (entities.length === 0) {
-    return <EmptyState>Nothing added yet</EmptyState>;
-  }
-
   return (
-    <div className="space-y-2">
-      {entities.map((e) => (
-        <div key={e.id} className="flex items-start gap-2.5">
-          <span className={`ui-tag ${e.badgeClass}`}>{e.type}</span>
-          <div className="flex-1 min-w-0">
-            <div className="text-base truncate text-text-primary">{e.name}</div>
-            {e.description && (
-              <div className="mt-1 line-clamp-2 text-sm text-text-secondary">{e.description}</div>
-            )}
-          </div>
-          <span className="shrink-0 pt-0.5 text-xs text-text-tertiary">
-            {compactRelativeDate(e.createdAt)}
-          </span>
-          <DeleteButton
-            label="Forget?"
-            triggerTitle="Forget this entity"
-            onDelete={async () => {
-              const res = await deleteJson(`/api/memory/entities/${e.id}`);
-              if (!res.ok) await throwApiError(res, "Failed to forget entity");
-              router.refresh();
-            }}
+    <List aria-label="Recently added">
+      {entities.map((e) => {
+        const kind = memoryKind(e.type);
+        return (
+          <ListRow
+            key={e.id}
+            icon={kind.icon}
+            title={e.name}
+            secondary={e.description ? `${kind.label} · ${e.description}` : kind.label}
+            trailing={compactRelativeDate(e.createdAt)}
+            menu={
+              <RowActions label={`More for ${e.name}`}>
+                {/* The confirm answers in place, so its clicks must not close
+                    the menu (RowActions' note). */}
+                <span onClick={(ev) => ev.stopPropagation()}>
+                  <DeleteButton
+                    label="Forget?"
+                    triggerTitle={`Forget ${e.name}`}
+                    triggerLabel="Forget"
+                    triggerClassName="ui-menu-item justify-start"
+                    onDelete={async () => {
+                      const res = await deleteJson(`/api/memory/entities/${e.id}`);
+                      if (!res.ok) await throwApiError(res, "Could not forget that");
+                      router.refresh();
+                    }}
+                  />
+                </span>
+              </RowActions>
+            }
           />
-        </div>
-      ))}
-    </div>
+        );
+      })}
+    </List>
   );
 }
 
@@ -78,11 +81,11 @@ export function ForgetAllMemory() {
     setError(null);
     try {
       const res = await deleteJson("/api/memory?all=true");
-      if (!res.ok) await throwApiError(res, "Failed to forget memory");
+      if (!res.ok) await throwApiError(res, "Could not forget everything");
       setConfirming(false);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to forget memory");
+      setError(e instanceof Error ? e.message : "Could not forget everything");
     } finally {
       setBusy(false);
     }
@@ -90,41 +93,34 @@ export function ForgetAllMemory() {
 
   if (!confirming) {
     return (
-      // inline-flex, not a bare inline link: min-h is inert on an inline box,
-      // so this irreversible action was a 14px-tall tap target.
-      <button
-        onClick={() => setConfirming(true)}
-        className="inline-flex min-h-11 shrink-0 items-center text-xs text-text-muted underline hover:text-status-negative"
-      >
-        Forget everything
-      </button>
+      <List aria-label="Forget">
+        <ListRow icon={Trash2} title="Forget everything" onClick={() => setConfirming(true)} />
+      </List>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="space-y-3">
       {/* "knowledge graph and RAG index" named two internals for one thing
           the reader knows by a different name: everything Loki remembers. */}
-      <span className="text-xs text-status-negative">
+      <p className="text-sm text-status-negative">
         Erase everything Loki remembers — every person, project and connection. No undo.
-      </span>
-      <button
-        onClick={forgetAll}
-        disabled={busy}
-        className="text-xs text-status-negative px-1 disabled:opacity-50"
-      >
-        {busy ? <Loader2 className="ui-spinner-xs" /> : "Yes, forget all"}
-      </button>
-      <button
-        onClick={() => {
-          setConfirming(false);
-          setError(null);
-        }}
-        className="ui-btn-text-cancel"
-      >
-        Cancel
-      </button>
-      {error && <span className="ui-error-xs">{error}</span>}
+      </p>
+      <div className="flex items-center gap-2">
+        <button onClick={forgetAll} disabled={busy} className="ui-btn-danger">
+          {busy ? <Loader2 className="ui-spinner-xs" /> : "Yes, forget all"}
+        </button>
+        <button
+          onClick={() => {
+            setConfirming(false);
+            setError(null);
+          }}
+          className="ui-btn-ghost"
+        >
+          Cancel
+        </button>
+      </div>
+      {error && <p className="ui-error">{error}</p>}
     </div>
   );
 }

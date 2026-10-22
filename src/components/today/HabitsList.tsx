@@ -81,7 +81,7 @@ export function HabitsList({ initialHabits }: { initialHabits: HabitWithStatus[]
   }
 
   return (
-    <div className="space-y-2">
+    <div className="ui-today-rows">
       {habits.map((h) => (
         <HabitRow
           key={h.id}

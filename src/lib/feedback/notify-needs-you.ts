@@ -19,6 +19,7 @@ import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkPhase } from "@/lib/f
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { APP_URL } from "@/config/brand";
 import { getFleetAutopilotUserIds } from "@/db/queries/beacon-settings";
+import { needsYouDescription, needsYouTitle } from "./needs-you-words";
 
 const ALERT_TYPE = "feedback_needs_you";
 
@@ -67,28 +68,30 @@ export async function syncFeedbackNeedsYou(): Promise<{
     const live = needs.filter((n) => n.kind === "check_live");
     const first = needs[0]!;
     const project = first.f.projectName;
-    const title =
-      stuck.length && live.length
-        ? `${needs.length} feedback items need you (stalled + check live)`
-        : stuck.length
-          ? `${stuck.length} feedback fix${stuck.length === 1 ? "" : "es"} stalled — needs you`
-          : `${live.length} fix${live.length === 1 ? "" : "es"} live — Check live / Confirm`;
+    const title = needsYouTitle(stuck.length, live.length);
+    const description = needsYouDescription(stuck.length, live.length);
+    const total = stuck.length + live.length;
 
-    const description = [first.label, first.detail].filter(Boolean).join(" — ").slice(0, 280);
-
-    const { created } = await refreshOrInsertActiveAlert({
-      userId,
-      type: ALERT_TYPE,
-      severity: stuck.length ? "warning" : "info",
-      title,
-      description: description || "Open Feedback to act.",
-      actionUrl: "/feedback",
-      metadata: {
-        stuck: stuck.length,
-        checkLive: live.length,
-        sampleProject: project,
+    const { created } = await refreshOrInsertActiveAlert(
+      {
+        userId,
+        type: ALERT_TYPE,
+        severity: stuck.length ? "warning" : "info",
+        title,
+        description,
+        actionUrl: "/feedback",
+        metadata: {
+          stuck: stuck.length,
+          checkLive: live.length,
+          sampleProject: project,
+        },
       },
-    });
+      {
+        // More waiting than when it went up: news again, so the bell dates
+        // it now instead of the day the backlog first appeared.
+        renew: (prev) => total > Number(prev?.stuck ?? 0) + Number(prev?.checkLive ?? 0),
+      },
+    );
 
     if (created) {
       raised++;

@@ -58,7 +58,7 @@ export function PackageUpdateCard({
 
   return (
     <article
-      className="ui-list-row space-y-3 px-4 py-3"
+      className="ui-approvals-item space-y-3"
       aria-label={`Update for ${update.projectName}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">

@@ -4,6 +4,7 @@ import { isPrivateZoneLocked } from "@/lib/private-zone";
 import { alertRestatesListedSource, isSystemAlertType } from "@/config/alert-types";
 import { CHECKIN_TITLE_PREFIX } from "@/lib/actions/checkin-proposal";
 import { ALERT_SEVERITY } from "@/lib/constants/statuses";
+import { splitAlertsByRelevance } from "@/lib/alerts/relevance";
 import type { NeedsYouAlert, NeedsYouApprovals } from "@/lib/needs-you";
 
 /**
@@ -19,11 +20,14 @@ export async function loadNeedsYouExtras(userId: string): Promise<{
   alerts: NeedsYouAlert[];
   systemAlertCount: number;
 }> {
-  const [locked, pending, active] = await Promise.all([
+  const [locked, pending, open] = await Promise.all([
     isPrivateZoneLocked(userId),
     getPendingActions(userId).catch(() => []),
     getActiveAlerts(userId).catch(() => []),
   ]);
+  // Only what is still news needs you (lib/alerts/relevance); an alert past
+  // its window is in the bell's "Earlier", not in this count.
+  const active = splitAlertsByRelevance(open, Date.now()).current;
 
   const systemAlertCount = active.filter((a) => isSystemAlertType(a.type)).length;
   // An alert that only announces approvals or feedback triage is already a row

@@ -153,7 +153,10 @@ export function ModelPicker({
     budget !== null &&
     budget.ownKeys.length > 0 &&
     (value === undefined || budget.ownKeys.some((k) => k.model === value));
-  const countLabel = budget ? (onOwnKey ? "your key" : budget.freePool.short) : null;
+  // On their own key there is nothing to count, so the chip says only the
+  // model: "Auto your key" read as a broken sentence (owner, 2026-10-21). The
+  // menu still says whose key answers.
+  const countLabel = budget && !onOwnKey ? budget.freePool.short : null;
   const countOut =
     !onOwnKey &&
     budget !== null &&

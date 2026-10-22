@@ -60,15 +60,12 @@ export const AUTH_COPY = {
   },
   signIn: {
     title: "Welcome back",
-    description: (appName: string) => `Sign in to your ${appName} account.`,
   },
   signUp: {
     title: "Create your account",
-    description: "Free to start. Add projects, launch agents, track everything.",
   },
   forgot: {
     title: "Reset your password",
-    description: "Enter your email and we'll send a reset link.",
     sentTitle: "Check your email",
     sentDescription: (email: string) =>
       `If an account exists for ${email}, we've sent a reset link. Check your inbox (and spam folder).`,

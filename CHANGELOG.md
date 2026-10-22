@@ -6,6 +6,42 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-22 — Every page, calm
+
+Every page was rebuilt to one bar, written down in
+`docs/development/design-reset-2026-10.md`: the way Claude, ChatGPT and Grok
+look on a phone.
+
+- **Lists are rows, not boxes.** {#rows} Projects, prompts, feedback, people,
+  goals, habits, events, money, chats and sessions are lists of rows. Each row
+  has a name, one grey line and one fact on the right, with no badges stacked
+  under it and no card inside a card. Headings are sentence case, with no
+  letter-spaced capitals and no explaining sentence under every title.
+- **One action per page, in the same place.** {#one-action} The page's one
+  action is the round button at the top right, as "new chat" is in Claude.
+  Everything else is in a row's "…" menu. Nothing sticks to the screen but the
+  top bar, the bottom bar and the box you type in, so Projects no longer has
+  a third of the screen pinned.
+- **Projects read as names.** {#project-names} A project with no title shows
+  as words ("Murphys bar"), not its folder ("murphys-bar"), everywhere.
+- **The bell counts what still needs you.** {#bell-earlier} Old notifications
+  fold under "Earlier" and no longer count, so a nudge from four weeks ago
+  stops showing "9+". A repeat of an alert you forgot is raised again instead
+  of being swallowed by the old one.
+- **Home answers three questions.** {#home-rows} What needs you, what is being
+  built and what went quiet, each as rows with the reason in words ("Stopped:
+  Claude hit its limit"), under the one box where work starts.
+- **Send to terminal works for every project.** {#send-any-project} A project
+  with only a repository and no folder now starts or queues its agent, as
+  every other send does, instead of failing with "no running agent". Run with
+  Loki shows the answer as it is written, with Stop and Try again, and a
+  prompt's blanks are never sent as `{{project_name}}`.
+- **Fixes found on the way.** {#reset-fixes} An event without a deadline can
+  be added again, events with a date and place are listed by that date, an ask
+  with nobody on it can be given to someone, the /fleet filters open on a
+  computer, the public home page's headline no longer waits for an animation
+  to appear, and a project's "What changed" is newest first.
+
 ## 2026-10-20 — Whoever asks pays
 
 - **Voice says why the studio voices are off, and how to turn them on.** {#voice-studio-off}

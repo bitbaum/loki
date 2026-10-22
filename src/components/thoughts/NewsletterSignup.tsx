@@ -36,7 +36,7 @@ export function NewsletterSignup({ source }: { source: string }) {
 
   if (status === "success") {
     return (
-      <div className="ui-card-shell space-y-1 p-5">
+      <div className="space-y-1 border-t border-border-subtle pt-6">
         <p className="text-base text-text-primary">You&apos;re on the list.</p>
         <p className="text-sm text-text-tertiary">
           New essays land in your inbox when they publish.
@@ -46,9 +46,9 @@ export function NewsletterSignup({ source }: { source: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="ui-card-shell space-y-3 p-5">
+    <form onSubmit={submit} className="space-y-3 border-t border-border-subtle pt-6">
       <div>
-        <p className="text-base font-medium text-text-primary">Get new essays by email</p>
+        <p className="text-section font-semibold text-text-primary">Get new essays by email</p>
         <p className="text-sm text-text-tertiary">
           No schedule promises, no marketing — just the essays.
         </p>
@@ -64,7 +64,11 @@ export function NewsletterSignup({ source }: { source: string }) {
           className="ui-input flex-1"
           aria-label="Email address"
         />
-        <button type="submit" className="ui-btn-primary shrink-0" disabled={status === "loading"}>
+        <button
+          type="submit"
+          className="ui-public-cta-ghost shrink-0"
+          disabled={status === "loading"}
+        >
           {status === "loading" ? "Subscribing…" : "Subscribe"}
         </button>
       </div>

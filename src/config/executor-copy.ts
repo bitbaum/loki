@@ -98,10 +98,11 @@ export const EXECUTOR_COPY = {
   },
 
   runnerBanner: {
-    offlineChip: (lastSeen: string | null) =>
+    /** Home's builder row: its one grey line under offlineTitle. */
+    offlineDetail: (lastSeen: string | null) =>
       lastSeen
-        ? `Builder offline · last seen ${lastSeen} — work stays queued`
-        : "Builder offline — work stays queued",
+        ? `Last seen ${lastSeen} — work waits until it is back`
+        : "Work waits until it is back",
     reconnect: "How to reconnect",
     neverSeenTitle: "Connect a builder to run agents",
     offlineTitle: "Builder offline",
@@ -190,43 +191,34 @@ export const EXECUTOR_COPY = {
   },
 
   terminal: {
-    // Names the two switches the mode bar exposes, because they are the whole
-    // point of the page: one shell, and you choose where it runs and how you
-    // talk to it. The old subtitle described only typing, which was the single
-    // thing the terminal could already do.
-    pageSubtitle:
-      "Watch and steer your AI agents live: read a session as a chat, or drive its terminal.",
     cloudLabel: "Cloud builder",
     cloudLabelLocalHost: "Cloud builder (this server)",
     thisComputerLabel: "Your computer",
     cloudHelp: "Choose a session to read its messages or use its terminal.",
-    cloudLoading: "Looking for cloud builder sessions…",
-    cloudEmpty: "No live sessions on the cloud builder.",
+    cloudLoading: "Looking for open sessions…",
+    cloudEmpty: "Nothing is open in the cloud.",
     cloudEmptyHint:
       "Start an agent below to open a cloud builder session. Choose its location with Runs on.",
-    cloudOfflineHint:
-      "The cloud builder is offline. Work sent there will wait until it reconnects.",
+    cloudOfflineHint: "Cloud sessions are offline. Work you send waits until they are back.",
     // Connected to the peek stream but no screen frames arrived → the runner is
     // wedged (e.g. its outbound fetch is failing). Honest, actionable — not a
     // black pane labelled "live".
-    cloudStalledHint:
-      "This session stopped sending updates. Check its latest status in Control, or choose another session.",
+    cloudStalledHint: "This session stopped sending updates. Check Home, or open another session.",
     thisComputerStalledHint:
       "Your connected computer stopped sending session updates. Check that Fleet Runner is open there.",
     thisComputerHelp: "Choose a session on your connected computer to follow or steer the agent.",
-    thisComputerEmpty: "No active sessions on your connected computer.",
+    thisComputerEmpty: "Nothing is open on your computer.",
     thisComputerEmptyHint:
       "Start a session on your computer when Fleet Runner is connected. Choose its location with Runs on.",
-    thisComputerOfflineHint:
-      "Open Fleet Runner on the computer you want to use to bring its sessions online.",
+    thisComputerOfflineHint: "Open Fleet Runner on your computer to see its sessions here.",
     // "Here" is the device reading the page; "this computer" is the account's
     // one desktop runner. From any other device the first line is a trap, so
     // an account with the cloud builder gets the way that works from anywhere.
     thisComputerOfflineCloudHint:
-      "Fleet Runner isn't connected on your computer. The cloud builder is online and runs this project from anywhere — nothing to install.",
+      "Your computer is not connected. The cloud runs this project from anywhere — nothing to install.",
     thisComputerOfflineCloudDownHint:
-      "Fleet Runner isn't connected on your computer, and the cloud builder is offline too. Work stays queued until either is back.",
-    useCloudBuilder: "Use the cloud builder",
+      "Neither your computer nor the cloud is connected. Work you send waits until one is back.",
+    useCloudBuilder: "Use the cloud",
     thisComputerLoading: "Looking for sessions on this computer…",
   },
 } as const;

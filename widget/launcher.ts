@@ -64,7 +64,8 @@ export type Launcher = {
   setOwnerStatus(status: OwnerStatus | null): void;
   /** Show a remark beside the launcher for a while; tapping it opens Loki. */
   say(text: string): void;
-  /** On screen right now — the watch bar only appears when it is not. */
+  /** On screen right now, ours or the host's (`data-fc-place="host"`) — the
+   *  watch bar only appears when it is not. */
   isShown(): boolean;
   /** The shape it took on the last pass ("tab" = the edge handle). */
   shape(): "button" | "tab";
@@ -127,6 +128,9 @@ export function createLauncher(opts: {
 
   /** True while the launcher is drawn as the edge tab (see placeTab). */
   let tab = false;
+  /** True while a rendered `data-fc-place="host"` region draws the launcher
+   *  for us — see placement.PlaceDirective. */
+  let hostDrawn = false;
 
   /** Owner status remains reachable even on a crowded page: the same button
    *  becomes an edge handle rather than covering the work being read. */
@@ -437,7 +441,10 @@ export function createLauncher(opts: {
     if (fab.style.display === "none") return; // panel open — rect is degenerate
     const p = effective();
     const directive = readPlaceDirective();
-    if (directive === "hidden") {
+    // "host": the page draws the launcher itself (Loki's top bar). Nothing of
+    // ours goes on screen, but the status is still shown — by the host.
+    hostDrawn = directive === "host";
+    if (directive === "hidden" || hostDrawn) {
       bubble.style.display = "none";
       show(false);
       return;
@@ -587,8 +594,13 @@ export function createLauncher(opts: {
     reposition,
     setOwnerStatus,
     say,
+    // A host-drawn launcher is on screen as far as the owner is concerned:
+    // the host shows the same state (Loki.status), so watch mode must not
+    // add its own bar on top of it.
     isShown: () =>
-      fab.isConnected && fab.style.display !== "none" && fab.style.visibility !== "hidden",
+      fab.isConnected &&
+      fab.style.display !== "none" &&
+      (hostDrawn || fab.style.visibility !== "hidden"),
     shape: () => (tab ? "tab" : "button"),
   };
 }

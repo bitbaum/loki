@@ -1,6 +1,4 @@
 import { Bell, BellOff, BellRing, Loader2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { COMMS_COPY } from "@/config/comms";
 import { cn } from "@/lib/utils";
 import type { PushCardView } from "@/lib/push-card";
 
@@ -24,7 +22,7 @@ export function PhonePushView({
 }) {
   const Icon = view.tone === "on" ? BellRing : view.tone === "off" ? Bell : BellOff;
   return (
-    <Card className="ui-settings-section">
+    <section className="ui-settings-section">
       <div className="flex items-start gap-3">
         <Icon
           className={cn(
@@ -34,9 +32,8 @@ export function PhonePushView({
           aria-hidden="true"
         />
         <div className="min-w-0 space-y-1">
-          <p className="ui-micro-label">{COMMS_COPY.phonePush.title}</p>
           <h2 className="text-base font-semibold text-text-primary">{view.headline}</h2>
-          <p className="text-sm text-text-tertiary">{view.body}</p>
+          <p className="text-sm text-text-secondary">{view.body}</p>
         </div>
       </div>
 
@@ -67,10 +64,10 @@ export function PhonePushView({
       )}
 
       {note && (
-        <p className="mt-3 text-xs text-text-secondary" role="status">
+        <p className="mt-3 text-sm text-text-secondary" role="status">
           {note}
         </p>
       )}
-    </Card>
+    </section>
   );
 }

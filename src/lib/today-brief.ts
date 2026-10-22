@@ -101,3 +101,29 @@ export function buildTodayBriefPrompt(
       .trim()
   );
 }
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Today's counts as ONE sentence, under the greeting: "2 of 5 habits done,
+ * 1 commitment overdue and 2 builds running." Design reset rule 7 — stats are
+ * a sentence, not a row of pills; it was up to ten coloured chips that
+ * scrolled off a phone's edge. Null when there is nothing to say.
+ */
+export function todaySentence(s: TodayBriefCounts, fleet: TodayBriefFleet): string | null {
+  const parts = [
+    s.habitsTotal > 0 && `${s.habitsDone} of ${s.habitsTotal} habits done`,
+    s.overdueCommitments > 0 &&
+      `${plural(s.overdueCommitments, "commitment", "commitments")} overdue`,
+    s.goalsDueSoon > 0 && `${plural(s.goalsDueSoon, "goal", "goals")} due soon`,
+    s.stuckGoals > 0 && `${plural(s.stuckGoals, "goal", "goals")} not moving`,
+    s.eventsDueSoon > 0 && `${plural(s.eventsDueSoon, "deadline", "deadlines")} coming up`,
+    s.staleContacts > 0 && `${plural(s.staleContacts, "person", "people")} to catch up with`,
+    fleet.running > 0 && `${plural(fleet.running, "build", "builds")} running`,
+    fleet.waiting > 0 && `${plural(fleet.waiting, "build", "builds")} waiting for you`,
+  ].filter((p): p is string => typeof p === "string");
+  if (parts.length === 0) return null;
+  const text =
+    parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}

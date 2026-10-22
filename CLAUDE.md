@@ -70,12 +70,15 @@ src/
 │   │                 There is no ProjectTile. HomeComposer = the top: what to
 │   │                 build + a project chip, sent via /api/inject — the one
 │   │                 place work starts (no "Start something" card).
-│   │                 ControlNow = one card per job being built (title
-│   │                 from lib/task-title, live step from the runner's beat via
-│   │                 lib/run-step), each opening the live session; ControlDone
-│   │                 = the day's results; ControlFoot = builder + settings.
-│   │                 ControlFleetStatus = the hero, shown ONLY for alarms or
-│   │                 someone needed: ONE question, at most one button.
+│   │                 Under it, three sections of ListRows answer, in order:
+│   │                 "Needs you" (AttentionBar + ControlInbox + the hero,
+│   │                 heading hidden when all are quiet), "Being built"
+│   │                 (ControlNow: one row per job, live step from the
+│   │                 runner's beat via lib/run-step, opening the live
+│   │                 session) and "Done" (ControlDone). ControlFoot = two
+│   │                 rows: builder (opens settings) + New project.
+│   │                 ControlFleetStatus = the hero, shown ONLY for alarms the
+│   │                 rows do not already name: ONE question, one button.
 │   │                 ControlInbox = one collapsed queue for every small task
 │   │                 (feedback triage + widget coverage) — add a group, never a
 │   │                 new full-width strip. ControlSettingsSheet = autopilot,
@@ -170,10 +173,13 @@ src/
 │   │                 (SessionInfo chip, "Opus 5.5") and the one answering
 │   │                 Loki (loki/ModelPicker, "Loki answers with").
 │   │                 See docs/development/responsive-design.md.
-│   ├── activity/  → ActivityView, EventStream, DigestPanel (fleet activity timeline + digests)
-│   ├── today/     → StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard, CommitmentsCard, SubscriptionsCard, HabitsList
-│   ├── people/    → PeopleGrid, PersonCard, PersonDetail
-│   ├── crew/      → CrewWorkspace (board + roster), AssignmentCard,
+│   ├── activity/  → ActivityView (scope menus, the answer as a sentence, NeedsYouCard
+│   │                 and EventStream as ListRows), ActivityReport (the written
+│   │                 report, the page's one action, in a sheet)
+│   ├── today/     → Greeting, SummaryBar (the day in one sentence), StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard (one line), CommitmentsCard, HabitsList — sections of rows, no cards
+│   ├── people/    → PeopleList (ListRows + Show/Sort menus; import/merge in a
+│   │                 sheet, PeopleBookPanel), PersonDetail (the person page)
+│   ├── crew/      → CrewWorkspace (asks + roster as ListRows), AssignmentSheet,
 │   │                 NewAssignmentButton, AddCrewButton, SharedTaskView.
 │   │                 Work for HUMANS: an assignment is a draft until the
 │   │                 operator hands it over, and the assignee answers through
@@ -184,13 +190,19 @@ src/
 │   │                 ProjectWorkspaceHeader (detail). ProjectGrid/ProjectDetail
 │   │                 survive only as TYPE names (project-grid-row.ts,
 │   │                 project-detail-types.ts) — there are no such components
-│   ├── goals/     → GoalCard, GoalsGrid, NewGoalButton
-│   ├── money/     → SubscriptionActions, NewSubscriptionButton
-│   ├── habits/    → HabitHeatmap (per-row daily check-off lives in today/)
-│   ├── events/    → EventCard, AddEventForm, EventsGrid
-│   ├── prompts/   → PromptCard (replaced the old FeaturedCard + PromptRow),
-│   │                 GroupBar (was CategoryBar), RunModal, ScheduleModal
-│   ├── settings/  → TeamSettings (invite flow)
+│   ├── goals/     → GoalsList (ListRows, progress ring), GoalDetail (/goals/[id]),
+│   │                 NewGoalButton
+│   ├── money/     → SubscriptionsList, SubscriptionSheet, NewSubscriptionButton
+│   ├── habits/    → HabitsList (check off from the row; heatmap + settings in a
+│   │                 sheet), HabitHeatmap, NewHabitButton
+│   ├── events/    → EventsList (by date: deadline, else the day it happens),
+│   │                 EventSheet, NewEventButton
+│   ├── prompts/   → PromptLibraryClient (ListRows: yours, then Loki's by group),
+│   │                 RunModal (THE Run sheet: one Run button — a project's
+│   │                 agent for project work, Loki for personal prompts,
+│   │                 lib/prompt-run), ScheduleModal, PromptForm, PromptPreview
+│   ├── settings/  → SettingsTabs (a list of sections on a phone, a rail from lg),
+│   │                 one component per section (TeamSettings = invite flow)
 │   └── system/    → JobDetail, SystemStats, FleetDoctorCard, ScheduledJobsCard,
 │   │                 RecentFailuresCard, HetznerCapacityCard (no AutopilotCard)
 ├── config/        → SSOT for navigation, channels, prompt-library, subscriptions,
@@ -317,7 +329,7 @@ Panels:    ui-panel, ui-card-shell, ui-card-shell-raised, ui-settings-section
 Buttons:   ui-btn-primary, ui-btn-secondary, ui-btn-ghost, ui-btn-chip,
            ui-btn-icon, ui-btn-xs, ui-btn-save, ui-btn-submit,
            ui-btn-ready-primary, ui-btn-ready-action, ui-btn-ready-more,
-           ui-btn-confirm, ui-btn-danger, ui-btn-overlay
+           ui-btn-confirm, ui-btn-danger
 Inputs:    ui-input, ui-input-compact, ui-input-tight, ui-input-inline
 Text:      ui-kicker, ui-micro-label, ui-page-title, ui-page-subtitle, ui-error
 Chips:     ui-chip-filter, ui-chip-toggle, ui-badge, ui-tag (+ variants)
@@ -632,19 +644,19 @@ prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
 | Atlas | /atlas | RETIRED — redirects to /projects. Live URL and down-state live on Projects |
 | Duet | /duet | RETIRED — redirects to /control (side-by-side prompt view earned nothing over Terminal + Control) |
 | Today | /today | Calendar, weather, commitments, bills, daily habit check-off, log conversation |
-| People | /people | Contacts, search, detail panel, inline name/notes edit |
+| People | /people | Contacts as ListRows (search row, Show/Sort menus, "We talked today" in the row menu); import and merge in a sheet. `/people/[id]`: note, ways to reach them, conversations, details, actions |
 | Crew | /crew | Humans in the loop + the work you hand them. Draft → hand over (mints a share link) → they accept/decline/deliver → you accept. Paid assignments mirror to OrangeCat as a service; the roster is person entities flagged `crew:member`, never a parallel table |
-| Money | /money | Subscriptions, monthly burn |
-| Goals | /goals | Hierarchical tree, progress, milestones, inline target-date / progress edit |
-| Projects | /projects | registered projects + GitHub CI, inline editors for name/desc/status/maturity; per-project dossier + shareable public link (/share/project/[token], audience-scoped resource visibility). A new site's kickoff plans which fleet packages it is BUILT FROM (`lib/kit-plan`, trigger words SSOT `config/kit-plan.ts` keyed by catalogue name, validated against the live catalogue): the kickoff screen says it in plain words (`KitPlanPreview`, text only, never a gate), the first build's prompt carries it as a `BUILT FROM` block with install lines and "do not write your own", and client work is also told to swap `@bitbaum/design-tokens` for the client's tokens. The plan is stored on `user_projects.kit_plan` (a plan — never written into `project_packages`, which stays observations) and shown as a "Planned" line under Built from; the kickoff run's `payload.kitPlan` records planned vs observed after the first build (`lib/kit-plan/coverage.ts`) |
+| Money | /money | The month as one sentence (per currency — no exchange rate is invented), subscriptions as ListRows, each opening a sheet (mark paid, edit, verify, alternatives, cancel, delete) |
+| Goals | /goals | One sentence, goals as ListRows (progress ring, due · project), Sort/Project menus. `/goals/[id]`: progress, date, milestones, sub-goals (their own pages), habits that feed it, actions |
+| Projects | /projects | ListRows: a search row, Show/Sort menus, one plain line per project (`lib/project-list-line.ts`: broken → busy → needs you → how it is) and the time since its last run; earlier `-refresh-` copies and archived projects fold under Archived. The `+` asks "Build a site" or "Add an existing project" (`NewProjectChooser`). A project page: one title, a section menu on a phone (tabs from md), sections as plain headings, checks/stage/feedback counts in Story; per-project dossier + shareable public link (/share/project/[token], audience-scoped resource visibility). A new site's kickoff plans which fleet packages it is BUILT FROM (`lib/kit-plan`, trigger words SSOT `config/kit-plan.ts` keyed by catalogue name, validated against the live catalogue): the kickoff screen says it in plain words (`KitPlanPreview`, text only, never a gate), the first build's prompt carries it as a `BUILT FROM` block with install lines and "do not write your own", and client work is also told to swap `@bitbaum/design-tokens` for the client's tokens. The plan is stored on `user_projects.kit_plan` (a plan — never written into `project_packages`, which stays observations) and shown as a "Planned" line under Built from; the kickoff run's `payload.kitPlan` records planned vs observed after the first build (`lib/kit-plan/coverage.ts`) |
 | Packages | /packages | What the fleet is built from: every shared package in bitbaum/fleet's register (read through the fleet brief's one fetch, `lib/packages/catalogue.ts`), its latest version, and which of your projects is on which version (`/packages/[slug]`, behind first). Rows in `project_packages` are OBSERVATIONS read from each repo's package.json + lockfile (`lib/packages/sync.ts`) — never decisions; a project's Story tab shows the same as "Built from". Each project's UPDATE SETTING (`user_projects.package_updates`: Automatic / Ask me / Stay on these versions, SSOT `config/package-updates.ts`) is applied to its open Dependabot PRs every 15 minutes (`lib/packages/updates.ts`, cron `sync-package-updates`): Loki adds its own `hold` label where the setting or a breaking bump says wait, removes only holds it added, and merges only a breaking update a person approved once green — Dependabot proposes, the fleet sweep merges. Held updates are cards on /approvals, read from `package_update_requests`. The package's OWNER (whoever owns the Loki project that is the package repo; with no such project, whoever's GitHub token can push — `lib/packages/release-access.ts`) releases from `/packages/[slug]` ("Unreleased": changes since the highest version tag, next version from conventional commits — under 1.0 breaking is a minor — `lib/packages/release.ts`): Loki dispatches the repo's own `release.yml` (bitbaum/fleet `templates/package`) with an exact version and stores nothing about it. "Rollout" per recent version is DERIVED (`lib/packages/rollout.ts`); "Pause vX.Y.Z everywhere" is the one stored decision (`package_release_pauses`, SSOT words `config/package-releases.ts`): the update sync holds every open update to that version in every project whatever its setting, and resume removes only holds nothing else wants. **npm** (the panel at the top): the owner pastes ONE npm key (made on npmjs.com from a phone; settings SSOT `config/npm-publishing.ts`), Loki keeps it sealed (`lib/secret-box.ts`, table `npm_publish_keys`, never sent to a browser), and for every package npm does not know yet writes it into the package repo as the Actions secret `NPM_BOOTSTRAP_TOKEN` and starts its `publish.yml`, which publishes the first version and links itself as trusted publisher — later releases need no key. The 15-minute package cron does the same for packages registered later (`lib/packages/npm-publish.ts`). Android Chrome/Brave run no extensions, so this needs no browser extension at all |
-| Habits | /habits | 30-day heatmap per habit, streak indicator, summary stats |
-| Events | /events | Opportunities and deadlines, type-chip filter, archive flow |
-| Prompts | /prompts | Prompt library, run-now via Loki, schedule as cron job |
+| Habits | /habits | "3 of 5 done today", a row per habit with its check-off on the left; the row opens a sheet: 30-day heatmap, how often, linked goals, pause, rename, delete |
+| Events | /events | Coming up / no date / already happened (deadline, else `date_start`), a Show menu for kinds, a sheet per event (edit, ask Loki, archive, delete) |
+| Prompts | /prompts | Your prompts and Loki's library as rows; a row opens the Run sheet with ONE Run (the project's agent — started or queued through the inject core, also for a repo-only project — or Loki, streamed, for personal prompts); repeat on a schedule from the row's menu |
 | System | /system | Gateway, memory, disk, uptime, autopilot jobs |
 | Memory | /memory | Knowledge graph stats and recent activity |
 | Thoughts | /thoughts | Published essays on architecture and execution systems |
-| Settings | /settings | Profile + team invite management |
+| Settings | /settings | Twelve sections: a list of rows on a phone (each opens with a back row; the back gesture returns to the list), a rail from lg. Deep links `#ai`, `#agent` open a section |
 
 ## Websites for people: "create website for <Name>"
 

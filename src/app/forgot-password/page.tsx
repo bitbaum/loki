@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell>
-      <AuthHeading title={AUTH_COPY.forgot.title} description={AUTH_COPY.forgot.description} />
+      <AuthHeading title={AUTH_COPY.forgot.title} />
 
       <AuthCard>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,12 +66,7 @@ export default function ForgotPasswordPage() {
 
           {error && <p className="ui-error">{error}</p>}
 
-          <AuthSubmitButton
-            loading={loading}
-            disabled={!email}
-            label="Send reset link →"
-            loadingLabel="Sending…"
-          />
+          <AuthSubmitButton loading={loading} label="Send reset link" loadingLabel="Sending…" />
         </form>
       </AuthCard>
 

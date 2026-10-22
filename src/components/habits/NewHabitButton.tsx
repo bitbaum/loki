@@ -7,8 +7,17 @@ import { useCreateMutation } from "@/hooks/use-create-mutation";
 import { postJson } from "@/lib/api/fetch";
 import { HABIT_FREQUENCY, type HabitFrequency } from "@/lib/constants/statuses";
 import { HABIT_FORM } from "@/config/ai-forms";
+import { Segmented } from "@/components/ui/segmented";
+import { FREQUENCY_LABEL } from "./HabitsList";
 
-export function NewHabitButton() {
+export function NewHabitButton({
+  trigger = "secondary",
+  triggerLabel = "New habit",
+}: {
+  /** "page-action": the page's one primary action; "secondary" for an empty state. */
+  trigger?: "page-action" | "secondary";
+  triggerLabel?: string;
+} = {}) {
   const form = useAiForm({
     target: HABIT_FORM.key,
     fields: HABIT_FORM.fields,
@@ -33,10 +42,11 @@ export function NewHabitButton() {
 
   return (
     <ModalForm
-      triggerLabel="New Habit"
-      title="New Habit"
-      submitLabel="Create Habit"
-      savingLabel="Creating…"
+      trigger={trigger}
+      triggerLabel={triggerLabel}
+      title="New habit"
+      submitLabel="Add habit"
+      savingLabel="Adding…"
       size="sm"
       canSubmit={!!form.text("title").trim()}
       saving={saving}
@@ -56,18 +66,16 @@ export function NewHabitButton() {
         />
       </Field>
 
-      <Field label="Frequency" aiTouched={form.isAiTouched("frequency")}>
-        <select
-          value={form.text("frequency")}
-          onChange={(e) => form.setValue("frequency", e.target.value)}
-          className="ui-input"
-        >
-          {Object.values(HABIT_FREQUENCY).map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
+      <Field label="How often" aiTouched={form.isAiTouched("frequency")}>
+        <Segmented
+          label="How often"
+          options={Object.values(HABIT_FREQUENCY).map((f) => ({
+            id: f,
+            label: FREQUENCY_LABEL[f],
+          }))}
+          value={form.text("frequency") || HABIT_FREQUENCY.DAILY}
+          onChange={(id) => form.setValue("frequency", id)}
+        />
       </Field>
     </ModalForm>
   );

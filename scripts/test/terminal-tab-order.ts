@@ -101,10 +101,11 @@ ok(
 
 // Names.
 ok(
-  readableTabName("xhiva-art-refresh-300d1519783b47d3ab1c7ddb77c5febf") === "xhiva-art-refresh",
-  "32-hex suffix is dropped",
+  readableTabName("xhiva-art-refresh-300d1519783b47d3ab1c7ddb77c5febf") === "Xhiva",
+  "a retired refresh copy reads as its site's name",
 );
-ok(readableTabName("farmhouse") === "farmhouse", "a plain name is unchanged");
+ok(readableTabName("farmhouse") === "Farmhouse", "a folder name reads as a word");
+ok(readableTabName("murphys-bar") === "Murphys bar", "dashes become spaces");
 ok(
   readableTabName("300d1519783b47d3ab1c7ddb77c5febf") === "300d1519783b47d3ab1c7ddb77c5febf",
   "a name that is only hex is kept",

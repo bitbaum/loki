@@ -36,14 +36,11 @@ type ProblemCard = {
 type ProblemScale = {
   id: "you" | "everyone";
   title: string;
-  subtitle: string;
   items: readonly ProblemCard[];
 };
 
 export const PROBLEMS_SECTION = {
-  eyebrow: "WHAT IT SOLVES",
   title: "Real problems, small and large.",
-  lede: "In each of these you say what you want in plain words. AI agents do the work, you see what they changed, and you decide what goes online.",
   closer: {
     text: "Don’t see yours? Describe it when you start a project — Loki asks a few short questions, and every one of them can be skipped.",
     /** Honest about who has the cloud builder today — see WHERE_IT_RUNS. */
@@ -55,7 +52,6 @@ export const PROBLEM_SCALES: readonly ProblemScale[] = [
   {
     id: "you",
     title: "For you",
-    subtitle: "What one person, or a small team, runs into this month.",
     items: [
       {
         // Make it happen: src/lib/project-kickoff.ts; site at <name>.orangecat.ch
@@ -110,7 +106,6 @@ export const PROBLEM_SCALES: readonly ProblemScale[] = [
   {
     id: "everyone",
     title: "For everyone",
-    subtitle: "What small organisations, communities and the public run into together.",
     items: [
       {
         // /change — the same flow, for a club, an association or a shop

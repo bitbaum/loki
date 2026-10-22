@@ -14,10 +14,15 @@ export const CreateEventBody = z.object({
   type: z.string().trim().min(1, "type is required"),
   description: z.string().trim().optional(),
   url: z.string().trim().optional(),
-  deadline: z
-    .string()
-    .refine((s) => !Number.isNaN(new Date(s).getTime()), "Invalid date")
-    .optional(),
+  // An empty date field means "no deadline", not a bad date: the add form
+  // sent "" for it and every event without a deadline was refused.
+  deadline: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z
+      .string()
+      .refine((s) => !Number.isNaN(new Date(s).getTime()), "Invalid date")
+      .optional(),
+  ),
   category: z.string().trim().optional(),
 });
 

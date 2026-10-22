@@ -1,6 +1,6 @@
 import { formatBtc } from "@/lib/format";
 import { CircleDollarSign } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getRevenueSummary } from "@/db/queries/revenue";
 import { PRICING_PLANS } from "@/config/plans";
@@ -31,8 +31,8 @@ export async function RevenueCard() {
   const hasRevenue = rev.mrr > 0 || rev.btcGrantCount > 0;
 
   return (
-    <Card>
-      <CardHeader
+    <SystemBlock>
+      <SystemBlockHeader
         icon={CircleDollarSign}
         title="Revenue"
         right={
@@ -106,6 +106,6 @@ export async function RevenueCard() {
           )}
         </div>
       )}
-    </Card>
+    </SystemBlock>
   );
 }

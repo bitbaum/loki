@@ -311,22 +311,23 @@ export const NO_SCREEN_DEFAULT_SETTINGS: NoScreenSettings = {
 };
 /**
  * The three switches on the start screen, each with the one line that says
- * what it does. The screen shows the line under its switch, and Loki is told
+ * what it does — short enough to fit under its switch on a phone without
+ * being cut off. The screen shows the line under its switch, and Loki is told
  * the same lines when asked about itself (lib/voice/self.ts) — one wording,
  * so what it says about a switch is what the switch says.
  */
 export const NO_SCREEN_OPTIONS = {
   music: {
     title: "Music bed",
-    note: "Quiet music the phone plays under Loki, so a silence never sounds like a dropped line.",
+    note: "Quiet music plays under Loki's voice.",
   },
   bargeIn: {
     title: "Talk to interrupt",
-    note: "Start talking while Loki speaks and it stops to listen. Off: press the circle or the headphone button.",
+    note: "Speak while Loki talks to stop it.",
   },
   important: {
     title: "Only what needs me",
-    note: "Failures and approvals straight away; finished runs saved up and read together every five minutes.",
+    note: "Finished runs every five minutes.",
   },
 } as const;
 

@@ -55,14 +55,16 @@ export function AuthHeading({
   badge,
 }: {
   title: string;
-  description: string;
+  /** Only for a state the title cannot say ("we sent a link to …"). A form
+      that explains itself under its title is design reset rule 2. */
+  description?: string;
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="mb-10 text-center">
+    <div className="mb-8 text-center">
       {badge}
       <h1 className="ui-auth-title">{title}</h1>
-      <p className="ui-auth-subtitle">{description}</p>
+      {description && <p className="ui-auth-subtitle">{description}</p>}
     </div>
   );
 }

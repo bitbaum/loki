@@ -56,6 +56,18 @@ export function isHiddenByVisitor(p: Placement | null): boolean {
  */
 export const VISIBILITY_EVENT = "loki:visibility";
 
+/**
+ * Fired on `window` whenever `Loki.status` changes (detail: the new status), so
+ * a host that draws its own launcher (`data-fc-place="host"`) can show the
+ * same state the floating button would: whether Loki is watching, and how
+ * many things it said while the panel was closed.
+ */
+export const STATUS_EVENT = "loki:status";
+
+/** What a host-drawn launcher shows. `owner` is false for an ordinary visitor,
+ *  who gets the quiet launcher: no watching state, no count. */
+export type LauncherStatus = { owner: boolean; watching: boolean; unread: number };
+
 /** The fragment that brings a hidden launcher back: `https://site/page#loki`. */
 export const RESTORE_HASH = "loki";
 

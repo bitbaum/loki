@@ -17,6 +17,9 @@
  * Pure: the planner takes facts and returns a plan. The lib runs it.
  */
 
+import { projectTitle } from "@/lib/project-display";
+import { CHF_PER_USD } from "@/config/welcome-changes";
+
 /** Runs a night may start, for an account that has never chosen. */
 export const NIGHT_RUNS_DEFAULT = 4;
 /** Runs a night may start, at most, whatever the setting says. */
@@ -202,7 +205,12 @@ export function nightRunsStarted(s: NightSummary): number {
  * night did nothing — a note that says "nothing" every morning is the digest
  * worth ignoring, and silence when fine is the rule.
  */
-export function nightNoteText(s: NightSummary, spentUsd?: number | null): string | null {
+export function nightNoteText(
+  s: NightSummary,
+  spentUsd?: number | null,
+  /** What a person calls each project — the summary stores the folder key. */
+  titleOf: (name: string) => string = (name) => projectTitle({ name }),
+): string | null {
   const parts: string[] = [];
   // A plan nobody said yes to is a fact the morning owes the owner — it is
   // the one case where "nothing" is the news, and the way to a night that
@@ -223,26 +231,25 @@ export function nightNoteText(s: NightSummary, spentUsd?: number | null): string
     );
   }
   if (started.length) {
-    const names = [...new Set(started.map((f) => f.projectName))];
+    const names = [...new Set(started.map((f) => titleOf(f.projectName)))];
     parts.push(
       `started ${started.length} ${started.length === 1 ? "fix" : "fixes"} (${names.join(", ")})`,
     );
   }
   const read = s.reads.filter((r) => r.runId);
-  if (read.length) parts.push(`read ${read.map((r) => r.projectName).join(", ")}`);
+  if (read.length) parts.push(`read ${read.map((r) => titleOf(r.projectName)).join(", ")}`);
   if (s.archived)
     parts.push(`filed away ${s.archived} old ${s.archived === 1 ? "report" : "reports"}`);
   if (s.rerouted) parts.push(`moved ${s.rerouted} to the cloud`);
   if (parts.length === 0) return null;
-  const runs = nightRunsStarted(s);
-  const tail = [
-    `${runs} of ${s.budget} runs`,
-    spentUsd != null && spentUsd > 0 ? `$${spentUsd.toFixed(2)}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // The cost in the owner's francs (runs record USD at list rates; one named
+  // rate, CHF_PER_USD). "· 2 of 3 runs · $2.13" was a ledger line, in dollars,
+  // under a sentence (owner's review, 2026-10-22); the run budget is the
+  // Autopilot setting's to show, not every morning's.
+  const chf =
+    spentUsd != null && spentUsd > 0 ? `It cost CHF ${(spentUsd * CHF_PER_USD).toFixed(2)}.` : null;
   const body = parts.join(", ");
-  return `Last night Loki ${body[0]}${body.slice(1)} · ${tail}.`;
+  return [`Last night Loki ${body}.`, chf].filter(Boolean).join(" ");
 }
 
 // ─── The evening: say what tonight would do, and what it would cost, first ───

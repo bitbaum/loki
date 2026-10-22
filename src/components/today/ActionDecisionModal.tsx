@@ -258,7 +258,7 @@ export function ActionDecisionModal({
                   <Sparkles className="h-3 w-3" />
                   Recommended: {RECOMMENDATION_TAG[advice.recommendation].label}
                 </span>
-                <span className="text-micro text-text-tertiary uppercase tracking-wider">
+                <span className="text-micro text-text-tertiary">
                   {advice.confidence} confidence
                 </span>
               </div>

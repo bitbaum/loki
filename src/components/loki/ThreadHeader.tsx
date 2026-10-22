@@ -19,6 +19,7 @@ import {
   SquarePen,
 } from "lucide-react";
 import { ThreadTitle } from "./ThreadTitle";
+import { projectTitle } from "@/lib/project-display";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 import { TEMPORARY_CHAT_LABEL } from "@/lib/loki/temporary-chat";
 
@@ -85,13 +86,14 @@ export function ThreadHeader({
   const close = useCallback(() => setMenuOpen(false), []);
   useEscapeToClose(close, !menuOpen);
 
+  const first = projects[0] ? projectTitle({ name: projects[0] }) : null;
   const subtitle =
     subtitleOverride ??
-    (projects.length === 0
-      ? "No project — answers only"
+    (!first
+      ? "No project"
       : projects.length === 1
-        ? projects[0]
-        : `${projects[0]} +${projects.length - 1} more`);
+        ? first
+        : `${first} and ${projects.length - 1} more`);
   const inThread = leading === "back";
 
   const item = (label: string, Icon: typeof History, run: () => void) => (

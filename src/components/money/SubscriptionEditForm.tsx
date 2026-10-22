@@ -58,20 +58,20 @@ export function SubscriptionEditForm({
   }
 
   return (
-    <div className="w-full mt-1 p-2.5 rounded bg-surface-base border border-border-subtle space-y-2">
+    <div className="w-full space-y-3">
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Name"
-        className="w-full ui-input-tight"
+        className="w-full ui-input"
       />
       <input
         value={vendor}
         onChange={(e) => setVendor(e.target.value)}
         placeholder="Vendor (optional)"
-        className="w-full ui-input-tight"
+        className="w-full ui-input"
       />
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <input
           type="number"
           min="0"
@@ -79,13 +79,9 @@ export function SubscriptionEditForm({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="Amount"
-          className="w-24 ui-input-tight"
+          className="ui-input"
         />
-        <select
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-          className="ui-input-tight"
-        >
+        <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="ui-input">
           {VALID_CURRENCIES.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -95,7 +91,7 @@ export function SubscriptionEditForm({
         <select
           value={frequency}
           onChange={(e) => setFrequency(e.target.value)}
-          className="flex-1 ui-input-tight"
+          className="flex-1 ui-input"
         >
           {VALID_FREQUENCIES.map((f) => (
             <option key={f} value={f}>
@@ -105,19 +101,19 @@ export function SubscriptionEditForm({
         </select>
       </div>
       <div className="flex gap-2 items-center">
-        <label className="text-xs text-text-tertiary shrink-0">Next due</label>
+        <label className="shrink-0 text-sm text-text-secondary">Next charge</label>
         <DateInput
           type="date"
           value={nextDue}
           onChange={(e) => setNextDue(e.target.value)}
-          className="flex-1 ui-input-tight"
+          className="flex-1 ui-input"
         />
       </div>
       <input
         value={paymentMethod}
         onChange={(e) => setPaymentMethod(e.target.value)}
         placeholder="Payment method (e.g. Visa ····1234)"
-        className="w-full ui-input-tight"
+        className="w-full ui-input"
       />
       <input
         value={notes}
@@ -127,14 +123,14 @@ export function SubscriptionEditForm({
           if (e.key === "Escape") onCancel();
         }}
         placeholder="Notes (optional)"
-        className="w-full ui-input-tight"
+        className="w-full ui-input"
       />
       <div className="flex items-center gap-2">
-        <button onClick={handleSave} disabled={saving} className="ui-btn-save">
+        <button onClick={handleSave} disabled={saving} className="ui-btn-primary">
           {saving ? <Loader2 className="ui-spinner-xs" /> : <Save className="h-3 w-3" />}
           Save
         </button>
-        <button onClick={onCancel} className="ui-btn-text-cancel">
+        <button onClick={onCancel} className="ui-btn-ghost">
           Cancel
         </button>
       </div>

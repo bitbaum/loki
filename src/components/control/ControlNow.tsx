@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ArrowUpRight, Check, ChevronRight, CircleAlert, CircleDashed } from "lucide-react";
+import {
+  Check,
+  CircleAlert,
+  CircleDashed,
+  CirclePause,
+  Hammer,
+  MessageCircle,
+  Plus,
+  Server,
+} from "lucide-react";
 import { timeAgo } from "@/lib/dates";
-import { cn } from "@/lib/utils";
+import { projectTitle } from "@/lib/project-display";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import { elapsedLabel, type DoneJob, type NowJob } from "./control-now";
 
 /**
@@ -24,112 +34,102 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
   // card here saying so, with a "Start something" that left for /loki, was a
   // second way to the same act and the loudest thing on an idle page.
   if (jobs.length === 0) return null;
+  // One row per job (design reset, 2026-10): the project, what it is doing
+  // this minute, how long. They were cards that each read "Next best step"
+  // in large type — the prompt's name, the same on every card.
+  const active = jobs.filter((j) => j.tone !== "quiet");
+  const quiet = jobs.filter((j) => j.tone === "quiet");
+  const row = (job: NowJob) => (
+    <ListRow
+      key={job.tab}
+      href={job.href}
+      icon={job.tone === "you" ? MessageCircle : job.tone === "quiet" ? CirclePause : Hammer}
+      title={projectTitle({ name: job.tab })}
+      secondary={
+        job.tone === "you"
+          ? `Waiting for you · ${job.status}`
+          : job.tone === "quiet"
+            ? job.status
+            : jobLine(job)
+      }
+      status={job.tone === "you" ? "warning" : undefined}
+      trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
+      chevron
+    />
+  );
+  // Work that went quiet is not "being built": it sits under its own quieter
+  // heading and says what it is waiting on (control-now).
   return (
-    <section aria-labelledby="control-now-title" className="space-y-3">
-      <div className="ui-now-header">
-        <h2 id="control-now-title" className="ui-now-heading">
-          Being built now
-        </h2>
-      </div>
-      <ul className="space-y-3">
-        {jobs.map((job) => (
-          <li key={job.tab}>
-            <JobCard job={job} nowMs={nowMs} />
-          </li>
-        ))}
-      </ul>
-    </section>
+    <>
+      {active.length > 0 && (
+        <Section title="Being built">
+          <List aria-label="Being built">{active.map(row)}</List>
+        </Section>
+      )}
+      {quiet.length > 0 && (
+        <Section title="Gone quiet">
+          <List aria-label="Gone quiet">{quiet.map(row)}</List>
+        </Section>
+      )}
+    </>
   );
 }
 
-function JobCard({ job, nowMs }: { job: NowJob; nowMs: number }) {
-  const elapsed = elapsedLabel(job.since, nowMs);
-  return (
-    <Link href={job.href} className={cn("ui-now-card", job.tone === "you" && "ui-now-card-you")}>
-      <span className="ui-now-card-top">
-        <span className={cn("ui-now-dot", `ui-now-dot-${job.tone}`)} aria-hidden="true" />
-        <span className="min-w-0 truncate">{job.tab}</span>
-        {elapsed && <span className="ml-auto shrink-0 tabular-nums">{elapsed}</span>}
-      </span>
-      <span className="ui-now-title">{job.title}</span>
-      <span className="ui-now-status">{job.status}</span>
-      <span className="ui-now-go">
-        {job.tone === "you" ? "Answer it" : "Watch it being built"}
-        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-      </span>
-    </Link>
-  );
+/** "Fix the settings page · Editing page.tsx" — what it is, then what it is
+ *  doing; the task name alone when the step says nothing new. */
+function jobLine(job: NowJob): string {
+  if (!job.status || job.status === job.title) return job.title;
+  return `${job.title} · ${job.status}`;
 }
 
 /**
- * What got done in the last day, newest first: what it was, what came of it,
- * and where to look. Replaced "Recent activity", which listed the prompts
- * sent to agents verbatim — safety fences included — and could not be tapped.
+ * What got done in the last day, newest first, one row each: what was done
+ * (or, when the agent said nothing, which project and how it ended), and
+ * the row opens where to look. A task that stopped carries its fix on the row:
+ * "Ask it to finish".
  */
 export function ControlDone({
   jobs,
   onFinish,
 }: {
   jobs: DoneJob[];
-  /** Ask the session whose task stopped to finish it — the fix on the card,
+  /** Ask the session whose task stopped to finish it — the fix on the row,
    *  not a red row to read and leave (owner, 2026-10-19: "how is that
    *  helpful?"). */
   onFinish?: (tab: string) => Promise<unknown> | void;
 }) {
   if (jobs.length === 0) return null;
   return (
-    <section aria-labelledby="control-done-title" className="space-y-3">
-      <h2 id="control-done-title" className="ui-now-heading">
-        Recently
-      </h2>
-      <ul className="ui-done-list">
+    <Section title="Done">
+      <List aria-label="Done">
         {jobs.map((job) => {
           const Icon =
             job.tone === "good" ? Check : job.tone === "bad" ? CircleAlert : CircleDashed;
+          // The agent's own words lead when there are any; a headline that is
+          // only the task's name ("Next best step") says nothing, so the
+          // project and the outcome lead instead.
+          const said = job.headline && job.headline !== job.title;
+          const main = job.links.find((l) => !l.external) ?? job.links[0];
           return (
-            <li key={job.key} className="ui-done-row">
-              <Icon className={cn("ui-done-icon", `ui-done-icon-${job.tone}`)} aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                {/* What was done leads. Leading with the request quoted the
-                    owner's own words back ("The owner looked at this preview
-                    on his phone…") instead of saying what was done. */}
-                <p className="ui-done-title">{job.headline}</p>
-                <p className="ui-done-result">
-                  {job.outcome}
-                  <span className="text-text-muted">
-                    {" "}
-                    · {job.tab} · {timeAgo(job.at)}
-                  </span>
-                </p>
-                <div className="ui-done-links">
-                  {job.tone === "bad" && onFinish && (
-                    <FinishButton tab={job.tab} onFinish={onFinish} />
-                  )}
-                  {job.links.map((link) =>
-                    link.external ? (
-                      <a
-                        key={link.href}
-                        href={link.href}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="ui-done-link"
-                      >
-                        {link.label}
-                        <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-                      </a>
-                    ) : (
-                      <Link key={link.href} href={link.href} className="ui-done-link">
-                        {link.label}
-                      </Link>
-                    ),
-                  )}
-                </div>
-              </div>
-            </li>
+            <ListRow
+              key={job.key}
+              href={main?.href}
+              icon={Icon}
+              title={said ? job.headline : projectTitle({ name: job.tab })}
+              secondary={said ? `${projectTitle({ name: job.tab })} · ${job.outcome}` : job.outcome}
+              status={job.tone === "bad" ? "negative" : undefined}
+              trailing={
+                job.tone === "bad" && onFinish ? (
+                  <FinishButton tab={job.tab} onFinish={onFinish} />
+                ) : (
+                  timeAgo(job.at)
+                )
+              }
+            />
           );
         })}
-      </ul>
-    </section>
+      </List>
+    </Section>
   );
 }
 
@@ -142,11 +142,11 @@ function FinishButton({
   onFinish: (tab: string) => Promise<unknown> | void;
 }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
-  if (state === "sent") return <span className="ui-done-link">Asked — it shows above</span>;
+  if (state === "sent") return <span>Asked — it shows above</span>;
   return (
     <button
       type="button"
-      className="ui-done-link"
+      className="ui-home-fix"
       disabled={state === "sending"}
       onClick={async () => {
         setState("sending");
@@ -170,38 +170,32 @@ function FinishButton({
  */
 export function ControlFoot({
   builderLabel,
-  builderOk,
   builderNote = null,
   onNewProject,
   onOpenSettings,
 }: {
-  builderLabel: string;
-  builderOk: boolean;
+  /** Which builder is on — null when none is: the builder row at the top
+   *  of Home already says so, and the foot saying "No builder connected"
+   *  under "Builder offline · last seen 1d ago" told one fact twice, two
+   *  different ways (owner, 2026-10-22). */
+  builderLabel: string | null;
   /** One clause after the label: "a newer version waits for its agents to finish". */
   builderNote?: string | null;
   onNewProject: () => void;
   onOpenSettings: () => void;
 }) {
+  // The last rows of the page, not a strip of chrome: settings (naming the
+  // builder when one is on), and a new project.
   return (
-    <div className="ui-now-foot">
-      <span className="inline-flex min-w-0 items-center gap-1.5">
-        <span
-          className={cn("ui-now-dot", builderOk ? "ui-now-dot-ok" : "ui-now-dot-you")}
-          aria-hidden="true"
-        />
-        <span className="min-w-0">
-          {builderLabel}
-          {builderNote && <span className="text-text-muted"> · {builderNote}</span>}
-        </span>
-      </span>
-      <span className="ml-auto inline-flex shrink-0 items-center gap-1">
-        <button type="button" onClick={onNewProject} className="ui-btn-ghost ui-btn-sm">
-          New project
-        </button>
-        <button type="button" onClick={onOpenSettings} className="ui-btn-ghost ui-btn-sm">
-          Settings
-        </button>
-      </span>
-    </div>
+    <List aria-label="Builder and settings" className="ui-home-foot">
+      <ListRow
+        icon={Server}
+        title={builderLabel ?? "Settings"}
+        secondary={builderNote ?? "Autopilot, refresh and agents"}
+        onClick={onOpenSettings}
+        chevron
+      />
+      <ListRow icon={Plus} title="New project" onClick={onNewProject} chevron />
+    </List>
   );
 }

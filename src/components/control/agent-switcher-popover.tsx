@@ -66,7 +66,7 @@ export function AgentSwitcherPopover({
       ref={ref}
       className="absolute left-0 top-full z-50 mt-1.5 min-w-[130px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-border-default bg-surface-overlay py-1.5 shadow-card"
     >
-      <p className="px-3 pb-1 pt-0.5 text-micro uppercase tracking-wide text-text-muted">{title}</p>
+      <p className="px-3 pb-1 pt-0.5 text-micro text-text-muted">{title}</p>
       <p className="px-3 pb-1.5 text-micro leading-snug text-text-muted">{hint}</p>
       {agents.map((agent) => {
         const isActive = agent.id === activeAgentId;

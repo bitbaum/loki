@@ -96,3 +96,53 @@ export function needsProject(template: { scope: string; template: string }): boo
     parsePromptVariables(template.template).some((v) => v.name === "project_name")
   );
 }
+
+/** What a person calls a variable: "project_name" → "project", "ticket_id" → "ticket id". */
+export function variableLabel(name: string): string {
+  if (name === "project_name") return "project";
+  return name.replace(/_/g, " ");
+}
+
+export type PromptPart = { text: string } | { blank: string };
+
+/**
+ * A body split into its words and its still-empty blanks, for showing a
+ * prompt before every value is in. A raw "{{project_name}}" must never reach
+ * the screen (owner, 2026-10-21): the preview draws each unfilled variable as
+ * a blank named the way a person would say it, and fills it the moment a value
+ * exists — supplied, or the variable's own default.
+ */
+export function promptBodyParts(body: string, values: Record<string, string>): PromptPart[] {
+  const parts: PromptPart[] = [];
+  const re = varRe();
+  let last = 0;
+  let match: RegExpExecArray | null;
+  const push = (text: string) => {
+    if (!text) return;
+    const prev = parts.at(-1);
+    if (prev && "text" in prev) prev.text += text;
+    else parts.push({ text });
+  };
+  while ((match = re.exec(body)) !== null) {
+    push(body.slice(last, match.index));
+    const name = match[1]!;
+    const supplied = values[name]?.trim() ? values[name] : undefined;
+    const fallback = match[2]?.trim();
+    if (supplied !== undefined) push(supplied);
+    else if (fallback !== undefined) push(fallback);
+    else parts.push({ blank: variableLabel(name) });
+    last = match.index + match[0].length;
+  }
+  push(body.slice(last));
+  return parts;
+}
+
+/** The body as one plain line, every blank named in words — for a list row
+ *  whose prompt has no description of its own. */
+export function promptPlainText(body: string, values: Record<string, string> = {}): string {
+  return promptBodyParts(body, values)
+    .map((p) => ("text" in p ? p.text : `[${p.blank}]`))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+}

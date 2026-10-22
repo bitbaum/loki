@@ -1,74 +1,75 @@
 "use client";
 
-import { TopbarSlot } from "./TopbarSlot";
+import { useSyncExternalStore } from "react";
+import { TopbarActionSlot, TopbarSlot } from "./TopbarSlot";
 import { Search, LayoutPanelLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCommandPalette } from "@/hooks/use-command-palette";
 import { NotificationsPill } from "./NotificationsPill";
+import { FeedbackLauncher } from "./FeedbackLauncher";
 import { FleetRunnerStatusPill } from "@/components/desktop/FleetRunnerStatusPill";
 import { AccountMenu } from "@/components/shell/AccountMenu";
-import { MOBILE_NAV_ITEMS, NAV_ITEMS } from "@/config/navigation";
+import { NAV_ITEMS } from "@/config/navigation";
 import { isCurrentPath, isProjectWorkspacePath } from "@/lib/navigation";
 
 /**
  * Slim app-shell top bar. Universal across every authenticated route.
  *
- * Hosts, left to right: where you are (mobile) or where you can go (search),
- * then live state (Fleet Runner, notifications), then who you are
- * (AccountMenu). Pages still own their own page headers; this bar is
- * intentionally quiet — chrome that signals state, not content.
+ * On a phone, left to right — the reference apps' shape (Claude, ChatGPT,
+ * Grok; docs/development/design-reset-2026-10.md):
  *
- * Ordering rule: state before identity. Everything to the left of the avatar
- * changes on its own; the avatar never does. A control that only changes when
- * the user changes it does not belong among live indicators — which is the
- * mistake the theme toggle made here, drawn heavier than every signal beside
- * it. It now sits inside the account menu.
+ *   [page's own controls] Page name ·········· search · feedback · bell · [+] · avatar
  *
- * Mobile shape: the full-width search button collapses to a header that
- * shows the current page name on the left and an icon-only search trigger
- * on the right. Phone users get a clear "where am I?" cue without
- * sacrificing the search affordance.
+ * Every icon is a 40px circle with no border (ui-topbar-btn). The page's one
+ * primary action, when it has one, renders into the slot before the avatar
+ * (PageAction). From md up the sidebar names the page and this bar holds the
+ * search field and the same live icons.
+ *
+ * Ordering rule: state before identity. Everything left of the avatar changes
+ * on its own (or is the page's action); the avatar never does.
+ *
+ * Not here on a phone: the Sessions drawer's icon. It opened a list of every
+ * project's session — the Sessions page again, one tap away in More — and was
+ * the one icon in the bar whose meaning nobody could guess. It stays on wide
+ * screens, where the drawer beside the page is the point.
  */
 export function AppTopBar({
   onOpenSessions,
+  feedbackWidget = false,
 }: {
   /** Toggles the cross-page Sessions drawer (project inventory + status).
    *  Optional so AppTopBar can also be rendered in isolation/storybook. */
   onOpenSessions?: () => void;
+  /** Loki's own feedback widget is configured here (server fact). */
+  feedbackWidget?: boolean;
 }) {
   const { setOpen } = useCommandPalette();
   const pathname = usePathname();
   const platformHint =
     typeof navigator !== "undefined" && /mac/i.test(navigator.platform) ? "⌘K" : "Ctrl K";
 
-  // Resolve the active route to the same label the sidebar/More sheet uses.
-  // Falls back to empty string for pages outside the nav config (sign-in,
-  // /u/<username>, etc.) so the top bar stays clean rather than guessing.
+  // The page's name: the label the sidebar and the More sheet use. Pages
+  // outside the nav config (sign-in, /u/<username>) get none rather than a
+  // guess, and a project's own workspace names itself in its header.
   const currentNavItem = NAV_ITEMS.find((item) => isCurrentPath(pathname, item.href));
+  const pageLabel = isProjectWorkspacePath(pathname) ? "" : (currentNavItem?.label ?? "");
 
-  // Say where you are ONLY when nothing else on screen already does.
-  //
-  // Below md the bottom bar carries Today / Loki / Control as labelled,
-  // highlighted tabs — so on those three pages the top bar's title was the
-  // third simultaneous answer to "where am I?", after the bottom tab and the
-  // page's own heading. It earns its place on every OTHER page, where the
-  // bottom bar can only show "Menu" and genuinely cannot tell you.
-  const onBottomBarTab = MOBILE_NAV_ITEMS.some((item) => isCurrentPath(pathname, item.href));
-  const pageLabel =
-    onBottomBarTab || isProjectWorkspacePath(pathname) ? "" : (currentNavItem?.label ?? "");
+  // Exactly one <h1> per page, at every width (rule 1). When the page draws
+  // its own h1 (PageTitle — sr-only on a phone when it says the same as this
+  // bar), the name here is plain text; when the page has none, this IS the h1.
+  const pageHasHeading = useMainHasHeading();
 
   return (
     <header className="ui-app-topbar">
       <TopbarSlot />
-      {/* Page title: shown on a phone (a glance up confirms "where"), read
-          but not drawn from md up, where the sidebar already says it. It
-          stays in the tree so every page has exactly one h1 at every width —
-          the widget's own check flagged Control as having none on a laptop. */}
-      {pageLabel && (
-        <h1 className="truncate text-base font-semibold text-text-primary md:sr-only">
-          {pageLabel}
-        </h1>
-      )}
+      {pageLabel &&
+        (pageHasHeading ? (
+          <p className="ui-app-topbar-title md:hidden" aria-hidden="true">
+            {pageLabel}
+          </p>
+        ) : (
+          <h1 className="ui-app-topbar-title md:sr-only">{pageLabel}</h1>
+        ))}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -80,21 +81,20 @@ export function AppTopBar({
         <kbd className="ui-palette-kbd ml-auto">{platformHint}</kbd>
       </button>
       <div className="ui-app-topbar-right">
-        {/* Mobile-only icon search — same palette, just less chrome. */}
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-secondary md:hidden"
-          aria-label="Open command palette"
+          className="ui-topbar-btn md:hidden"
+          aria-label="Search"
+          title="Search"
         >
-          <Search className="h-4 w-4" aria-hidden="true" />
+          <Search className="h-5 w-5" aria-hidden="true" />
         </button>
-        {/* Sessions drawer toggle — cross-page project inventory + status. */}
         {onOpenSessions && (
           <button
             type="button"
             onClick={onOpenSessions}
-            className="ui-topbar-btn"
+            className="ui-topbar-btn max-md:hidden"
             aria-label="Open Sessions drawer"
             title="Sessions"
           >
@@ -102,13 +102,32 @@ export function AppTopBar({
           </button>
         )}
         <FleetRunnerStatusPill />
+        <FeedbackLauncher enabled={feedbackWidget} />
         <NotificationsPill />
-        {/* Identity is the LAST thing in the bar and the only bordered one:
-            it is the anchor a user looks for when they want to leave, and
-            "where do I sign out?" had no answer in this bar at all. The theme
-            toggle it replaced now lives inside the menu. */}
+        <TopbarActionSlot />
         <AccountMenu />
       </div>
     </header>
   );
+}
+
+/**
+ * Does the page in <main> draw its own <h1>? Watched, because a client page
+ * can mount its heading after the shell. The server answer is "yes", so a
+ * page with a heading never renders two h1s, even before hydration.
+ */
+function useMainHasHeading(): boolean {
+  return useSyncExternalStore(subscribeMain, mainHasHeading, () => true);
+}
+
+function subscribeMain(onChange: () => void): () => void {
+  const main = document.querySelector(".app-main");
+  if (!main) return () => {};
+  const observer = new MutationObserver(onChange);
+  observer.observe(main, { childList: true, subtree: true });
+  return () => observer.disconnect();
+}
+
+function mainHasHeading(): boolean {
+  return document.querySelector(".app-main h1") !== null;
 }
