@@ -63,3 +63,36 @@ human or physical deliverable would make a pretty but dishonest game.
 pure-unit-test harness. It covers missing mission definitions, incomplete and
 abandoned goals, numeric progress edge cases, tenant-scoped reads, and absence
 of write routes. The normal CI must pass before merging or deploying.
+
+## v0.1 — Mission board and attention (second slice)
+
+This enhancement **does not create new objective storage** or copy operational
+records into Missions. The server loads exactly the same owner-scoped projects,
+Goals and last-dispatch dates as v0 and sends only a board projection to the
+client. The client never receives raw project attrs, provenance or source
+credentials.
+
+- Search matches mission names, statements, next objectives, goal titles and
+  visible live-alert details; it runs entirely on data already delivered.
+- Filters: All, Needs attention, In progress, Needs a plan and Reported done.
+- Priority: **live project issue first**, then work with reported progress,
+  then ready/unfinished projects. Recent agent-dispatch dates are only a
+  tiebreaker within these tiers, not evidence of completion.
+- Alert provenance is not reinvented: `missionAlertFromProject` uses the
+  Projects/Today `hasProjectAttention`, `signalIsLive` and `isSiteDown`
+  rules. Expired warnings, unconfirmed imported memories and retired claims
+  are not revived. "Site check failed" means the latest probe returned
+  `siteOk === false`, not that a complete incident investigation occurred.
+- No sites are probed by this UI and no work is dispatched. The card links
+  back to the canonical project workspace, keeping editing and approval
+  boundaries unchanged.
+- The first 12 matching projects are shown, but **all flagged projects**
+  remain visible above the fold; the rest expand on demand. Filters/search
+  apply before the fold.
+- `scripts/test/missions-attention-board.ts` exercises alert precedence,
+  expired/imported flags, empty/no-site cases, filtering, search, activity
+  recency and source access. Existing projector unit tests remain in place.
+
+**Further work:** show verified evidence references for each goal and a
+permissioned Continue Mission action through Loki's existing dispatch system;
+neither capability is implied by this read-only board.
