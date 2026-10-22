@@ -179,10 +179,10 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
         {/* On a phone these four rows measured 366px, putting the first project
           at y=1020 — more than a screenful of filters before any of the
           catalogue they filter. <details> collapses them there and costs no
-          JavaScript; CSS forces it open from md up. Each row is one line of
+          JavaScript, and it opens by itself while a filter is set. Each row is one line of
           filters that scrolls sideways on a phone and fades at the edge, so
           no word is ever cut. */}
-        <details className="ui-fleet-filters">
+        <details className="ui-fleet-filters" open={activeFacetCount > 0}>
           <summary className="ui-fleet-filters-summary">
             <SlidersHorizontal className="h-4 w-4" aria-hidden />
             <span>Filters</span>
