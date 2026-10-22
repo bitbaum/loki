@@ -21,10 +21,10 @@ export default function FeedbackWidgetDocsPage() {
         <section className="mb-10 space-y-4 sm:mb-12">
           <h2 className="ui-public-prose-h2">1. Turn it on for a project</h2>
           <p>
-            Open the project in Loki, find its feedback section and press{" "}
-            <strong>Widget setup</strong>. Then choose <strong>Enable &amp; install</strong>, which
-            creates the project&apos;s key and asks an agent to add the line to your site, or{" "}
-            <strong>Enable only</strong> if you will add it yourself. Next.js sites started from
+            Open the project in Loki, go to Feedback, tap <strong>…</strong> and{" "}
+            <strong>Set up the widget</strong>. Then choose <strong>Put it on the site</strong>,
+            which creates the project&apos;s key and asks an agent to add the line to your site, or{" "}
+            <strong>Turn on only</strong> if you will add it yourself. Next.js sites started from
             Loki&apos;s starter already have it.
           </p>
           <pre className="ui-public-code-block ui-public-code-pre">

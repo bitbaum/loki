@@ -118,23 +118,19 @@ check("sorting never changes the score itself", () => {
   assert(sorted.length === health.max, `segment count ${sorted.length} != max ${health.max}`);
 });
 
-check("THE PANEL IS NOT TRAPPED: rows do not create a stacking context", () => {
-  // A z-index on .ui-projects-row-actions makes every row its own stacking
-  // context, and the panel's z-40 then only ranks it against its own row —
-  // so every row below paints over the open disclosure. Seen live the moment
-  // the stretched link shipped: the panel opened with other rows' text
-  // bleeding through it, unreadable.
-  const at = css.indexOf(".ui-projects-row-actions");
-  assert(at !== -1, "ui-projects-row-actions is gone");
-  const block = css.slice(at, css.indexOf("}", at));
-  assert(
-    !/z-\[|z-\d/.test(block),
-    `a z-index is back on the row actions — it traps the health panel: ${block.replace(/\s+/g, " ")}`,
+check("THE PANEL IS NOT TRAPPED: no list row hosts it", () => {
+  // A z-index on the row that held the chip made every row its own stacking
+  // context, and the panel's z-40 then only ranked it against its own row —
+  // so every row below painted over the open disclosure. Since the design
+  // reset (2026-10-21) the chip is not on the /projects rows at all: it lives
+  // once, on the project's Story tab, where nothing stacks over it. Pin that.
+  const row = readFileSync(join(process.cwd(), "src/components/projects/ProjectRow.tsx"), "utf8");
+  assert(!row.includes("HealthScoreBar"), "the health chip is back on a list row");
+  const story = readFileSync(
+    join(process.cwd(), "src/components/projects/ProjectIdentitySettings.tsx"),
+    "utf8",
   );
-  assert(
-    block.includes("relative"),
-    "the actions must stay positioned to clear the stretched link",
-  );
+  assert(story.includes("<HealthScoreBar"), "the health chip has no home on the project page");
 });
 
 check("the panel hangs from the right, where the chip is", () => {

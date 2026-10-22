@@ -135,44 +135,43 @@ check("PRINCIPLE 7: one-off LAYOUT values are held, never grown", () => {
   );
 });
 
-check("PRINCIPLE 5: the project rail is fixed-width and tabular", () => {
+check("PRINCIPLE 5: the project list's one trailing column is tabular", () => {
   // The measured failure that produced this principle: 37px of horizontal
-  // jitter across 25 rows because every cell was content-sized.
-  const at = css.indexOf(".ui-projects-rail {");
-  assert(at !== -1, "the project rail is gone");
+  // jitter across 25 rows because every cell was content-sized. The row is a
+  // ListRow now (design reset, 2026-10-21) with ONE trailing fact — the time
+  // since the last run — and that column must not shiver either.
+  const at = css.indexOf(".ui-listrow-trail {");
+  assert(at !== -1, "the list row's trailing column is gone");
   const block = css.slice(at, css.indexOf("}", at));
   assert(
     block.includes("tabular-nums"),
-    "the rail's numbers are not tabular — columns will shiver",
+    "the trailing numbers are not tabular — the column will shiver",
   );
-  for (const cell of ["stage", "flags", "health", "run"]) {
-    const cellAt = css.indexOf(`.ui-projects-rail-${cell} {`);
-    assert(cellAt !== -1, `rail cell missing: ${cell}`);
-    const cellBlock = css.slice(cellAt, css.indexOf("}", cellAt));
-    assert(
-      /\bw-\d/.test(cellBlock),
-      `rail cell "${cell}" has no fixed width, so the column edge will wobble: ${cellBlock.replace(/\s+/g, " ")}`,
-    );
-  }
+  assert(
+    block.includes("whitespace-nowrap"),
+    "the trailing fact can wrap — rows will change height",
+  );
 });
 
 check("PRINCIPLE 4: the project row has one height", () => {
-  const at = css.indexOf(".ui-projects-row {");
+  const at = css.indexOf(".ui-listrow {");
   const block = css.slice(at, css.indexOf("}", at));
   assert(/min-h-\d/.test(block), "the row has no minimum height — content will set it");
+  const row = readFileSync(join(ROOT, "src/components/projects/ProjectRow.tsx"), "utf8");
+  assert(row.includes("<ListRow"), "the project row is not a ListRow");
 });
 
 check("PRINCIPLE 2: the row spends colour only on alarms", () => {
   const row = readFileSync(join(ROOT, "src/components/projects/ProjectRow.tsx"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
-  // status-warning is the flag/blocked colour and is allowed. Anything else
-  // tinted means the row is competing with its own alarm.
+  // The row's only colour is ListRow's status dot, chosen by the line's tone
+  // (lib/project-list-line.ts). A tint written into the row itself competes
+  // with that alarm.
   const colours = row.match(/text-status-\w+|bg-status-\w+|text-accent-\w+|bg-accent-\w+/g) ?? [];
-  const notAlarm = colours.filter((c) => !c.includes("warning"));
   assert(
-    notAlarm.length === 0,
-    `the row uses non-alarm colour, which drowns the alarm: ${[...new Set(notAlarm)].join(", ")}`,
+    colours.length === 0,
+    `the row paints its own colour, which drowns the alarm: ${[...new Set(colours)].join(", ")}`,
   );
 });
 

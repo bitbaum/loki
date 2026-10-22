@@ -2,11 +2,15 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PageLayout } from "@/components/ui/page-layout";
 import { CardSkeleton } from "@/components/ui/card";
-import { getProjects, getOrgEntityProjects, getProjectsLastDispatch } from "@/db/queries/projects";
+import {
+  getProjects,
+  getOrgEntityProjects,
+  getProjectsLastDispatch,
+  getProjectsRunNow,
+} from "@/db/queries/projects";
 import { listFeedbackSummary } from "@/db/queries/site-feedback";
 import { ProjectsWorkspace } from "@/components/projects/ProjectsWorkspace";
-import { NewProjectButton } from "@/components/projects/NewProjectButton";
-import { NewPreviewButton } from "@/components/projects/NewPreviewButton";
+import { NewProjectChooser } from "@/components/projects/NewProjectChooser";
 import { FleetRegisterNote } from "@/components/projects/FleetRegisterNote";
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 import { getPreviewCode } from "@/db/queries/preview-code";
@@ -43,15 +47,19 @@ export default async function ProjectsPage({
   const prefillName = typeof params.name === "string" ? params.name : undefined;
   const prefillDescription =
     typeof params.description === "string" ? params.description.slice(0, 500) : undefined;
-  const [ownProjects, orgProjects, lastDispatchByProject, feedbackSummary] = await Promise.all([
-    getProjects(userId),
-    getOrgEntityProjects(userId),
-    getProjectsLastDispatch(userId).catch(() => ({}) as Record<string, string>),
-    listFeedbackSummary(userId).catch(() => []),
-  ]);
+  const [ownProjects, orgProjects, lastDispatchByProject, feedbackSummary, runNowByProject] =
+    await Promise.all([
+      getProjects(userId),
+      getOrgEntityProjects(userId),
+      getProjectsLastDispatch(userId).catch(() => ({}) as Record<string, string>),
+      listFeedbackSummary(userId).catch(() => []),
+      getProjectsRunNow(userId).catch(() => ({})),
+    ]);
   const projects: ProjectGridRow[] = [...ownProjects, ...orgProjects];
-  const feedbackOpenByProject = Object.fromEntries(
-    feedbackSummary.map((s) => [s.projectId, s.openCount]),
+  // Notes nobody has looked at yet — "Needs you: 3 notes" on the row. The
+  // ones already sent to an agent are the agent's, not the person's.
+  const newNotesByProject = Object.fromEntries(
+    feedbackSummary.map((s) => [s.projectId, s.newCount]),
   );
   if (params.project?.trim()) {
     const requested = params.project.trim();
@@ -73,29 +81,31 @@ export default async function ProjectsPage({
     isFleetInfrastructureAllowed(userId).catch(() => false),
   ]);
 
+  // The page's one primary action (design reset rule 5): a `+` that asks
+  // "Build a site" or "Add an existing project". The empty list offers the
+  // same choice as a plain button.
+  const chooser = (variant: "page-action" | "button") => (
+    <NewProjectChooser
+      variant={variant}
+      canBuildSite={canPreview}
+      savedCode={previewCode ?? ""}
+      // The deep link opens "Add" once, from the page's own `+`.
+      autoOpen={variant === "page-action" && autoOpenCreate}
+      initialName={prefillName}
+      initialDescription={prefillDescription}
+    />
+  );
+
   return (
     <PullToRefresh>
-      <PageLayout
-        title="Projects"
-        // No subtitle: the order is named under the Sort row itself, where it
-        // can be changed, rather than in a sentence above it (2026-10-19).
-        maxWidth="max-w-5xl"
-        right={
-          <div className="flex flex-wrap items-center gap-2">
-            {canPreview && <NewPreviewButton savedCode={previewCode ?? ""} />}
-            <NewProjectButton
-              autoOpen={autoOpenCreate}
-              initialName={prefillName}
-              initialDescription={prefillDescription}
-            />
-          </div>
-        }
-      >
+      <PageLayout title="Projects" maxWidth="max-w-3xl" action={chooser("page-action")}>
         <Suspense fallback={<CardSkeleton />}>
           <ProjectsWorkspace
             projects={projects}
             lastDispatchByProject={lastDispatchByProject}
-            feedbackOpenByProject={feedbackOpenByProject}
+            newNotesByProject={newNotesByProject}
+            runNowByProject={runNowByProject}
+            emptyAction={chooser("button")}
           />
         </Suspense>
         <Suspense fallback={null}>

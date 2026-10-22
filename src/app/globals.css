@@ -4063,7 +4063,7 @@
     @apply w-full justify-end rounded-none border-0 bg-transparent px-0 py-0 hover:bg-transparent;
   }
   .ui-health-label {
-    @apply text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+    @apply text-sm font-medium text-text-secondary;
   }
   .ui-health-track {
     @apply flex shrink-0 gap-0.5;
@@ -5686,11 +5686,6 @@
   }
   /* A project whose reports are all with an agent. Words, not a number:
      a count here reads as work you owe, and this is the opposite. */
-  /* The flags that lead a project page. Principle 2: only the alarm earns an
-     edge - one warning rule on the leading side, no card, no tint. */
-  .ui-project-flags-lead {
-    @apply mb-6 border-l-2 border-status-warning pl-4;
-  }
   .ui-inbox-group-note {
     @apply shrink-0 text-micro text-text-muted;
   }
@@ -6252,36 +6247,42 @@
     @apply border-t border-border-subtle px-2 pb-2 pt-1 sm:px-3 sm:pb-3;
   }
 
-  /* Projects page — fleet overview, cards, CI panel */
-  .ui-projects-sticky-bar {
-    @apply sticky top-0 z-10 -mx-4 border-b border-border-subtle bg-surface-page/95 px-4 pb-3 pt-0 backdrop-blur-sm sm:-mx-0 sm:rounded-2xl sm:border sm:px-4 sm:pb-4;
-  }
+  /* ── design reset: projects ──
+     /projects is a ListSearch, two ChoiceMenus on one line, and ListRows
+     (src/components/projects/ProjectsWorkspace.tsx). Nothing sticks. */
   .ui-projects-section-label {
-    @apply text-xs font-semibold text-text-tertiary;
+    @apply text-sm font-medium text-text-secondary;
   }
-  .ui-projects-list {
-    @apply flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-base;
-    box-shadow: var(--shadow-panel);
+  .ui-projects-menus {
+    @apply mb-1 flex min-h-11 items-center justify-between gap-3;
   }
-  /* ── The project row, rebuilt ────────────────────────────────────────────
-     One grammar, stated once: IDENTITY on the left, a fixed DATA RAIL on the
-     right, one row height for every project.
+  .ui-projects-count {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-projects-filter-count {
+    @apply rounded-full bg-surface-overlay px-1.5 py-0.5 font-mono text-xs text-text-tertiary;
+  }
+  .ui-projects-show-more {
+    @apply mt-1 inline-flex min-h-11 items-center text-sm font-medium text-text-secondary transition-colors hover:text-text-primary;
+  }
+  /* Archived: a section heading that opens, at the end of the list. */
+  .ui-projects-archived > summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center justify-between gap-3;
+  }
+  .ui-projects-archived-count {
+    @apply ml-1 font-normal text-text-tertiary;
+  }
+  .ui-projects-archived > summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-projects-archived-summary::after {
+    content: "";
+    @apply h-2 w-2 shrink-0 -rotate-45 border-b border-l border-text-muted transition-transform;
+  }
+  .ui-projects-archived[open] .ui-projects-archived-summary::after {
+    @apply rotate-135;
+  }
 
-     What it replaces, and why each part went:
-       · a badge per fact — stage, three flags with ages, Needs path, Team —
-         so a row was between two and seven coloured chips and every row was a
-         different shape. Colour is now spent ONLY on flags, which are the one
-         thing that is actually an alarm.
-       · a segmented "bar" that looked like a meter and carried a checklist.
-       · a chevron on every row, decorating a link the whole row already is.
-       · an arrow before the description, repeated 25 times.
-       · widths that depended on content, so the right-hand column wobbled
-         37px across the page and no two rows lined up.
-
-     The rail's columns are FIXED, so stage / flags / health / last run form
-     four true columns with a straight edge down the page. That alignment is
-     the whole point: it is what makes 25 rows read as one list rather than 25
-     separate widgets. */
   /* ── The front-door verdict ──────────────────────────────────────────────
      Principle 1 (type does the work): the answer is a SENTENCE at the top of
      the page, not a card competing with the weather. Principle 3 (space
@@ -6357,99 +6358,6 @@
   .ui-verdict-also-link {
     @apply inline-flex items-center gap-1 transition-colors hover:text-text-primary;
   }
-  .ui-projects-row {
-    /* Principle 3 (space separates): a hairline between rows, no card per row.
-       Principle 4 (one height): min-h-16 from the scale, not a bespoke value. */
-    @apply grid min-h-16 w-full items-center gap-x-6 border-b border-border-subtle px-4 text-left transition-colors last:border-b-0 hover:bg-surface-raised/60 active:bg-surface-raised;
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .ui-projects-row-name {
-    @apply truncate text-sm font-medium leading-tight text-text-primary;
-  }
-  /* Two lines, not one: a single-line ellipsis showed 12–40% of each sentence
-     and the rest was hover-only, which a phone cannot do (audit 2026-10-01). */
-  .ui-projects-row-context {
-    @apply mt-1 line-clamp-2 text-xs leading-snug text-text-tertiary;
-  }
-  /* The rail. Every cell is a fixed width so the columns align down the page;
-     numbers are tabular so they do not shiver between rows. */
-  .ui-projects-rail {
-    @apply hidden shrink-0 items-center gap-6 text-micro tabular-nums text-text-muted sm:flex;
-  }
-  .ui-projects-rail-stage {
-    @apply w-24 truncate text-right uppercase tracking-caps;
-  }
-  .ui-projects-rail-flags {
-    @apply w-16 text-right font-medium text-status-warning;
-  }
-  .ui-projects-rail-health {
-    @apply w-14 text-right;
-  }
-  .ui-projects-rail-run {
-    @apply w-20 text-right;
-  }
-  /* Mobile keeps the same facts in the same order, stacked under the name —
-     the viewport that used to be given none of them. */
-  .ui-projects-row-meta {
-    @apply mt-1.5 flex flex-wrap items-center gap-x-3 text-micro tabular-nums text-text-muted sm:hidden;
-  }
-  .ui-projects-row-flagged {
-    @apply border-l-2 border-l-status-warning/50 pl-[calc(1rem-2px)];
-  }
-  /* The row used to BE one <a>, which is why it had zero interactive children:
-     HTML forbids a button or a link inside an anchor, so the health chip could
-     only ever be a dead <span> with a hover title — while HealthScoreBar had a
-     full interactive mode sitting unused. Every number on the row led to the
-     same generic destination because structurally nothing else was allowed to.
-
-     Stretched link instead: the project name is the real anchor and its
-     ::after covers the row, so the whole row stays one big click target and
-     keyboard/screen-reader users get one honest link with the project's name
-     as its text — better than the old aria-label on a wrapper. Anything that
-     needs its own click sits above the overlay via .ui-projects-row-actions. */
-  .ui-projects-row-link::after {
-    content: "";
-    @apply absolute inset-0;
-  }
-  /* `relative` and NOT a z-index.
-
-     A z-index here makes every row its own STACKING CONTEXT, which traps the
-     health panel inside it: the panel asks for z-40, but z-40 only ranks it
-     against its siblings within this row, so every row further down the list
-     paints straight over the open panel. Seen on /projects immediately after
-     the stretched-link change shipped — the disclosure opened with other
-     rows' text bleeding through it, unreadable.
-
-     `relative` alone is enough to clear the stretched link: both this and the
-     link's ::after are positioned with z-index auto, so they paint in DOM
-     order, and this comes second. */
-  .ui-projects-row-actions {
-    @apply relative;
-  }
-  .ui-projects-show-more {
-    @apply flex w-full min-h-11 items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface-base py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-border-default hover:bg-surface-raised hover:text-text-primary;
-  }
-  .ui-projects-activity-panel {
-    @apply overflow-hidden rounded-xl border border-border-subtle bg-surface-base;
-  }
-  .ui-projects-activity-summary {
-    @apply flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised;
-  }
-  .ui-projects-activity-summary::-webkit-details-marker {
-    display: none;
-  }
-  .ui-projects-activity-body {
-    @apply border-t border-border-subtle px-4 py-3;
-  }
-  .ui-projects-filter-chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-base px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-border-default hover:bg-surface-raised hover:text-text-primary;
-  }
-  .ui-projects-filter-chip-active {
-    @apply border-accent-primary/40 bg-accent-muted text-text-primary ring-1 ring-accent-primary/30;
-  }
-  .ui-projects-filter-count {
-    @apply rounded-full bg-surface-overlay px-1.5 py-0.5 font-mono text-xs text-text-tertiary;
-  }
   .ui-projects-badge {
     @apply inline-flex items-center rounded border border-border-subtle px-2 py-0.5 text-xs font-medium text-text-secondary;
   }
@@ -6459,45 +6367,37 @@
   .ui-badge-prefix {
     @apply mr-1.5 shrink-0 text-micro font-medium uppercase tracking-wide opacity-60;
   }
-  /* Named status variants — the negative/warning recipes were hand-composed
-     inline in three row/card components before the list unified on ProjectRow. */
-  .ui-projects-toolbar {
-    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
-  }
   /* The project profile's one section chrome. Four files repeated this exact
      hairline recipe verbatim while other blocks on the same page used card
      shells and <details> — three competing chromes meant no visible hierarchy,
      so the page read as a scroll of unrelated widgets instead of one document. */
+  /* ── design reset: project page ──
+     One title, a section switcher that fits (a menu on a phone, tabs from md
+     up), sections as plain headings on the page. Nothing sticks, nothing is
+     boxed: a section is its heading and its rows. */
   .ui-project-section {
-    @apply scroll-mt-28 border-t border-border-subtle pt-7;
+    @apply space-y-3;
   }
   .ui-project-workspace {
-    @apply max-w-4xl space-y-6 sm:space-y-8;
-  }
-  .ui-project-back {
-    @apply inline-flex min-h-11 items-center gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary;
+    @apply max-w-3xl space-y-6;
   }
   .ui-project-title {
-    @apply break-words text-3xl font-semibold leading-tight tracking-tight text-text-primary sm:text-4xl;
-  }
-  .ui-project-summary {
-    @apply mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary sm:text-base;
-    overflow-wrap: anywhere;
+    @apply break-words text-2xl font-semibold leading-tight tracking-tight text-text-primary sm:text-3xl;
   }
   .ui-project-header {
-    @apply min-w-0;
+    @apply min-w-0 space-y-3;
+  }
+  .ui-project-title-row {
+    @apply flex items-start justify-between gap-3;
+  }
+  .ui-project-shared {
+    @apply mt-1 text-sm text-text-secondary;
   }
   .ui-project-mobile-sections {
-    @apply sticky top-0 z-20 flex items-center bg-surface-page py-2 sm:hidden;
-  }
-  .ui-project-section-select {
-    @apply min-h-11 w-full min-w-0 appearance-none rounded-xl border border-border-default bg-surface-base pl-3.5 pr-10 text-base font-medium text-text-primary;
-  }
-  .ui-project-section-chevron {
-    @apply pointer-events-none absolute right-3.5 h-4 w-4 text-text-tertiary;
+    @apply -mt-2 flex items-center md:hidden;
   }
   .ui-project-tabs {
-    @apply sticky top-0 z-20 hidden gap-5 border-b border-border-subtle bg-surface-page sm:flex;
+    @apply hidden gap-5 border-b border-border-subtle md:flex;
   }
   .ui-project-tab {
     @apply relative inline-flex min-h-12 items-center gap-1.5 border-b-2 border-transparent px-1 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary;
@@ -6505,11 +6405,64 @@
   .ui-project-tab-active {
     @apply border-text-primary text-text-primary;
   }
+  .ui-project-tab-count {
+    @apply text-xs tabular-nums text-text-tertiary;
+  }
+  .ui-project-tab-count-urgent {
+    @apply font-semibold text-status-negative;
+  }
   .ui-project-detail-block {
-    @apply space-y-3 border-b border-border-subtle pb-6;
+    @apply space-y-2;
   }
   .ui-project-section-title {
-    @apply text-base font-semibold text-text-primary;
+    font-size: var(--text-section);
+    @apply font-semibold leading-snug text-text-primary;
+  }
+  /* A small label inside a section ("Saved changes", "Past work"). */
+  .ui-project-subhead {
+    @apply text-sm font-medium text-text-secondary;
+  }
+  /* What changed (DevLogList): a row per handoff, the date on the right. */
+  .ui-devlog {
+    @apply flex flex-col;
+  }
+  .ui-devlog-row {
+    @apply flex items-start gap-3 py-3;
+  }
+  .ui-devlog-row + .ui-devlog-row {
+    @apply border-t border-border-subtle;
+  }
+  .ui-devlog-done {
+    @apply text-base leading-snug text-text-primary;
+  }
+  .ui-devlog-next {
+    @apply mt-1 text-sm leading-snug text-text-secondary;
+  }
+  /* "Needs fixing": one row per problem, the button that fixes it beside it. */
+  .ui-project-flag-list {
+    @apply flex flex-col;
+  }
+  .ui-project-flag {
+    @apply flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-4;
+  }
+  .ui-project-flag + .ui-project-flag {
+    @apply border-t border-border-subtle;
+  }
+  .ui-project-flag-title {
+    @apply flex items-center gap-2 text-base font-medium text-text-primary;
+  }
+  .ui-project-flag-text {
+    @apply mt-0.5 text-sm leading-relaxed text-text-secondary wrap-anywhere;
+  }
+  /* What is happening now: the sentence is the state, with its dot. */
+  .ui-project-now-headline {
+    @apply flex items-start gap-2.5 text-lg font-semibold leading-snug text-text-primary;
+  }
+  .ui-project-now-dot {
+    @apply mt-2.5 shrink-0;
+  }
+  .ui-project-now-detail {
+    @apply mt-1 pl-4 text-sm leading-relaxed text-text-secondary;
   }
   /* A settings list (components/ui/setting-rows.tsx): what a setting is and
      its value on the left, its actions on the right — under it on a phone. */
@@ -6541,39 +6494,9 @@
     @apply inline-flex flex-wrap items-center gap-2;
   }
   .ui-project-current-work {
-    @apply flex flex-col gap-5 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
-  }
-  /* .ui-projects-card* / -next-step / -card-action* removed 2026-08-24 with the
-     card/row bifurcation — every project renders through ProjectRow now. */
-  .ui-projects-ci-panel {
-    @apply overflow-hidden rounded-2xl border border-border-subtle bg-surface-base;
-    box-shadow: var(--shadow-panel);
-  }
-  .ui-projects-ci-summary {
-    @apply flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-surface-raised;
-  }
-  .ui-projects-ci-summary::-webkit-details-marker {
-    display: none;
-  }
-  .ui-projects-ci-panel[open] .ui-details-chevron {
-    transform: rotate(180deg);
-  }
-  .ui-details-chevron {
-    @apply transition-transform duration-200;
-  }
-  .ui-projects-ci-body {
-    @apply border-t border-border-subtle px-4 pb-4 pt-2;
-  }
-  .ui-projects-ci-row {
-    @apply flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-raised;
+    @apply flex flex-col gap-4;
   }
 
-  .ui-project-action-stack {
-    @apply space-y-3;
-  }
-  .ui-project-profile-block {
-    @apply space-y-0 overflow-hidden rounded-xl border border-border-subtle bg-surface-base;
-  }
   .ui-control-workspace {
     @apply grid items-start gap-4 lg:grid-cols-[17.5rem_minmax(0,1fr)];
   }
@@ -8561,6 +8484,11 @@
   .ui-choice-trigger-value {
     @apply font-medium text-text-primary;
   }
+  /* `bare`: only the value, as a section switcher ("Overview ▾"). */
+  .ui-choice-trigger-bare {
+    font-size: var(--text-section);
+    @apply text-text-primary;
+  }
   .ui-choice-popover {
     @apply absolute top-full z-50 mt-1 min-w-56 max-w-[calc(100vw-2rem)] rounded-xl border border-border-default bg-surface-overlay p-1;
     box-shadow: var(--shadow-panel-strong);
@@ -8787,7 +8715,6 @@
   .ui-chip-toggle-active,
   .ui-chip-toggle-compact,
   .ui-chip-toggle-compact-active,
-  .ui-projects-filter-chip,
   .ui-link-subtle,
   .ui-tab,
   .ui-page-back,
@@ -8827,7 +8754,7 @@
      outranks them and the named lists above still own their controls. Not
      all — `a[href]`, `[role=…]` and `input:not(…)` carry attribute weight
      ((0,1,1), (0,1,0), (0,3,1)), so an opt-out for one of those must name
-     the element too (see a[href].ui-projects-row-link below).
+     the element too (see a[href].ui-listrow-hit below).
 
      Inline links in prose are exempt — and exempt themselves, at no cost:
      min-height is inert on a non-replaced inline box, so an <a> in a
@@ -8872,7 +8799,6 @@
      lines (found walking the live demo, 2026-10-17).
      `a[href]` above is (0,1,1) — the attribute counts as a class — so a
      bare class loses to it; the opt-out names the element too. */
-  a[href].ui-projects-row-link,
   a[href].ui-alert-row-link,
   a[href].ui-listrow-hit,
   button.ui-listrow-hit {

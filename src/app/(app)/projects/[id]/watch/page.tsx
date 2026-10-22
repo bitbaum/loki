@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { PageLayout } from "@/components/ui/page-layout";
+import { projectTitle } from "@/lib/project-display";
 import { requirePageUserId } from "@/lib/session";
 import { isValidUuid } from "@/lib/utils";
 import { getProjectAccess } from "@/db/queries/project-access";
@@ -52,28 +52,26 @@ export default async function ProjectWatchPage({
         }
       : null;
 
+  const title = projectTitle(project);
+  // One title (the page's), the project it belongs to as the way back — the
+  // PageLayout every page uses, not a hand-rolled back link and h1.
   return (
-    <div className="app-page mx-auto max-w-2xl space-y-4">
+    <PageLayout
+      title="Watch it work"
+      back={{ href: `/projects/${id}`, label: title }}
+      maxWidth="max-w-2xl"
+    >
       <FleetProjectRoute
         pathname={`/projects/${id}/watch`}
         project={registered?.name ?? project.name}
       />
-      <Link
-        href={`/projects/${id}`}
-        className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {project.name}
-      </Link>
-      <h1 className="ui-page-title">Watch it work</h1>
-      {preview && (
-        <PreviewShareCard projectId={id} name={registered?.name ?? project.name} {...preview} />
-      )}
+      {preview && <PreviewShareCard projectId={id} name={title} {...preview} />}
       <ProjectWatch
         key={`${id}:${run ?? "latest"}`}
         projectId={id}
         profileHref={`/projects/${id}`}
         runId={run && isValidUuid(run) ? run : undefined}
       />
-    </div>
+    </PageLayout>
   );
 }

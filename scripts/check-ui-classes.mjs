@@ -45,7 +45,7 @@ import { join } from "node:path";
  * push this number up. A rise means something stopped being referenced and
  * its rule was left behind.
  */
-const ORPHAN_BASELINE = 33;
+const ORPHAN_BASELINE = 27;
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {

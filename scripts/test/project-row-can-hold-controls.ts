@@ -1,41 +1,38 @@
 /**
- * The project row must be able to contain controls.
+ * The project row is ONE target, and it is never a wrapping anchor.
  *
- * The row WAS a single `<Link>` wrapping everything, with
- * `aria-label="Open {name}"`. HTML forbids interactive content inside an
- * anchor, so the row had ZERO interactive children by construction: every
- * number and every flag on it led to the same generic destination, and the
- * health chip could only ever be a dead `<span>` explained by a hover `title` —
- * invisible on touch, and a bare "7/10" to a screen reader.
+ * The row WAS a single `<Link>` wrapping everything. HTML forbids interactive
+ * content inside an anchor, so nothing in the row could ever be its own
+ * control. The fix was a stretched link: the NAME is the link and its
+ * `::after` covers the row. That invariant now lives in ListRow, which every
+ * collection uses — and since the design reset (2026-10-21) the project row
+ * is a ListRow with nothing else in it: no health chip, no rail, no badges
+ * (checks and counts are on the project page).
  *
- * The capability was never missing. `HealthScoreBar` has always had an
- * `interactive` mode: a real button, `aria-expanded`, a panel naming each
- * missing point with an inline edit, and a draft-from-the-brief action. The
- * list simply could not use it.
+ * So this pins: the row is a ListRow given an `href`; ListRow makes the title
+ * the link with a stretched `::after`; and the row carries no control of its
+ * own that would need to sit above that link.
  *
- * So this is a STRUCTURAL invariant, not a style preference: the row is a
- * container, the project NAME is the link, and its `::after` stretches over the
- * row so the whole thing stays one click target. Collapsing it back to a
- * wrapping anchor would silently re-delete every control inside it — the page
- * would still render, nothing would fail to compile, and the disclosure would
- * just quietly stop existing again.
+ * And the words: what the row says is lib/project-list-line.ts, checked here
+ * by behaviour — the first true answer wins, broken before busy before
+ * waiting-on-you before how it is.
  *
  * Run: npx tsx scripts/test/project-row-can-hold-controls.ts
  */
 import { readFileSync } from "fs";
 import { join } from "path";
+import { isArchivedProject, projectListLine } from "../../src/lib/project-list-line";
 
-const ROW = join(process.cwd(), "src/components/projects/ProjectRow.tsx");
-const CSS = join(process.cwd(), "src/app/globals.css");
-const rowSrc = readFileSync(ROW, "utf8");
-// Strip CSS comments for the same reason as the TSX ones below: the comment
-// above these rules names `.ui-projects-row-actions`, so an unstripped scan
-// finds the prose before the rule and asserts against explanatory text.
-const css = readFileSync(CSS, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-
-// The comments here quote the very things under test; scanning them would let
-// the file pass on its own prose.
-const code = rowSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+const strip = (s: string) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+const row = strip(
+  readFileSync(join(process.cwd(), "src/components/projects/ProjectRow.tsx"), "utf8"),
+);
+const listRow = strip(readFileSync(join(process.cwd(), "src/components/ui/list-row.tsx"), "utf8"));
+const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8").replace(
+  /\/\*[\s\S]*?\*\//g,
+  "",
+);
 
 let failures = 0;
 function check(name: string, fn: () => void) {
@@ -54,89 +51,81 @@ function assert(cond: boolean, msg: string) {
 
 console.log("project-row-can-hold-controls:");
 
-check("THE INVARIANT: the row is not itself a link", () => {
-  // The opening element of the returned tree. A <Link> here forbids every
-  // control inside it.
-  const ret = code.slice(code.indexOf("return ("));
-  const firstTag = ret.slice(0, ret.indexOf(">") + 1);
+check("the row is a ListRow that opens the project", () => {
+  assert(row.includes("<ListRow"), "ProjectRow does not render a ListRow");
   assert(
-    !/^\s*\(\s*<Link/.test(ret.slice(0, 40)),
-    `the row is a <Link> again — nothing inside it may be interactive: ${firstTag.replace(/\s+/g, " ").slice(0, 80)}`,
+    /href=\{`\/projects\/\$\{project\.id\}`\}/.test(row),
+    "the row does not open /projects/<id>",
   );
+  assert(!/<Link\b/.test(row), "ProjectRow wraps its own <Link> again");
 });
 
-check("the project name carries the stretched link", () => {
+check("ListRow: the title is the link, stretched over the row", () => {
   assert(
-    code.includes("ui-projects-row-link"),
-    "no stretched-link class — either the row is an anchor again, or the row is no longer clickable as a whole",
+    /<Link href=\{href\} className="ui-listrow-hit/.test(listRow),
+    "the title is not the link",
   );
-  const at = code.indexOf("ui-projects-row-link");
-  const around = code.slice(Math.max(0, at - 300), at + 200);
-  assert(around.includes("<Link"), "ui-projects-row-link is not on a Link");
-  assert(around.includes("project.id"), "the stretched link does not point at the project");
-});
-
-check("and that class actually stretches, in globals.css", () => {
-  // A class the CSS does not define would leave the row un-clickable except on
-  // the name itself — a silent, large usability regression.
-  const at = css.indexOf(".ui-projects-row-link::after");
-  assert(at !== -1, "ui-projects-row-link::after is not defined in globals.css");
-  const block = css.slice(at, at + 200);
-  assert(
-    block.includes("absolute") && block.includes("inset-0"),
-    `::after does not cover the row: ${block.slice(0, 120)}`,
-  );
-});
-
-check("THE PAYOFF: the health chip is the interactive one", () => {
-  const at = code.indexOf("<HealthScoreBar");
-  assert(at !== -1, "HealthScoreBar is gone from the row");
-  const el = code.slice(at, code.indexOf("/>", at) + 2);
-  assert(
-    /\binteractive\b/.test(el),
-    "the row still renders the dead read-only chip — a bare number with a hover title",
-  );
-  assert(el.includes("projectId"), "no projectId — the disclosure would be read-only");
-});
-
-check("controls sit above the stretched overlay — by position, NOT z-index", () => {
-  // Without this the ::after covers the chip and the click opens the project
-  // instead of expanding the breakdown — which looks like the feature is broken
-  // rather than absent.
-  //
-  // CORRECTED: this originally demanded `z-[1]` here, and that was wrong. A
-  // z-index makes every row its own STACKING CONTEXT, which traps the health
-  // panel inside its row — the panel asks for z-40 and every row below still
-  // paints over it. Shipped that way in #832 and it made the disclosure
-  // unreadable on production.
-  //
-  // `relative` alone is sufficient and correct: this and the link's ::after
-  // are both positioned with z-index auto, so they paint in DOM order and the
-  // actions come second. The test now pins the INTENT (positioned, no
-  // stacking context) instead of one broken implementation of it.
-  assert(
-    code.includes("ui-projects-row-actions"),
-    "the controls column is not lifted above the stretched link",
-  );
-  const at = css.indexOf(".ui-projects-row-actions");
-  assert(at !== -1, "ui-projects-row-actions is not defined in globals.css");
+  const at = css.indexOf(".ui-listrow-hit::after {");
+  assert(at !== -1, ".ui-listrow-hit::after is not defined");
   const block = css.slice(at, css.indexOf("}", at));
+  assert(/inset:\s*0|inset-0/.test(block), "the link's ::after does not cover the row");
   assert(
-    block.includes("relative"),
-    `actions are not positioned, so the stretched link swallows their clicks: ${block.slice(0, 120)}`,
-  );
-  assert(
-    !/z-\[|z-\d/.test(block),
-    `a z-index is back — it traps the health panel inside the row: ${block.replace(/\s+/g, " ")}`,
+    /\.ui-listrow-menu\s*\{[^}]*relative/.test(css),
+    "a row's own menu does not sit above the link",
   );
 });
 
-check("the whole row is still one link, not two competing ones", () => {
-  // Two anchors to the same project reads as two stops to a screen reader and
-  // makes the old aria-label wrapper trick worth re-adding. There should be
-  // exactly one Link to /projects/{id} in the row.
-  const links = code.match(/<Link\b/g) ?? [];
-  assert(links.length === 1, `expected exactly one <Link> in the row, found ${links.length}`);
+check("the row carries no control of its own (one target)", () => {
+  for (const banned of ["HealthScoreBar", "<button", "onClick", "ui-projects-rail"])
+    assert(!row.includes(banned), `ProjectRow carries ${banned}`);
+});
+
+check("the line: broken, then busy, then waiting on you, then how it is", () => {
+  const base = { attrs: {} as Record<string, string>, liveUrl: null, siteOk: null };
+  const down = projectListLine(
+    { ...base, liveUrl: "https://a.ch", siteOk: false },
+    { runNow: "building", newNotes: 3 },
+  );
+  assert(down.text === "Site is down" && down.tone === "negative", `down said ${down.text}`);
+  const busy = projectListLine(base, { runNow: "building", newNotes: 3 });
+  assert(busy.text === "Building now", `busy said ${busy.text}`);
+  const waiting = projectListLine(base, { runNow: "needs_you", newNotes: 3 });
+  assert(
+    waiting.tone === "warning" && /^Needs you/.test(waiting.text),
+    `waiting said ${waiting.text}`,
+  );
+  const notes = projectListLine(base, { newNotes: 3 });
+  assert(
+    notes.text === "Needs you: 3 notes" && notes.tone === "warning",
+    `notes said ${notes.text}`,
+  );
+  const one = projectListLine(base, { newNotes: 1 });
+  assert(one.text === "Needs you: 1 note", `one said ${one.text}`);
+  const fresh = projectListLine(base, {});
+  assert(fresh.text === "Not started yet" && fresh.tone === null, `fresh said ${fresh.text}`);
+  const worked = projectListLine(base, { lastRunAt: "2026-10-20T12:00:00Z" });
+  assert(worked.text === "Not live yet", `worked said ${worked.text}`);
+  const paused = projectListLine({ ...base, attrs: { status: "paused" } }, {});
+  assert(paused.text === "Paused" && paused.tone === null, `paused said ${paused.text}`);
+});
+
+check("no internal words or counts on the row", () => {
+  const said = [
+    projectListLine({ attrs: {}, liveUrl: null, siteOk: null }, {}).text,
+    projectListLine({ attrs: {}, liveUrl: "https://a.ch", siteOk: true }, {}).text,
+    projectListLine({ attrs: {}, liveUrl: null, siteOk: null }, { runNow: "stalled" }).text,
+  ].join(" ");
+  assert(!/checks|runner|dispatch|connected|https?:/i.test(said), `the row says: ${said}`);
+});
+
+check("archived: marked archived, or an earlier `-refresh-<hex>` copy — nothing else", () => {
+  assert(isArchivedProject({ name: "x", attrs: { status: "archived" } }), "archived stage");
+  assert(
+    isArchivedProject({ name: "xhiva-art-refresh-300d4c1e9b8a4f6e8b1d2a7c5e9f0b13", attrs: {} }),
+    "refresh copy",
+  );
+  assert(!isArchivedProject({ name: "xhiva", attrs: { status: "production" } }), "a live project");
+  assert(!isArchivedProject({ name: "my-refresh-site", attrs: {} }), "a name with refresh in it");
 });
 
 console.log(failures === 0 ? "  all good" : `  ${failures} failure(s)`);

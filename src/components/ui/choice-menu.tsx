@@ -38,6 +38,7 @@ export function ChoiceMenu<T extends string>({
   options,
   onChange,
   align = "end",
+  bare = false,
   className,
 }: {
   /** What is being chosen — "Sort", "Show". Shown before the value. */
@@ -48,6 +49,9 @@ export function ChoiceMenu<T extends string>({
   /** Which edge of the button the popover (md up) lines up with. "end" —
    *  the default — for a menu at the right of a heading, so it opens inward. */
   align?: "start" | "end";
+  /** Draw only the current value ("Overview ▾") — a page's own section
+   *  switcher. `label` still names the sheet and the button for a reader. */
+  bare?: boolean;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -108,11 +112,12 @@ export function ChoiceMenu<T extends string>({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="ui-choice-trigger"
+        className={cn("ui-choice-trigger", bare && "ui-choice-trigger-bare")}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={bare ? `${label}: ${current?.label ?? ""}` : undefined}
       >
-        <span>{label}:</span>
+        {!bare && <span>{label}:</span>}
         <span className="ui-choice-trigger-value">{current?.label}</span>
         <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
       </button>

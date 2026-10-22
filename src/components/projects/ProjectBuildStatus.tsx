@@ -21,6 +21,7 @@ import type { BuildStatus } from "@/lib/project-build-status";
 import { projectStateSentence } from "@/lib/project-state-sentence";
 import { MakeItHappenButton } from "./ProjectActionButtons";
 import { GetHelpLine } from "./GetHelpLine";
+import { plainWords } from "@/lib/project-display";
 
 export function ProjectBuildStatus({
   status,
@@ -78,6 +79,12 @@ export function ProjectBuildStatus({
         View progress <ArrowRight className="h-4 w-4" aria-hidden="true" />
       </Link>
     );
+  } else if (status.kind === "needs_you") {
+    action = (
+      <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11 gap-2">
+        See what it needs <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
+    );
   } else if (status.kind === "queued") {
     action = (
       <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11">
@@ -96,18 +103,16 @@ export function ProjectBuildStatus({
   }
 
   return (
+    // No box and no "Current work" label above it (design reset rules 2 and
+    // 3): the sentence IS the state, with its dot, on the page itself.
     <section className="ui-project-current-work" aria-labelledby="project-build-status-title">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-text-tertiary">Current work</p>
-        <h2
-          id="project-build-status-title"
-          className="mt-3 flex items-center gap-2 text-xl font-semibold text-text-primary"
-        >
-          <span className={`ui-dot ${tone}`} aria-hidden="true" />
-          {headline}
+        <h2 id="project-build-status-title" className="ui-project-now-headline">
+          <span className={`ui-dot ${tone} ui-project-now-dot`} aria-hidden="true" />
+          <span className="min-w-0">{plainWords(headline)}</span>
         </h2>
-        <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-          {detail}
+        <p className="ui-project-now-detail">
+          {plainWords(detail)}
           {look && (
             <>
               {" "}

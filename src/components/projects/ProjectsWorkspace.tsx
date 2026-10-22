@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Search, FolderKanban, ChevronDown } from "lucide-react";
+import { FolderKanban, SearchX } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useEscapeKey } from "@/hooks/use-escape-key";
-import { Segmented } from "@/components/ui/segmented";
+import { List, ListSearch } from "@/components/ui/list-row";
+import { ChoiceMenu } from "@/components/ui/choice-menu";
 import { SEARCH_DEBOUNCE_MS } from "@/lib/constants/timings";
 import { PROJECTS_LIST_CHUNK } from "@/lib/projects-display";
 import {
@@ -15,12 +15,12 @@ import {
   isProjectsSort,
   PROJECTS_SORTS,
   type ProjectsPageFilter,
+  type ProjectsPageStats,
   type ProjectsSort,
 } from "@/lib/projects-page-stats";
+import { isArchivedProject, isEarlierCopy, type ProjectRunNow } from "@/lib/project-list-line";
 import type { ProjectGridRow } from "./project-grid-row";
 import { ProjectRow } from "./ProjectRow";
-import { ProjectsSummary } from "./ProjectsSummary";
-import { ProjectsCiPanel } from "./ProjectsCiPanel";
 
 const FILTER_PARAMS = new Set<ProjectsPageFilter>(["attention", "next-step", "team"]);
 
@@ -29,22 +29,44 @@ function parseFilter(raw: string | null): ProjectsPageFilter {
   return null;
 }
 
+/** "Show: …" — each lens with its count, offered only when it holds something. */
+const SHOW: {
+  id: ProjectsPageFilter;
+  label: string;
+  count: (s: ProjectsPageStats) => number;
+}[] = [
+  { id: null, label: "All", count: (s) => s.total },
+  { id: "attention", label: "With a problem", count: (s) => s.attention },
+  { id: "next-step", label: "With a next step", count: (s) => s.withNextStep },
+  { id: "team", label: "Shared with you", count: (s) => s.team },
+];
+const ALL = "all";
+
+/** A search is a row worth having once the list is longer than a screen. */
+const SEARCH_FROM = 8;
+
 /**
- * One list, one row shape. Flagged projects sort first and carry their red
- * badges + warning edge — same grammar as every other row, not a different
- * component. The chunk fold keeps 30+ fleets scannable; search and the filter
- * chips work over everything.
+ * The list of projects — a search, two menus that fit on one line, and rows
+ * (design reset rules 3, 6 and 7). Nothing here sticks: the search is the
+ * list's first row and scrolls away with it. Superseded copies and archived
+ * projects fold under "Archived" at the end, kept and still openable.
  */
 export function ProjectsWorkspace({
   projects,
   lastDispatchByProject = {},
-  feedbackOpenByProject = {},
+  newNotesByProject = {},
+  runNowByProject = {},
+  emptyAction,
 }: {
   projects: ProjectGridRow[];
-  /** entity id → ISO timestamp of the newest real dispatch. */
+  /** entity id → ISO timestamp of the newest agent run. */
   lastDispatchByProject?: Record<string, string>;
-  /** entity id → open (new + dispatched) feedback count. */
-  feedbackOpenByProject?: Record<string, number>;
+  /** entity id → notes from the site nobody has looked at yet. */
+  newNotesByProject?: Record<string, number>;
+  /** entity id → what is running there now (absent = nothing). */
+  runNowByProject?: Record<string, ProjectRunNow>;
+  /** The button an empty list offers — the same choice as the page's `+`. */
+  emptyAction?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -59,6 +81,8 @@ export function ProjectsWorkspace({
     return isProjectsSort(raw) ? raw : "priority";
   });
   const [listExpanded, setListExpanded] = useState(false);
+  // One clock for every row's "2h", read once per render of the list.
+  const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
@@ -76,11 +100,23 @@ export function ProjectsWorkspace({
     window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
   }, [debouncedQuery, pageFilter, sort, pathname]);
 
-  const stats = useMemo(() => computeProjectsPageStats(projects), [projects]);
+  const [current, archived] = useMemo(() => {
+    const keep: ProjectGridRow[] = [];
+    const fold: ProjectGridRow[] = [];
+    for (const p of projects) (isArchivedProject(p) ? fold : keep).push(p);
+    return [keep, fold];
+  }, [projects]);
+
+  const stats = useMemo(() => computeProjectsPageStats(current), [current]);
+  const lenses = SHOW.filter((l) => l.id === null || l.count(stats) > 0);
 
   const filtered = useMemo(
-    () => filterProjects(projects, debouncedQuery, pageFilter, lastDispatchByProject, sort),
-    [projects, debouncedQuery, pageFilter, lastDispatchByProject, sort],
+    () => filterProjects(current, debouncedQuery, pageFilter, lastDispatchByProject, sort),
+    [current, debouncedQuery, pageFilter, lastDispatchByProject, sort],
+  );
+  const archivedShown = useMemo(
+    () => (pageFilter ? [] : filterProjects(archived, debouncedQuery, null, undefined, "az")),
+    [archived, debouncedQuery, pageFilter],
   );
 
   // Never fold a flagged project below the chunk line — attention outranks
@@ -91,112 +127,118 @@ export function ProjectsWorkspace({
   const listOverflow = filtered.length > chunk;
   const visible = listExpanded ? filtered : filtered.slice(0, chunk);
 
-  useEscapeKey(() => {
+  const clear = () => {
     setQuery("");
     setPageFilter(null);
-  });
+    setListExpanded(false);
+  };
 
-  const hasAnyProjects = projects.length > 0;
+  if (projects.length === 0) {
+    return <EmptyState icon={FolderKanban} title="No projects yet" action={emptyAction} />;
+  }
+
+  const row = (p: ProjectGridRow, secondary?: string) => (
+    <ProjectRow
+      key={p.id}
+      project={p}
+      lastDispatchAt={lastDispatchByProject[p.id] ?? null}
+      newNotes={newNotesByProject[p.id] ?? 0}
+      runNow={runNowByProject[p.id] ?? null}
+      nowMs={nowMs}
+      secondary={secondary}
+    />
+  );
 
   return (
-    <div className="space-y-5">
-      <div className="ui-projects-sticky-bar space-y-3">
-        <div className="relative min-w-0">
-          <Search
-            className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            placeholder="Search projects…"
+    <div className="space-y-6">
+      <section aria-label="Projects">
+        {projects.length >= SEARCH_FROM && (
+          <ListSearch
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
+            onChange={(v) => {
+              setQuery(v);
               setListExpanded(false);
             }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setQuery("");
-                (e.target as HTMLInputElement).blur();
-              }
+            placeholder="Search projects"
+          />
+        )}
+
+        {/* Fit or menu (rule 7): two one-button menus on one line, never a
+            row of chips cut at the screen's edge. */}
+        <div className="ui-projects-menus">
+          {lenses.length > 1 ? (
+            <ChoiceMenu
+              label="Show"
+              align="start"
+              value={pageFilter ?? ALL}
+              options={lenses.map((l) => ({
+                value: l.id ?? ALL,
+                label: `${l.label} (${l.count(stats)})`,
+              }))}
+              onChange={(v) => {
+                setPageFilter(v === ALL ? null : parseFilter(v));
+                setListExpanded(false);
+              }}
+            />
+          ) : (
+            <span className="ui-projects-count">
+              {current.length} {current.length === 1 ? "project" : "projects"}
+            </span>
+          )}
+          <ChoiceMenu
+            label="Sort"
+            value={sort}
+            options={PROJECTS_SORTS.map(({ id, label, hint }) => ({
+              value: id,
+              label,
+              hint,
+            }))}
+            onChange={(id) => {
+              if (!isProjectsSort(id)) return;
+              setSort(id);
+              setListExpanded(false);
             }}
-            className="ui-search-input"
-            aria-label="Search projects"
           />
         </div>
 
-        <ProjectsSummary
-          stats={stats}
-          activeFilter={pageFilter}
-          onFilter={(next) => {
-            setPageFilter(next);
-            setListExpanded(false);
-          }}
-          resultCount={filtered.length}
-          totalCount={projects.length}
-        />
-
-        {/* The order, as a control rather than a claim.
-
-            The chosen order says what it is under the row (it was the page's
-            subtitle, a sentence above a control that already said it) — and
-            only a control makes it ARGUABLE. Control's project rail has carried exactly these three
-            for a while, on a second, smaller copy of this same list; this is
-            the half of that duplication worth keeping.
-
-            One choice with one answer: the even segmented row every pick-one
-            uses (components/ui/segmented.tsx). */}
-        <Segmented
-          label="Sort projects"
-          options={PROJECTS_SORTS.map(({ id, label, hint }) => ({ id, label, means: hint }))}
-          value={sort}
-          onChange={(id) => {
-            if (!isProjectsSort(id)) return;
-            setSort(id);
-            setListExpanded(false);
-          }}
-        />
-      </div>
-
-      {filtered.length === 0 ? (
-        hasAnyProjects ? (
-          <EmptyState icon={FolderKanban} title="No projects match">
-            {debouncedQuery
-              ? `Nothing matched “${debouncedQuery}”. Try a shorter term or clear filters.`
-              : "Clear filters to see your full fleet."}
-          </EmptyState>
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={SearchX}
+            title={debouncedQuery ? `Nothing matches “${debouncedQuery}”` : "No projects here"}
+            action={
+              <button type="button" onClick={clear} className="ui-btn-secondary min-h-11">
+                Show all projects
+              </button>
+            }
+          />
         ) : (
-          <EmptyState icon={FolderKanban} title="No projects yet">
-            Add your first project above — a name and a sentence are enough. Loki keeps the code and
-            an agent can start building it; no account anywhere else needed.
-          </EmptyState>
-        )
-      ) : (
-        <section aria-label="Projects">
-          <div className="ui-projects-list flex flex-col">
-            {visible.map((project) => (
-              <ProjectRow
-                key={project.id}
-                project={project}
-                lastDispatchAt={lastDispatchByProject[project.id] ?? null}
-                feedbackOpen={feedbackOpenByProject[project.id] ?? 0}
-              />
-            ))}
-          </div>
-          {listOverflow && !listExpanded && (
-            <button
-              type="button"
-              onClick={() => setListExpanded(true)}
-              className="ui-projects-show-more mt-2"
-            >
-              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-              Show all {filtered.length} projects
-            </button>
-          )}
-        </section>
-      )}
+          <List aria-label="Projects">{visible.map((p) => row(p))}</List>
+        )}
+        {listOverflow && !listExpanded && (
+          <button
+            type="button"
+            onClick={() => setListExpanded(true)}
+            className="ui-projects-show-more"
+          >
+            Show all {filtered.length}
+          </button>
+        )}
+      </section>
 
-      <ProjectsCiPanel projects={projects} />
+      {archivedShown.length > 0 && (
+        <details className="ui-projects-archived" open={Boolean(debouncedQuery.trim())}>
+          <summary className="ui-projects-archived-summary">
+            <span className="ui-section-heading">
+              Archived <span className="ui-projects-archived-count">{archivedShown.length}</span>
+            </span>
+          </summary>
+          <List aria-label="Archived projects">
+            {archivedShown.map((p) =>
+              row(p, isEarlierCopy(p.name) ? "An earlier copy" : "Archived"),
+            )}
+          </List>
+        </details>
+      )}
     </div>
   );
 }

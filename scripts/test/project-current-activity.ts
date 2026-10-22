@@ -69,18 +69,18 @@ async function main() {
     );
   assert.match(
     render(),
-    /Working — Improve navigation/,
+    /Working on Improve navigation/,
     "fresh agent activity wins over an old handoff",
   );
   assert.doesNotMatch(render(), />Idle</);
   dossier.state!.runtimeObservedAt = new Date(now - RUNNER_OFFLINE_THRESHOLD_MS - 1);
   assert.doesNotMatch(
     render(),
-    /Working — Improve navigation/,
+    /Working on Improve navigation/,
     "expired runtime claims never report work",
   );
-  assert.match(render(), /No live agent observed/);
-  assert.match(render(), /last commit/);
+  assert.match(render(), /Nothing running/);
+  assert.match(render(), /last change/);
   console.log("✓ current agent observation, expired runtime and newer repository activity");
 }
 main().catch((error) => {

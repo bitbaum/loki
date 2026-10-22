@@ -32,6 +32,7 @@ import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { DispatchedNote } from "@/components/projects/ProjectActionButtons";
 import { WidgetPlacementControl } from "@/components/projects/WidgetPlacementControl";
+import { RowActions } from "@/components/ui/row-actions";
 import { cn } from "@/lib/utils";
 
 type WidgetTokenInfo = {
@@ -143,75 +144,83 @@ export function ProjectFeedbackSection({
   }
   return (
     <section className="ui-project-section" aria-labelledby="project-feedback-title">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <h2 id="project-feedback-title" className="text-lg font-semibold text-text-primary">
-            Visitor feedback
-          </h2>
-          {newCount > 0 && <span className="ui-badge">{newCount} new</span>}
-          {metrics && metrics.resolved > 0 && (
-            <span className="text-xs text-text-tertiary">
-              {metrics.resolved} resolved
-              {metrics.medianResolutionHours != null &&
-                ` · median ${compactDurationHours(metrics.medianResolutionHours)} report→fix`}
-            </span>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+      {/* One heading, one line of how it is going, and ONE overflow menu
+          for everything that acts on the whole list (design reset rules 4
+          and 5). It was a heading with a badge, a "median report→fix" line
+          and up to four buttons — one of them filled — wrapping into each
+          other on a phone. */}
+      <div className="ui-section-head">
+        <h2 id="project-feedback-title" className="ui-project-section-title">
+          Notes from visitors
+        </h2>
+        <RowActions label="Feedback actions">
           {token && batchable >= 2 && (
             <button
               type="button"
+              role="menuitem"
+              className="ui-menu-item"
               onClick={dispatchAll}
               disabled={batchBusy || busyId !== null}
-              className="ui-btn-save gap-1.5"
-              title="One agent run covering every new report (local Fleet Runner or cloud builder)"
             >
-              {batchBusy ? (
-                <Loader2 className="ui-spinner-xs" />
-              ) : (
-                <Rocket className="h-3.5 w-3.5" />
-              )}
-              Implement all as one
+              {batchBusy ? <Loader2 className="ui-spinner-xs" /> : <Rocket className="h-4 w-4" />}
+              Fix all {batchable} new notes together
             </button>
           )}
           {token && batchable >= SYNTHESIZE_MIN_ITEMS && (
             <button
               type="button"
+              role="menuitem"
+              className="ui-menu-item"
               onClick={synthesize}
               disabled={synthesizing || synthesized}
-              className="ui-btn-secondary gap-1.5"
-              title="Queue an agent to cluster the new items into structured briefs, filed back into this inbox"
             >
               {synthesizing ? (
                 <Loader2 className="ui-spinner-xs" />
               ) : (
-                <Layers className="h-3.5 w-3.5" />
+                <Layers className="h-4 w-4" />
               )}
-              {synthesized ? "Synthesis queued" : "Synthesize"}
+              {synthesized ? "Being grouped…" : "Group the new notes into tasks"}
             </button>
           )}
           {token && (
             <button
               type="button"
+              role="menuitem"
+              className="ui-menu-item"
               onClick={() => setReviewOpen((v) => !v)}
-              className="ui-btn-secondary gap-1.5"
-              title="Queue an agent to visually review a page and file findings here"
             >
-              <ScanEye className="h-3.5 w-3.5" />
-              AI review
+              <ScanEye className="h-4 w-4" />
+              Have Loki review a page
             </button>
           )}
           <button
             type="button"
+            role="menuitem"
+            className="ui-menu-item"
             onClick={() => setSetupOpen((v) => !v)}
-            className="ui-btn-secondary gap-1.5"
             aria-expanded={setupOpen}
           >
-            <Code2 className="h-3.5 w-3.5" />
-            {setupOpen ? "Hide widget setup" : "Widget setup"}
+            <Code2 className="h-4 w-4" />
+            {setupOpen ? "Hide the widget setup" : "Set up the widget"}
           </button>
-        </div>
+        </RowActions>
       </div>
+      {(newCount > 0 || (metrics && metrics.resolved > 0)) && (
+        <p className="mb-4 text-sm text-text-tertiary">
+          {[
+            newCount > 0 ? `${newCount} new` : null,
+            metrics && metrics.resolved > 0
+              ? `${metrics.resolved} fixed${
+                  metrics.medianResolutionHours != null
+                    ? `, usually within ${compactDurationHours(metrics.medianResolutionHours)}`
+                    : ""
+                }`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      )}
 
       {/* Widget STATE is always on screen; only its controls are behind a
           click. This is the fix for a real report: someone came to this page
@@ -221,7 +230,7 @@ export function ProjectFeedbackSection({
           A status line costs one row and answers the question that brought
           them here without requiring a click to find out. */}
       {token && !showSetup && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border-subtle bg-surface-base px-3 py-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <span
             className={cn(
               "h-2 w-2 shrink-0 rounded-full",
@@ -230,7 +239,11 @@ export function ProjectFeedbackSection({
             aria-hidden="true"
           />
           <span className="text-sm font-medium text-text-primary">
-            {live ? "Widget live" : paused ? "Widget paused" : "Widget enabled, not seen yet"}
+            {live
+              ? "Widget is live"
+              : paused
+                ? "Widget is paused"
+                : "Widget is on, not seen on the site yet"}
           </span>
           {site && (
             <span className="truncate text-xs text-text-tertiary">
@@ -433,14 +446,15 @@ function WidgetSetupCard({
       : "ui-callout-accent flex-col sm:flex-row sm:items-center";
 
   return (
-    <section className="ui-panel mb-5 p-5 sm:p-6">
-      <div className="flex flex-col gap-4">
+    // On the page, not in a card: the status below is the one box (design
+    // reset rule 3 — it was a callout inside a panel).
+    <section className="mb-6">
+      <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="ui-page-title text-lg sm:text-xl">Feedback widget</h2>
-            <p className="ui-page-subtitle">
-              Visitors point at the broken element. Reports land here. One click sends the fix to
-              the project agent.
+            <h2 className="ui-project-section-title">The feedback button</h2>
+            <p className="mt-0.5 text-sm text-text-secondary">
+              Visitors tap it on your site and point at what is wrong. Their notes land here.
             </p>
           </div>
           {onClose && (
@@ -469,8 +483,8 @@ function WidgetSetupCard({
                     : live
                       ? `Live${site ? ` · ${site.replace(/^https:\/\//, "")}` : ""}`
                       : token
-                        ? "Token ready — not seen on the live site yet"
-                        : "Not enabled"}
+                        ? "Turned on — not seen on the site yet"
+                        : "Not on your site yet"}
                 </p>
                 <p className="mt-0.5 text-xs text-text-secondary">
                   {paused
@@ -478,8 +492,8 @@ function WidgetSetupCard({
                     : live
                       ? `Last boot ${compactRelativeDate(new Date(token!.lastSeenAt!))}`
                       : token
-                        ? `The script must run on ${site ?? "the live origin"} (CSP must allow loki.orangecat.ch). A boot heartbeat is Live — HTML containing the tag is not.`
-                        : "Enable a token, then add the script to the site (copy, or queue an agent)."}
+                        ? `It shows as live once it has loaded on ${site ? site.replace(/^https:\/\//, "") : "the site"}.`
+                        : "Put it on the site in one tap, or turn it on and add it yourself."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -496,7 +510,7 @@ function WidgetSetupCard({
                       ) : (
                         <Rocket className="h-3.5 w-3.5" />
                       )}
-                      Enable & install
+                      Put it on the site
                     </button>
                     <button
                       type="button"
@@ -504,7 +518,7 @@ function WidgetSetupCard({
                       disabled={busy}
                       className="ui-btn-secondary gap-1.5"
                     >
-                      Enable only
+                      Turn on only
                     </button>
                   </>
                 ) : (
@@ -785,14 +799,14 @@ function AutoShipToggle({ projectId }: { projectId: string }) {
     }
   };
   return (
-    <div className="mb-3 flex items-start justify-between gap-4 rounded-xl border border-border-subtle bg-surface-base px-3 py-3">
+    <div className="mb-4 flex items-start justify-between gap-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-text-primary">Ship fixes automatically</p>
         <p className="mt-0.5 text-xs text-text-tertiary">
           {on
-            ? "When an agent's pull request passes its checks, Loki merges it and the site deploys. A repository with no checks is never merged, and one broken deploy pauses this."
+            ? "When an agent's pull request passes its tests, Loki merges it and the site deploys. A repository with no tests is never merged, and one broken deploy pauses this."
             : neverChosen
-              ? "Right now a fix waits for you to merge its pull request. Loki can do that itself once the checks pass — it only ever merges the pull request it opened for this project."
+              ? "Right now a fix waits for you to merge its pull request. Loki can do that itself once its tests pass — it only ever merges the pull request it opened for this project."
               : "A fix waits for you to merge its pull request."}
         </p>
         {error && <p className="mt-1 text-xs text-status-negative">{error}</p>}

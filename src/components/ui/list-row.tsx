@@ -61,10 +61,13 @@ export function ListRow({
   trailing,
   chevron = false,
   menu,
+  external = false,
   className,
 }: {
   /** The row opens this page. */
   href?: string;
+  /** `href` is another site: it opens in a new tab. */
+  external?: boolean;
   /** Or the row does this. Ignored when `href` is set. */
   onClick?: () => void;
   /** Leading icon (20px, secondary ink). */
@@ -87,9 +90,15 @@ export function ListRow({
   const interactive = !!href || !!onClick;
   const titleNode = <span className="ui-listrow-title">{title}</span>;
   const hit = href ? (
-    <Link href={href} className="ui-listrow-hit ui-listrow-title">
-      {title}
-    </Link>
+    external ? (
+      <a href={href} target="_blank" rel="noreferrer" className="ui-listrow-hit ui-listrow-title">
+        {title}
+      </a>
+    ) : (
+      <Link href={href} className="ui-listrow-hit ui-listrow-title">
+        {title}
+      </Link>
+    )
   ) : onClick ? (
     <button type="button" onClick={onClick} className="ui-listrow-hit ui-listrow-title">
       {title}

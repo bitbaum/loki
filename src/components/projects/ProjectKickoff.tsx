@@ -156,7 +156,7 @@ export function ProjectKickoff({
     <section className="ui-card-shell space-y-4 p-4 sm:p-5" aria-labelledby="project-kickoff-title">
       <div>
         <p className="ui-kicker">Start</p>
-        <h2 id="project-kickoff-title" className="text-lg font-semibold text-text-primary">
+        <h2 id="project-kickoff-title" className="ui-project-section-title">
           Make it happen
         </h2>
         {!steps && (

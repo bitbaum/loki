@@ -231,3 +231,24 @@ const TEST_ARTIFACT_NAME = /^smoke-\d{6,}/i;
 export function isPublicTestArtifact(name: string | null | undefined): boolean {
   return TEST_ARTIFACT_NAME.test((name ?? "").trim());
 }
+
+/**
+ * A sentence an agent wrote, said the way a person would (design reset rule
+ * 9): a web address becomes its host ("https://substrata.orangecat.ch/x" →
+ * "substrata.orangecat.ch"), and a bare status code becomes what it means.
+ * Flags and next steps are written by agents for agents — "the public site
+ * returned HTTP 307" reached the owner as the reason his project was red.
+ */
+export function plainWords(text: string): string {
+  return text
+    .replace(/https?:\/\/(?:www\.)?([^\s/)]+)[^\s)]*/gi, "$1")
+    .replace(/\bHTTP\s*(?:status\s*)?([1-5]\d\d)\b/gi, (_m, code: string) => {
+      if (code.startsWith("3")) return "a redirect";
+      if (code === "404") return "“not found”";
+      if (code.startsWith("4")) return "a refusal";
+      if (code.startsWith("5")) return "a server error";
+      return "an answer";
+    })
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}

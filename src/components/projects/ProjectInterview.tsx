@@ -158,7 +158,7 @@ export function ProjectInterview({
         <MessageCircleQuestion className="mt-0.5 h-5 w-5 shrink-0 text-accent-text" aria-hidden />
         <div className="min-w-0">
           <p className="ui-kicker">Interview</p>
-          <h2 id="project-interview-title" className="text-lg font-semibold text-text-primary">
+          <h2 id="project-interview-title" className="ui-project-section-title">
             A few questions first
           </h2>
           {!open && (
