@@ -25,7 +25,6 @@ import {
   projectStates,
   orchestrationRuns,
   entities,
-  promptHistory,
 } from "@/db/schema";
 import { eq, and, lt, lte, isNotNull, gte, desc, sql, notInArray } from "drizzle-orm";
 import { HEALTH_FADING_DAYS } from "@/lib/constants/people";
@@ -44,7 +43,6 @@ import {
   getHealthShort,
   isHealthPoor,
 } from "@/lib/constants/control";
-import { toPromptDisplayFields } from "@/lib/activity-status";
 import { z } from "zod";
 import { DAY_MS, HOUR_MS } from "@/lib/constants/time";
 
@@ -425,43 +423,4 @@ export async function getRecentOrchestrationRuns(
     )
     .orderBy(desc(orchestrationRuns.finishedAt))
     .limit(limit);
-}
-
-// Recent manual dispatches from /api/inject. Used as a fallback on Today's
-// "Recent Agent Work" card when no orchestration runs have completed yet —
-// without it, a fresh-install user (or one who dispatches via the prompt
-// library / Send box) sees "No agent runs in the past 24 hours" even though
-// they queued five injects today, which destroys trust in the dashboard.
-export async function getRecentDispatches(
-  userId: string,
-  hours = RECENT_RUNS_HOURS,
-  limit = RECENT_RUNS_LIMIT,
-) {
-  const since = new Date(Date.now() - hours * HOUR_MS);
-  const rows = await db
-    .select({
-      id: promptHistory.id,
-      projectKey: promptHistory.projectKey,
-      adapter: promptHistory.adapter,
-      intent: promptHistory.intent,
-      customPrompt: promptHistory.customPrompt,
-      resolvedPrompt: promptHistory.resolvedPrompt,
-      dispatchedAt: promptHistory.dispatchedAt,
-    })
-    .from(promptHistory)
-    .where(and(eq(promptHistory.userId, userId), gte(promptHistory.dispatchedAt, since)))
-    .orderBy(desc(promptHistory.dispatchedAt))
-    .limit(limit);
-  // Route through the shared display mapper so the harness envelope is stripped
-  // (SSOT with the Activity feed): a dispatch that is pure scaffolding — e.g. a
-  // <task-notification> completion signal mis-recorded as a custom prompt —
-  // surfaces its intent label instead of leaking the raw machine envelope.
-  return rows.map((r) => ({
-    id: r.id,
-    projectKey: r.projectKey,
-    adapter: r.adapter,
-    intent: r.intent,
-    customPrompt: toPromptDisplayFields(r).customPrompt,
-    dispatchedAt: r.dispatchedAt,
-  }));
 }

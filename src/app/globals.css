@@ -7606,15 +7606,16 @@
   .ui-loki-build {
     @apply flex min-w-0 flex-col gap-1;
   }
+  /* The edge reads as "more this way", never as a chip cut in half, and
+     never as the grey scrollbar Android drew under the row — at every width,
+     since the row scrolls at every width. */
   .ui-loki-build-row {
     @apply -mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
+    mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
   }
-  /* On a phone the edge reads as "more this way", never as a chip cut in
-     half, and never as the grey scrollbar Android drew under the row. */
   @media (max-width: 639px) {
     .ui-loki-build-row {
-      mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
-      -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
       scroll-snap-type: x proximity;
     }
     .ui-loki-build-row > * {
