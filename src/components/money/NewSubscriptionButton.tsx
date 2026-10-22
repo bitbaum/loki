@@ -14,7 +14,14 @@ import { SUBSCRIPTION_FORM } from "@/config/ai-forms";
 import type { CreateSubscriptionInput } from "@/db/queries/money";
 import { DateInput } from "@/components/ui/date-input";
 
-export function NewSubscriptionButton() {
+export function NewSubscriptionButton({
+  trigger = "page-action",
+  triggerLabel = "Add subscription",
+}: {
+  /** "page-action": the page's one primary action; "secondary" for an empty state. */
+  trigger?: "page-action" | "secondary";
+  triggerLabel?: string;
+} = {}) {
   const form = useAiForm({
     target: SUBSCRIPTION_FORM.key,
     fields: SUBSCRIPTION_FORM.fields,
@@ -47,8 +54,10 @@ export function NewSubscriptionButton() {
 
   return (
     <ModalForm
-      title="Add Subscription"
-      submitLabel="Add Subscription"
+      trigger={trigger}
+      triggerLabel={triggerLabel}
+      title="Add a subscription"
+      submitLabel="Add subscription"
       savingLabel="Adding…"
       size="md"
       canSubmit={!!form.text("name").trim()}
@@ -106,7 +115,7 @@ export function NewSubscriptionButton() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Frequency" aiTouched={form.isAiTouched("frequency")}>
+        <Field label="How often" aiTouched={form.isAiTouched("frequency")}>
           <select
             value={form.text("frequency")}
             onChange={(e) => form.setValue("frequency", e.target.value)}
@@ -119,7 +128,7 @@ export function NewSubscriptionButton() {
             ))}
           </select>
         </Field>
-        <Field label="Next Due" aiTouched={form.isAiTouched("nextDue")}>
+        <Field label="Next charge" aiTouched={form.isAiTouched("nextDue")}>
           <DateInput
             type="date"
             value={form.text("nextDue")}
@@ -129,7 +138,7 @@ export function NewSubscriptionButton() {
         </Field>
       </div>
 
-      <Field label="Payment Method" aiTouched={form.isAiTouched("paymentMethod")}>
+      <Field label="Paid with" aiTouched={form.isAiTouched("paymentMethod")}>
         <input
           value={form.text("paymentMethod")}
           onChange={(e) => form.setValue("paymentMethod", e.target.value)}
