@@ -42,4 +42,10 @@ for (const words of [
 const long = attentionWords({ error: "x".repeat(300) });
 assert.ok(long.length <= "Stopped: ".length + 90, "a long error is cut to one line's worth");
 
+assert.equal(
+  attentionWords({ outcome: "partial", next: "Nothing queued." }),
+  "The last run only got part of the way",
+  "an agent saying nothing comes next is not a next step",
+);
+
 console.log("✓ attention-words: what happened, in words");

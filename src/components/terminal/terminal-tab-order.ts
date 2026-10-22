@@ -1,3 +1,5 @@
+import { projectTitle } from "@/lib/project-display";
+
 /**
  * How the operator has arranged the terminal's tabs: their order, which are
  * pinned to the front, and whether tabs of one project sit together.
@@ -99,6 +101,8 @@ export function togglePin(layout: TabLayout, id: string): TabLayout {
  *  ("xhiva-art-refresh-300d…") hides the part that tells tabs apart. The full
  *  name stays in the tooltip. */
 export function readableTabName(name: string): string {
-  const short = name.replace(/-[0-9a-f]{32}$/i, "");
-  return short || name;
+  // The same words every other surface uses for this project ("Murphys bar",
+  // a retired refresh copy as its site's name), not its folder.
+  if (/-refresh-[0-9a-f]{32}$/i.test(name)) return projectTitle({ name });
+  return projectTitle({ name: name.replace(/-[0-9a-f]{32}$/i, "") || name });
 }

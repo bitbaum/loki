@@ -35,7 +35,9 @@ function firstSentence(text: string): string {
 export function attentionWords(input: AttentionWordsInput): string {
   if (input.error?.trim()) return `Stopped: ${firstSentence(input.error)}`;
   if (input.blockReason?.trim()) return `Stuck: ${firstSentence(input.blockReason)}`;
-  const next = input.next?.trim() ? ` — next: ${firstSentence(input.next)}` : "";
+  // "Nothing queued" is the agent saying there is no next step — not a step.
+  const said = input.next?.trim() ?? "";
+  const next = said && !/^nothing\b/i.test(said) ? ` — next: ${firstSentence(said)}` : "";
   switch (input.outcome) {
     case "failed":
       return `The last run failed${next}`;
