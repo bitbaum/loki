@@ -63,7 +63,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     buildStatus: buildStatus.kind,
     hasRepo: Boolean(dossier.userProject?.gitUrl ?? project.gitUrl),
     hasQueuedNextStep: Boolean(nextStep),
-    hasBriefOrGoals: Boolean(cleanDescription(project.description) || dossier.detail.linkedGoals.length),
+    hasBriefOrGoals: Boolean(
+      cleanDescription(project.description) || dossier.detail.linkedGoals.length,
+    ),
   });
 
   return (
