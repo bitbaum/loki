@@ -63,11 +63,8 @@ export function filterMissionBoard(
     .filter((mission) => {
       if (filter === "attention" && !mission.alert) return false;
       if (filter === "moving" && mission.phase !== "in-progress") return false;
-      if (
-        filter === "unplanned" &&
-        mission.phase !== "needs-objective" &&
-        mission.goalsTotal > 0
-      ) return false;
+      if (filter === "unplanned" && mission.phase !== "needs-objective" && mission.goalsTotal > 0)
+        return false;
       if (filter === "complete" && mission.phase !== "reported-complete") return false;
       if (!needle) return true;
       const searchText = [
