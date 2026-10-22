@@ -44,6 +44,41 @@ jobs:
           ssh-keyscan -H "$BOX_IP" >> ~/.ssh/known_hosts 2>/dev/null
           printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$BOX_IP" >> ~/.ssh/config
 
+      - name: Bootstrap dedicated least-shared deployment key on studio box
+        env:
+          BOX_IP: ${{ vars.HETZNER_IP }}
+        run: |
+          set -euo pipefail
+          # The initial register run stopped because the expected box-side
+          # deploy key was absent. Make an app-scoped key rather than reusing
+          # a root key or asking an operator to copy secrets into a PR.
+          ssh -o BatchMode=yes "root@$BOX_IP" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          dir=/home/ubuntu/.ssh
+          key="$dir/biaslens_ci_deploy"
+          install -d -m 0700 -o ubuntu -g ubuntu "$dir"
+
+          if [ ! -e "$key" ]; then
+            sudo -H -u ubuntu ssh-keygen -q -t ed25519 -N '' -f "$key" -C "biaslens-ci-deploy"
+          fi
+          if [ ! -s "$key" ] || [ ! -s "$key.pub" ]; then
+            echo "Deploy key exists but is incomplete; refusing to overwrite or leak it." >&2
+            exit 1
+          fi
+          auth="$dir/authorized_keys"
+          touch "$auth"
+          chown ubuntu:ubuntu "$auth"
+          pub="$(cat "$key.pub")"
+          if ! grep -Fqx "$pub" "$auth"; then
+            printf '%s\n' "$pub" >> "$auth"
+          fi
+          chmod 0700 "$dir"
+          chmod 0600 "$key" "$auth"
+          chmod 0644 "$key.pub"
+          chown ubuntu:ubuntu "$key" "$key.pub"
+          echo "Dedicated deployment key available and authorised for ubuntu; no private key printed."
+          REMOTE
+
       - name: Register exact existing repository through Fleet and deploy
         env:
           BOX_IP: ${{ vars.HETZNER_IP }}
@@ -69,7 +104,7 @@ jobs:
             sudo -H -u ubuntu env \
               DEV_ROOT=/home/ubuntu/dev \
               LOKI_REPO_ROOT=/home/ubuntu/dev/loki \
-              DEPLOY_KEY_PATH=/home/ubuntu/.ssh/loki_ci_deploy \
+              DEPLOY_KEY_PATH=/home/ubuntu/.ssh/biaslens_ci_deploy \
               bash "$register" biaslens --repo bitbaum/biaslens \
               --owner bitbaum --kind product --status validating \
               --title "Research beta" --no-deploy
@@ -95,7 +130,7 @@ jobs:
           sudo -H -u ubuntu env \
             DEV_ROOT=/home/ubuntu/dev \
             LOKI_REPO_ROOT=/home/ubuntu/dev/loki \
-            DEPLOY_KEY_PATH=/home/ubuntu/.ssh/loki_ci_deploy \
+            DEPLOY_KEY_PATH=/home/ubuntu/.ssh/biaslens_ci_deploy \
             bash "$loki/scripts/hetzner/deploy.sh" biaslens
           REMOTE
 
