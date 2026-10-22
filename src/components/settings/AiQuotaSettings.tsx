@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, ChevronDown, Gauge, Loader2, RefreshCw } from "lucide-react";
-import Link from "next/link";
-import { MODEL_STORE_PATH } from "@/lib/own-model-path";
+import { AlertTriangle, ChevronDown, Gauge, Loader2 } from "lucide-react";
 import type { QuotaRowView } from "@/lib/ai/quota-view";
+import { SettingsRefresh, SettingsSectionHeader } from "./SettingsSectionHeader";
 
 /**
- * What is left at each AI vendor, and what happens when it runs out.
+ * What is left at each AI vendor, and what happens when it runs out — the
+ * OPERATOR's card. These are the server's counters, not the person's share
+ * (that is "What you have left"), and the feature names in "Spent today" are
+ * the codebase's. Settings → AI shows it to the operator only; for anyone
+ * else it repeated the pool card above it in different units.
  *
  * The rule this panel is built to: a number that does not imply an action is
  * decoration. So no row shows a bare percentage. Each says what is left in
@@ -75,35 +78,13 @@ export function AiQuotaSettings() {
   }, []);
 
   return (
-    <section className="ui-settings-section">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 basis-56">
-          <h2 className="font-medium text-text-primary">The free pool</h2>
-          <p className="-mt-1 text-sm text-text-secondary">
-            Models the vendors let Loki use at no charge, shared by everyone here and rationed per
-            person. When a day&apos;s allowance is spent, it is spent for everyone until it resets.
-            Your own key does not draw on it.{" "}
-            <Link
-              href={MODEL_STORE_PATH}
-              className="text-accent-text underline-offset-2 hover:underline"
-            >
-              Bring one →
-            </Link>
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={reload}
-          className="ui-btn-ghost min-h-8 shrink-0 gap-1.5 px-2 text-xs"
-          disabled={loading}
-        >
-          <RefreshCw
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          />
-          Refresh
-        </button>
-      </div>
+    <section className="ui-settings-section" aria-labelledby="vendors-title">
+      <SettingsSectionHeader
+        id="vendors-title"
+        title="This server's free vendors"
+        lede="What each free vendor still allows this server today, read from the vendors' own replies, and where today's tokens went. Only you see this — it is the pool everyone's share is cut from."
+        action={<SettingsRefresh loading={loading} onClick={reload} />}
+      />
 
       {loading && !data && (
         <p className="flex items-center gap-2 text-sm text-text-muted" role="status">
@@ -238,7 +219,7 @@ function stateLabel(row: QuotaRowView): string {
 function SpendToday({ spend, total }: { spend: SpendRow[]; total: number }) {
   if (spend.length === 0) {
     return (
-      <div className="ui-settings-section">
+      <div className="ui-settings-subpanel">
         <p className="ui-micro-label">Spent today</p>
         <p className="text-sm text-text-muted">
           Nothing recorded yet today — this fills as features call a model.
@@ -249,7 +230,7 @@ function SpendToday({ spend, total }: { spend: SpendRow[]; total: number }) {
 
   const widest = Math.max(...spend.map((r) => r.tokens), 1);
   return (
-    <div className="ui-settings-section">
+    <div className="ui-settings-subpanel">
       <p className="ui-micro-label">
         Spent today · {total.toLocaleString("en-US")} tokens across {spend.length} feature
         {spend.length === 1 ? "" : "s"}

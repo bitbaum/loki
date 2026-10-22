@@ -2,23 +2,27 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowUp, Check, ExternalLink, KeyRound, Loader2, Plus, Zap } from "lucide-react";
+import { ArrowUp, Check, ExternalLink, Loader2, Plus, Zap } from "lucide-react";
 import { CUSTOM_VENDOR_ID, isVendorId, vendorById, type VendorId } from "@/config/model-vendors";
 import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
 import { AutoRouting } from "@/components/models/AutoRouting";
+import { RowActions } from "@/components/ui/row-actions";
 import { OwnModelForm } from "./OwnModelForm";
 import { BuildEngineToggle } from "./BuildEngineToggle";
+import { SettingsSectionHeader } from "./SettingsSectionHeader";
 
 /**
- * "Power Loki with your own models" — every key the user brought, in the
- * order Loki tries them.
+ * "Your providers" — every key the person brought, in the order Loki tries
+ * them — and, under it as a card of its own, what Auto picks from them.
  *
  * One key per provider, as many providers as they like: the list IS their
  * chain. The first row is where a turn starts; when that vendor is down or
  * refuses, the next answers — the same shape as the free chain, on their
- * keys. Add is one paste (OwnModelForm); the model on a stored key can be
- * changed without pasting again; a row can be moved up or removed.
+ * keys. Every row has one anatomy: the name and model, the detail under it,
+ * the one action people repeat (Test) inline and the rest behind one menu.
+ * Adding is the last row. What a key has cost and what is left on it is NOT
+ * repeated here: "What you have left" above says it once.
  *
  * Nothing here is ever a wall: with no sealing secret on the server the
  * section says so and Loki keeps using its free models.
@@ -38,13 +42,6 @@ function modeFromUrl(): Mode {
   return { kind: "add", vendor: add, model: q.get("model") ?? undefined };
 }
 
-type Usage = {
-  vendor: string;
-  tokensToday: number;
-  callsToday: number;
-  tokens30d: number;
-  calls30d: number;
-};
 type Billing = Record<string, { billingUrl: string | null; limit: string | null }>;
 
 type TestResult =
@@ -66,8 +63,6 @@ const hostOf = (url: string | null) => {
   }
 };
 
-const count = (n: number) => n.toLocaleString("en-CH");
-
 export function OwnModelSettings({
   cloudBuilder = false,
 }: {
@@ -78,30 +73,9 @@ export function OwnModelSettings({
   const [loaded, setLoaded] = useState(false);
   const [available, setAvailable] = useState(true);
   const [models, setModels] = useState<OwnModelRow[]>([]);
-  const [usage, setUsage] = useState<Usage[]>([]);
   const [billing, setBilling] = useState<Billing>({});
   const [mode, setMode] = useState<Mode>(modeFromUrl);
   const [busy, setBusy] = useState(false);
-
-  // "Also for building": one PATCH, the row as the server now holds it. The
-  // box picks the change up within a minute (scripts/write-tenant-engines.ts).
-  async function toggleBuild(row: OwnModelRow, forBuilding: boolean) {
-    setBusy(true);
-    try {
-      const data = await ownModelRequest<{ model: OwnModelRow }>("/api/settings/model", "PATCH", {
-        vendor: row.vendor,
-        forBuilding,
-      });
-      setModels((rows) => rows.map((r) => (r.vendor === row.vendor ? data.model : r)));
-    } catch (error) {
-      setNote({
-        tone: "warn",
-        text: error instanceof Error ? error.message : "That did not save.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
   const [error, setError] = useState<string | null>(null);
   /**
    * One line after every change — added, changed, moved, removed — so the
@@ -120,13 +94,11 @@ export function OwnModelSettings({
         const data = await ownModelRequest<{
           available: boolean;
           models: OwnModelRow[];
-          usage: Usage[];
           billing: Billing;
         }>("/api/settings/model", "GET");
         if (!alive) return;
         setAvailable(data.available);
         setModels(data.models);
-        setUsage(data.usage ?? []);
         setBilling(data.billing ?? {});
       } catch {
         if (alive) setError("Couldn't read your model settings just now.");
@@ -138,6 +110,23 @@ export function OwnModelSettings({
       alive = false;
     };
   }, []);
+
+  // "Also for building": one PATCH, the row as the server now holds it. The
+  // box picks the change up within a minute (scripts/write-tenant-engines.ts).
+  async function toggleBuild(row: OwnModelRow, forBuilding: boolean) {
+    setBusy(true);
+    try {
+      const data = await ownModelRequest<{ model: OwnModelRow }>("/api/settings/model", "PATCH", {
+        vendor: row.vendor,
+        forBuilding,
+      });
+      setModels((rows) => rows.map((r) => (r.vendor === row.vendor ? data.model : r)));
+    } catch (e) {
+      setNote({ tone: "warn", text: e instanceof Error ? e.message : "That did not save." });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function act(
     run: () => Promise<{ models: OwnModelRow[] }>,
@@ -211,221 +200,210 @@ export function OwnModelSettings({
   const showForm = loaded && available && (mode.kind !== "list" || models.length === 0);
 
   return (
-    <section className="ui-settings-section">
-      <div>
-        <h2 className="flex items-center gap-2 font-medium text-text-primary">
-          <KeyRound className="h-4 w-4 text-accent-text" aria-hidden="true" />
-          Power Loki with your own models
-        </h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Add a provider key or a compatible endpoint. Auto chooses a model for each request. Your
-          provider bills calls made with your key; those calls do not use the shared daily budget.
-          Choosing a free model in chat uses the shared pool. Add providers to give Auto
-          alternatives, or choose a specific model in chat.{" "}
-          <Link
-            href={MODEL_STORE_PATH}
-            className="text-accent-text underline-offset-2 hover:underline"
+    <>
+      <section className="ui-settings-section" aria-labelledby="providers-title">
+        <SettingsSectionHeader
+          id="providers-title"
+          title="Your providers"
+          lede={
+            <>
+              Keys you brought, in the order Loki tries them. Your provider bills every answer on
+              your key and Loki counts nothing; Auto picks the model for each turn.{" "}
+              <Link href={MODEL_STORE_PATH}>Compare providers and prices →</Link>
+            </>
+          }
+        />
+
+        {!loaded && (
+          <p className="flex items-center gap-2 text-sm text-text-muted" role="status">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Reading your providers
+          </p>
+        )}
+
+        {loaded && !available && (
+          <p className="ui-callout-warning">
+            Connecting your own model isn&apos;t switched on for this server yet — Loki keeps using
+            its free models.
+          </p>
+        )}
+
+        {note && (
+          <p
+            className={note.tone === "ok" ? "ui-callout-positive" : "ui-callout-warning"}
+            role="status"
           >
-            Compare providers and prices →
-          </Link>
-        </p>
-      </div>
+            <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">{note.text}</span>
+          </p>
+        )}
 
-      {!loaded && (
-        <p className="flex items-center gap-2 text-sm text-text-muted" role="status">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Reading your settings
-        </p>
-      )}
-
-      {loaded && !available && (
-        <p className="ui-callout-warning">
-          Connecting your own model isn&apos;t switched on for this server yet — Loki keeps using
-          its free models.
-        </p>
-      )}
-
-      {note && (
-        <p
-          className={note.tone === "ok" ? "ui-callout-positive" : "ui-callout-warning"}
-          role="status"
-        >
-          <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="min-w-0 flex-1">{note.text}</span>
-        </p>
-      )}
-
-      {/* `basis-56` on each row's text block: without a basis the buttons took
-          their width first and the text was squeezed into a column a few
-          characters wide, wrapping "grok-4.7" letter by letter on a phone
-          (2026-10-10). Now the text keeps at least 14rem and the buttons wrap
-          under it when the row is narrower than both. */}
-      {loaded && available && models.length > 0 && (
-        <ol className="divide-y divide-border-subtle rounded-lg border border-border-subtle">
-          {models.map((row, index) => (
-            <li key={row.vendor} className="flex flex-wrap items-start gap-x-3 gap-y-2 px-3 py-3">
-              <Check className="mt-1 h-4 w-4 shrink-0 text-status-positive" aria-hidden="true" />
-              <div className="min-w-0 flex-1 basis-56">
-                <p className="font-medium text-text-primary">
-                  {rowName(row)} · <span className="break-words">{row.model}</span>
-                </p>
-                <p className="text-xs text-text-secondary">
-                  {index === 0 ? "First provider for Auto · " : `Provider ${index + 1} · `}
-                  {row.vendor === CUSTOM_VENDOR_ID && hostOf(row.baseUrl)
-                    ? `${hostOf(row.baseUrl)} · `
-                    : ""}
-                  key {row.keyHint} · checked {new Date(row.verifiedAt).toLocaleDateString()}
-                </p>
-                <UsageLine usage={usage.find((u) => u.vendor === row.vendor)} />
-                {cloudBuilder && row.buildEngine && (
-                  <BuildEngineToggle
-                    agent={row.buildEngine}
-                    on={row.forBuilding}
-                    busy={busy}
-                    onChange={(next) => void toggleBuild(row, next)}
-                  />
-                )}
-                <TestLine result={tests[row.vendor]} />
-                {billing[row.vendor]?.billingUrl && (
-                  <a
-                    href={billing[row.vendor]!.billingUrl!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-0.5 inline-flex items-center gap-1 text-xs text-accent-text underline-offset-2 hover:underline"
-                  >
-                    Credits and {billing[row.vendor]!.limit} at {label(row.vendor)}
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                  </a>
-                )}
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="ui-btn-secondary text-xs"
-                  onClick={() => void test(row.vendor)}
-                  disabled={busy || tests[row.vendor]?.state === "running"}
-                  title="Send one short question on this key and time the answer"
-                >
-                  <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Test
-                </button>
-                <button
-                  type="button"
-                  className="ui-btn-secondary text-xs"
-                  onClick={() => setMode({ kind: "change", row })}
-                  disabled={busy}
-                >
-                  Change model
-                </button>
-                {index > 0 && (
+        {/* `basis-56` on each row's text block: without a basis the buttons took
+            their width first and the text was squeezed into a column a few
+            characters wide, wrapping "grok-4.7" letter by letter on a phone
+            (2026-10-10). Now the text keeps at least 14rem and the actions wrap
+            under it when the row is narrower than both. */}
+        {loaded && available && models.length > 0 && (
+          <ol className="divide-y divide-border-subtle rounded-xl border border-border-subtle">
+            {models.map((row, index) => (
+              <li key={row.vendor} className="flex flex-wrap items-start gap-x-3 gap-y-2 px-3 py-3">
+                <div className="min-w-0 flex-1 basis-56">
+                  <p className="font-medium text-text-primary">
+                    {rowName(row)} · <span className="break-words">{row.model}</span>
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {index === 0 ? "First for Auto" : `Provider ${index + 1}`}
+                    {row.vendor === CUSTOM_VENDOR_ID && hostOf(row.baseUrl)
+                      ? ` · ${hostOf(row.baseUrl)}`
+                      : ""}
+                    {` · key ${row.keyHint} · checked ${new Date(row.verifiedAt).toLocaleDateString()}`}
+                  </p>
+                  <TestLine result={tests[row.vendor]} />
+                  {cloudBuilder && row.buildEngine && (
+                    <BuildEngineToggle
+                      agent={row.buildEngine}
+                      on={row.forBuilding}
+                      busy={busy}
+                      onChange={(next) => void toggleBuild(row, next)}
+                    />
+                  )}
+                </div>
+                {/* The action people repeat stays inline; the rest live behind
+                    one trigger, the same on every row. */}
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    className="ui-btn-ghost text-xs"
-                    onClick={() => moveUp(index)}
-                    disabled={busy}
-                    aria-label={`Try ${rowName(row)} earlier`}
+                    className="ui-btn-secondary min-h-9 text-xs"
+                    onClick={() => void test(row.vendor)}
+                    disabled={busy || tests[row.vendor]?.state === "running"}
+                    title="Send one short question on this key and time the answer"
                   >
-                    <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" /> Earlier
+                    <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Test
                   </button>
-                )}
+                  <RowActions label={`More for ${rowName(row)}`}>
+                    <button
+                      type="button"
+                      className="ui-menu-item"
+                      onClick={() => setMode({ kind: "change", row })}
+                      disabled={busy}
+                    >
+                      Change model
+                    </button>
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        className="ui-menu-item"
+                        onClick={() => moveUp(index)}
+                        disabled={busy}
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" /> Try it earlier
+                      </button>
+                    )}
+                    {billing[row.vendor]?.billingUrl && (
+                      <a
+                        href={billing[row.vendor]!.billingUrl!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ui-menu-item"
+                      >
+                        Credits and {billing[row.vendor]!.limit} at {label(row.vendor)}
+                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                      </a>
+                    )}
+                    <div className="ui-menu-separator" role="separator" />
+                    <button
+                      type="button"
+                      className="ui-menu-item ui-menu-item-danger"
+                      onClick={() => remove(row)}
+                      disabled={busy}
+                    >
+                      Remove this key
+                    </button>
+                  </RowActions>
+                </div>
+              </li>
+            ))}
+            {mode.kind === "list" && (
+              <li>
                 <button
                   type="button"
-                  className="ui-btn-ghost text-xs"
-                  onClick={() => remove(row)}
+                  className="ui-list-add-row"
+                  onClick={() => setMode({ kind: "add" })}
                   disabled={busy}
                 >
-                  Remove
+                  <Plus className="h-4 w-4" aria-hidden="true" /> Add a provider
                 </button>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+              </li>
+            )}
+          </ol>
+        )}
 
-      {loaded && available && models.length > 0 && (
-        <div className="border-t border-border-subtle pt-4">
-          <AutoRouting key={models.map((m) => `${m.vendor}:${m.model}`).join("|")} />
-        </div>
-      )}
+        {loaded && available && models.length === 1 && mode.kind === "list" && (
+          <p className="text-xs text-text-tertiary">
+            One provider is one point of failure. A second gives Auto a choice when this one is slow
+            or out of credit — and two models to compare on the same question.
+          </p>
+        )}
 
-      {loaded && available && models.length > 0 && mode.kind === "list" && (
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className="ui-btn-secondary text-sm"
-            onClick={() => setMode({ kind: "add" })}
-            disabled={busy}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" /> Add another provider
-          </button>
-          {models.length === 1 && (
-            <p className="text-xs text-text-tertiary">
-              One provider is one point of failure. A second gives Auto a choice when this one is
-              slow or out of credit — and two models to compare on the same question.
-            </p>
-          )}
-        </div>
-      )}
-
-      {showForm && (
-        <div className={models.length > 0 ? "border-t border-border-subtle pt-4" : undefined}>
-          {mode.kind === "change" && (
-            <p className="mb-3 text-sm text-text-secondary">
-              Changing the model on {rowName(mode.row)} ({mode.row.keyHint}).
-            </p>
-          )}
-          <OwnModelForm
-            key={mode.kind === "change" ? `change:${mode.row.vendor}` : mode.kind}
-            existing={models}
-            changeOnly={mode.kind === "change" ? mode.row : null}
-            initialVendor={mode.kind === "add" ? mode.vendor : undefined}
-            initialModel={mode.kind === "add" ? mode.model : undefined}
-            onSaved={(next, saved) => {
-              setModels(next);
-              setMode({ kind: "list" });
-              const row = next.find((m) => m.vendor === saved.vendor);
-              const name = `${row ? rowName(row) : label(saved.vendor)} · ${row?.model ?? ""}`;
-              if (saved.unfunded) {
+        {showForm && (
+          <div className={models.length > 0 ? "border-t border-border-subtle pt-4" : undefined}>
+            {mode.kind === "change" && (
+              <p className="mb-3 text-sm text-text-secondary">
+                Changing the model on {rowName(mode.row)} ({mode.row.keyHint}).
+              </p>
+            )}
+            <OwnModelForm
+              key={mode.kind === "change" ? `change:${mode.row.vendor}` : mode.kind}
+              existing={models}
+              changeOnly={mode.kind === "change" ? mode.row : null}
+              initialVendor={mode.kind === "add" ? mode.vendor : undefined}
+              initialModel={mode.kind === "add" ? mode.model : undefined}
+              onSaved={(next, saved) => {
+                setModels(next);
+                setMode({ kind: "list" });
+                const row = next.find((m) => m.vendor === saved.vendor);
+                const name = `${row ? rowName(row) : label(saved.vendor)} · ${row?.model ?? ""}`;
+                if (saved.unfunded) {
+                  setNote({
+                    tone: "warn",
+                    text: `${name} saved. It answers once the account has credits — see its billing page in the row's menu.`,
+                  });
+                  return;
+                }
                 setNote({
-                  tone: "warn",
-                  text: `${name} saved. It answers once the account has credits — see the billing link on its row.`,
+                  tone: "ok",
+                  text:
+                    saved.kind === "change"
+                      ? `${name} — model changed. Testing it now…`
+                      : next[0]?.vendor === saved.vendor
+                        ? `${name} added as the first provider for Auto. Testing it…`
+                        : `${name} added as your ${ordinal(next.findIndex((m) => m.vendor === saved.vendor) + 1)} provider. Testing it…`,
                 });
-                return;
-              }
-              setNote({
-                tone: "ok",
-                text:
-                  saved.kind === "change"
-                    ? `${name} — model changed. Testing it now…`
-                    : next[0]?.vendor === saved.vendor
-                      ? `${name} added as the first provider for Auto. Testing it…`
-                      : `${name} added as your ${ordinal(next.findIndex((m) => m.vendor === saved.vendor) + 1)} model. Testing it…`,
-              });
-              void test(saved.vendor);
-            }}
-            onCancel={models.length > 0 ? () => setMode({ kind: "list" }) : null}
+                void test(saved.vendor);
+              }}
+              onCancel={models.length > 0 ? () => setMode({ kind: "list" }) : null}
+            />
+          </div>
+        )}
+
+        {error && <p className="ui-error text-sm">{error}</p>}
+      </section>
+
+      {/* A card of its own, re-mounted whenever the keys change so the picks
+          never describe a key that is gone. */}
+      {loaded && available && models.length > 0 && (
+        <section className="ui-settings-section" aria-labelledby="auto-picks-title">
+          <SettingsSectionHeader
+            id="auto-picks-title"
+            title="What Auto picks"
+            lede="Auto chooses a model for each request. Small requests go to an economical model; your stance sets how much to spend on harder work."
           />
-        </div>
+          <AutoRouting
+            key={models.map((m) => `${m.vendor}:${m.model}`).join("|")}
+            heading={false}
+          />
+        </section>
       )}
-
-      {error && <p className="ui-error text-sm">{error}</p>}
-    </section>
-  );
-}
-
-/**
- * What this key has cost, counted here beside the vendor's own meter. Tokens
- * and calls, never a currency: Loki does not know the vendor's price list,
- * and a wrong franc is worse than an honest token.
- */
-function UsageLine({ usage }: { usage: Usage | undefined }) {
-  if (!usage || usage.calls30d === 0) {
-    return <p className="text-xs text-text-muted">Not used yet.</p>;
-  }
-  return (
-    <p className="text-xs text-text-muted">
-      Today {count(usage.tokensToday)} tokens in {usage.callsToday} call
-      {usage.callsToday === 1 ? "" : "s"} · 30 days {count(usage.tokens30d)} tokens in{" "}
-      {usage.calls30d} call{usage.calls30d === 1 ? "" : "s"}
-    </p>
+    </>
   );
 }
 

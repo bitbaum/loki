@@ -6,11 +6,14 @@
 // Prices are the master-plan anchors (docs/master-plan-2026-07.md §7.2), set by
 // the founder on 2026-10-17; one edit here, no component changes.
 //
-// PAYMENTS ARE NOT OPEN. A price is shown so a person can decide; the button
-// under it reserves the plan (db/schema/plan-reservations.ts) and charges
-// nothing. A plan is sold only when its OrangeCat pass exists
-// (ORANGECAT_PAY_URL_<PLAN>, lib/oc-pay.ts) — which waits on the company being
-// registered — and then the same button becomes "Pay in Bitcoin".
+// Checkout is a switch (LOKI_PAYMENTS_OPEN, lib/oc-pay.ts). A price is shown
+// so a person can decide; while the switch is off the button under it
+// reserves the plan (db/schema/plan-reservations.ts) and charges nothing, and
+// the copy says exactly that — never WHY the switch is off. A plan is sold
+// once its OrangeCat pass exists and the switch is on; the same button then
+// becomes "Pay in Bitcoin". Build every surface as the subscription product it
+// is about to be: the owner's rule (2026-10-21) is that nothing here may read
+// as provisional.
 
 import type { Plan } from "@/db/schema/users";
 import { WELCOME_BUILDS } from "@/config/welcome-changes";
@@ -119,7 +122,7 @@ const PRICING_ANNOUNCED = PRICING_PLANS.some((p) => p.priceMonthly !== null && p
 // renews by itself (BillingSettings). Until the passes exist, a paid plan can
 // only be reserved — and the note says so, under every price.
 export const PRICING_BILLING_NOTE = PRICING_ANNOUNCED
-  ? "Prices are per month. Payments open once Loki's company is registered — until then you can reserve a plan, and nothing is charged. Your agents run with your own sign-ins and keys, which Loki never bills, or on Loki's engine within your plan's builds a month."
+  ? "Prices are per month, paid in Bitcoin on OrangeCat a month at a time; nothing renews by itself. Reserve a plan today and nothing is charged until checkout opens for your account — you hear from us the day it does. Your agents run with your own sign-ins and keys, which Loki never bills, or on Loki's engine within your plan's builds a month."
   : "Loki is free while prices are not announced. Nothing is charged until they are, and every feature below is on every plan.";
 
 // Available on EVERY plan (all shipped today). Listed once, honestly, instead of

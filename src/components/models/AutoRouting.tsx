@@ -20,7 +20,14 @@ import { indexLabel, money } from "./format";
  * says why it was chosen, a changed pick says "your choice". Nothing here is
  * a wall — "Loki decides" puts a tier back on the computed pick.
  */
-export function AutoRouting({ compact = false }: { compact?: boolean }) {
+export function AutoRouting({
+  compact = false,
+  heading = true,
+}: {
+  compact?: boolean;
+  /** False when the card around it already carries the title and the line. */
+  heading?: boolean;
+}) {
   const [view, setView] = useState<RoutingView | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -146,18 +153,23 @@ export function AutoRouting({ compact = false }: { compact?: boolean }) {
   );
 
   return (
-    <section aria-labelledby="auto-title" className={compact ? "ui-auto-strip" : "space-y-4"}>
+    <section
+      aria-labelledby={heading ? "auto-title" : undefined}
+      className={compact ? "ui-auto-strip" : "space-y-4"}
+    >
       <div className="flex flex-col gap-3">
-        <div>
-          <h3 id="auto-title" className="flex items-center gap-2 font-medium text-text-primary">
-            <Sparkles className="h-4 w-4 text-accent-text" aria-hidden="true" /> What Auto picks for
-            you
-          </h3>
-          <p className="mt-1 text-sm text-text-secondary">
-            Auto chooses a model for each request. Small requests use economical models; your
-            preference sets how much to spend on harder work.
-          </p>
-        </div>
+        {heading && (
+          <div>
+            <h3 id="auto-title" className="flex items-center gap-2 font-medium text-text-primary">
+              <Sparkles className="h-4 w-4 text-accent-text" aria-hidden="true" /> What Auto picks
+              for you
+            </h3>
+            <p className="mt-1 text-sm text-text-secondary">
+              Auto chooses a model for each request. Small requests use economical models; your
+              preference sets how much to spend on harder work.
+            </p>
+          </div>
+        )}
         <Segmented
           label="Stance"
           options={STANCES.map((s) => ({ id: s.id, label: s.label, means: s.line }))}
@@ -178,6 +190,17 @@ export function AutoRouting({ compact = false }: { compact?: boolean }) {
         picks
       )}
       {error && <p className="ui-error text-sm">{error}</p>}
+      {/* Where the numbers come from, and how old they are. A price and an
+          index with no source read as typed by hand — and typed numbers rot
+          the week a lab moves its prices. These are read, and say when. */}
+      <p className="text-xs text-text-muted">
+        Prices are OpenRouter&apos;s quoted USD rates and the intelligence index is Artificial
+        Analysis&apos; as OpenRouter relays it, read from its public catalogue
+        {view.catalogReadAt === null
+          ? " — not read yet"
+          : ` at ${new Date(view.catalogReadAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
+        . Your provider&apos;s own page has the price you are billed.
+      </p>
     </section>
   );
 }

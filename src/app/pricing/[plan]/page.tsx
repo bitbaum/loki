@@ -78,9 +78,8 @@ export default async function PlanCheckoutPage({ params }: { params: Promise<{ p
             )}
             {checkout.kind === "reserve" && (
               <p className="text-sm text-text-secondary">
-                Payments open once Loki&apos;s company is registered. Reserving charges nothing and
-                commits you to nothing — you hear from us when you can pay, and you can cancel any
-                time.
+                Reserving charges nothing and commits you to nothing: your place is kept, you hear
+                from us the day checkout opens for your account, and you can cancel any time.
               </p>
             )}
           </div>

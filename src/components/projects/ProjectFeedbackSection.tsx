@@ -804,15 +804,9 @@ function AutoShipToggle({ projectId }: { projectId: string }) {
         aria-label="Ship fixes automatically"
         onClick={() => void set(!on)}
         disabled={saving}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-          on ? "bg-accent-primary" : "border border-border-subtle bg-surface-overlay"
-        }`}
+        className={on ? "ui-switch ui-switch-on" : "ui-switch"}
       >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            on ? "translate-x-[22px]" : "translate-x-0.5"
-          }`}
-        />
+        <span className="ui-switch-knob" />
       </button>
     </div>
   );
