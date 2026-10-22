@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { postJson } from "@/lib/api/fetch";
 import { toLocalDateStr } from "@/lib/dates";
 import { INTERACTION_DIRECTION, type InteractionDirection } from "@/lib/constants/statuses";
-import { Section, ChannelIcon } from "./PersonDetailHelpers";
+import { Section, ChannelIcon, channelLabel } from "./PersonDetailHelpers";
 import type { Interaction } from "./person-detail-types";
 import { DateInput } from "@/components/ui/date-input";
 
@@ -66,7 +66,7 @@ export function InteractionsSection({
             >
               {CHANNEL_NAMES.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {channelLabel(c)}
                 </option>
               ))}
             </select>
@@ -121,7 +121,7 @@ export function InteractionsSection({
               {ix.direction === INTERACTION_DIRECTION.INBOUND
                 ? "They got in touch"
                 : "You got in touch"}
-              <span className="text-text-secondary"> · {ix.channel}</span>
+              <span className="text-text-secondary"> · {channelLabel(ix.channel)}</span>
             </div>
             {ix.summary && (
               <p className="text-sm leading-relaxed text-text-secondary">{ix.summary}</p>

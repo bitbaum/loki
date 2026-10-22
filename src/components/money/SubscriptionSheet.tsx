@@ -231,7 +231,7 @@ export function SubscriptionSheet({
                 </button>
               </div>
             ) : (
-              <SheetAction icon={X} onClick={() => setConfirmCancel(true)} danger>
+              <SheetAction icon={X} onClick={() => setConfirmCancel(true)}>
                 I cancelled it
               </SheetAction>
             )}

@@ -4,14 +4,9 @@ import { useState } from "react";
 import { Loader2, Plus, Save, X } from "lucide-react";
 import { setAttr, removeAttr } from "@/lib/api/attrs";
 import { throwApiError } from "@/lib/api/fetch";
-import {
-  CHANNEL_NAMES,
-  isChannelAttrKey,
-  stripChannelPrefix,
-  withChannelPrefix,
-} from "@/config/channels";
+import { CHANNEL_NAMES, isChannelAttrKey, withChannelPrefix } from "@/config/channels";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Section, ChannelIcon } from "./PersonDetailHelpers";
+import { Section, ChannelIcon, channelLabel } from "./PersonDetailHelpers";
 import { formatChannelValue } from "./person-detail-types";
 import { channelHref } from "@/lib/people-reach";
 import { TOAST_SHORT_MS } from "@/lib/constants/timings";
@@ -78,7 +73,7 @@ export function ChannelsSection({
       {channels.map(([key, value]) => (
         <div key={key} className="group flex items-center gap-3 ui-person-row">
           <ChannelIcon channel={key} />
-          <span className="shrink-0 text-text-secondary">{stripChannelPrefix(key)}</span>
+          <span className="shrink-0 text-text-secondary">{channelLabel(key)}</span>
           {(() => {
             // Same treatment as Today's check-in row: a contact value the
             // operator has to select and copy is not a contact method. One
@@ -130,7 +125,7 @@ export function ChannelsSection({
             >
               {CHANNEL_NAMES.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {channelLabel(c)}
                 </option>
               ))}
             </select>

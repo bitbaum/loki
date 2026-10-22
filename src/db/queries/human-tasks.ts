@@ -113,7 +113,9 @@ function withDerived(row: {
 const SELECT_TASK = {
   task: humanTasks,
   assigneeName: assignee.name,
-  projectName: project.name,
+  // The project's title when it has one: its name is a folder slug
+  // ("camille-boulangerie"), and this reaches the assignee's own page too.
+  projectName: sql<string | null>`coalesce(${project.title}, ${project.name})`,
   assigneePayUrl: payTo.value,
 };
 

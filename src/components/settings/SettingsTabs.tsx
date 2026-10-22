@@ -71,12 +71,7 @@ type Props = {
 const TABS = [
   { id: "profile", label: "Profile", icon: User, about: "Your name, username and photo" },
   { id: "account", label: "Account", icon: KeyRound, about: "Email, password and how you sign in" },
-  {
-    id: "notifications",
-    label: "Notifications",
-    icon: Bell,
-    about: "This phone, and email digests",
-  },
+  { id: "notifications", label: "Notifications", icon: Bell, about: "This phone, and digests" },
   { id: "appearance", label: "Appearance", icon: Palette, about: "Light, dark or automatic" },
   { id: "voice", label: "Voice", icon: Mic, about: "How Loki writes and speaks for you" },
   { id: "ai", label: "AI", icon: Sparkles, about: "Your own models and what is left today" },

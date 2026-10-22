@@ -15,7 +15,7 @@ export function goalLine(goal: GoalWithChildren): { text: string; overdue: boole
   const parts = [
     goal.status === GOAL_STATUS.ABANDONED ? "Set aside" : null,
     due?.label ?? null,
-    goal.entityName ? projectTitle({ name: goal.entityName }) : null,
+    goal.entityName ? projectTitle({ name: goal.entityName, title: goal.entityTitle }) : null,
     goal.children.length > 0
       ? `${goal.children.length} ${goal.children.length === 1 ? "sub-goal" : "sub-goals"}`
       : null,

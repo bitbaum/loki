@@ -181,7 +181,7 @@ export function GoalDetail({
             <ListRow
               href={`/projects/${goal.entityId}`}
               icon={FolderKanban}
-              title={projectTitle({ name: goal.entityName })}
+              title={projectTitle({ name: goal.entityName, title: goal.entityTitle })}
               secondary="The project this goal belongs to"
               chevron
             />

@@ -70,13 +70,7 @@ export function ProviderInventorySettings() {
 function providerLine(p: Provider): string {
   const state = statusOf(p);
   const detail =
-    p.kind === "gateway"
-      ? null
-      : p.installed
-        ? p.version
-          ? `version ${p.version}`
-          : null
-        : null;
+    p.kind === "gateway" ? null : p.installed ? (p.version ? `version ${p.version}` : null) : null;
   const parts = [state === "Working" ? detail : state, p.nextAction].filter(Boolean);
   return parts.join(" — ") || "Ready";
 }

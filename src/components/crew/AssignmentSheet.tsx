@@ -5,6 +5,7 @@ import { Check, Copy, ExternalLink, Link2, Loader2, Send, Trash2, Wallet, X } fr
 import { DetailSheet, SheetAction, SheetActions } from "@/components/ui/detail-sheet";
 import { deleteJson, getJson, patchJson, postJson } from "@/lib/api/fetch";
 import { deadlineLabel } from "@/lib/dates";
+import { projectTitle } from "@/lib/project-display";
 import {
   HUMAN_TASK_STATUS,
   HUMAN_TASK_STATUS_HINT,
@@ -103,6 +104,7 @@ export function AssignmentSheet({
   const subtitle = [
     HUMAN_TASK_STATUS_LABEL[current.status],
     current.assigneeName ?? "Nobody asked yet",
+    current.projectName ? projectTitle({ name: current.projectName }) : null,
     current.dueDate ? deadlineLabel(current.dueDate).label : null,
     fee ? `${fee}${sats ? ` (${sats})` : ""}` : null,
   ]

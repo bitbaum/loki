@@ -7244,8 +7244,17 @@
   .ui-detail-sheet-action {
     @apply flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-left text-base text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-40;
   }
+  /* Its icon is one size whoever drew it: LokiDispatchButton and DeleteButton
+     bring their own 12–14px glyph classes, which would otherwise win. The
+     row starts at the left even when the button is DeleteButton's centred
+     trigger. */
+  .ui-detail-sheet-action {
+    justify-content: flex-start;
+  }
   .ui-detail-sheet-action svg {
-    @apply h-5 w-5 shrink-0 text-text-secondary;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    @apply shrink-0 text-text-secondary;
   }
   .ui-detail-sheet-action-danger,
   .ui-detail-sheet-action-danger svg {
@@ -7272,7 +7281,8 @@
   }
   /* A row that was drawn as a small card inside a section (a member, an
      invitation, a key) reads as a row: a hairline above it, no box. */
-  .ui-settings-pane .ui-card-shell {
+  .ui-settings-pane .ui-card-shell,
+  .ui-settings-pane .ui-list-item {
     @apply rounded-none border-0 border-t border-border-subtle bg-transparent;
     box-shadow: none;
   }

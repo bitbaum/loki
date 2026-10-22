@@ -9,7 +9,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { RowActions } from "@/components/ui/row-actions";
 import { getJson, deleteJson } from "@/lib/api/fetch";
 import { deadlineLabel } from "@/lib/dates";
-import { projectTitle } from "@/lib/project-display";
 import {
   CLOSED_HUMAN_TASK_STATUSES,
   ENGAGEMENT_LABEL,
@@ -216,13 +215,9 @@ function TaskRow({ task, onOpen }: { task: HumanTaskRow; onOpen: () => void }) {
       avatar={task.assigneeName ? <RowInitial name={task.assigneeName} /> : undefined}
       icon={task.assigneeName ? undefined : ClipboardList}
       title={task.title}
-      secondary={[
-        task.assigneeName ?? "Nobody yet",
-        task.projectName ? projectTitle({ name: task.projectName }) : null,
-        due?.label,
-      ]
-        .filter(Boolean)
-        .join(" · ")}
+      // Who and when — the project is in the ask's sheet; on a phone it
+      // pushed the date off the line.
+      secondary={[task.assigneeName ?? "Nobody yet", due?.label].filter(Boolean).join(" · ")}
       // Amber when it is your move — they delivered, or they said no.
       status={isWaitingOnOperator(task.status) ? "warning" : undefined}
       trailing={fee ?? undefined}

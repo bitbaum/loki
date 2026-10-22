@@ -85,7 +85,13 @@ export function GoalsList({
                   value={project}
                   options={[
                     { value: ALL, label: "All" },
-                    ...projects.map((p) => ({ value: p, label: projectTitle({ name: p }) })),
+                    ...projects.map((p) => ({
+                      value: p,
+                      label: projectTitle({
+                        name: p,
+                        title: activeGoals.find((g) => g.entityName === p)?.entityTitle,
+                      }),
+                    })),
                   ]}
                   onChange={setProject}
                 />
