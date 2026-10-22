@@ -4,6 +4,8 @@
 packages:
   - packages/*
   - bridge
+  # The box's receive-only mail gateway (bundled to one file, run by systemd).
+  - mailgate
 
 allowBuilds:
   "@parcel/watcher": true
@@ -67,6 +69,10 @@ minimumReleaseAgeExclude:
   - "bip-kit"
   - "limitkit"
   - "@bitbaum/chatkit"
+  - libmime@5.6.0
+  - mailparser@3.12.2
+  - nodemailer@10.2.0
+  - smtp-server@3.21.0
 
 # braces GHSA-vfj7-8cjw-p6xm has NO patched release (<=3.0.3 = every version).
 # Reached only via shadcn's CLI (fast-glob > micromatch) at dev time, never at

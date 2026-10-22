@@ -1,0 +1,51 @@
+name: Mailgate
+
+# Build and install loki-mailgate on the box: mail to hello@<any app host> is
+# received, checked (SPF/DKIM/DMARC) and delivered signed to the app
+# (mailgate/README.md). Also refreshes its copy of the app register, so run it
+# after a site is added. Manual on purpose: it opens a port and runs a service.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Build the bundle
+        run: |
+          pnpm install --frozen-lockfile --filter loki-mailgate...
+          pnpm -C mailgate test
+          pnpm -C mailgate bundle
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Install on the box
+        run: |
+          set -euo pipefail
+          BOX="ubuntu@$HETZNER_IP"
+          SSH="ssh -o BatchMode=yes -i $HOME/.ssh/id_deploy"
+          $SSH "$BOX" 'sudo mkdir -p /opt/mailgate/install && sudo chown ubuntu:ubuntu /opt/mailgate /opt/mailgate/install'
+          scp -q -o BatchMode=yes -i ~/.ssh/id_deploy \
+            mailgate/dist/mailgate.mjs mailgate/loki-mailgate.service scripts/hetzner/apps.conf \
+            scripts/hetzner/install-mailgate.sh scripts/hetzner/fleet-env.sh scripts/hetzner/fleet-keys.conf \
+            "$BOX:/opt/mailgate/install/"
+          $SSH "$BOX" 'bash /opt/mailgate/install/install-mailgate.sh'

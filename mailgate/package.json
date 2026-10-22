@@ -1,0 +1,35 @@
+{
+  "name": "loki-mailgate",
+  "version": "0.1.0",
+  "description": "The fleet's mail gateway: receives mail for every app host (hello@<host>), checks where it came from, and delivers it signed to the app.",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "type-check": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "bundle": "esbuild src/server.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/mailgate.mjs --log-level=warning --banner:js=\"import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@bitbaum/mail-kit": "^0.2.0",
+    "mailauth": "^8.0.1",
+    "mailparser": "^3.12.2",
+    "smtp-server": "^3.21.0"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.4.6",
+    "@types/node": "^26",
+    "@types/nodemailer": "^8.0.2",
+    "@types/smtp-server": "^3.5.13",
+    "nodemailer": "^10.2.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.0",
+    "esbuild": "^0.28.2"
+  }
+}

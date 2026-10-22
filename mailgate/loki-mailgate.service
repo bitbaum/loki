@@ -1,0 +1,34 @@
+[Unit]
+Description=loki-mailgate: receives mail for every app host and delivers it to the app (mailgate/)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+OnFailure=notify-failure@%n.service
+
+[Service]
+User=ubuntu
+Group=ubuntu
+# MAIL_INBOUND_SECRET, the key every app verifies deliveries with.
+EnvironmentFile=/opt/fleet/env
+Environment=NODE_ENV=production
+Environment=MAILGATE_PORT=25
+# Loki's live register (refreshed by every Loki deploy, so a new site gets
+# mail without reinstalling this), then the copy installed beside it.
+Environment=MAILGATE_REGISTER=/opt/loki/app/scripts/hetzner/apps.conf:/opt/mailgate/apps.conf
+Environment=MAILGATE_SPOOL=/opt/mailgate/spool
+Environment=MAILGATE_TLS_KEY=/opt/mailgate/tls/key.pem
+Environment=MAILGATE_TLS_CERT=/opt/mailgate/tls/cert.pem
+ExecStart=/usr/bin/node /opt/mailgate/mailgate.mjs
+Restart=always
+RestartSec=5
+# Port 25 without running as root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/mailgate/spool
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
