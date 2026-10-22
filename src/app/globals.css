@@ -4320,12 +4320,6 @@
   .ui-btn-pill-positive {
     @apply flex shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-overlay hover:text-status-positive hover:border-status-positive/30;
   }
-  /* Empty is quiet (design reset, rule 10): an icon, a line, a button — no
-     border, no box. Kept as a class for the pages not rebuilt yet; new code
-     uses <EmptyState>. */
-  .ui-empty-panel {
-    @apply flex flex-col items-center gap-3 py-14 text-center text-text-tertiary;
-  }
   /* Inline empty state — lives inside an existing Card. Three sizes (sm/md/lg) cover
      the spectrum from tight section empties (py-4) to first-run hero empties (py-16). */
   .ui-empty-block {
@@ -4488,13 +4482,6 @@
   }
   .ui-list-item {
     @apply flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3;
-  }
-  .ui-search-input {
-    @apply w-full rounded-xl border border-border-default bg-surface-overlay py-3 pl-11 pr-16 text-base text-text-primary placeholder:text-text-muted outline-none transition-colors;
-  }
-  .ui-search-input:focus {
-    @apply border-border-strong;
-    box-shadow: 0 0 0 2px oklch(1 0 0 / 6%);
   }
   /* The part of a result a search matched (searchkit's <Highlight> renders a
      bare <mark>). Weight and a quiet wash, not the browser's yellow: a row

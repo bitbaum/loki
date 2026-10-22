@@ -113,7 +113,7 @@ examples — copy them.
 
 Classes that changed under every page: `ui-kicker` and `ui-micro-label` are no
 longer uppercase or tracked (labels only — headings are `SectionHeading`);
-`ui-empty-panel` has no box; `ui-topbar-btn` is a borderless 40px circle in a
+`ui-topbar-btn` is a borderless 40px circle in a
 44px target; the bottom bar is exactly `--mobile-nav-height` (4rem) and the
 main column ends above it on a phone, so nothing scrolls under it.
 
