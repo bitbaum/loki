@@ -1,0 +1,133 @@
+name: Provision analysis beta on studio box
+
+# A narrowly scoped, idempotent bootstrap through Loki's canonical
+# register-site.sh. No new deploy implementation, hardcoded port or manual
+# apps.conf row. CI on main must be green before touching the box.
+on:
+  workflow_dispatch: {}
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: register-analysis-beta
+  cancel-in-progress: false
+
+jobs:
+  register:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event != 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Assert studio deploy access
+        env:
+          BOX_IP: ${{ vars.HETZNER_IP }}
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BOX_IP" ] || [ -z "$SSH_KEY" ]; then
+            echo "::error::Studio HETZNER_IP/HETZNER_SSH_KEY is unavailable. No provisioning occurred."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$BOX_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$BOX_IP" >> ~/.ssh/config
+
+      - name: Register exact existing repository through Fleet and deploy
+        env:
+          BOX_IP: ${{ vars.HETZNER_IP }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes "root@$BOX_IP" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+
+          loki=/home/ubuntu/dev/loki
+          register="$loki/scripts/hetzner/register-site.sh"
+          manifest="$loki/scripts/hetzner/apps.conf"
+          test -f "$register" || {
+            echo "Durable Loki registration script missing; refusing to invent hosting." >&2
+            exit 1
+          }
+
+          if grep -q '^biaslens|' "$manifest"; then
+            echo "biaslens is already registered; rechecking its public beta."
+          else
+            # The existing tool allocates a safe port, creates .env and DB,
+            # installs the deploy key, publishes the Fleet host row, and syncs
+            # systemd+Caddy. --no-deploy lets us set canonical URL first.
+            sudo -H -u ubuntu env \
+              DEV_ROOT=/home/ubuntu/dev \
+              LOKI_REPO_ROOT=/home/ubuntu/dev/loki \
+              DEPLOY_KEY_PATH=/home/ubuntu/.ssh/loki_ci_deploy \
+              bash "$register" biaslens --repo bitbaum/biaslens \
+              --owner bitbaum --kind product --status validating \
+              --title "Research beta" --no-deploy
+          fi
+
+          envfile=/opt/biaslens/shared/.env
+          test -f "$envfile" || {
+            echo "No server-owned runtime env was provisioned. Cannot deploy." >&2
+            exit 1
+          }
+          if ! grep -q '^NEXT_PUBLIC_SITE_URL=' "$envfile"; then
+            printf '%s\n' 'NEXT_PUBLIC_SITE_URL=https://biaslens.orangecat.ch' >> "$envfile"
+          fi
+          # Temporary fallback display name, not a commitment to this brand.
+          if ! grep -q '^NEXT_PUBLIC_PRODUCT_NAME=' "$envfile"; then
+            printf '%s\n' 'NEXT_PUBLIC_PRODUCT_NAME=BiasLens' >> "$envfile"
+          fi
+          chmod 600 "$envfile"
+          chown ubuntu:ubuntu "$envfile"
+
+          # The reusable deploy script builds the CI-approved app, atomically
+          # swaps the release, health-checks and automatically rolls back.
+          sudo -H -u ubuntu env \
+            DEV_ROOT=/home/ubuntu/dev \
+            LOKI_REPO_ROOT=/home/ubuntu/dev/loki \
+            DEPLOY_KEY_PATH=/home/ubuntu/.ssh/loki_ci_deploy \
+            bash "$loki/scripts/hetzner/deploy.sh" biaslens
+          REMOTE
+
+      - name: Verify actual public hostname and report AI setup truthfully
+        env:
+          BOX_IP: ${{ vars.HETZNER_IP }}
+        run: |
+          set -euo pipefail
+          host=https://biaslens.orangecat.ch
+          success=0
+          for attempt in $(seq 1 25); do
+            if curl --fail --silent --show-error --max-time 10 "$host/api/health" -o /tmp/biaslens-health.json 2>/dev/null; then
+              success=1
+              break
+            fi
+            sleep 3
+          done
+          if [ "$success" != 1 ]; then
+            echo "::error::The app was registered but public HTTPS health did not answer."
+            exit 1
+          fi
+          if ! grep -q '"service":"analysis-beta"' /tmp/biaslens-health.json; then
+            echo "::error::Public health endpoint is not the intended analysis app."
+            exit 1
+          fi
+          if grep -q '"ai":"credentials-missing"' /tmp/biaslens-health.json; then
+            echo "::warning::Public beta is served, but no model API key is configured in its box-side environment."
+            echo "Beta served; AI provider setup still required." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Public beta served; provider credential presence reported (not a model smoke test)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          for route in / /analyze /methodology /blog; do
+            curl -fsS --max-time 15 "$host$route" -o /dev/null
+          done
+          echo "Verified public pages over HTTPS on the canonical temporary host." >> "$GITHUB_STEP_SUMMARY"
