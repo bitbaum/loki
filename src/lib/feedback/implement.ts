@@ -12,6 +12,8 @@ import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives
 import { getUserProject, updateUserProject } from "@/db/queries/user-projects";
 import { providerChoiceFor } from "@/lib/provider-choice";
 import { routeAroundSpent, type RerouteWhy } from "@/lib/provider-switch";
+import { AGENT_FALLBACK_ORDER } from "@/lib/agent-resolution";
+import { nextFailoverProvider } from "@/lib/feedback/auto-reimplement-policy";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { captureBeforePicture } from "@/lib/feedback/before-picture";
 
@@ -52,7 +54,18 @@ export type ImplementFeedbackResult = {
 export async function implementFeedback(
   actorUserId: string,
   feedbackId: string,
-  opts: { note?: string; agent?: string; ask?: string } = {},
+  opts: {
+    note?: string;
+    agent?: string;
+    ask?: string;
+    /**
+     * Quota failover (auto-reimplement.ts): agents that already ran out on
+     * this item. The run goes to the next provider in the operator's order
+     * that can answer and is not in this list; when none is left, nothing is
+     * dispatched and the answer says so (`exhausted: true`).
+     */
+    exclude?: readonly string[];
+  } = {},
 ): Promise<ImplementFeedbackResult> {
   const row = await getFeedbackWithProject(actorUserId, feedbackId);
   if (!row) return { status: 404, body: { error: "Feedback not found" } };
@@ -169,6 +182,34 @@ export async function implementFeedback(
         };
       }
     }
+  }
+  const exclude = opts.exclude ?? [];
+  if (!requestedAgent && exclude.includes(adapter)) {
+    const project = await getUserProject(row.userProjectId, executionUserId).catch(() => null);
+    const choice = project
+      ? await providerChoiceFor(executionUserId, project, { current: preferred }).catch(() => null)
+      : null;
+    const usable = (id: string) =>
+      choice ? choice.options.some((o) => o.id === id && o.usable) : true;
+    const order = choice ? choice.options.map((o) => o.id) : [...AGENT_FALLBACK_ORDER];
+    const next = nextFailoverProvider(order, exclude, usable);
+    if (!next) {
+      return {
+        status: 409,
+        body: {
+          error: "No other agent on this builder can answer right now.",
+          exhausted: true,
+          tried: [...exclude],
+        },
+      };
+    }
+    rerouted = {
+      from: preferred,
+      to: resolveImplementAdapter(next),
+      because: `${providerLabel(exclude[exclude.length - 1] ?? preferred)} ran out of quota.`,
+      why: "spent",
+    };
+    adapter = rerouted.to as AdapterId;
   }
   const currentSession =
     adapter === "claude"

@@ -21,7 +21,7 @@ import {
 const LOOP = [
   // Grouped by thing (2026-10-19), not by question: the work, Loki, what
   // waits for a yes, the plumbing.
-  { id: "build", items: ["control", "projects", "terminal", "prompts"] },
+  { id: "build", items: ["control", "missions", "projects", "terminal", "prompts"] },
   { id: "ask", items: ["loki", "voice", "today", "suggestions"] },
   { id: "review", items: ["approvals", "feedback"] },
   { id: "fleet", items: ["packages", "activity", "system"] },

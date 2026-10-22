@@ -321,6 +321,108 @@ export async function closeRunUndelivered(
 }
 
 /**
+ * The runner saw the agent's process end while the run was open (crash, kill,
+ * a restart that could not wait). Nothing will print again, so the run closes
+ * now as Failed with that cause — not "Working · 10 min" until a reaper looks
+ * an hour later (Substrata on Antigravity, 2026-10-21). Work the agent left is
+ * shipped by the runner first (salvage-ship) and named in the reason.
+ */
+export async function closeRunAgentExited(runId: string, userId: string, reason: string) {
+  const error = `The agent stopped before finishing: ${reason}`;
+  const [closed] = await db
+    .update(orchestrationRuns)
+    .set({
+      state: ORCH_STATE.ERROR,
+      outcome: ORCHESTRATION_OUTCOME.ERROR,
+      finishedAt: new Date(),
+      payload: sql`jsonb_set(COALESCE(payload, '{}'), '{error}', to_jsonb(${error}::text))`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    )
+    .returning();
+  if (closed) {
+    void emitRunEvent(runId, userId, "closed", {
+      outcome: ORCHESTRATION_OUTCOME.ERROR,
+      by: "agent-exited",
+      reason,
+    });
+    void notifyRunClosed(closed);
+  }
+  return closed ?? null;
+}
+
+/**
+ * The agent opened its PR and went quiet at its prompt with nothing left
+ * uncommitted: the run is Done, and the PR is its result. Closing here (not at
+ * a reaper) is what lets Feedback and Control stop saying "Working".
+ */
+export async function closeRunShipped(runId: string, userId: string, prUrl: string) {
+  const [closed] = await db
+    .update(orchestrationRuns)
+    .set({
+      state: ORCH_STATE.DONE,
+      outcome: ORCHESTRATION_OUTCOME.SUCCESS,
+      finishedAt: new Date(),
+      payload: sql`jsonb_set(COALESCE(payload, '{}'), '{prUrl}', to_jsonb(${prUrl}::text))`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    )
+    .returning();
+  if (closed) {
+    void emitRunEvent(runId, userId, "closed", {
+      outcome: ORCHESTRATION_OUTCOME.SUCCESS,
+      by: "agent-shipped",
+      prUrl,
+    });
+    void notifyRunClosed(closed);
+  }
+  return closed ?? null;
+}
+
+/**
+ * A queued run whose work was finished before any builder picked it up (its
+ * feedback item is done). Closed without ever running: not a failure, nothing
+ * to retry (lib/dispatch-superseded).
+ */
+export async function closeRunSuperseded(runId: string, userId: string, reason: string) {
+  const note = `Not started: ${reason}, so there was nothing left for this run to do.`;
+  const [closed] = await db
+    .update(orchestrationRuns)
+    .set({
+      state: ORCH_STATE.CLOSED,
+      outcome: ORCHESTRATION_OUTCOME.USER_ABORT,
+      finishedAt: new Date(),
+      payload: sql`jsonb_set(COALESCE(payload, '{}'), '{note}', to_jsonb(${note}::text))`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    )
+    .returning();
+  if (closed) {
+    void emitRunEvent(runId, userId, "closed", {
+      outcome: ORCHESTRATION_OUTCOME.USER_ABORT,
+      by: "superseded",
+      reason,
+    });
+  }
+  return closed ?? null;
+}
+
+/**
  * Recent successful runs for one project — feeds the OC promote backfill so a
  * dropped run→wall emit self-heals (external ids are deterministic, OC
  * reconciles on them). Uses idx_orchestration_runs_recent_outcomes.
@@ -922,11 +1024,14 @@ export async function stampRunProgress(
   /** What the agent is doing now (lib/run-step). Kept when a beat has none,
    *  so a beat from an agent between steps does not blank the card. */
   step: string | null = null,
+  /** With blocked=permission: the agent's question. Cleared with blocked. */
+  question: string | null = null,
 ): Promise<boolean> {
   const now = new Date().toISOString();
-  const base = sql`jsonb_set(
+  const base = sql`jsonb_set(jsonb_set(
         jsonb_set(COALESCE(payload, '{}'), '{lastProgressAt}', ${JSON.stringify(now)}::jsonb),
-        '{blocked}', ${JSON.stringify(blocked)}::jsonb)`;
+        '{blocked}', ${JSON.stringify(blocked)}::jsonb),
+        '{blockedQuestion}', ${JSON.stringify(question)}::jsonb)`;
   const rows = await db
     .update(orchestrationRuns)
     .set({

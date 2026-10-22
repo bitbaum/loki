@@ -5,6 +5,7 @@ import {
   Wallet,
   Target,
   FolderKanban,
+  Flag,
   Server,
   Zap,
   Calendar,
@@ -118,6 +119,15 @@ export const NAV = {
     icon: FolderKanban,
     active: true,
     mobile: true,
+  },
+  missions: {
+    id: "missions",
+    label: "Missions",
+    description: "Objectives, roadmaps and real execution evidence from your projects",
+    href: "/missions",
+    icon: Flag,
+    active: true,
+    mobile: false,
   },
   packages: {
     id: "packages",
@@ -356,7 +366,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     id: "build",
     label: "Build",
     question: "What am I building?",
-    items: [NAV.control, NAV.projects, NAV.terminal, NAV.prompts],
+    items: [NAV.control, NAV.missions, NAV.projects, NAV.terminal, NAV.prompts],
   },
   {
     id: "ask",

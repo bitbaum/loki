@@ -31,6 +31,7 @@ import { OwnModelSettings } from "./OwnModelSettings";
 import { BuildEngineChoice } from "./BuildEngineChoice";
 import { ProviderOrderSettings } from "./ProviderOrderSettings";
 import { AgentTokenSettings } from "./AgentTokenSettings";
+import { ProviderInventorySettings } from "./ProviderInventorySettings";
 import { BeaconSettings } from "./BeaconSettings";
 import { BillingSettings, type BillingView } from "./BillingSettings";
 import { ProjectsSettings } from "./ProjectsSettings";
@@ -264,6 +265,7 @@ export function SettingsTabs({
           {shown === "location" && <LocationSettings initialPrefs={userPrefs} />}
           {shown === "agent" && (
             <div className="space-y-6">
+              <ProviderInventorySettings />
               <ProviderOrderSettings initialPrefs={userPrefs} />
               <AgentTokenSettings />
               <BeaconSettings />

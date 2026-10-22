@@ -12,6 +12,7 @@ import { LookedPicture } from "@/components/feedback/LookedPicture";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { fleetSurfaceHref, withTerminalView } from "@/lib/fleet-context";
 import { decisionFacts } from "@/lib/feedback/decision-facts";
 import { NOTE_NONE } from "@/lib/feedback/fix-note";
 import { READ_SIZE_WORD, type FeedbackRead } from "@/lib/feedback/read-report";
@@ -74,6 +75,14 @@ export function DecisionCard({
   const reporter = f.reporterName ? `${f.reporterName}${roleWord ? ` · ${roleWord}` : ""}` : null;
   const liveHref = livePageHref(f.liveUrl, f.url, f.page);
   const facts = decisionFacts(f);
+  // A run exists (Queued onward, or the failed one this card is about): the
+  // card links to it, so "where do I watch?" is never a hunt.
+  const watchHref = f.work.runId
+    ? withTerminalView(
+        fleetSurfaceHref("terminal", f.work.terminalTab ?? f.projectName, undefined, f.work.runId),
+        "terminal",
+      )
+    : null;
   return (
     <article className={cn("ui-fb-decision", taken && "ui-fb-decision-taken")}>
       <div className="ui-fb-decision-top">
@@ -175,7 +184,7 @@ export function DecisionCard({
       )}
       <div className="ui-fb-decision-actions">
         {taken ? (
-          <span className="ui-fb-decision-done">Done — {rec.label.toLowerCase()}</span>
+          <span className="ui-fb-decision-done">{takenWords(rec)}</span>
         ) : rec.kind === RECOMMEND.CONNECT ? (
           <Link href={`/projects/${f.projectId}`} className="ui-btn-save">
             {rec.label}
@@ -219,6 +228,15 @@ export function DecisionCard({
             {busy && <Loader2 className="ui-spinner-xs" />}
             {rec.label}
           </button>
+        )}
+        {watchHref && (
+          <a
+            href={watchHref}
+            className="ui-btn-secondary"
+            title="Open this run's terminal and watch the agent, live"
+          >
+            Watch
+          </a>
         )}
         {!taken && (
           <button
@@ -288,4 +306,14 @@ function TradeoffValue({ value }: { value: string }) {
       </dd>
     );
   return <dd className="ui-fb-decision-fact">{value}</dd>;
+}
+
+/**
+ * What the card says once its button was pressed. Never "Done" for a run:
+ * starting a build is not finishing it, and "Done — try again" read as
+ * success over a failure (2026-10-21). The run's own status takes over.
+ */
+export function takenWords(rec: Pick<Recommendation, "kind" | "label" | "runs">): string {
+  if (rec.runs) return "Queued — watch it under Under way";
+  return `Done — ${rec.label.toLowerCase()}`;
 }

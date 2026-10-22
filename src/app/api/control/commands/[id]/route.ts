@@ -110,7 +110,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         const run = await getOrchestrationRunById(userId, runId).catch(() => null);
         // Any other project run (Make it happen, a profile dispatch) gets the
         // same one second attempt, on a provider that can answer.
-        void autoReimplementAfterRunnerNack(userId, runId, error, run?.payload ?? null).then((r) =>
+        void autoReimplementAfterRunnerNack(
+          userId,
+          runId,
+          error,
+          run?.payload ?? null,
+          run?.adapter ?? null,
+        ).then((r) =>
           r.reason === "not-feedback"
             ? autoRetryProjectRunAfterNack(userId, runId, error, run?.payload ?? null)
             : undefined,

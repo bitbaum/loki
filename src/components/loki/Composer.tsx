@@ -184,7 +184,7 @@ export function LokiComposer({
   // With a conversation carried in, the one useful opener is to go on with it.
   const suggestions = context ? (
     !text.trim() && (
-      <div className="ui-loki-suggest-row">
+      <div className="ui-loki-suggest-row ui-scroll-fade-right">
         <button
           type="button"
           className="ui-loki-suggest-chip ui-loki-suggest-chip-primary"
@@ -196,7 +196,13 @@ export function LokiComposer({
       </div>
     )
   ) : !text.trim() && chips.length > 0 ? (
-    <div className={chipsPhoneHidden ? "ui-loki-suggest-row max-md:hidden" : "ui-loki-suggest-row"}>
+    <div
+      className={
+        chipsPhoneHidden
+          ? "ui-loki-suggest-row ui-scroll-fade-right max-md:hidden"
+          : "ui-loki-suggest-row ui-scroll-fade-right"
+      }
+    >
       {chips.map((chip) => {
         const title =
           chip.kind === "href"

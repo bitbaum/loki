@@ -172,10 +172,12 @@ agent cannot reach even its own tenant's other work:
   rootless, as the tenant (`--userns=keep-id`), the tenant's home bound at
   the same path (sign-ins, trust and transcripts stay where the runner
   looks), the project's real path as workdir, network on, capabilities
-  dropped, `--cgroups=disabled` so the deploy's drain still counts the
+  dropped, `--cgroups=disabled` under crun (runsc refuses NoCgroups, so under
+  gVisor runsc gets `--runtime-flag ignore-cgroups` instead) so the drain counts the
   processes, and gVisor's `runsc` as the OCI runtime when the box has it
   (no KVM needed; the CX43 has none).
 - `scripts/hetzner/agent-image/Containerfile` is the image (a shell, git,
+  Cursor, Grok, Antigravity, opencode,
   gh, node, Claude Code, Codex); `install-sealed-builds.sh`, run by every
   deploy, installs rootless podman, tries runsc, builds the image into a
   shared read-only store, and writes a READING to `/etc/loki/sealed-builds`
@@ -189,6 +191,13 @@ agent cannot reach even its own tenant's other work:
   verified by unit tests and the deploy's readings, not yet by a build on
   the box, and `NoNewPrivileges` in the unit means rootless podman runs in
   its single-uid mapping — enough for the agent CLIs, to be confirmed live.
+
+  **Measured 2026-10-21** (`sealed-builds.yml mode=matrix`): under
+  `NoNewPrivileges=yes` rootless podman cannot start at all (setuid
+  `newuidmap` is blocked), so the sealed drop-in sets `NoNewPrivileges=no`
+  for the unit; the container itself keeps no-new-privileges and drops all
+  capabilities. Root's shared image store is invisible to rootless podman,
+  so every deploy loads the image into each runner user's own store.
 
 ## Booked builders (Track 3 of the master plan) — a seat, a fee, OrangeCat's word
 

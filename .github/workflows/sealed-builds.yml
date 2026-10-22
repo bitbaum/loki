@@ -1,0 +1,67 @@
+# Read, test, or switch sealed builds for one runner unit. Same SSH as box-doctor.yml.
+#   gh workflow run sealed-builds.yml -f mode=read
+#   gh workflow run sealed-builds.yml -f mode=test -f unit=loki-box-runner
+name: Sealed builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "read | test | on | off"
+        required: true
+        default: read
+        type: choice
+        options:
+          [
+            "read",
+            "test",
+            "on",
+            "off",
+            "matrix",
+            "diag",
+            "worktree",
+            "stop-sealed",
+            "journal",
+            "containers",
+            "launch-check",
+            "clean-dead",
+          ]
+      unit:
+        description: "Runner unit (owner: loki-box-runner)"
+        required: false
+        default: loki-box-runner
+      runs:
+        description: "diag: space-separated run ids to pull from the runner journal"
+        required: false
+        default: ""
+
+concurrency:
+  group: sealed-builds
+  cancel-in-progress: false
+
+jobs:
+  ctl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+      - name: Run
+        env:
+          MODE: ${{ inputs.mode }}
+          UNIT: ${{ inputs.unit }}
+          RUNS: ${{ inputs.runs }}
+        run: |
+          case "$RUNS" in *[!a-z0-9@\ -]*) echo "::error::bad runs"; exit 1 ;; esac
+          scp -q scripts/hetzner/sealed-pty-probe.py scripts/hetzner/sealed-launch-check.ts "root@$HETZNER_IP:/tmp/"
+          case "$UNIT" in loki-box-runner|loki-box-runner@[a-z0-9-]*) ;; *) echo "::error::bad unit"; exit 1 ;; esac
+          ssh "root@$HETZNER_IP" RUNS="\"$RUNS\"" bash -s -- "$MODE" "$UNIT" < scripts/hetzner/sealed-builds-ctl.sh

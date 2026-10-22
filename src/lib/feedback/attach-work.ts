@@ -1,3 +1,4 @@
+import { providerLabel } from "@/config/quota-alternatives";
 import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
 import { getLatestRunEventKinds } from "@/db/queries/run-events";
 import {
@@ -275,6 +276,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     deliveredAt?: string;
     lastProgressAt?: string;
     blocked?: string | null;
+    blockedQuestion?: string | null;
     injectVerified?: boolean | null;
     injectWarning?: string | null;
     error?: string;
@@ -284,6 +286,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     hostedDispatchId?: string;
     feedbackAutoRetriedAt?: string;
     autoRetriedBecause?: string;
+    providersTried?: string[];
   } | null;
   return {
     id: row.id,
@@ -294,6 +297,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     deliveredAt: payload?.deliveredAt ?? null,
     lastProgressAt: payload?.lastProgressAt ?? null,
     blocked: payload?.blocked ?? null,
+    blockedQuestion: payload?.blockedQuestion ?? null,
     injectVerified: typeof payload?.injectVerified === "boolean" ? payload.injectVerified : null,
     injectWarning: payload?.injectWarning ?? null,
     error: payload?.error ?? null,
@@ -304,6 +308,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     hostedPending: !!payload?.hostedDispatchId,
     feedbackAutoRetriedAt: payload?.feedbackAutoRetriedAt ?? null,
     autoRetriedBecause: payload?.autoRetriedBecause ?? null,
+    providersTried: triedLabels(payload?.providersTried),
   };
 }
 
@@ -326,4 +331,10 @@ function excerptOf(text: string | null | undefined, max = 120): string | null {
   const t = (text ?? "").replace(/\s+/g, " ").trim();
   if (!t) return null;
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+/** Stored adapter ids → the labels a person reads ("Claude Code", "Codex"). */
+function triedLabels(ids: unknown): string[] | null {
+  if (!Array.isArray(ids)) return null;
+  return ids.filter((x): x is string => typeof x === "string").map(providerLabel);
 }

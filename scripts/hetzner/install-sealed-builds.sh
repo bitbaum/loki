@@ -53,6 +53,8 @@ fi
 # 3. The agent image, built by root into a shared store every tenant's
 #    rootless podman reads (additionalimagestores), so no tenant pulls or
 #    builds anything and the image is read-only to all of them.
+command -v crun >/dev/null 2>&1 || apt-get install -y -qq crun >/dev/null 2>&1 || note "⚠ crun not installed"
+
 STORE=/opt/loki/agent-image/store
 SRC="$RUNNER_DIR/scripts/agent-image/Containerfile"
 BUILD_LOG=/var/log/loki-sealed-builds.log
@@ -100,6 +102,24 @@ CONF
   fi
 else
   ready=0
+fi
+
+# Rootless podman does not see root's 0700 shared store, so each runner
+# user gets its own copy of the current image (save as root, load as them).
+if [ "$ready" = 1 ]; then
+  t=/tmp/loki-agent-image.tar
+  if CONTAINERS_STORAGE_CONF=/opt/loki/agent-image/storage.conf podman save -q -o "$t" loki-agent:latest >/dev/null 2>&1; then
+    chmod 644 "$t"
+    for u in $(systemctl show -p User --value $(systemctl list-units 'loki-box-runner*' --no-legend --plain | awk '{print $1}') 2>/dev/null | sort -u); do
+      h="$(getent passwd "$u" | cut -d: -f6)"; [ -d "$h" ] || continue
+      mkdir -p "$h/.run"; chown "$u:$u" "$h/.run"; chmod 700 "$h/.run"
+      systemd-run --wait --pipe --quiet -p User="$u" -p Environment=XDG_RUNTIME_DIR="$h/.run" -p Environment=HOME="$h" \
+        podman load -q -i "$t" >/dev/null 2>&1 && note "✓ image loaded for $u" || { note "⚠ image load failed for $u"; ready=0; }
+    done
+    rm -f "$t"
+  else
+    note "⚠ could not export loki-agent image"; ready=0
+  fi
 fi
 
 if [ "$ready" = 1 ]; then

@@ -37,6 +37,13 @@ export const RUN_PROGRESS_MAX_MS = 6 * 60 * 60_000;
 export const RUN_BLOCKED = {
   /** The agent needs someone to sign in before it can do anything. */
   AUTH: "auth",
+  /** The agent stopped at a tool-approval prompt ("Allow execution of
+   *  [Shell]? 1. Allow once …") and waits for a human to choose. */
+  PERMISSION: "permission",
+  /** The agent's process ended while the run was still open (crash, kill,
+   *  builder restart). Nothing will print again; the row must not say
+   *  Working (2026-10-21: "Working · 10 min" after a runsc kill). */
+  EXITED: "exited",
 } as const;
 export type RunBlocked = (typeof RUN_BLOCKED)[keyof typeof RUN_BLOCKED];
 
@@ -47,9 +54,14 @@ export type RunProgressBeat = {
   lastOutputAt: string;
   /** Set when the runner can name why the terminal is quiet. */
   blocked?: RunBlocked | null;
+  /** With blocked=permission: the question the agent is asking, one line. */
+  question?: string | null;
   /** What the agent is doing now, in a few words (lib/run-step), when the
    *  runner can read its session log. */
   step?: string;
+  /** The agent's own open PR, at its checked-out HEAD, while it sits idle:
+   *  the run closes Done with this link (lib/salvage-plan shippedPr). */
+  shipped?: string;
 };
 
 /** The longest step a beat may carry. */
@@ -95,3 +107,83 @@ export function shouldBeat(
   if (now - s.lastBeatAt < RUN_PROGRESS_BEAT_MS) return "wait";
   return "beat";
 }
+
+/** The longest permission question a beat may carry. */
+export const RUN_QUESTION_MAX_CHARS = 300;
+
+const PROMPT_ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g;
+
+/**
+ * Pure: the tool-approval question an agent CLI is waiting on at the bottom of
+ * its screen, or null. Covers Gemini ("Allow execution of [Shell]?" with
+ * "1. Allow once"), Claude ("Do you want to proceed?" / "Yes, and don't ask
+ * again"), Codex ("Allow command?" / "Yes, proceed"), Cursor ("Run this
+ * command?" / "Run (once)") and Grok ("Approve" / "Deny"). Only the screen's
+ * last lines count: a question the agent already got past scrolls up and is
+ * followed by new work. Substrata on Antigravity, 2026-10-21: Gemini sat at
+ * "Allow execution of [Shell]?" while Loki said Working.
+ */
+export function detectPermissionPrompt(screen: string, tailLines = 18): string | null {
+  const lines = screen
+    .replace(PROMPT_ANSI_RE, "")
+    .split(/\r?\n|\r/)
+    .map((l) =>
+      l
+        .replace(/[─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═║]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter((l) => l.length > 0)
+    .slice(-tailLines);
+  const tail = lines.join("\n");
+  const choices =
+    /(?:^|\n)\s*(?:[●›>❯]\s*)?1[.)]\s*(?:allow|yes|approve|run)\b|allow once|allow for this session|yes, and don'?t ask again|yes, proceed|\brun \(once\)|\b(?:approve|deny)\b.*\b(?:approve|deny|reject)\b/i;
+  if (!choices.test(tail)) return null;
+  const question = [...lines]
+    .reverse()
+    .find(
+      (l) =>
+        /\?\s*$|^(?:allow|do you want|approve|run this|permission)/i.test(l) &&
+        !/^\s*(?:[●›>❯]\s*)?\d[.)]/.test(l),
+    );
+  return (question ?? "The agent is asking for permission to run a tool.").slice(
+    0,
+    RUN_QUESTION_MAX_CHARS,
+  );
+}
+
+/**
+ * Pure: inside a sealed build only, the Gemini approval Loki answers itself
+ * with "Allow once" (the highlighted first option), or null. Gemini 0.65
+ * asks even in YOLO mode when it thinks a command's flags came from untrusted
+ * input ("CRITICAL SECURITY WARNING: Untrusted Command Flags Detected") — no
+ * setting turns that off (its scheduler forces ASK_USER on taint risk). The
+ * sealed container is the boundary that makes running it safe; outside it,
+ * the question goes to the person as Needs you.
+ */
+export function sealedAutoApproval(
+  screen: string,
+  agent: string | null,
+  sealed: boolean,
+): string | null {
+  if (!sealed || agent !== "gemini") return null;
+  const question = detectPermissionPrompt(screen);
+  if (!question) return null;
+  const tail = screen.replace(PROMPT_ANSI_RE, "").slice(-4000);
+  return /allow once/i.test(tail) ? question : null;
+}
+
+/** Quiet this long after the agent's PR matches its HEAD = the job is done. */
+export const SHIPPED_IDLE_MS = 90_000;
+/** How often an idle run asks git/gh whether its agent has shipped. */
+export const SHIPPED_CHECK_EVERY_MS = 60_000;
+
+export function shouldCheckShipped(
+  s: { lastOutputAt: number; shipCheckedAt: number },
+  now = Date.now(),
+): boolean {
+  return now - s.lastOutputAt >= SHIPPED_IDLE_MS && now - s.shipCheckedAt >= SHIPPED_CHECK_EVERY_MS;
+}
+
+/** A GitHub pull request URL and nothing else — the only thing `shipped` may carry. */
+export const SHIPPED_PR_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/;
