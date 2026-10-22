@@ -76,10 +76,7 @@ assert.equal(
   "without a site, there is no site probe to fail",
 );
 
-function item(
-  id: string,
-  overrides: Partial<MissionBoardItem> = {},
-): MissionBoardItem {
+function item(id: string, overrides: Partial<MissionBoardItem> = {}): MissionBoardItem {
   const projection = missionFromProject({
     projectId: id,
     name: id,
@@ -98,7 +95,9 @@ function item(
 const work = item("active", {
   phase: "in-progress",
   nextObjective: "Test the screen",
-  objectives: [{ id: "g", title: "Screen test", status: "active", progress: 30, reportedDone: false }],
+  objectives: [
+    { id: "g", title: "Screen test", status: "active", progress: 30, reportedDone: false },
+  ],
   lastDispatchAt: "2026-10-20T10:00:00Z",
 });
 const flagged = item("critical", { alert: issue, lastDispatchAt: "2020-01-01T00:00:00Z" });
@@ -132,8 +131,14 @@ assert.deepEqual(
   filterMissionBoard(board, "", "complete").map((x) => x.projectId),
   ["done"],
 );
-assert.deepEqual(filterMissionBoard(board, "screen", "all").map((x) => x.projectId), ["active"]);
-assert.deepEqual(filterMissionBoard(board, "CRITICAL", "all").map((x) => x.projectId), ["critical"]);
+assert.deepEqual(
+  filterMissionBoard(board, "screen", "all").map((x) => x.projectId),
+  ["active"],
+);
+assert.deepEqual(
+  filterMissionBoard(board, "CRITICAL", "all").map((x) => x.projectId),
+  ["critical"],
+);
 assert.deepEqual(
   filterMissionBoard(board, " unpatched ", "all").map((x) => x.projectId),
   ["critical"],
