@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, ClipboardList, MessageSquare, Terminal } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Circle,
+  ClipboardList,
+  MessageSquare,
+  Terminal,
+} from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { GoalProgressBar } from "@/components/shared/GoalProgressBar";
 import { requirePageUserId } from "@/lib/session";
@@ -47,12 +55,17 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <section className="min-w-0 rounded-xl border border-border-subtle p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">Objective</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+            Objective
+          </p>
           <p className="mt-3 text-lg leading-relaxed text-text-primary">
             {mission.statement ?? "No mission statement has been written for this project yet."}
           </p>
           {!mission.statement && (
-            <Link href={`/projects/${id}#context`} className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm text-accent-text hover:underline">
+            <Link
+              href={`/projects/${id}#context`}
+              className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm text-accent-text hover:underline"
+            >
               Add an objective in Context <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
           )}
@@ -63,8 +76,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             </p>
           </div>
         </section>
-        <section aria-label="Reported goal progress" className="rounded-xl border border-border-subtle p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">Goal progress</p>
+        <section
+          aria-label="Reported goal progress"
+          className="rounded-xl border border-border-subtle p-5"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+            Goal progress
+          </p>
           <p className="mt-3 text-3xl font-semibold tabular-nums text-text-primary">
             {mission.reportedProgress === null ? "—" : `${mission.reportedProgress}%`}
           </p>
@@ -72,21 +90,32 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             {mission.goalsReportedDone} of {mission.goalsTotal} goals marked done
           </p>
           {mission.reportedProgress !== null && (
-            <div className="mt-3"><GoalProgressBar value={mission.reportedProgress} /></div>
+            <div className="mt-3">
+              <GoalProgressBar value={mission.reportedProgress} />
+            </div>
           )}
           <p className="mt-4 text-xs leading-relaxed text-text-tertiary">
-            Progress is self-reported in Goals. A completed checkbox is not proof of
-            an independent test, delivery or deployment.
+            Progress is self-reported in Goals. A completed checkbox is not proof of an independent
+            test, delivery or deployment.
           </p>
         </section>
       </div>
 
-      <section aria-labelledby="mission-roadmap-title" className="rounded-xl border border-border-subtle p-5">
+      <section
+        aria-labelledby="mission-roadmap-title"
+        className="rounded-xl border border-border-subtle p-5"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="mission-roadmap-title" className="flex items-center gap-2 text-base font-semibold text-text-primary">
+          <h2
+            id="mission-roadmap-title"
+            className="flex items-center gap-2 text-base font-semibold text-text-primary"
+          >
             <ClipboardList className="h-4 w-4 text-accent-text" aria-hidden /> Roadmap
           </h2>
-          <Link href={`/projects/${id}#plan`} className="inline-flex min-h-11 items-center gap-2 text-sm text-accent-text hover:underline">
+          <Link
+            href={`/projects/${id}#plan`}
+            className="inline-flex min-h-11 items-center gap-2 text-sm text-accent-text hover:underline"
+          >
             Open plan <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
@@ -100,10 +129,20 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               const openMilestones = (goal.milestones ?? []).filter((step) => !step.done);
               return (
                 <li key={goal.id} className="flex gap-3 py-4">
-                  <span className="shrink-0 text-xs tabular-nums text-text-tertiary">{index + 1}.</span>
-                  {goal.reportedDone
-                    ? <CheckCircle2 className="h-5 w-5 shrink-0 text-status-positive" aria-label="Reported complete" />
-                    : <Circle className="h-5 w-5 shrink-0 text-text-tertiary" aria-label="Not reported complete" />}
+                  <span className="shrink-0 text-xs tabular-nums text-text-tertiary">
+                    {index + 1}.
+                  </span>
+                  {goal.reportedDone ? (
+                    <CheckCircle2
+                      className="h-5 w-5 shrink-0 text-status-positive"
+                      aria-label="Reported complete"
+                    />
+                  ) : (
+                    <Circle
+                      className="h-5 w-5 shrink-0 text-text-tertiary"
+                      aria-label="Not reported complete"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <h3 className="text-sm font-semibold text-text-primary">{goal.title}</h3>
@@ -111,10 +150,14 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                         {goal.reportedDone ? "Reported done" : `${goal.progress ?? 0}% reported`}
                       </span>
                     </div>
-                    {goal.description && <p className="mt-1 text-sm text-text-secondary">{goal.description}</p>}
+                    {goal.description && (
+                      <p className="mt-1 text-sm text-text-secondary">{goal.description}</p>
+                    )}
                     {openMilestones.length > 0 && (
                       <ul className="mt-2 space-y-1 text-xs text-text-tertiary">
-                        {openMilestones.slice(0, 3).map((step, i) => <li key={i}>• {step.title}</li>)}
+                        {openMilestones.slice(0, 3).map((step, i) => (
+                          <li key={i}>• {step.title}</li>
+                        ))}
                       </ul>
                     )}
                   </div>
@@ -127,52 +170,87 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
       <section aria-labelledby="mission-evidence-title" className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-border-subtle p-5">
-          <h2 id="mission-evidence-title" className="text-base font-semibold text-text-primary">Latest handoff</h2>
+          <h2 id="mission-evidence-title" className="text-base font-semibold text-text-primary">
+            Latest handoff
+          </h2>
           {latest ? (
             <dl className="mt-4 space-y-3 text-sm">
-              <div><dt className="text-xs text-text-tertiary">Reported work</dt><dd className="mt-1 whitespace-pre-wrap text-text-primary">{latest.done || "Not recorded"}</dd></div>
-              <div><dt className="text-xs text-text-tertiary">Next</dt><dd className="mt-1 whitespace-pre-wrap text-text-primary">{latest.next || "Not recorded"}</dd></div>
-              <div><dt className="text-xs text-text-tertiary">Test evidence (as reported)</dt><dd className="mt-1 whitespace-pre-wrap text-text-secondary">{latest.tests || "No test report attached"}</dd></div>
+              <div>
+                <dt className="text-xs text-text-tertiary">Reported work</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-text-primary">
+                  {latest.done || "Not recorded"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-tertiary">Next</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-text-primary">
+                  {latest.next || "Not recorded"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-tertiary">Test evidence (as reported)</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-text-secondary">
+                  {latest.tests || "No test report attached"}
+                </dd>
+              </div>
             </dl>
-          ) : <p className="mt-3 text-sm text-text-secondary">No agent handoff recorded yet.</p>}
+          ) : (
+            <p className="mt-3 text-sm text-text-secondary">No agent handoff recorded yet.</p>
+          )}
         </div>
         <div className="rounded-xl border border-border-subtle p-5">
           <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
             <Terminal className="h-4 w-4 text-accent-text" aria-hidden /> Recent agent runs
           </h2>
           {runHistory.length === 0 ? (
-            <p className="mt-3 text-sm text-text-secondary">No agent run recorded for this project.</p>
+            <p className="mt-3 text-sm text-text-secondary">
+              No agent run recorded for this project.
+            </p>
           ) : (
             <ul className="mt-3 divide-y divide-border-subtle">
               {runHistory.map((run) => (
                 <li key={run.id} className="flex items-start justify-between gap-3 py-3 text-sm">
                   <span className="text-text-primary">
-                    {run.finishedAt ? (run.outcome ?? "Finished — no outcome") : "Running or queued"}
+                    {run.finishedAt
+                      ? (run.outcome ?? "Finished — no outcome")
+                      : "Running or queued"}
                   </span>
-                  <time className="shrink-0 text-xs text-text-tertiary" dateTime={run.startedAt.toISOString()}>
+                  <time
+                    className="shrink-0 text-xs text-text-tertiary"
+                    dateTime={run.startedAt.toISOString()}
+                  >
                     {run.startedAt.toLocaleDateString("en-CH")}
                   </time>
                 </li>
               ))}
             </ul>
           )}
-          <Link href="/terminal" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm text-accent-text hover:underline">
+          <Link
+            href="/terminal"
+            className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm text-accent-text hover:underline"
+          >
             Inspect sessions <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
       </section>
 
       <div className="flex flex-wrap gap-4 text-sm">
-        <Link href="/loki" className="inline-flex min-h-11 items-center gap-2 font-medium text-accent-text hover:underline">
+        <Link
+          href="/loki"
+          className="inline-flex min-h-11 items-center gap-2 font-medium text-accent-text hover:underline"
+        >
           <MessageSquare className="h-4 w-4" aria-hidden /> Talk to Loki
         </Link>
-        <Link href={`/projects/${id}#now`} className="inline-flex min-h-11 items-center gap-2 text-text-secondary hover:underline">
+        <Link
+          href={`/projects/${id}#now`}
+          className="inline-flex min-h-11 items-center gap-2 text-text-secondary hover:underline"
+        >
           <ArrowLeft className="h-4 w-4" aria-hidden /> Review current blockers
         </Link>
       </div>
       <p className="text-xs text-text-tertiary">
-        No new execution authority is granted by this screen. Agents, Crew, spending,
-        publication and robots continue to require their existing approvals.
+        No new execution authority is granted by this screen. Agents, Crew, spending, publication
+        and robots continue to require their existing approvals.
       </p>
     </PageLayout>
   );
