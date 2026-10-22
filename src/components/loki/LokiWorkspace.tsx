@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChatScreen } from "@bitbaum/chatkit/react";
+import { ChatScreen, type Thinking } from "@bitbaum/chatkit/react";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { useNewChat } from "@/hooks/use-new-chat";
@@ -349,8 +349,8 @@ export function LokiWorkspace({
    * from a turn therefore has to happen here, never off a delta.
    */
   const handleMessage = useCallback(
-    (message: LokiMessage) => {
-      setMessages((prev) => [...prev, message]);
+    (message: LokiMessage, thinking: Thinking) => {
+      setMessages((prev) => [...prev, { ...message, thinking }]);
 
       // A turn can resolve which project it was about (the model named one, or
       // the command resolver picked one). Follow it, so the composer's scope

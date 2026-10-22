@@ -151,8 +151,10 @@ async function main() {
     const panel = shipped.outputFiles[0].text;
     ok(!panel.includes("ck-thread-inner"), "widget.js carries none of chatkit (it is the chunk's)");
     const kb = (t: string) => Math.round(gzipSync(t).length / 1024);
-    // Measured 24 KB when it landed; the budget leaves room, not a blank cheque.
-    ok(kb(b.chat) <= 32, `the chat chunk stays small (${kb(b.chat)} KB gzipped, budget 32)`);
+    // Measured 24 KB when it landed and 33 KB on chatkit 0.13 (option cards,
+    // citation chips, the layered figure, the thinking row — the shapes the
+    // conversation is there to draw). The budget leaves room, not a blank cheque.
+    ok(kb(b.chat) <= 40, `the chat chunk stays small (${kb(b.chat)} KB gzipped, budget 40)`);
   }
 
   try {

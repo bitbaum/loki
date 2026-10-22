@@ -1,13 +1,18 @@
 "use client";
 
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { ArrowDown, Loader2, Square } from "lucide-react";
-import { ChatReplies, useStickToBottom } from "@bitbaum/chatkit/react";
+import {
+  ChatReplies,
+  DEFAULT_THREAD_LABELS,
+  ThinkingRow,
+  useStickToBottom,
+} from "@bitbaum/chatkit/react";
 import { AnswerMarkdown } from "./AnswerMarkdown";
 import { readReplies } from "@/lib/loki/replies";
 import { projectSwitches } from "@/lib/loki/project-switches";
-import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
+import { useLiveStatus } from "@/hooks/use-live-status";
 import { FollowUps } from "./FollowUps";
 import { MessageTurn } from "./MessageTurn";
 import { WorkTrail } from "./WorkTrail";
@@ -25,21 +30,6 @@ import type { LokiMessage } from "./types";
  * 2. **A way back down.** Once you have scrolled away, following again is a
  *    button, not a guess.
  */
-/** "2m 3s" since the turn was sent. A turn that has run for two minutes
- *  should say so: without the number, forty seconds and four minutes read as
- *  the same three dots, and the operator cannot tell patience from a hang. */
-function Elapsed({ since }: { since: number }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!since) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [since]);
-  if (!since) return null;
-  const s = Math.max(0, Math.floor((now - since) / 1000));
-  return <span>{s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`}</span>;
-}
-
 export function Thread({
   messages,
   live,
@@ -79,9 +69,12 @@ export function Thread({
   // through new tokens AND size changes (the floating composer growing, its
   // height measured after the first paint), re-armed by every new turn.
   const { scrollRef, endRef, following, onScroll, jumpToBottom } = useStickToBottom(
-    [messages.length, live?.preview, live?.work.length, live?.status, sending],
+    [messages.length, live?.preview, live?.work.length, live?.steps.length, sending],
     messages.length,
   );
+  // "12s · Working on it" — the clock matters: without it forty seconds and
+  // four minutes read as the same three dots (hooks/use-live-status).
+  const liveStatus = useLiveStatus(live);
 
   if (loading) {
     return (
@@ -155,21 +148,19 @@ export function Thread({
           {live && (
             <div className="ui-loki-turn">
               <WorkTrail work={live.work} live />
-              {live.preview ? (
+              {/* chatkit's "Thinking" row, open while the turn runs: the clock
+                  and what it is doing now in the title, every step it named
+                  under it, the newest marked. It stays above the answer as
+                  the words arrive, then closes into "Thought for 42s ›". */}
+              <ThinkingRow
+                thinking={{ steps: live.steps }}
+                live
+                labels={liveStatus ? { ...DEFAULT_THREAD_LABELS, thinking: liveStatus } : undefined}
+              />
+              {live.preview && (
                 <div className="ui-loki-answer">
                   <AnswerMarkdown text={live.preview} />
                 </div>
-              ) : (
-                <p className="ui-loki-live-status" role="status" aria-live="polite">
-                  <span className="ui-loki-live-dots" aria-hidden>
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                  <Elapsed since={live.startedAt} />
-                  <span aria-hidden>·</span>
-                  {live.status ? LOKI_STATUS_COPY[live.status] : "Working on it"}
-                </p>
               )}
               <button type="button" className="ui-loki-stop" onClick={onStop}>
                 <Square className="h-3 w-3 fill-current" aria-hidden />

@@ -1,3 +1,4 @@
+import type { Thinking } from "@bitbaum/chatkit/react";
 import type { Conversation, ConversationMessage } from "@/db/schema/conversations";
 
 /** Left-pane row — the subset listConversations() returns (dates arrive as
@@ -24,6 +25,10 @@ export type ConversationSummary = Pick<Conversation, "id" | "title" | "projectKe
 export type LokiMessage = Omit<ConversationMessage, "createdAt" | "meta"> & {
   createdAt: string;
   meta: Record<string, unknown> | null;
+  /** What this session watched the turn do — how long, and its steps — for
+   *  the "Thought for 42s ›" row. Only the turn answered in this session
+   *  carries it; a reopened thread has the work trail (meta) instead. */
+  thinking?: Thinking;
 };
 
 /** GET /api/user-projects row (subset Loki needs). topGoal is the project's
