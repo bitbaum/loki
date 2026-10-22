@@ -122,7 +122,7 @@ export function BeaconSettings() {
         <div className="space-y-8">
           {/* ─── Subgroup: Autopilot behavior ─── */}
           <div className="space-y-5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Autopilot
             </h3>
 
@@ -273,7 +273,7 @@ export function BeaconSettings() {
 
           {/* ─── Subgroup: Voice transcription ─── */}
           <div className="space-y-5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Voice transcription
             </h3>
 

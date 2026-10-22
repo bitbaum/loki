@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mail, Check, Loader2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Check, Loader2 } from "lucide-react";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { DIGEST_CADENCES, type DigestCadence } from "@/db/schema/notification-preferences";
 import { COMMS_COPY, DIGEST_CADENCE_COPY } from "@/config/comms";
 
@@ -55,18 +54,11 @@ export function NotificationSettings() {
   }
 
   return (
-    <Card className="ui-settings-section">
-      <div className="flex items-start gap-3">
-        <Mail className="h-5 w-5 text-text-secondary mt-0.5" />
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-text-primary">
-            {COMMS_COPY.digestSettingsTitle}
-          </h2>
-          <p className="text-sm text-text-tertiary">{COMMS_COPY.digestSettingsBody}</p>
-        </div>
-      </div>
+    <section className="ui-settings-section">
+      <SectionHeading title={COMMS_COPY.digestSettingsTitle} />
+      <p className="-mt-1 text-sm text-text-secondary">{COMMS_COPY.digestSettingsBody}</p>
 
-      <div className="grid gap-2 mt-4">
+      <div className="-mx-3 mt-2 flex flex-col" role="radiogroup" aria-label="How often">
         {DIGEST_CADENCES.map((c) => {
           const active = cadence === c;
           const busy = saving === c;
@@ -74,45 +66,37 @@ export function NotificationSettings() {
             <button
               key={c}
               type="button"
+              role="radio"
+              aria-checked={active}
               onClick={() => pick(c)}
               disabled={!loaded || saving !== null}
-              className={cn(
-                "flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
-                active
-                  ? "border-accent-primary/40 bg-accent-muted"
-                  : "border-border-subtle bg-surface-overlay hover:border-border-default",
-                (!loaded || saving !== null) && "opacity-70 cursor-wait",
-              )}
+              className="ui-settings-choice"
             >
-              <div className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-border-default flex items-center justify-center">
-                {busy ? (
-                  <Loader2 className="h-3 w-3 animate-spin text-text-secondary" />
-                ) : active ? (
-                  <Check className="h-3 w-3 text-accent-primary" />
-                ) : null}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-text-primary">
-                  {DIGEST_CADENCE_COPY[c].label}
-                </p>
-                <p className="text-xs text-text-tertiary">{DIGEST_CADENCE_COPY[c].description}</p>
-              </div>
+              <span className="min-w-0 flex-1">
+                <span className="ui-settings-choice-title">{DIGEST_CADENCE_COPY[c].label}</span>
+                <span className="ui-settings-choice-note">
+                  {DIGEST_CADENCE_COPY[c].description}
+                </span>
+              </span>
+              {busy ? (
+                <Loader2 className="ui-spinner-sm shrink-0" />
+              ) : active ? (
+                <Check className="h-5 w-5 shrink-0 text-text-primary" />
+              ) : null}
             </button>
           );
         })}
       </div>
 
-      {error && <p className="text-xs text-status-negative mt-3">{error}</p>}
+      {error && <p className="mt-3 text-sm text-status-negative">{error}</p>}
       {lastSentAt && cadence !== "none" && (
-        <p className="text-xs text-text-tertiary mt-3">
-          Last digest sent {new Date(lastSentAt).toLocaleString()}.
+        <p className="mt-3 text-sm text-text-tertiary">
+          The last one went out {new Date(lastSentAt).toLocaleString()}.
         </p>
       )}
       {!lastSentAt && cadence !== "none" && (
-        <p className="text-xs text-text-tertiary mt-3">
-          Next digest will arrive within 24 hours of the cron tick at 07:00 UTC.
-        </p>
+        <p className="mt-3 text-sm text-text-tertiary">The first one arrives within a day.</p>
       )}
-    </Card>
+    </section>
   );
 }
