@@ -185,7 +185,7 @@ ${spiralCSS(theme)}
   background: ${theme.surface}; color: ${theme.text};
   border: 1px solid ${theme.borderDark};
   font-size: 13px; font-weight: 500; letter-spacing: -.01em;
-  transition: transform .15s ease, opacity .2s ease, border-color .15s ease, box-shadow .2s ease;
+  transition: transform .15s ease, opacity .2s ease, border-color .15s ease, box-shadow .2s ease, left .2s ease, top .2s ease;
   /* Small, but THERE. At 38% opacity and 85% size with a generic pencil it
      read as nothing at all: the owner, signed out on their own phone, looked
      at their site and said the widget was gone (2026-10-15) — and without
@@ -194,6 +194,7 @@ ${spiralCSS(theme)}
   box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.12);
 }
 .fab .fab-label { display: none; }
+.fab { touch-action: none; user-select: none; } .fab.dragging { cursor: grabbing; transition: none; } /* drag (launcher.ts): no page scroll under the finger */
 .fab:hover, .fab:focus-visible {
   opacity: 1;
   transform: scale(1) translateY(-1px);
