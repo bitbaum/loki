@@ -8,7 +8,7 @@ import {
   type NoScreenSettings,
 } from "@/config/no-screen";
 import type { TtsFailure } from "@/lib/voice/tts-failure";
-import { Segmented } from "@/components/ui/segmented";
+import { ChoiceMenu } from "@/components/ui/choice-menu";
 import { List, ListRow } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
 import { StudioVoiceNotice } from "@/components/voice/StudioVoiceNotice";
@@ -63,16 +63,23 @@ export function NoScreenStart({
         </button>
       </div>
 
-      <Section title="Voice">
-        {/* Seven names as an even 4 + 3 grid: as one scrolling chip row the
-            fifth was cut off at the screen's edge (2026-10-20). */}
-        <Segmented
-          label="Voice"
-          columns={4}
-          options={NO_SCREEN_VOICES.map((v) => ({ id: v.id, label: v.label, means: v.note }))}
-          value={settings.voice}
-          onChange={(id) => update({ voice: id as NoScreenSettings["voice"] })}
-        />
+      <Section
+        title="Voice"
+        right={
+          <ChoiceMenu
+            bare
+            label="Voice"
+            value={settings.voice}
+            options={NO_SCREEN_VOICES.map((v) => ({ value: v.id, label: v.label }))}
+            onChange={(id) => update({ voice: id as NoScreenSettings["voice"] })}
+          />
+        }
+      >
+        {/* Seven names are a menu, not a grid: 4 + 3 never lines up, and one
+            scrolling chip row cut the fifth off at the screen's edge. */}
+        <p className="ui-settings-lede">
+          {NO_SCREEN_VOICES.find((v) => v.id === settings.voice)?.note}
+        </p>
         {studioOff && settings.voice !== "phone" && <StudioVoiceNotice failure={studioOff} />}
       </Section>
 

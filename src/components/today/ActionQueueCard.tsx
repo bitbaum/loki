@@ -266,7 +266,7 @@ export async function ActionQueueCard({
                     (payload?.body != null || payload?.subject != null) && (
                       <details className="mt-2">
                         <summary className="ui-approvals-summary">
-                          Show the exact text that would be sent
+                          Read the message that would be sent
                         </summary>
                         <div className="mt-1 rounded-lg bg-surface-raised px-3 py-2">
                           {payload?.subject != null && (

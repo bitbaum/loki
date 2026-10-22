@@ -26,6 +26,10 @@ type Filter = "all" | AvenueId;
 
 type LastDismissed = { suggestion: Suggestion; decisionId: string | null };
 
+/** In the "All" view an avenue shows its best few; the rest is one row away. A
+ *  board of 30 "Put X online" rows pushed every other avenue off the screen. */
+const AVENUE_PREVIEW = 5;
+
 /**
  * The board: one line of what was chosen and a "Show: All ▾" menu, then each
  * avenue as a section of rows (design reset, 2026-10). It opened on three
@@ -48,6 +52,7 @@ export function SuggestionsBoard() {
   const [gone, setGone] = useState<Set<string>>(() => new Set());
   const [lastDismissed, setLastDismissed] = useState<LastDismissed | null>(null);
   const [takenNow, setTakenNow] = useState(0);
+  const [expanded, setExpanded] = useState<Set<AvenueId>>(() => new Set());
   // Undone before the server answered: the decision that lands late is
   // deleted on arrival, so a fast thumb cannot leave a hidden row behind.
   const undone = useRef<Set<string>>(new Set());
@@ -201,9 +206,21 @@ export function SuggestionsBoard() {
               <EmptyState>Nothing from {meta.label.toLowerCase()} right now.</EmptyState>
             ) : (
               <List aria-label={meta.label}>
-                {a.suggestions.map((s) => (
+                {(filter === "all" && !expanded.has(a.id)
+                  ? a.suggestions.slice(0, AVENUE_PREVIEW)
+                  : a.suggestions
+                ).map((s) => (
                   <SuggestionCard key={s.id} suggestion={s} onTake={take} onDismiss={dismiss} />
                 ))}
+                {filter === "all" &&
+                  !expanded.has(a.id) &&
+                  a.suggestions.length > AVENUE_PREVIEW && (
+                    <ListRow
+                      title={`Show ${a.suggestions.length - AVENUE_PREVIEW} more`}
+                      onClick={() => setExpanded((e) => new Set(e).add(a.id))}
+                      chevron
+                    />
+                  )}
               </List>
             )}
           </Section>

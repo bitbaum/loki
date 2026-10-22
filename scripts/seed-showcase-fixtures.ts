@@ -524,7 +524,7 @@ export const ALERTS: [string, string, string, string | null, number, string][] =
     3,
     "/projects",
   ],
-  ["new_feedback", "info", "3 new feedback items on aoz-housing", null, 0.3, "/feedback"],
+  ["new_feedback", "info", "3 new feedback items on Aoz housing", null, 0.3, "/feedback"],
 ];
 
 export const NEXT_BEST_BODY =
@@ -736,7 +736,7 @@ export const ACTIONS: [string, string, string, string, number][] = [
   [
     "dispatch_prompt",
     "draft",
-    "Fix 11 feedback items on aoz-housing",
+    "Fix 11 feedback items on Aoz housing",
     "Clustered from 73 reports.",
     3,
   ],

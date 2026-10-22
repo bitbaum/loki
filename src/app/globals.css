@@ -2374,10 +2374,7 @@
     @apply bg-accent-warm-hover;
   }
   .ui-public-download-cta-note {
-    @apply text-xs font-normal opacity-70 sm:ml-2;
-  }
-  .ui-public-download-cta:hover .ui-public-download-cta-note {
-    @apply opacity-70;
+    @apply text-xs font-medium opacity-90 sm:ml-2;
   }
   .ui-public-download-secondary {
     @apply inline-flex min-h-11 items-center rounded-full border border-white/20 px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:border-white/40 hover:text-white;
@@ -6746,7 +6743,21 @@
     box-shadow: inset 0 1px 0 var(--border-subtle);
   }
   .ui-approvals-summary {
-    @apply inline-flex min-h-11 cursor-pointer items-center text-sm text-text-tertiary transition-colors hover:text-text-primary;
+    @apply inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary;
+  }
+  /* A disclosure says it opens: the marker the browser would draw is hidden,
+     so draw ours — a chevron that turns when it is open. */
+  .ui-approvals-summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-approvals-summary::after {
+    content: "";
+    @apply h-2 w-2 shrink-0 rotate-45 border-b-2 border-r-2 border-current transition-transform;
+    margin-top: -0.25rem;
+  }
+  details[open] > .ui-approvals-summary::after {
+    @apply -rotate-[135deg];
+    margin-top: 0.25rem;
   }
   .ui-approvals-subhead {
     font-size: var(--text-section);
