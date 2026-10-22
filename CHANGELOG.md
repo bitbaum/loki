@@ -36,11 +36,21 @@ look on a phone.
   every other send does, instead of failing with "no running agent". Run with
   Loki shows the answer as it is written, with Stop and Try again, and a
   prompt's blanks are never sent as `{{project_name}}`.
+- **Missions and Settings finish the job.** {#reset-last-pages} Missions is a
+  search row and one row per project, and a mission's page is Objective, Next
+  move, Roadmap, Latest handoff and Recent runs — progress still "reported",
+  never verified. In Settings, Billing, Projects, Team and Privacy are rows
+  too: projects move up and down from their menu (there was no way to drag on a
+  phone), invitation links are copied, never shown as addresses, and the PIN
+  forms open in a sheet.
 - **Fixes found on the way.** {#reset-fixes} An event without a deadline can
   be added again, events with a date and place are listed by that date, an ask
   with nobody on it can be given to someone, the /fleet filters open on a
   computer, the public home page's headline no longer waits for an animation
-  to appear, and a project's "What changed" is newest first.
+  to appear, a project's "What changed" is newest first, a request an agent
+  received and then went silent on says "the agent went quiet" on the project
+  page as Watch does, and Suggestions shows an avenue's best five instead of
+  thirty "Put it online" rows.
 
 ## 2026-10-20 — Whoever asks pays
 

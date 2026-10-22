@@ -633,6 +633,7 @@ prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
 | View | Route | Status |
 |------|-------|--------|
 | Home | /control | (Was "Control".) The box to start work in a project, then what needs you, what is being built, what got done, and the project list. In-app primary buttons are monochrome (`ui-btn-primary` = `--accent-primary`); orange is the public site's only |
+| Missions | /missions | A search row, a Show menu and one row per project (the problem first, then work in progress). `/missions/[id]`: Objective, Next move (with the one permissioned Continue), Roadmap, Latest handoff, Recent runs. Progress is what the goals report — never described as verified |
 | Agents | /agents | RETIRED — redirects to /control. Control already is the roster; escalations land there |
 | Loki | /loki | Chat assistant workspace — conversations, project-scoped dispatch, save-to-memory |
 | Suggestions | /suggestions | Every front Loki keeps records on — Build, Business, Goals, People, Money, Habits (SSOT `config/suggestion-avenues.ts`) — read into one board of things to do next, each naming the record it came from. "Do it" opens Loki with the ask written and the project set (or the page only the person can act on); "Not now" hides it for a month. Decisions are rows in `suggestion_decisions` and are the ONLY source of the page's numbers; the `/loki` and Control build rows honour them too. Rankers are pure (`lib/build-suggestions/rank.ts`, `lib/suggestions/life.ts`); `lib/suggestions/load.ts` gathers |
