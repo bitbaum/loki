@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Play, ShieldAlert } from "lucide-react";
+import { ArrowRight, Loader2, Play } from "lucide-react";
 import { DispatchedNote, useProjectDispatch } from "@/components/projects/ProjectActionButtons";
 import type { MissionContinueOffer } from "@/lib/missions/continue-offer";
 
@@ -96,11 +96,6 @@ export function MissionContinueAction({
             ? "Continue mission"
             : "Start mission"}
       </button>
-      <p className="flex items-start gap-2 text-xs text-text-tertiary">
-        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        This explicitly requests one agent run through Loki&apos;s normal permission and execution
-        checks. It does not approve spending, human assignments or robot actions.
-      </p>
       {state.phase === "error" && (
         <p role="alert" className="ui-error text-sm">
           {state.message}
