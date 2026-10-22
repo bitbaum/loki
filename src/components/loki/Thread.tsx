@@ -31,6 +31,7 @@ import type { LokiMessage } from "./types";
  *    button, not a guess.
  */
 export function Thread({
+  conversationId = null,
   messages,
   live,
   loading,
@@ -45,6 +46,8 @@ export function Thread({
   onFollowUp,
   tail,
 }: {
+  /** The open thread, once it exists — a first message has none yet. */
+  conversationId?: string | null;
   messages: LokiMessage[];
   /** The turn in flight, or null. */
   live: LiveTurn | null;
@@ -127,14 +130,7 @@ export function Thread({
               )}
               <MessageTurn
                 message={m}
-                question={
-                  m.role === "assistant"
-                    ? (messages
-                        .slice(0, i)
-                        .reverse()
-                        .find((p) => p.role === "user")?.content ?? null)
-                    : null
-                }
+                conversationId={conversationId}
                 onReply={!live && !sending && m.id === lastAssistant?.id ? onFollowUp : undefined}
                 onPickProject={onPickProject}
                 onContinue={onContinue}

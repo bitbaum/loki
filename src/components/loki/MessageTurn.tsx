@@ -42,12 +42,12 @@ export function MessageTurn({
   onRetry,
   onReply,
   onContinue,
-  question = null,
+  conversationId = null,
 }: {
   message: LokiMessage;
-  /** The user message this answer replies to — carried into a thumbs-down
-   *  report so it reads on its own in the feedback inbox. */
-  question?: string | null;
+  /** The thread this turn is in: with it, an answer carries the thumbs
+   *  (AnswerActions), kept with the conversation for the nightly review. */
+  conversationId?: string | null;
   onPickProject?: (project: string, pendingText: string) => void;
   onAnswerAnyway?: (pendingText: string) => void;
   /** Under a turn the person's own model failed: the free chain, same words. */
@@ -136,7 +136,11 @@ export function MessageTurn({
         <OwnModelFallbackOffer meta={message.meta} onAnswerFree={onAnswerFree} />
       )}
 
-      <AnswerActions text={message.content} onRetry={onRetry} report={{ question }} />
+      <AnswerActions
+        text={message.content}
+        onRetry={onRetry}
+        feedback={conversationId ? { conversationId, messageId: message.id } : undefined}
+      />
     </div>
   );
 }

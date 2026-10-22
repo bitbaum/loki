@@ -1,0 +1,81 @@
+name: Share chat review token
+
+# One-off, by hand: put ONE `CHAT_REVIEW_TOKEN` into every app in the fleet
+# chat-review loop (docs/architecture/chat-review.md, config/chat-review.ts) —
+# the bearer each product's GET /api/chat/review-export demands and the one
+# Loki's nightly review-chats cron presents. Then redeploy each app so it reads
+# the value.
+#
+# Security: the token is generated ON the box (`openssl rand -hex 32`) into
+# Loki's runtime env when absent, copied box-to-box into the other apps' envs
+# when absent, and NEVER printed, echoed or written anywhere else. The log
+# says only which apps were given it. An existing value is never overwritten,
+# so running this twice is safe and a rotation is a deliberate edit on the box.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  share:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP || '167.233.22.31' }}
+    steps:
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Generate the token for Loki and copy it to the other apps, on the box
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes "ubuntu@$HETZNER_IP" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          NAME=CHAT_REVIEW_TOKEN
+          env_of() {
+            for c in "/opt/$1/app/.env" "/opt/$1/shared/.env"; do
+              [ -f "$c" ] && { echo "$c"; return 0; }
+            done
+            return 1
+          }
+          src="$(env_of loki)" || { echo "::error::no Loki runtime env found"; exit 1; }
+          if ! grep -q "^${NAME}=" "$src"; then
+            # Generated here and appended with printf: no echo, no shell history,
+            # no log line ever holds the value.
+            printf '%s=%s\n' "$NAME" "$(openssl rand -hex 32)" >> "$src"
+            chmod 600 "$src"
+            echo "generated $NAME for loki"
+          else
+            echo "$NAME already set for loki; left as it is"
+          fi
+          line="$(grep -m1 "^${NAME}=" "$src")"
+          for app in heidi orangecat substrata; do
+            dst="$(env_of "$app")" || { echo "::warning::no runtime env for $app; skipped"; continue; }
+            if grep -q "^${NAME}=" "$dst"; then echo "$NAME already set for $app; left as it is"; continue; fi
+            printf '%s\n' "$line" >> "$dst"
+            chmod 600 "$dst"
+            echo "copied $NAME to $app"
+          done
+          REMOTE
+          rm -f ~/.ssh/id_deploy
+
+      - name: Redeploy every app so it reads the token
+        env:
+          GH_TOKEN: ${{ secrets.FLEET_PAT }}
+        run: |
+          set -euo pipefail
+          # orangecat's deploy workflow is cd.yml; the others deploy.yml.
+          gh workflow run deploy.yml --ref main --repo bitbaum/loki
+          gh workflow run deploy.yml --ref main --repo bitbaum/heidi
+          gh workflow run cd.yml --ref main --repo bitbaum/orangecat
+          gh workflow run deploy.yml --ref main --repo bitbaum/substrata

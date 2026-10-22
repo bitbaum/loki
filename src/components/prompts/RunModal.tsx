@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Loader2, X } from "lucide-react";
 import { ChatThread } from "@bitbaum/chatkit/react";
+import { postChatFeedback } from "@/lib/loki/post-chat-feedback";
 import type { PromptTemplate } from "@/config/prompt-library";
 import type { Project } from "./types";
 import { Modal } from "@/components/ui/modal";
@@ -274,6 +275,9 @@ export function RunModal({
               stopped={ask.stopped}
               onStop={ask.stop}
               onReply={(text) => void ask.reply(text)}
+              onFeedback={
+                ask.conversationId ? (f) => postChatFeedback(ask.conversationId!, f) : undefined
+              }
             />
             {ask.conversationId && !askBusy && (
               <Link href={`/loki?c=${ask.conversationId}`} className="ui-prompt-sheet-link">

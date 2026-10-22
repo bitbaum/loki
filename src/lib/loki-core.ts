@@ -94,6 +94,16 @@ const LOKI_CAPABILITIES = `CAPABILITIES — ground truth; never exceed or invent
 
 ${NEIGHBOUR_CAPABILITIES}`;
 
+/**
+ * What this assistant can do, for the nightly chat review
+ * (api/chat/review-export): the same words the model is given, never a second
+ * description that could drift from them. The ground truth first, then the
+ * role — the judge reads it to say what Loki could have given.
+ */
+export function lokiChatScope(): string {
+  return `${LOKI_CAPABILITIES}\n\n${LOKI_SYSTEM_PROMPT}`;
+}
+
 function voiceClause(voice: string | null | undefined): string {
   const v = voice?.trim();
   return v ? ` Adopt this writing voice in your reply: ${v}` : "";

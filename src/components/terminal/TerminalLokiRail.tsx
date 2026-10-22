@@ -5,6 +5,7 @@ import Link from "next/link";
 import { singleFlight } from "@/lib/single-flight";
 import { ArrowUpRight, Loader2, Sparkles } from "lucide-react";
 import { ChatThread } from "@bitbaum/chatkit/react";
+import { postChatFeedback } from "@/lib/loki/post-chat-feedback";
 import { useSessionAsk } from "@/hooks/use-session-ask";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
@@ -336,6 +337,11 @@ export function TerminalLokiRail({
                 : { ...m, content: body };
             })}
             onReply={(text) => void session.reply(text)}
+            onFeedback={
+              session.conversationId
+                ? (f) => postChatFeedback(session.conversationId!, f)
+                : undefined
+            }
             live={
               session.live
                 ? { text: session.live.preview, status: liveStatus, steps: session.live.steps }
