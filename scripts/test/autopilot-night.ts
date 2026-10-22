@@ -173,13 +173,19 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
     skipped: { paused: 0, busy: 0, not_runnable: 0, lane_taken: 0, over_budget: 0 },
   };
   assert.equal(nightRunsStarted(summary), 3);
+  // Said the way a person would: no "3 of 4 runs" ledger, the cost in francs.
   assert.equal(
     nightNoteText(summary, 1.2),
-    "Last night Loki started 2 fixes (kestrel, harbourlight), read ledgerpost, filed away 4 old reports · 3 of 4 runs · $1.20.",
+    "Last night Loki started 2 fixes (kestrel, harbourlight), read ledgerpost, filed away 4 old reports. It cost CHF 0.96.",
   );
   assert.equal(
     nightNoteText({ ...summary, fixes: [], reads: [], archived: 1 }),
-    "Last night Loki filed away 1 old report · 0 of 4 runs.",
+    "Last night Loki filed away 1 old report.",
+  );
+  // Projects are named as every list names them, never by folder key.
+  assert.match(
+    nightNoteText(summary, null, (n) => (n === "kestrel" ? "Kestrel Bakery" : n)) ?? "",
+    /started 2 fixes \(Kestrel Bakery, harbourlight\)/,
   );
 }
 
@@ -296,7 +302,7 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
   });
   assert.equal(
     held,
-    "Last night Loki built nothing (tonight's plan was not approved), filed away 2 old reports · 0 of 4 runs.",
+    "Last night Loki built nothing (tonight's plan was not approved), filed away 2 old reports.",
   );
   assert.equal(
     nightNoteText({
@@ -330,7 +336,7 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
   });
   assert.equal(
     refused,
-    "Last night Loki could not start the 1 run you approved (no builder online) · 0 of 4 runs.",
+    "Last night Loki could not start the 1 run you approved (no builder online).",
     "a yes that led nowhere is not a silent morning",
   );
 

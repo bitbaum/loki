@@ -4,6 +4,8 @@ import { getFeedbackLoopMetrics, listUserFeedback } from "@/db/queries/site-feed
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
 import { verifyDeployedFixes } from "@/lib/feedback/verify-live";
 import { lastNightNote } from "@/lib/autopilot-night-note";
+import { getProjects } from "@/db/queries/projects";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * The cross-project feedback inbox behind /feedback: every project's rows in
@@ -14,11 +16,16 @@ import { lastNightNote } from "@/lib/autopilot-night-note";
 export async function GET() {
   const userId = await getSessionUserId();
   if (!userId) return jsonError("Unauthorized", 401);
-  const [raw, metrics, night] = await Promise.all([
+  const [raw, metrics, night, projects] = await Promise.all([
     listUserFeedback(userId),
     getFeedbackLoopMetrics(userId).catch(() => null),
     lastNightNote(userId),
+    getProjects(userId).catch(() => []),
   ]);
+  // What a person calls each project (projectTitle), so no row is labelled
+  // with a folder key. A project shared with the viewer falls back to the
+  // same rule applied to its name.
+  const titles = new Map(projects.map((p) => [p.id, projectTitle(p)]));
   // A collaborator's row executes in the project owner's tenant. Enrich each
   // owner's runs with that owner id, then restore the original newest-first
   // order; using the viewer id would make editor-visible runs look absent.
@@ -35,6 +42,9 @@ export async function GET() {
     )
   ).flat();
   const workById = new Map(enriched.map((item) => [item.id, item]));
-  const feedback = raw.map((item) => workById.get(item.id) ?? item);
+  const feedback = raw.map((item) => ({
+    ...(workById.get(item.id) ?? item),
+    projectTitle: titles.get(item.projectId) ?? projectTitle({ name: item.projectName }),
+  }));
   return jsonOk({ feedback, metrics, night });
 }

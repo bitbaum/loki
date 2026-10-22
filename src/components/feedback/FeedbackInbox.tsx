@@ -36,7 +36,11 @@ import {
   type Recommendation,
 } from "@/lib/feedback/recommend";
 
-type InboxItem = UserFeedbackListItem & { work: FeedbackWorkView };
+type InboxItem = UserFeedbackListItem & {
+  work: FeedbackWorkView;
+  /** What a person calls the project (projectTitle), from the inbox route. */
+  projectTitle?: string;
+};
 
 /** Reads asked for per page load — a long queue is read as the owner scrolls back. */
 const READS_PER_VISIT = 8;
@@ -101,8 +105,14 @@ export function FeedbackInbox() {
   /** The report opened in the sheet, and whether "Do all" is being confirmed. */
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
-  // Every project named the way a person names it, never its folder key.
-  const titleOf = (name: string) => projectTitle({ name });
+  // Every project named the way a person names it, never its folder key:
+  // the route's projectTitle, keyed by the name the filter uses.
+  const titleByName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const f of data?.feedback ?? []) if (f.projectTitle) m.set(f.projectName, f.projectTitle);
+    return m;
+  }, [data]);
+  const titleOf = (name: string) => titleByName.get(name) ?? projectTitle({ name });
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   // Loki's read of each new report (lib/feedback/read-report), asked for one
   // at a time as the queue is open: the owner should never tap "Build" on a
@@ -355,13 +365,20 @@ export function FeedbackInbox() {
                   key={f.id}
                   onClick={() => setOpenId(f.id)}
                   title={reportTitle(f)}
-                  // Where, and when — Loki's call is the button at the end, and
-                  // named here only when it is not the button's own word.
+                  // Which project, then how old — the age last. Loki's call is
+                  // the button at the end, and is named here only when it is
+                  // not the button's own word. The age stays IN this line, not
+                  // in the trailing slot: beside "Build it" a trailing age
+                  // left the report's own words a 20-character ellipsis.
                   secondary={
                     isTaken(f, rec)
                       ? `Done: ${rec.label.toLowerCase()}`
                       : [
-                          projectOf(f) ? titleOf(f.projectName) : null,
+                          projectOf(f)
+                            ? titleOf(f.projectName)
+                            : f.page && f.page !== "/"
+                              ? f.page
+                              : "Home page",
                           rec.kind === RECOMMEND.BUILD ? null : kindWord(rec),
                           compactRelativeDate(f.createdAt),
                         ]
