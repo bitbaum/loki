@@ -1,8 +1,8 @@
-import { PageLayout } from "@/components/ui/page-layout";
 import { CrewWorkspace } from "@/components/crew/CrewWorkspace";
 import { getCrewSummary, listCrew } from "@/db/queries/crew";
 import { listHumanTasks } from "@/db/queries/human-tasks";
 import { getProjects } from "@/db/queries/projects";
+import { projectTitle } from "@/lib/project-display";
 import { requirePageUserId } from "@/lib/session";
 
 export const metadata = { title: "Crew" };
@@ -22,17 +22,11 @@ export default async function CrewPage() {
   ]);
 
   return (
-    <PageLayout
-      title="Crew"
-      subtitle="Work an agent can't do. Assign it to a person, send them a link, watch it come back."
-      maxWidth="max-w-5xl"
-    >
-      <CrewWorkspace
-        initialTasks={tasks}
-        initialCrew={crew}
-        initialSummary={summary}
-        projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-      />
-    </PageLayout>
+    <CrewWorkspace
+      initialTasks={tasks}
+      initialCrew={crew}
+      initialSummary={summary}
+      projects={projects.map((p) => ({ id: p.id, name: projectTitle(p) }))}
+    />
   );
 }

@@ -21,7 +21,15 @@ type PersonOption = { id: string; name: string };
  * The people picker loads lazily, when the modal is first opened: a book with
  * hundreds of contacts should not be paid for by everyone who visits the page.
  */
-export function AddCrewButton({ onCreated }: { onCreated?: () => void }) {
+export function AddCrewButton({
+  onCreated,
+  trigger = "secondary",
+  triggerLabel = "Add someone",
+}: {
+  onCreated?: () => void;
+  trigger?: "button" | "secondary";
+  triggerLabel?: string;
+}) {
   const [name, setName] = useState("");
   const [personId, setPersonId] = useState("");
   const [role, setRole] = useState("");
@@ -76,8 +84,9 @@ export function AddCrewButton({ onCreated }: { onCreated?: () => void }) {
 
   return (
     <ModalForm
-      triggerLabel="Add someone"
-      title="Add someone to the loop"
+      trigger={trigger}
+      triggerLabel={triggerLabel}
+      title="Add someone to your crew"
       submitLabel="Add to crew"
       savingLabel="Adding…"
       canSubmit={Boolean(personId) || name.trim().length > 0}
