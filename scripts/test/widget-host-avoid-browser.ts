@@ -423,6 +423,75 @@ async function main() {
       await close();
     }
 
+    // 8c. Drag: a tap still opens; a press-and-move moves it, snaps it to the
+    //     nearest side edge at the dropped height, does not open the panel,
+    //     and the spot survives a reload. No "Move to other corner" item.
+    {
+      const { p, close } = await open(browser, page(filler), 1440, 900, js);
+      const panelOpen = () =>
+        p.evaluate(() => {
+          const panel = document
+            .getElementById("loki-feedback-host")
+            ?.shadowRoot?.querySelector(".panel");
+          return !!panel && panel.getClientRects().length > 0;
+        });
+      const start = (await fab(p))!;
+      const cx = (start.left + start.right) / 2;
+      const cy = (start.top + start.bottom) / 2;
+      await p.mouse.move(cx, cy);
+      await p.mouse.down();
+      await p.mouse.move(cx - 3, cy - 2);
+      await p.mouse.up();
+      ok(await panelOpen(), "drag: a tap (under the threshold) still opens Loki");
+      await p.evaluate(() =>
+        (
+          document
+            .getElementById("loki-feedback-host")
+            ?.shadowRoot?.querySelector('[aria-label="Close"]') as HTMLButtonElement | null
+        )?.click(),
+      );
+      await p.waitForTimeout(300);
+      await p.mouse.move(cx, cy);
+      await p.mouse.down();
+      for (let i = 1; i <= 10; i++) await p.mouse.move(cx - i * 100, cy - i * 40);
+      await p.mouse.up();
+      await p.waitForTimeout(400);
+      ok(!(await panelOpen()), "drag: the drop does not open Loki");
+      const dropped = (await fab(p))!;
+      ok(Math.round(dropped.left) === 16, `drag: snapped to the left edge (left=${dropped.left})`);
+      ok(
+        Math.abs(dropped.top - (start.top - 400)) < 3,
+        `drag: kept the dropped height (top=${dropped.top}, want≈${start.top - 400})`,
+      );
+      await settle(p);
+      await p.setViewportSize({ width: 1400, height: 900 });
+      await settle(p);
+      const afterResize = (await fab(p))!;
+      ok(
+        Math.round(afterResize.left) === 16 && Math.abs(afterResize.top - dropped.top) < 3,
+        "drag: a resize does not move a dragged launcher",
+      );
+      await p.reload();
+      await p.waitForFunction(() =>
+        Boolean(document.getElementById("loki-feedback-host")?.shadowRoot?.querySelector(".fab")),
+      );
+      await settle(p);
+      const reloaded = (await fab(p))!;
+      ok(
+        Math.round(reloaded.left) === 16 && Math.abs(reloaded.top - dropped.top) < 3,
+        "drag: the spot is remembered on this site after a reload",
+      );
+      const items = await p.evaluate(() =>
+        Array.from(
+          document
+            .getElementById("loki-feedback-host")
+            ?.shadowRoot?.querySelectorAll(".fabmenu-item") ?? [],
+        ).map((e) => e.textContent),
+      );
+      ok(!items.includes("Move to other corner"), "drag: no 'Move to other corner' menu item");
+      await close();
+    }
+
     // 9. Every corner slot is a control: the launcher becomes the edge tab —
     //    narrow, flush against the side — instead of vanishing. A launcher
     //    that is there on some pages and gone on others reads as broken.

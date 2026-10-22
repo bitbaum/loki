@@ -80,3 +80,58 @@ export function restoreRequested(): boolean {
   }
   return true;
 }
+
+/**
+ * Where the person dragged the launcher on this site: which side edge it is
+ * snapped to, and how far down that edge (0 = top, 1 = bottom of the room the
+ * button has). A fraction rather than pixels so the spot survives a rotate or
+ * a resized window. Scoped per token like the placement above.
+ */
+export type DragPosition = { side: "left" | "right"; y: number };
+
+const DRAG_KEY = (token: string) => `fc-widget-drag:${token.slice(0, 24)}`;
+
+export function readDragPosition(token: string): DragPosition | null {
+  try {
+    const raw = localStorage.getItem(DRAG_KEY(token));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<DragPosition>;
+    if ((v.side !== "left" && v.side !== "right") || typeof v.y !== "number" || !isFinite(v.y))
+      return null;
+    return { side: v.side, y: Math.min(1, Math.max(0, v.y)) };
+  } catch {
+    return null;
+  }
+}
+
+export function writeDragPosition(token: string, value: DragPosition | null): void {
+  try {
+    if (value === null) localStorage.removeItem(DRAG_KEY(token));
+    else localStorage.setItem(DRAG_KEY(token), JSON.stringify(value));
+  } catch {
+    /* storage unavailable — the spot just doesn't persist */
+  }
+}
+
+/** Edge margin of a snapped launcher, in px. */
+export const SNAP_MARGIN = 16;
+
+/**
+ * Snap a dropped launcher to the nearest left/right edge at the height it was
+ * dropped. `rect` is the button where the pointer let go.
+ */
+export function snapToEdge(
+  rect: { left: number; top: number; width: number; height: number },
+  viewport: { width: number; height: number },
+): DragPosition {
+  const side = rect.left + rect.width / 2 < viewport.width / 2 ? "left" : "right";
+  const room = viewport.height - rect.height - 2 * SNAP_MARGIN;
+  const y = room <= 0 ? 1 : (rect.top - SNAP_MARGIN) / room;
+  return { side, y: Math.min(1, Math.max(0, y)) };
+}
+
+/** The top (px) of a launcher of `height` at drag position `pos`. */
+export function dragTop(pos: DragPosition, height: number, viewportHeight: number): number {
+  const room = Math.max(0, viewportHeight - height - 2 * SNAP_MARGIN);
+  return Math.round(SNAP_MARGIN + pos.y * room);
+}
