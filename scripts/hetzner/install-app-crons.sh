@@ -84,6 +84,11 @@ substrata|4022|*-*-* 01/6:41:00|/api/cron/quality|POST
 # registers whose cadence names the day (solon src/lib/places/schedule.ts) and
 # calls no model.
 solon|4018|*-*-* 04:30:00|/api/cron/places|POST
+# heidi has no vercel.json. Hourly: reads the YouTube feeds of the channels
+# learners follow and sends the Web Push for new videos (heidi
+# lib/channels/sweep.ts). No AI: XML and one HTTP call per phone. The route
+# refuses without CRON_SECRET in heidi's .env; VAPID_* there turns the push on.
+heidi|4025|*-*-* *:19:00|/api/cron/channels|POST
 REG
 )"
 
