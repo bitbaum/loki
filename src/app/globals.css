@@ -1655,22 +1655,25 @@
   .ui-public-hero-actions > * {
     @apply w-full sm:w-auto;
   }
-  /* x.ai/SpaceX-style entrance: a short, eased rise+fade. Staggered down the
-     hero fold. Disabled under reduced-motion. */
+  /* A short eased rise, staggered down the hero fold — movement only, never
+     opacity. It used to fade in from 0 with `both` fill, so until the
+     animation ran the headline was not there at all: a slow phone, a
+     screenshot or a page still loading showed a blank hole where the promise
+     should be. Content is visible by default; the motion is the extra.
+     Disabled under reduced motion. */
   @keyframes ui-public-rise {
     from {
-      opacity: 0;
       transform: translateY(14px);
     }
     to {
-      opacity: 1;
       transform: translateY(0);
     }
   }
   @media (prefers-reduced-motion: reduce) {
     .ui-public-hero-title,
     .ui-public-hero-lede,
-    .ui-public-hero-sublede {
+    .ui-public-hero-sublede,
+    .ui-consult-turn {
       animation: none;
     }
   }

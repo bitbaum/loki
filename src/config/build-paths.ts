@@ -53,7 +53,7 @@ export const BUILD_PATHS: readonly BuildPath[] = [
 
 export const BUILD_PAGE = {
   path: "/build",
-  eyebrow: "THREE WAYS IN",
+  eyebrow: "Three ways in",
   title: "Build it the way that fits.",
   lede: "Yourself, with a partner, or let the studio do it. Every way ends the same: something of yours, online, that keeps getting better when you say so.",
 } as const;

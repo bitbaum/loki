@@ -311,7 +311,9 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
                 <Row
                   key={r.slug}
                   r={r}
-                  title={(r.loki && titles.get(r.loki.id)) || r.name || r.slug}
+                  title={
+                    (r.loki && titles.get(r.loki.id)) || projectTitle({ name: r.name || r.slug })
+                  }
                   solonChecked={solon.checked}
                   canOpenProjects={canOpenProjects}
                   orangecatLive={oc.live}

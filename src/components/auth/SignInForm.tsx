@@ -228,8 +228,8 @@ function FormInner({
           </AuthSecondaryButton>
           {demoError && <p className="ui-error">{demoError}</p>}
           <p className="ui-auth-demo-note">
-            No account needed. A sandboxed fleet with real history: dispatching agents, terminals
-            and outbound messages are off; everything else is live. Resets nightly.
+            No account needed. A sample workspace with real history — starting agents and sending
+            messages are switched off. It resets every night.
           </p>
         </div>
       )}
