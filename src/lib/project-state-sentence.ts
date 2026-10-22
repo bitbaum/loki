@@ -83,12 +83,19 @@ export function projectStateSentence(
         waitingOnYou: true,
       };
     case "stalled":
-      return {
-        headline: `Sent ${ago(status.sinceMs)}, but nobody picked it up`,
-        detail: "Nothing was recorded for that request, so starting again is safe.",
-        tone: "waiting",
-        waitingOnYou: true,
-      };
+      return status.delivered
+        ? {
+            headline: `The agent went quiet`,
+            detail: `It got your request ${ago(status.sinceMs)} and has said nothing since. Watch it work shows what it did; starting again is safe.`,
+            tone: "waiting",
+            waitingOnYou: true,
+          }
+        : {
+            headline: `Sent ${ago(status.sinceMs)}, but nobody picked it up`,
+            detail: "Nothing was recorded for that request, so starting again is safe.",
+            tone: "waiting",
+            waitingOnYou: true,
+          };
     case "idle":
       return idleSentence(status.last, opts.liveUrl ?? null, ago);
   }

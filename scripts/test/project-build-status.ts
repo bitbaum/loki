@@ -154,6 +154,24 @@ eq(
   "open run past the grace window with no runtime → stalled",
 );
 
+// A request an agent received and then went silent on is "stalled" too, but it
+// is not "nobody picked it up" — Watch says the agent went quiet.
+eq(
+  deriveBuildStatus({
+    state: null,
+    runs: [
+      {
+        ...run({ startedMinutesAgo: graceMinutes + 1 }),
+        payload: { deliveredAt: at(graceMinutes).toISOString() },
+      },
+    ],
+    commits: null,
+    nowMs: NOW,
+  }),
+  { kind: "stalled", sinceMs: NOW - (graceMinutes + 1) * MINUTE_MS, delivered: true },
+  "a delivered request that went silent → stalled, delivered",
+);
+
 eq(
   deriveBuildStatus({
     state: {
