@@ -716,7 +716,7 @@ export function TerminalSurface({
         // a second header naming the builder (owner, 2026-10-21).
         const runsOn = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
         return (
-          <div className="ui-term-empty">
+          <div className="ui-term-nothing-open">
             <SectionHeading
               title="Pick up where you left off"
               right={

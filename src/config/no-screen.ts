@@ -327,7 +327,7 @@ export const NO_SCREEN_OPTIONS = {
   },
   important: {
     title: "Only what needs me",
-    note: "Failures now; the rest every 5 minutes.",
+    note: "Finished runs every five minutes.",
   },
 } as const;
 

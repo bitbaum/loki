@@ -7524,7 +7524,7 @@
   }
   /* Sessions with nothing open (TerminalSurface): one line, then a Resume
      row per project, on the page rather than in a box. */
-  .ui-term-empty {
+  .ui-term-nothing-open {
     @apply mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col overflow-y-auto pt-2 md:pt-6;
   }
   /* − / + / Fit at the end of the "Text size" row in the session's ⋮ sheet. */

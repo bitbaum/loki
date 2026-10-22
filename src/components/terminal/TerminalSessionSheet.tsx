@@ -22,9 +22,10 @@ const SOURCE_ICON: Record<TerminalSource, typeof Cloud> = {
   shell: SquareTerminal,
 };
 
-const STATUS_DOT: Partial<Record<SessionStatus, "warning" | "positive">> = {
+/** Colour only where acting on it helps (design reset rule 8): a session
+ *  waiting on you. Finished, working and open are words. */
+const STATUS_DOT: Partial<Record<SessionStatus, "warning">> = {
   "needs-you": "warning",
-  done: "positive",
 };
 
 /**
