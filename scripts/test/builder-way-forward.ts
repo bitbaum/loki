@@ -72,8 +72,10 @@ for (const cloud of ["unknown", "online", "offline", "private"] as const) {
     }),
   );
   check(
-    `banner ${cloud}: primary install only for private access`,
-    banner.includes("Get the desktop app") === (cloud === "private"),
+    // Home shows a never-connected private builder as ONE row that names the
+    // desktop app and opens the full setup; nobody else is told to install.
+    `banner ${cloud}: the desktop app only for private access`,
+    banner.includes("desktop app") === (cloud === "private"),
   );
   if (cloud === "unknown")
     check(

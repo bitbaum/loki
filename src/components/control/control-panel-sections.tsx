@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FolderGit2, Sparkles } from "lucide-react";
 import type { ComponentProps, ReactNode, RefObject } from "react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { BrainConfigPanel } from "./control-panel-helpers";
 import { EmptyStateWelcome } from "./EmptyStateWelcome";
 import { GitHubRepoSuggestions } from "./GitHubRepoSuggestions";
@@ -46,21 +47,20 @@ export function ControlEmptyState({
 }
 
 function ProjectsNotLinked({ count }: { count: number }) {
+  // Empty is quiet (design reset, rule 10): an icon, one line, one button. It
+  // was a raised card with a page-sized heading, an explanation and a black
+  // button — the second primary on a screen that already had one.
   const which = count === 1 ? "Your project isn't" : `None of your ${count} projects is`;
   return (
-    <section className="ui-card-shell-raised p-6 md:p-8">
-      <div className="mb-5 space-y-1">
-        <h2 className="ui-page-title">{which} ready for agents yet</h2>
-        <p className="ui-page-subtitle">
-          An agent works inside a project&apos;s folder or code. Open a project and connect one, and
-          it shows up here.
-        </p>
-      </div>
-      <Link href="/projects" className="ui-btn-primary inline-flex items-center gap-2">
-        <FolderGit2 className="h-4 w-4" aria-hidden="true" />
-        Open your projects
-      </Link>
-    </section>
+    <EmptyState
+      icon={FolderGit2}
+      title={`${which} connected to its code yet`}
+      action={
+        <Link href="/projects" className="ui-btn-secondary inline-flex items-center gap-2">
+          Open your projects
+        </Link>
+      }
+    />
   );
 }
 

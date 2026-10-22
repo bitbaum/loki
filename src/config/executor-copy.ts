@@ -105,6 +105,8 @@ export const EXECUTOR_COPY = {
         : "Work waits until it is back",
     reconnect: "How to reconnect",
     neverSeenTitle: "Connect a builder to run agents",
+    /** Home's never-connected row: its one grey line. */
+    neverSeenDetail: "Agents run on a computer — install the desktop app to use yours",
     offlineTitle: "Builder offline",
     neverSeenBody:
       "Agents need a computer to run on. Install the desktop app and they run on yours, in your own folders.",

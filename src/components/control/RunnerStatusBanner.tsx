@@ -117,6 +117,35 @@ export function RunnerStatusBanner({
     );
   }
 
+  // Never connected, no cloud builder, in a browser: one row, like the
+  // offline one. It was a tinted box with its own black button above Home's
+  // other box with another black button (live demo, 2026-10-22); the full
+  // setup, with "Other ways to set up", opens from the row.
+  if (runnerNeverSeen && !expanded && !hasCloud && !insideFleetRunner) {
+    return (
+      <List aria-label="Builder">
+        <ListRow
+          icon={Radio}
+          title={EXECUTOR_COPY.runnerBanner.neverSeenTitle}
+          secondary={EXECUTOR_COPY.runnerBanner.neverSeenDetail}
+          onClick={() => setExpanded(true)}
+          chevron
+          menu={
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              className="ui-btn-icon"
+              aria-label="Dismiss"
+              title="Dismiss"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          }
+        />
+      </List>
+    );
+  }
+
   if (!runnerNeverSeen && !expanded) {
     return (
       // One row, like the rest of Home (design reset, 2026-10): it was a
