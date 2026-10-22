@@ -141,6 +141,8 @@ if [ -f /etc/loki/sealed-builds.on ] && grep -qx ready /etc/loki/sealed-builds 2
   {
     echo "[Service]"
     echo "Environment=LOKI_EXECUTOR=sandbox"
+    # Rootless podman needs setuid newuidmap; NNP blocks it (measured 2026-10-21).
+    echo "NoNewPrivileges=no"
     echo "Environment=LOKI_SANDBOX_RUNTIME=podman"
     # Rootless podman keeps its runtime files under XDG_RUNTIME_DIR; a unit
     # has no login session, so it is a folder in the home.

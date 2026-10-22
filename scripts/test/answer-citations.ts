@@ -4,7 +4,7 @@ import { MarkdownText } from "../../src/components/ui/markdown-text";
 Object.assign(globalThis, { React });
 /**
  * Citations in a Loki answer: out of the sentence, one Sources button per
- * paragraph. Case from the live site (2026-10-15): eight inline "Source"
+ * answer, shared with the main chat. Case from the live site (2026-10-15): eight inline "Source"
  * buttons, each 44px tall, made one answer unreadable.
  */
 let passed = 0;
@@ -33,7 +33,8 @@ check("punctuation closes up where a handle was", one.includes("offline and five
 check("a range leaves no stray dash", one.includes("commitments, so"));
 
 const two = html("First claim [F1].\n\nSecond claim [F2].\n\nNo claim here.");
-check("each citing paragraph gets its own button", count(two, "ui-loki-cite") === 2);
+check("paragraphs share one sources sheet under the answer", count(two, "ui-loki-cite") === 1);
+check("the sheet includes sources from every paragraph", two.includes("View 2 sources"));
 
 const unknown = html("A claim [F9].");
 check(

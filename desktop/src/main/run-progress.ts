@@ -7,16 +7,21 @@
 // event, which is what turns Feedback's "Queued" into "Working · 12 min" and
 // lets it call a silent agent stalled instead of guessing.
 import { executor } from '@/lib/agent-execution'
-import { runnerWorkspaceId } from './pty-runtime'
+import { peekPtyBuffer, ptyAgentForTab, runnerWorkspaceId, terminatePty, writeRawKey } from './pty-runtime'
 import { detectAuthFailure } from './agent-auth'
+import { findShippedPr, salvageShip } from './salvage-ship'
 import { newestLog, readRange } from './transcript-streamer'
 import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
 import { latestRunStep } from '@/lib/run-step'
 import {
   RUN_BLOCKED,
   RUN_PROGRESS_BEAT_MS,
+  detectPermissionPrompt,
+  sealedAutoApproval,
   shouldBeat,
   shouldDiagnoseSilence,
+  shouldCheckShipped,
+  SHIPPED_IDLE_MS,
   type RunBlocked,
   type RunProgressBeat,
 } from '@/lib/run-progress'
@@ -33,6 +38,9 @@ type Track = {
   /** The workspace dir, so a silent agent can be asked WHY it is silent. */
   dir: string
   blocked: RunBlocked | null
+  question: string | null
+  /** Last time we asked git/gh whether the agent already shipped its PR. */
+  shipCheckedAt: number
 }
 
 const tracks = new Map<string, Track>()
@@ -59,6 +67,8 @@ export function startRunProgress(
     unsub: () => {},
     dir,
     blocked: null,
+    question: null,
+    shipCheckedAt: 0,
     timer: setInterval(() => void tick(base, token, runId), Math.min(RUN_PROGRESS_BEAT_MS, 15_000)),
   }
   // subscribe replays the retained buffer synchronously; skip it — the replay
@@ -66,13 +76,55 @@ export function startRunProgress(
   let replaying = true
   track.unsub = executor.subscribe(runnerWorkspaceId(tab), 0, (e) => {
     if (replaying) return
-    if (e.kind === 'exit') { stopRunProgress(runId); return }
+    if (e.kind === 'exit') {
+      // Say so once, at once, then stop: a dead agent is not Working.
+      const code = e.exitCode
+      stopRunProgress(runId)
+      const why = code == null ? 'the agent process was killed' : `the agent process exited (code ${code})`
+      const beat = (question: string) =>
+        sendBeat(base, token, runId, {
+          outputBytes: 0,
+          lastOutputAt: new Date(track.lastOutputAt).toISOString(),
+          blocked: RUN_BLOCKED.EXITED,
+          question,
+        })
+      // Work it left behind still ships first (commit, push, draft PR), then
+      // one beat closes the run as Failed with the cause and the PR.
+      void salvageShip(tab, dir, runId)
+        .catch(() => null)
+        .then((url) => beat(url ? `${why}; Loki opened ${url} with its changes` : why))
+      return
+    }
     if (e.kind !== 'output' || !e.data) return
     track.bytesSinceBeat += e.data.length
     track.lastOutputAt = Date.now()
+    scheduleSealedApproval(track)
   })
   replaying = false
   tracks.set(runId, track)
+}
+
+const SEALED = process.env.LOKI_EXECUTOR === 'sandbox'
+const approvalTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const lastApprovalAt = new Map<string, number>()
+
+/** Answer Gemini's "Allow once" in a sealed build once the menu settles. */
+function scheduleSealedApproval(t: Track): void {
+  if (!SEALED) return
+  clearTimeout(approvalTimers.get(t.runId))
+  approvalTimers.set(
+    t.runId,
+    setTimeout(() => {
+      approvalTimers.delete(t.runId)
+      if (!tracks.has(t.runId)) return
+      if (Date.now() - (lastApprovalAt.get(t.runId) ?? 0) < 3000) return
+      const asked = sealedAutoApproval(peekPtyBuffer(t.tab) ?? '', ptyAgentForTab(t.tab), SEALED)
+      if (!asked) return
+      lastApprovalAt.set(t.runId, Date.now())
+      console.log(`[sealed-approve] ${t.tab} run ${t.runId}: answered "Allow once" to: ${asked}`)
+      writeRawKey(t.tab, '\r')
+    }, 800),
+  )
 }
 
 export function stopRunProgress(runId: string): void {
@@ -89,10 +141,44 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   // Silence has two meanings and the operator can only act on one. Before
   // deciding whether to beat, work out whether this quiet agent is thinking or
   // waiting for a human — the runner is the only thing that can tell.
-  if (shouldDiagnoseSilence(t)) {
+  // A tool-approval prompt is checked on every tick, not only after the long
+  // silence: the agent is waiting on a human the moment it asks, and its
+  // spinner may keep redrawing (Gemini 0.65 at "Allow execution of [Shell]?",
+  // 2026-10-21, shown as Working).
+  const screen = peekPtyBuffer(t.tab) ?? ''
+  // In a sealed build Loki answers Gemini's own approvals (scheduleSealedApproval).
+  const asked = sealedAutoApproval(screen, ptyAgentForTab(t.tab), SEALED) ? null : detectPermissionPrompt(screen)
+  if (asked) {
+    const changed = t.blocked !== RUN_BLOCKED.PERMISSION || t.question !== asked
+    t.blocked = RUN_BLOCKED.PERMISSION
+    t.question = asked
+    // Say it now, not at the next 45s beat.
+    if (changed) t.lastBeatAt = 0
+  } else if (shouldDiagnoseSilence(t)) {
     t.blocked = detectAuthFailure(t.dir) ? RUN_BLOCKED.AUTH : null
+    t.question = null
   } else if (t.bytesSinceBeat > 0) {
     t.blocked = null
+    t.question = null
+  }
+  // Done is the agent's own PR, open, at exactly what it left checked out,
+  // while it sits quiet at its prompt: close the run Done with that link and
+  // stop the agent, instead of "Working" until a reaper.
+  if (!t.blocked && shouldCheckShipped(t)) {
+    t.shipCheckedAt = Date.now()
+    const url = await findShippedPr(t.tab, t.dir)
+    if (url && tracks.get(runId) === t && Date.now() - t.lastOutputAt >= SHIPPED_IDLE_MS) {
+      stopRunProgress(runId)
+      console.log(`[run-done] ${t.tab} run ${runId}: agent shipped ${url} and is idle; closing Done`)
+      await sendBeat(base, token, runId, {
+        outputBytes: 0,
+        lastOutputAt: new Date(t.lastOutputAt).toISOString(),
+        blocked: null,
+        shipped: url,
+      })
+      await terminatePty(t.tab).catch((e) => console.warn('[run-done] stop failed:', (e as Error).message))
+      return
+    }
   }
   const decision = shouldBeat(t)
   if (decision === 'stop') { stopRunProgress(runId); return }
@@ -102,10 +188,15 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
     outputBytes: t.bytesSinceBeat,
     lastOutputAt: new Date(t.lastOutputAt).toISOString(),
     blocked: t.blocked,
+    ...(t.question ? { question: t.question } : {}),
     ...(step ? { step } : {}),
   }
   t.bytesSinceBeat = 0
   t.lastBeatAt = Date.now()
+  await sendBeat(base, token, runId, beat)
+}
+
+async function sendBeat(base: string, token: string, runId: string, beat: RunProgressBeat): Promise<void> {
   try {
     const res = await fetch(`${base}/api/control/runs/${runId}/progress`, {
       method: 'PATCH',

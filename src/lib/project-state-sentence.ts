@@ -75,6 +75,13 @@ export function projectStateSentence(
         tone: "working",
         waitingOnYou: false,
       };
+    case "needs_you":
+      return {
+        headline: "Needs you",
+        detail: status.question,
+        tone: "waiting",
+        waitingOnYou: true,
+      };
     case "stalled":
       return {
         headline: `Sent ${ago(status.sinceMs)}, but nobody picked it up`,

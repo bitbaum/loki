@@ -23,6 +23,7 @@ import type { ProjectState } from "@/db/schema/project-states";
 import type { RepoCommit } from "@/lib/github-commits";
 import { isRuntimeObservationFresh } from "@/lib/project-session";
 import { MINUTE_MS } from "@/lib/constants/time";
+import { isRunProgressFresh } from "@/lib/run-progress";
 import { normalizeRunShipping, shippingLanded, type RunShipping } from "@/lib/control-run-shipping";
 
 type StateLike = Pick<
@@ -66,6 +67,9 @@ export type BuildStatus =
   | { kind: "building"; sinceMs: number | null; label: string | null }
   /** Dispatched moments ago; no runtime observation yet. */
   | { kind: "queued"; sinceMs: number }
+  /** The open run's agent is waiting on a person (a question, a sign-in) or
+   *  stopped before finishing — the same reading Feedback and Watch give. */
+  | { kind: "needs_you"; sinceMs: number; question: string }
   /** Dispatched, never observed running, and past the grace window. */
   | { kind: "stalled"; sinceMs: number }
   /** Nothing running. `last` is the most recent finished run, if any. */
@@ -107,6 +111,38 @@ export function deriveBuildStatus(input: {
     .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())[0];
   if (open) {
     const sinceMs = open.startedAt.getTime();
+    // The run's own record outranks the process scan: a sealed agent runs in
+    // gVisor where the scan cannot see it, and the project page said "Queued
+    // for a builder" while Feedback said Working (2026-10-21). One run state.
+    const p = (open.payload ?? {}) as {
+      blocked?: unknown;
+      blockedQuestion?: unknown;
+      lastProgressAt?: unknown;
+      lastStep?: { text?: unknown } | null;
+    };
+    const q = typeof p.blockedQuestion === "string" ? p.blockedQuestion.trim() : "";
+    if (p.blocked === "permission")
+      return {
+        kind: "needs_you",
+        sinceMs,
+        question: `The agent is asking: ${q || "permission to run a tool"}`,
+      };
+    if (p.blocked === "auth")
+      return {
+        kind: "needs_you",
+        sinceMs,
+        question: "The agent is waiting for someone to sign in.",
+      };
+    if (p.blocked === "exited")
+      return {
+        kind: "needs_you",
+        sinceMs,
+        question: `The agent stopped: ${q || "its process ended"}`,
+      };
+    if (typeof p.lastProgressAt === "string" && isRunProgressFresh(p.lastProgressAt, nowMs)) {
+      const step = typeof p.lastStep?.text === "string" ? p.lastStep.text : null;
+      return { kind: "building", sinceMs, label: step };
+    }
     return nowMs - sinceMs < BUILD_QUEUED_GRACE_MS
       ? { kind: "queued", sinceMs }
       : { kind: "stalled", sinceMs };
