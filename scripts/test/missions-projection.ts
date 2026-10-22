@@ -35,7 +35,10 @@ assert.equal(withGoals.reportedProgress, 30);
 assert.equal(withGoals.goalsTotal, 2);
 assert.equal(withGoals.goalsReportedDone, 0);
 assert.equal(withGoals.nextObjective, "Verify donated laptop");
-assert.equal(withGoals.objectives.some((g) => g.id === "c"), false);
+assert.equal(
+  withGoals.objectives.some((g) => g.id === "c"),
+  false,
+);
 
 const completed = missionFromProject({
   ...base,
