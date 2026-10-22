@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
+import { List, ListRow } from "@/components/ui/list-row";
 import { NAV } from "@/config/navigation";
 import { patchJson } from "@/lib/api/fetch";
 import type { AgentMessage } from "@/lib/agent-comms";
@@ -46,44 +46,32 @@ export function AgentEscalations() {
     }
   }
 
+  // Rows under Home's "Needs you" (design reset, 2026-10), not a red-edged
+  // card of its own: who escalated, their words on the grey line, × to mark
+  // it read.
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-border-subtle border-l-2 border-l-status-negative bg-surface-base px-4 py-3">
-      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-status-negative" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-text-secondary">Agent escalation</p>
-        <ul className="mt-1.5 flex flex-col gap-1.5">
-          {items.slice(0, 3).map((m) => (
-            <li key={m.id} className="flex min-w-0 items-start gap-2">
-              <Link
-                href={`${NAV.control.href}?project=${encodeURIComponent(m.from)}`}
-                className="ui-tap block min-w-0 flex-1 text-sm text-text-primary"
-              >
-                <span className="font-medium">{m.from}</span>
-                <span className="text-text-muted"> → {m.to}</span>
-                {/* The escalation's actual message, at 16% visible on one
-                    nowrap line. `block` is deliberately GONE, not merely
-                    joined by line-clamp: a display utility overrides
-                    -webkit-box and leaves the clamp declared but inert — the
-                    bug this repo has now shipped three times. */}
-                {(m.re || m.body) && (
-                  <span className="mt-0.5 line-clamp-2 text-xs text-text-secondary">
-                    {m.re || m.body}
-                  </span>
-                )}
-              </Link>
-              <button
-                type="button"
-                onClick={() => void dismiss(m.id)}
-                className="ui-btn-icon shrink-0"
-                aria-label={`Dismiss escalation from ${m.from}`}
-                title="Mark read — removes it from Home"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <List aria-label="Agent escalations">
+      {items.slice(0, 3).map((m) => (
+        <ListRow
+          key={m.id}
+          href={`${NAV.control.href}?project=${encodeURIComponent(m.from)}`}
+          icon={AlertTriangle}
+          title={`${m.from} needs a decision`}
+          secondary={m.re || m.body || `Escalated to ${m.to}`}
+          status="negative"
+          menu={
+            <button
+              type="button"
+              onClick={() => void dismiss(m.id)}
+              className="ui-btn-icon"
+              aria-label={`Dismiss escalation from ${m.from}`}
+              title="Mark read — removes it from Home"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          }
+        />
+      ))}
+    </List>
   );
 }

@@ -30,6 +30,7 @@
 import { DAY_MS } from "@/lib/constants/time";
 import { RECENT_WORK_DAYS } from "@/lib/start-my-day/rank";
 import { BUILD_STARTERS } from "@/config/build-starters";
+import { projectTitle } from "@/lib/project-display";
 
 export type BuildSuggestionKind =
   "fix" | "ship" | "continue" | "deadline" | "goal" | "idea" | "demand" | "starter";
@@ -128,13 +129,16 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
   const byLowerName = new Map(inputs.projects.map((p) => [p.name.toLowerCase(), p]));
 
   for (const p of runnable) {
+    // What a person calls it, for what they read; prompts keep the name an
+    // agent is routed by.
+    const shown = projectTitle(p);
     const open = inputs.openFeedback[p.name] ?? 0;
     if (open > 0) {
       out.push({
         id: `fix:${p.name}`,
         kind: "fix",
-        label: `Fix ${open} report${open === 1 ? "" : "s"} on ${p.name}`,
-        why: `${open} visitor report${open === 1 ? " is" : "s are"} still new on ${p.name}.`,
+        label: `Fix ${open} report${open === 1 ? "" : "s"} on ${shown}`,
+        why: `${open} visitor report${open === 1 ? " is" : "s are"} still new on ${shown}.`,
         prompt: `Work through the ${open} open visitor report${open === 1 ? "" : "s"} on ${p.name}: fix what is real, ship it, and tell me what changed and what you left alone.`,
         project: p.name,
         href: null,
@@ -153,8 +157,8 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
       out.push({
         id: `continue:${p.name}`,
         kind: "continue",
-        label: `${p.name}: ${p.nextStep}`,
-        why: `Session note from ${new Date(nextAt).toISOString().slice(0, 10)} on ${p.name}; check current work before continuing.`,
+        label: `${shown}: ${p.nextStep}`,
+        why: `Session note from ${new Date(nextAt).toISOString().slice(0, 10)} on ${shown}; check current work before continuing.`,
         prompt: `On ${p.name}, check current code and runs first, then, if still relevant, do the next step recorded on ${new Date(nextAt).toISOString().slice(0, 10)}: "${clip(p.nextStep, 300)}". Ship it and report back what changed.`,
         project: p.name,
         href: null,
@@ -166,8 +170,8 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
       out.push({
         id: `ship:${p.name}`,
         kind: "ship",
-        label: `Put ${p.name} online`,
-        why: `${p.name} has code but no live URL yet.`,
+        label: `Put ${shown} online`,
+        why: `${shown} has code but no live URL yet.`,
         prompt: `Get ${p.name} deployed to a live URL and give me the link. If something blocks it, fix it; if only I can unblock it, tell me exactly what you need.`,
         project: p.name,
         href: null,

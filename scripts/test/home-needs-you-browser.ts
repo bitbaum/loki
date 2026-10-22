@@ -100,26 +100,31 @@ async function main() {
     );
     await page.addScriptTag({ content: bundle.outputFiles[0].text });
 
-    const card = page.locator(".ui-needs-card");
+    // A failure is one row (design reset, 2026-10): what happened as the
+    // title, why on the grey line, and the fix as the row's one button.
+    const card = page.locator("#control-attention .ui-listrow").first();
     await card.waitFor();
     assert.equal(
-      (await card.locator(".ui-needs-title").textContent())?.trim(),
+      (await card.locator(".ui-listrow-title").textContent())?.trim(),
       "Couldn't start work in loki",
       "the title says what happened, in words",
     );
-    const body = (await card.locator(".ui-needs-body").textContent()) ?? "";
+    const body = (await card.locator(".ui-listrow-secondary-text").textContent()) ?? "";
     assert.match(body, /^Grok is not installed on the cloud builder, so nothing was started\./);
     assert.doesNotMatch(body, /Switch this project/, "the advice is the button, not a sentence");
     const width = await card
-      .locator(".ui-needs-body")
+      .locator(".ui-listrow-secondary-text")
       .evaluate((e) => e.getBoundingClientRect().width);
-    assert.ok(width > 280, `the reason reads at full width (${Math.round(width)}px)`);
+    assert.ok(
+      width > 160,
+      `the reason has the row's width, not a third of it (${Math.round(width)}px)`,
+    );
     assert.equal(await page.getByText("Open on Control").count(), 0, "no way to the page it is on");
     fs.mkdirSync(".tmp/home", { recursive: true });
     await page.screenshot({ path: ".tmp/home/needs-you-390.png" });
 
-    await card.getByRole("button", { name: "Use Claude instead" }).click();
-    await card.waitFor({ state: "detached" });
+    await card.getByRole("button", { name: "Use Claude" }).click();
+    await page.locator("#control-attention").waitFor({ state: "detached" });
     assert.deepEqual(retries, [{ agent: "claude" }], "the same work, on an agent the builder has");
     assert.deepEqual(
       await page.evaluate(() => (window as unknown as { switched: unknown }).switched),

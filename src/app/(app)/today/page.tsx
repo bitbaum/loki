@@ -1,24 +1,20 @@
 import Link from "next/link";
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
+import { Activity, CalendarClock, LayoutGrid, Target, Wallet } from "lucide-react";
 import { NAV } from "@/config/navigation";
-import { CardSkeleton } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import { Greeting } from "@/components/today/Greeting";
 import { SummaryBar, SummaryBarSkeleton } from "@/components/today/SummaryBar";
-import { GoalsDueCard } from "@/components/today/GoalsDueCard";
-import { EventsDueCard } from "@/components/today/EventsDueCard";
 import { CalendarCard } from "@/components/today/CalendarCard";
 import { WeatherCard } from "@/components/today/WeatherCard";
 import { CommitmentsCard } from "@/components/today/CommitmentsCard";
-import { SubscriptionsCard } from "@/components/today/SubscriptionsCard";
 import { LogConversationButton } from "@/components/today/LogConversationButton";
 import { StickyNoteCard } from "@/components/today/StickyNoteCard";
 import { HabitsCard } from "@/components/today/HabitsCard";
-import { RecentRunsCard } from "@/components/today/RecentRunsCard";
-import { FleetBriefCard } from "@/components/today/FleetBriefCard";
-import { StuckGoalsCard } from "@/components/today/StuckGoalsCard";
 import { LockedZoneBanner } from "@/components/today/LockedZoneBanner";
 import { TodayWatch } from "@/components/today/TodayWatch";
-import { LayoutGrid, ChevronDown } from "lucide-react";
 import { requirePageUserId, getCurrentUserName } from "@/lib/session";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { getProjects } from "@/db/queries/projects";
@@ -45,20 +41,6 @@ import { isFreshNight } from "@/config/autopilot-night";
 import { StartMyDay } from "@/components/control/StartMyDay";
 
 export const metadata = { title: "Today" };
-
-/** Every card below streams in behind the same skeleton. Writing that out
- *  eleven times buried what this page is actually saying — which decisions come
- *  first — under its loading mechanics. */
-const Streamed = ({ children }: { children: ReactNode }) => (
-  <Suspense fallback={<CardSkeleton />}>{children}</Suspense>
-);
-
-/** The page's one row shape: a single column on a phone, two from md up, and
- *  a single full-width card when only one of the pair had anything to say.
- *  `alignTop` is for rows whose two cards differ in height. */
-const CardRow = ({ children, alignTop = false }: { children: ReactNode; alignTop?: boolean }) => (
-  <div className={`ui-today-row${alignTop ? " items-start" : ""}`}>{children}</div>
-);
 
 async function loadTodayInputs() {
   // Inline diagnostic — /today has been crashing in production with an
@@ -186,167 +168,119 @@ async function loadTodayInputs() {
   };
 }
 
+/** The pages behind Today's recap, as rows — they were four summary cards
+ *  in a "Recap & reference" disclosure, each restating a page in the nav. */
+const MORE = [
+  { href: NAV.goals.href, icon: Target, title: "Goals", secondary: "Due soon and stalled" },
+  { href: NAV.events.href, icon: CalendarClock, title: "Events", secondary: "Deadlines coming up" },
+  { href: NAV.money.href, icon: Wallet, title: "Money", secondary: "Bills and subscriptions" },
+  { href: NAV.activity.href, icon: Activity, title: "Activity", secondary: "What the builds did" },
+];
+
 export default async function TodayPage() {
-  const { name, userId, projects, orgProjects, sharedProjects, flagged, extras, nightNote } =
+  const { name, projects, orgProjects, sharedProjects, flagged, extras, nightNote } =
     await loadTodayInputs();
   const isFirstRun = projects.length === 0 && orgProjects.length === 0;
   // Owns nothing yet, but is on someone else's project: that project is the
   // first thing to do, not "Add a project".
   const onlyShared = isFirstRun && sharedProjects.length > 0;
+
+  /* Modelled on OrangeCat's Cat page (design reset, 2026-10): a greeting,
+     one sentence of the day, then what matters today as sections of rows on
+     the page itself. It was thirteen bordered cards — a chip row of counts,
+     calendar and weather side by side, habits beside commitments, and a
+     "Recap & reference" box of four more cards. */
   return (
     <PullToRefresh>
-      <div className="app-page max-w-4xl space-y-6">
-        <div>
+      <div className="app-page ui-today-page max-w-2xl space-y-6 md:space-y-8">
+        <header className="ui-today-head">
           <Greeting name={name} />
-          {onlyShared && (
-            <div className="mt-4">
-              <SharedProjectsCard projects={sharedProjects} />
-            </div>
-          )}
-          {isFirstRun && !onlyShared && (
-            <div className="ui-callout-accent mt-4">
-              <LayoutGrid className="mt-0.5 h-5 w-5 shrink-0 text-accent-text" />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-text-primary">{FIRST_RUN.title}</p>
-                <p className="mt-0.5 text-sm text-text-secondary">{FIRST_RUN.body}</p>
-                <Link
-                  href={NAV.control.href}
-                  className="mt-3 inline-flex items-center ui-tap gap-1.5 text-sm font-medium text-accent-text hover:opacity-80 transition-opacity"
-                >
-                  {FIRST_RUN.cta} →
-                </Link>
-              </div>
-            </div>
-          )}
           {!isFirstRun && (
-            <>
-              <Suspense
-                fallback={
-                  <div className="mt-2">
-                    <SummaryBarSkeleton />
-                  </div>
-                }
-              >
-                <div className="mt-2">
-                  {/* One row: today's counts, Plan my day (which carries them,
-                      so there is no separate Brief Loki), Log a conversation. */}
-                  <SummaryBar>
-                    <LogConversationButton />
-                  </SummaryBar>
-                </div>
-              </Suspense>
-            </>
+            <Suspense fallback={<SummaryBarSkeleton />}>
+              {/* The day in one sentence, then Plan my day (which carries the
+                  counts) and Log a conversation. */}
+              <SummaryBar>
+                <LogConversationButton />
+              </SummaryBar>
+            </Suspense>
           )}
-        </div>
+        </header>
+
+        {onlyShared && <SharedProjectsCard projects={sharedProjects} />}
+        {isFirstRun && !onlyShared && (
+          <EmptyState
+            icon={LayoutGrid}
+            title={FIRST_RUN.title}
+            action={
+              <Link href={NAV.control.href} className="ui-btn-secondary">
+                {FIRST_RUN.cta}
+              </Link>
+            }
+          />
+        )}
 
         {!isFirstRun && (
           <>
-            {/* THE BRIEF: what happened while you were gone, then what needs
-                you. "Back in 30 minutes" used to be answered only on Control
-                and the chat's start screen, so the front door — the page a
-                phone opens to — was the one place that did not say what had
-                moved. Each piece renders nothing when it has nothing to say. */}
+            {/* What happened while you were gone, then what needs you. Each
+                piece renders nothing when it has nothing to say. */}
             <AwayReturnCard />
             <StartMyDay />
             <LastNightCard note={nightNote} />
-            <div className="ui-today-brief-row">
-              <ListenBriefButton nightNote={nightNote} />
-            </div>
+            {nightNote && <ListenBriefButton nightNote={nightNote} />}
 
-            {/* THE ANSWER, FIRST.
-
-                Measured on production 2026-09-22: this page mentioned feedback
-                zero times, failures zero times and flagged projects zero times
-                — while showing the weather and "92 runs this week", and while
-                its own sidebar badged "Feedback 4". A front door that reports
-                VOLUME instead of NEED makes you go three clicks away to learn
-                whether you are free, and Control and Activity then answered it
-                differently from each other. */}
-            <NeedsYouVerdict
-              flagged={flagged}
-              approvals={extras.approvals}
-              alerts={extras.alerts}
-              systemAlertCount={extras.systemAlertCount}
-            />
+            {/* THE ANSWER, FIRST — the only place "N things need you" is
+                said (lib/needs-you). */}
+            <Section title="Needs you">
+              <NeedsYouVerdict
+                flagged={flagged}
+                approvals={extras.approvals}
+                alerts={extras.alerts}
+                systemAlertCount={extras.systemAlertCount}
+              />
+            </Section>
 
             <Suspense fallback={null}>
               <LockedZoneBanner />
             </Suspense>
 
-            {/* Loki's proactive read on the private zone — one thing to focus on,
-          plus a totals strip across categories. Renders only when unlocked. */}
-            <Streamed>
+            {/* Loki's read on the private zone — renders only when unlocked. */}
+            <Suspense fallback={null}>
               <TodayWatch />
-            </Streamed>
+            </Suspense>
 
-            {/* Approvals and alerts are lines in the verdict above, not cards
-                here: each card repeated the verdict's question with its own
-                count and its own wall of detail. The sticky note stays — it is
-                the one card you write into. */}
-            <Streamed>
+            {/* Today itself: the weather in one line, then the calendar. Below
+                what needs you on purpose — volume never sits above need
+                (scripts/test/today-answers-the-question.ts). */}
+            <WeatherCard />
+            <CalendarCard />
+
+            {/* Habits are a today action (check one off). */}
+            <Suspense fallback={null}>
+              <HabitsCard />
+            </Suspense>
+            <Suspense fallback={null}>
+              <CommitmentsCard />
+            </Suspense>
+
+            {/* The one list you write into. */}
+            <Suspense fallback={null}>
               <StickyNoteCard />
-            </Streamed>
+            </Suspense>
 
-            {/* Today itself — the two cards that are only true right now. */}
-            <CardRow>
-              <CalendarCard />
-              <WeatherCard />
-            </CardRow>
-
-            {/* Habits are a today action (check one off), so they stay out of
-                the disclosure below with the read-only recap. */}
-            <CardRow alignTop>
-              <Streamed>
-                <HabitsCard />
-              </Streamed>
-              <Streamed>
-                <CommitmentsCard />
-              </Streamed>
-            </CardRow>
-
-            {/*
-              Everything below is recap or a summary of a page that already
-              exists in the nav: goals (/goals), events (/events),
-              subscriptions (/money), run history (/activity).
-
-              This page rendered thirteen cards of equal weight, so answering
-              "what needs me today?" meant scrolling past six summaries of
-              things that did not. Collapsed by default it is still one tap
-              away and still crawlable in the DOM — <details> renders its
-              content either way — but the phone screen is spent on the
-              decisions above instead.
-            */}
-            <details className="ui-disclosure">
-              <summary className="ui-disclosure-summary">
-                <ChevronDown className="ui-disclosure-chevron" aria-hidden="true" />
-                <span className="ui-section-label">Recap &amp; reference</span>
-                <span className="text-micro text-text-muted">
-                  goals · events · bills · fleet activity
-                </span>
-              </summary>
-              <div className="ui-disclosure-body space-y-4">
-                <CardRow alignTop>
-                  <Streamed>
-                    <GoalsDueCard />
-                  </Streamed>
-                  <Streamed>
-                    <EventsDueCard />
-                  </Streamed>
-                  <Streamed>
-                    <StuckGoalsCard />
-                  </Streamed>
-                  <Streamed>
-                    <SubscriptionsCard />
-                  </Streamed>
-                </CardRow>
-                <Streamed>
-                  <FleetBriefCard userId={userId} />
-                </Streamed>
-                <Streamed>
-                  <RecentRunsCard />
-                </Streamed>
-              </div>
-            </details>
+            <Section title="More">
+              <List aria-label="More">
+                {MORE.map((m) => (
+                  <ListRow
+                    key={m.href}
+                    href={m.href}
+                    icon={m.icon}
+                    title={m.title}
+                    secondary={m.secondary}
+                    chevron
+                  />
+                ))}
+              </List>
+            </Section>
             <AutoRefresh intervalMs={REFRESH_CADENCE.today} />
           </>
         )}

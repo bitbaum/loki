@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { AlertTriangle, ChevronRight, Loader2, Play, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, CircleAlert, Loader2, X } from "lucide-react";
+import { List, ListRow } from "@/components/ui/list-row";
 import { remedyForFailure, FAILURE_REMEDY, REMEDY_LABEL } from "@/lib/failure-remedy";
 import type { AttentionItem } from "./control-presenter";
 import type { FailedCommand } from "@/lib/control-types";
@@ -143,103 +144,78 @@ export function AttentionBar({
 
   if (items.length === 0 && groupedFailures.length === 0) return null;
 
+  // Rows, like everything else on Home (design reset, 2026-10): what went
+  // wrong, why on the grey line, and the fix as the row's one button — never
+  // a red card per failure.
   return (
-    <section id="control-attention" className="ui-needs scroll-mt-24" aria-label="Needs you">
-      {groupedFailures.map((group) => {
-        const f = group.representative;
-        const remedy = remedyForFailure(f.error);
-        const busy = retrying.has(f.id);
-        const other = remedy === FAILURE_REMEDY.SWITCH_AGENT ? (switchFor?.(f.tab) ?? null) : null;
-        const canStartSession =
-          remedy === FAILURE_REMEDY.START_SESSION && f.tab !== "unknown" && Boolean(onStartSession);
-        return (
-          <article key={f.id} className="ui-needs-card">
-            <div className="ui-needs-head">
-              <AlertTriangle className="ui-needs-icon" aria-hidden="true" />
-              <h3 className="ui-needs-title">
-                {failureTitle(f)}
-                {group.count > 1 && <span className="ui-needs-times"> · {group.count} times</span>}
-              </h3>
-              <button
-                type="button"
-                onClick={() => group.dismissIds.forEach(dismiss)}
-                className="ui-needs-dismiss"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-            <p className="ui-needs-body">
-              {failureBody(f.error)}{" "}
-              <span className="ui-needs-when">{timeAgo(new Date(f.executedAt).getTime())}</span>
-            </p>
-            {failedRetry.has(f.id) && (
-              <p className="ui-error" role="status">
-                That did not go through. Try once more, or dismiss this and start again from the box
-                above.
-              </p>
-            )}
-            <div className="ui-needs-actions">
-              {other ? (
+    <div id="control-attention" className="scroll-mt-24">
+      <List aria-label="Needs you">
+        {groupedFailures.map((group) => {
+          const f = group.representative;
+          const remedy = remedyForFailure(f.error);
+          const busy = retrying.has(f.id);
+          const other =
+            remedy === FAILURE_REMEDY.SWITCH_AGENT ? (switchFor?.(f.tab) ?? null) : null;
+          const canStartSession =
+            remedy === FAILURE_REMEDY.START_SESSION &&
+            f.tab !== "unknown" &&
+            Boolean(onStartSession);
+          const fix = other
+            ? { label: `Use ${other.label}`, run: () => void retry(group, other) }
+            : canStartSession
+              ? {
+                  label: REMEDY_LABEL[FAILURE_REMEDY.START_SESSION],
+                  run: () => onStartSession!(f.tab),
+                }
+              : remedy === FAILURE_REMEDY.RETRY || remedy === FAILURE_REMEDY.SWITCH_AGENT
+                ? { label: REMEDY_LABEL[FAILURE_REMEDY.RETRY], run: () => void retry(group) }
+                : null;
+          const why = failedRetry.has(f.id)
+            ? "That did not go through. Try once more, or start again from the box above."
+            : failureBody(f.error);
+          return (
+            <ListRow
+              key={f.id}
+              icon={AlertTriangle}
+              title={`${failureTitle(f)}${group.count > 1 ? ` · ${group.count} times` : ""}`}
+              secondary={`${why} · ${timeAgo(new Date(f.executedAt).getTime())}`}
+              status="negative"
+              trailing={
+                fix ? (
+                  <button type="button" className="ui-home-fix" disabled={busy} onClick={fix.run}>
+                    {busy && <Loader2 className="ui-spinner-sm" aria-hidden="true" />}
+                    {fix.label}
+                  </button>
+                ) : undefined
+              }
+              menu={
                 <button
                   type="button"
-                  className="ui-btn-primary min-h-11"
-                  disabled={busy}
-                  onClick={() => void retry(group, other)}
+                  onClick={() => group.dismissIds.forEach(dismiss)}
+                  className="ui-btn-icon"
+                  aria-label="Dismiss"
+                  title="Dismiss"
                 >
-                  {busy ? <Loader2 className="ui-spinner-sm" aria-hidden="true" /> : null}
-                  Use {other.label} instead
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
-              ) : canStartSession ? (
-                <button
-                  type="button"
-                  onClick={() => onStartSession!(f.tab)}
-                  className="ui-btn-primary min-h-11"
-                >
-                  <Play className="h-4 w-4" aria-hidden="true" />
-                  {REMEDY_LABEL[FAILURE_REMEDY.START_SESSION]}
-                </button>
-              ) : remedy === FAILURE_REMEDY.RETRY || remedy === FAILURE_REMEDY.SWITCH_AGENT ? (
-                <button
-                  type="button"
-                  onClick={() => void retry(group)}
-                  disabled={busy}
-                  className="ui-btn-primary min-h-11"
-                >
-                  {busy ? (
-                    <Loader2 className="ui-spinner-sm" aria-hidden="true" />
-                  ) : (
-                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  {REMEDY_LABEL[FAILURE_REMEDY.RETRY]}
-                </button>
-              ) : null}
-            </div>
-          </article>
-        );
-      })}
+              }
+            />
+          );
+        })}
 
-      {items.length > 0 && (
-        <div className="ui-needs-list">
-          {items.map(({ project, reason }) => (
-            <button
-              key={project.tab}
-              type="button"
-              className="ui-needs-row"
-              onClick={() => onFocusProject?.(project.tab)}
-              disabled={!onFocusProject}
-            >
-              <span className="min-w-0 flex-1 text-left">
-                <span className="ui-needs-row-name">{project.tab}</span>
-                {reason && reason.toLowerCase() !== "needs attention" && (
-                  <span className="ui-needs-row-why">{reason}</span>
-                )}
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      )}
-    </section>
+        {items.map(({ project, reason }) => (
+          <ListRow
+            key={project.tab}
+            icon={CircleAlert}
+            title={project.tab}
+            secondary={
+              reason && reason.toLowerCase() !== "needs attention" ? reason : "Needs a look"
+            }
+            onClick={onFocusProject ? () => onFocusProject(project.tab) : undefined}
+            chevron={Boolean(onFocusProject)}
+          />
+        ))}
+      </List>
+    </div>
   );
 }

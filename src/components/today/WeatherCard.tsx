@@ -1,8 +1,6 @@
 "use client";
 
 import { Sun, CloudRain, Cloud, CloudSnow, CloudFog } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
-import { FetchErrorState } from "@/components/ui/fetch-error-state";
 import { useFetch } from "@/hooks/use-fetch";
 import { REFRESH_CADENCE } from "@/config/refresh";
 import { WEATHER_CITY } from "@/lib/constants/today";
@@ -39,77 +37,32 @@ function WeatherIcon({ condition, className }: { condition: string; className?: 
   return <Sun className={className} />;
 }
 
+/**
+ * The weather as one line under the greeting — "14° · Partly cloudy in
+ * Zurich · 9–16° today" — not a card with its own heading beside the
+ * calendar (design reset, 2026-10). It is nice to know, never something to
+ * act on, so it says nothing while loading or when the source is down.
+ */
 export function WeatherCard() {
-  const { data, loading, error, refetch } = useFetch<{
+  const { data } = useFetch<{
     weather: string | null;
     city?: string;
     error?: string;
   }>("/api/weather", { intervalMs: REFRESH_CADENCE.weather, timeoutMs: 8_000 });
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader icon={Sun} title="Weather" />
-        <div className="flex items-center gap-4 animate-pulse">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-border-default shrink-0" />
-            <div className="h-7 w-12 rounded bg-border-default" />
-          </div>
-          <div className="space-y-1.5">
-            <div className="h-3 w-20 rounded bg-border-default" />
-            <div className="h-3 w-32 rounded bg-border-subtle" />
-            <div className="h-3 w-28 rounded bg-border-subtle" />
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  if (error || data?.error) {
-    return (
-      <Card>
-        <CardHeader icon={Sun} title="Weather" />
-        <FetchErrorState
-          message="Couldn't load weather"
-          detail={error ?? data?.error}
-          onRetry={refetch}
-        />
-      </Card>
-    );
-  }
-
-  if (!data?.weather) {
-    return (
-      <Card>
-        <CardHeader icon={Sun} title="Weather" />
-        <div className="text-sm text-text-secondary">Unavailable</div>
-      </Card>
-    );
-  }
+  if (!data?.weather || data.error) return null;
 
   const w = parseWeather(data.weather);
+  if (w.temp === "--") return null;
   const cityName = data.city ?? WEATHER_CITY;
 
   return (
-    <Card>
-      <CardHeader icon={Sun} title={cityName} />
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <WeatherIcon condition={w.condition} className="h-8 w-8 text-status-warning/80" />
-          <div className="text-2xl font-semibold">{w.temp}°</div>
-        </div>
-        <div className="text-xs text-text-tertiary space-y-0.5">
-          <div>{w.condition}</div>
-          <div>
-            Wind {w.wind} km/h · Humidity {w.humidity}%
-          </div>
-          {w.range && (
-            <div>
-              Today {w.range}° · {w.forecastCondition}
-            </div>
-          )}
-        </div>
-      </div>
-    </Card>
+    <p className="ui-today-weather">
+      <WeatherIcon condition={w.condition} className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 truncate">
+        {w.temp}° · {w.condition} in {cityName}
+        {w.range && ` · ${w.range.replace("-", "–")}° today`}
+      </span>
+    </p>
   );
 }

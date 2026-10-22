@@ -124,7 +124,7 @@ export function NotificationPanel({ onClose, titleId }: { onClose: () => void; t
             />
             <List aria-label="Earlier notifications">
               {earlier.map((a) => (
-                <AlertRow key={a.id} alert={a} onDismiss={dismiss} />
+                <AlertRow key={a.id} alert={a} onDismiss={dismiss} quiet />
               ))}
             </List>
           </section>
@@ -147,7 +147,7 @@ function AlertRow({ alert, onDismiss }: { alert: Alert; onDismiss: (ids: string[
       href={alert.actionUrl ?? undefined}
       title={alert.title}
       secondary={summary || undefined}
-      status={summary ? status : undefined}
+      status={summary && !quiet ? status : undefined}
       trailing={timeAgo(new Date(alert.createdAt).getTime())}
       menu={
         <button

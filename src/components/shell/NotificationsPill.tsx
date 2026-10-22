@@ -28,9 +28,7 @@ const onServer = () => false;
 
 export function NotificationsPill() {
   const [panelOpen, setPanelOpen] = useState(false);
-  const { data, refetch } = useFetch<{ alerts: (Alert & { earlier?: boolean })[] }>(
-    "/api/alerts",
-  );
+  const { data, refetch } = useFetch<{ alerts: (Alert & { earlier?: boolean })[] }>("/api/alerts");
   const phone = useMediaQuery(NARROW_QUERY);
   const sheetTitleId = useId();
 

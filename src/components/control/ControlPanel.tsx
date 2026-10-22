@@ -4,7 +4,13 @@ import { useState, useRef, useMemo } from "react";
 import { STATE_DEFINITIONS } from "@/lib/control-states";
 import { deriveRunnerPresence, latestRunSignals } from "./control-presenter";
 import { postJson } from "@/lib/api/fetch";
-import { FINISH_PROMPT, HomeAllProjects, failureFixes } from "./home-parts";
+import {
+  FINISH_PROMPT,
+  HomeAllProjects,
+  HomeNeeds,
+  failureFixes,
+  heroHasNewsFor,
+} from "./home-parts";
 import { runQueueInCloud, stopWaitingOnQueue } from "./hero-actions";
 import { useControlData } from "@/hooks/use-control-data";
 import { cloudBuilderState } from "@/lib/builder-way-forward";
@@ -226,17 +232,7 @@ export function ControlPanel({
   const nowMs = nowS * 1000;
   const nowJobs = snapshots ? buildNowJobs(snapshots, nowMs) : [];
   const doneJobs = snapshots ? buildDoneJobs(snapshots, nowMs) : [];
-  // The status card speaks only when something is wrong or someone is needed.
-  // "Building" and "nothing running" are answered by the job cards above it;
-  // saying them twice is what made this page read as machinery.
-  //
-  // Failures and the projects that need you are NOT its news: "Needs you"
-  // above shows each one with its fix, and the card saying "1 dispatch
-  // failed — review failed dispatches" under it was the same thing twice, the
-  // second time in jargon (owner, 2026-10-19).
-  const heroHasNews =
-    !(dashboard?.countsKnown ?? true) ||
-    ["failing", "stalled", "partial", "unknown"].includes(fleetPulse.key);
+  const heroHasNews = heroHasNewsFor(dashboard, fleetPulse.key, attention.length);
 
   // Keep the selection valid as the snapshot set changes. Guarded render-time
   // adjustment (React's "adjusting state when props change" pattern) instead
@@ -353,7 +349,7 @@ export function ControlPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="ui-home-page space-y-6">
       {/* Tier 0, only after a "back in 30 minutes": what happened while they
           were away and what needs them, each line a link. Above tier 1
           because the person coming back asked this question before any
@@ -453,36 +449,34 @@ export function ControlPanel({
         />
       )}
 
-      {/* What is being built for you right now — the answer to the question
-          a person opens this page with. Each card opens the live session. */}
-      {data.projects.length > 0 && <ControlNow jobs={nowJobs} nowMs={nowMs} />}
-
       {/* Tier 2 of four — see the ordering note at the top of this return.
           Anything actually waiting on the captain outranks the description of
           a fleet that is fine. AttentionBar used to sit BELOW the status panel
           and below two chore strips, so "3 projects need you" arrived after a
           runner version string, a last-sync age and a list of sites missing a
           widget. Whatever needs a human goes above whatever merely reports. */}
-      <AttentionBar
-        items={attention}
-        failedCommands={data?.failedCommands}
-        onFocusProject={openAndShow}
-        // A "tab not found" failure is not retryable — the fix is to start the
-        // session it was aiming at. Reuses the launch modal rather than a
-        // second launch path, so agent/model defaults stay one decision.
-        onStartSession={(tab) => {
-          const project = data?.projects.find((p) => p.tab === tab);
-          if (!project) {
-            setError(`No registered project named "${tab}" — add it before starting a session.`);
-            return;
-          }
-          openLaunchModal(project);
-        }}
-        {...failureFixes(data, refresh)}
-      />
-      {data.projects.length > 0 && <AgentEscalations />}
+      {/* Needs me, then being built, then done — rows (home-parts). */}
+      <HomeNeeds>
+        <AttentionBar
+          items={attention}
+          failedCommands={data?.failedCommands}
+          onFocusProject={openAndShow}
+          // A "tab not found" failure is not retryable — the fix is to start the
+          // session it was aiming at. Reuses the launch modal rather than a
+          // second launch path, so agent/model defaults stay one decision.
+          onStartSession={(tab) => {
+            const project = data?.projects.find((p) => p.tab === tab);
+            if (!project) {
+              setError(`No registered project named "${tab}" — add it before starting a session.`);
+              return;
+            }
+            openLaunchModal(project);
+          }}
+          {...failureFixes(data, refresh)}
+        />
+        {data.projects.length > 0 && <AgentEscalations />}
 
-      {/* Tier 2, with the rest of "what is waiting on me?".
+        {/* Tier 2, with the rest of "what is waiting on me?".
           This panel is titled "Needs you" and renders a count badge, which is
           the definition of tier 2 — yet it sat in tier 4, below the whole
           project list. On a 23-project fleet that put the only thing actually
@@ -494,62 +488,72 @@ export function ControlPanel({
           panel renders nothing at all when the queue is empty. That is two
           rows above the fleet, not the ~1,400px of unbounded strips it
           replaced (#367). Add a GROUP to the inbox; never add a strip here. */}
-      <ControlInbox inbox={inbox} />
+        <ControlInbox inbox={inbox} />
 
-      {/* ControlFleetStatus shows runner health + working/ready/open counters
+        {/* ControlFleetStatus shows runner health + working/ready/open counters
           + autopilot pill. When the user has 0 projects, all counters are 0
           and the panel reads as noise stacked under the empty-state welcome
           ("Setup needed · Autopilot Manual · 0 working · 0 ready · 0 open
           · All clear"). Hide it in the empty state; the welcome cards are
           the right surface there. Status panel returns as soon as projects
           exist. */}
-      {data && data.projects.length > 0 && heroHasNews && (
-        <ControlFleetStatus
-          dashboard={dashboard}
-          failedCount={0}
-          runnerNeverSeen={runnerNeverSeen}
-          runnerOffline={runnerOffline}
-          runnerStateUnknown={runnerNeverSeen}
-          runnerLastPushedAt={runnerLastPushedAt}
-          runnerVersion={runnerVersion}
-          builderVersions={data.builderVersions}
-          builderPresence={builderPresence}
-          runnerExecutionStall={data.runnerExecutionStall}
-          lastUpdated={lastUpdated}
-          fleetPulse={fleetPulse}
-          // Names, not just a count. "2 need you" that cannot say WHICH two, or
-          // take you to either, is a fact you then go hunting for by hand.
-          // `tab` IS the project's display name throughout Control (the rail,
-          // the cards and the terminal all key off it) — there is no separate
-          // title to prefer.
-          attentionProjects={attention.map((a) => ({ tab: a.project.tab, name: a.project.tab }))}
-          onFocusProject={openAndShow}
-          onOpenSettings={() => setFleetSettingsOpen(true)}
-          onRunInCloud={async () => {
-            const said = await runQueueInCloud();
-            refresh(true);
-            return said;
-          }}
-          onStopWaiting={async () => {
-            const said = await stopWaitingOnQueue();
-            refresh(true);
-            return said;
-          }}
-          onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
-          onFocusCategory={(category) => {
-            const match = snapshots?.find(
-              (s) => STATE_DEFINITIONS[s.phase].counterCategory === category,
-            );
-            if (!match) return;
-            setCategoryFilter(category);
-            setSelectedTab(match.project.tab);
-            setProjectOpenOnPhone(false);
-            document
-              .getElementById("control-projects")
-              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        />
-      )}
+        {data && data.projects.length > 0 && heroHasNews && (
+          <ControlFleetStatus
+            dashboard={dashboard}
+            failedCount={0}
+            runnerNeverSeen={runnerNeverSeen}
+            runnerOffline={runnerOffline}
+            runnerStateUnknown={runnerNeverSeen}
+            runnerLastPushedAt={runnerLastPushedAt}
+            runnerVersion={runnerVersion}
+            builderVersions={data.builderVersions}
+            builderPresence={builderPresence}
+            runnerExecutionStall={data.runnerExecutionStall}
+            lastUpdated={lastUpdated}
+            fleetPulse={fleetPulse}
+            // Names, not just a count. "2 need you" that cannot say WHICH two, or
+            // take you to either, is a fact you then go hunting for by hand.
+            // `tab` IS the project's display name throughout Control (the rail,
+            // the cards and the terminal all key off it) — there is no separate
+            // title to prefer.
+            attentionProjects={attention.map((a) => ({
+              tab: a.project.tab,
+              name: a.project.tab,
+            }))}
+            onFocusProject={openAndShow}
+            onOpenSettings={() => setFleetSettingsOpen(true)}
+            onRunInCloud={async () => {
+              const said = await runQueueInCloud();
+              refresh(true);
+              return said;
+            }}
+            onStopWaiting={async () => {
+              const said = await stopWaitingOnQueue();
+              refresh(true);
+              return said;
+            }}
+            onNewProject={() =>
+              runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true)
+            }
+            onFocusCategory={(category) => {
+              const match = snapshots?.find(
+                (s) => STATE_DEFINITIONS[s.phase].counterCategory === category,
+              );
+              if (!match) return;
+              setCategoryFilter(category);
+              setSelectedTab(match.project.tab);
+              setProjectOpenOnPhone(false);
+              document
+                .getElementById("control-projects")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          />
+        )}
+      </HomeNeeds>
+
+      {/* What is being built for you right now. Each row opens the live
+          session. */}
+      {data.projects.length > 0 && <ControlNow jobs={nowJobs} nowMs={nowMs} />}
 
       {/* Nothing running, nothing waiting on you: that used to be the whole
           message — a grey "Paused" card over "28 idle projects". Idle is the

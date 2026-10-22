@@ -1,24 +1,25 @@
 import type { Momentum } from "@/lib/suggestions/board";
 
 /**
- * Three numbers, all of them records of what the person did: suggestions
- * chosen this week, the run of days with at least one, and the total. Nothing
- * here is estimated or projected — the page keeps score, it does not cheer.
+ * What the person did with suggestions, as one sentence — design reset rule 7
+ * ("stats are a sentence, not a row of pills"). It was three bordered boxes of
+ * big numbers, and on a new account all three read 0: a scoreboard of
+ * nothing over the page's actual content. Nothing chosen yet says nothing.
+ *
+ * Only records, never estimates: the page keeps score, it does not cheer.
  */
-export function MomentumStrip({ momentum }: { momentum: Momentum }) {
-  const cells: { n: number; label: string }[] = [
-    { n: momentum.takenThisWeek, label: "chosen this week" },
-    { n: momentum.dayStreak, label: momentum.dayStreak === 1 ? "day in a row" : "days in a row" },
-    { n: momentum.takenAllTime, label: "chosen in total" },
+export function momentumSentence(m: Momentum): string | null {
+  if (m.takenAllTime === 0) return null;
+  const parts = [
+    m.takenThisWeek === 0 ? "None chosen this week" : `${m.takenThisWeek} chosen this week`,
+    `${m.takenAllTime} in total`,
   ];
-  return (
-    <dl className="ui-sugg-momentum" aria-label="Momentum">
-      {cells.map((c) => (
-        <div key={c.label} className="ui-sugg-momentum-cell">
-          <dd className="ui-sugg-momentum-n">{c.n}</dd>
-          <dt className="ui-sugg-momentum-k">{c.label}</dt>
-        </div>
-      ))}
-    </dl>
-  );
+  if (m.dayStreak > 1) parts.push(`${m.dayStreak} days in a row`);
+  return `${parts.join(", ")}.`;
+}
+
+export function MomentumStrip({ momentum }: { momentum: Momentum }) {
+  const sentence = momentumSentence(momentum);
+  if (!sentence) return null;
+  return <p className="ui-sugg-momentum">{sentence}</p>;
 }

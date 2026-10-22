@@ -12,7 +12,7 @@ export function CheckinGroup({ people }: { people: CheckinPerson[] }) {
   const [allReminded, setAllReminded] = useState(false);
 
   return (
-    <div className="rounded-md border border-border-subtle bg-surface-base p-3">
+    <div className="ui-approvals-item">
       <div className="flex items-start gap-3">
         <Users className="mt-1 h-4 w-4 shrink-0 text-text-tertiary" />
         <div className="min-w-0 flex-1">

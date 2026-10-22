@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Lock, Inbox } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
-import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requirePageUserId } from "@/lib/session";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
 import { getPendingActions } from "@/db/queries/actions";
@@ -67,29 +67,27 @@ export default async function ApprovalsPage() {
   // Locked zone: action contents may reference private entities, so the queue
   // stays hidden — but the page must not dead-end. Show that work is waiting
   // (a bare count leaks no content) and route through the unlock flow.
+  // Pending first, then what you set once, then what was decided lately
+  // (design reset, 2026-10): no subtitle, no card around the queue, no
+  // paragraph over the standing approvals, and an empty queue says so in one
+  // quiet line.
   if (await isPrivateZoneLocked(userId)) {
     const pendingCount = (await getPendingActions(userId)).length;
     return (
-      <PageLayout title="Approvals" subtitle="Review & approve actions Loki proposed">
-        <Card>
-          <div className="flex items-start gap-3">
-            <Lock className="h-4 w-4 text-text-tertiary shrink-0 mt-1" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm md:text-base font-medium">
-                {pendingCount === 0
-                  ? "The queue is behind your private-zone PIN."
-                  : `${approvalsSentence(pendingCount)}.`}
-              </div>
-              <p className="text-xs md:text-sm text-text-secondary mt-1">
-                Proposals can reference people and other private data, so they stay hidden until you
-                unlock.
-              </p>
-              <Link href="/unlock?next=/approvals" className="ui-btn-primary mt-3 inline-flex">
-                Unlock to review
-              </Link>
-            </div>
-          </div>
-        </Card>
+      <PageLayout title="Approvals" maxWidth="max-w-2xl">
+        <EmptyState
+          icon={Lock}
+          title={
+            pendingCount === 0
+              ? "Your approvals are behind your PIN"
+              : `${approvalsSentence(pendingCount)}, behind your PIN`
+          }
+          action={
+            <Link href="/unlock?next=/approvals" className="ui-btn-secondary">
+              Unlock to review
+            </Link>
+          }
+        />
         <BuildRequestQueue requests={buildRequests} />
         <PackageUpdateQueue updates={updates} recent={recentUpdates} />
       </PageLayout>
@@ -97,28 +95,21 @@ export default async function ApprovalsPage() {
   }
 
   const prefs = await getUserPreferences(userId).catch(() => null);
+  const otherWaiting = updates.length > 0 || buildRequests.some((r) => r.status === "waiting");
 
   return (
-    <PageLayout title="Approvals" subtitle="Review & approve actions Loki proposed">
-      <StandingApprovals
-        options={STANDING_APPROVAL_OPTIONS.map((o) => ({ ...o }))}
-        initial={sanitizeStandingApprovals(prefs?.standingApprovals)}
-      />
-      <BuildRequestQueue requests={buildRequests} />
-      <PackageUpdateQueue updates={updates} recent={recentUpdates} />
+    <PageLayout title="Approvals" maxWidth="max-w-2xl">
       <ActionQueueCard
         autoOpenTop
         emptyState={
-          updates.length > 0 || buildRequests.some((r) => r.status === "waiting") ? null : (
-            <div className="ui-empty-page">
-              <Inbox className="h-5 w-5 text-text-tertiary" />
-              <p className="text-sm text-text-secondary">
-                Nothing waiting for approval. When Loki proposes an email, message, event, or
-                commitment, it lands here for your yes/no.
-              </p>
-            </div>
-          )
+          otherWaiting ? null : <EmptyState icon={Inbox} title="Nothing waiting for you" />
         }
+      />
+      <BuildRequestQueue requests={buildRequests} />
+      <PackageUpdateQueue updates={updates} recent={recentUpdates} />
+      <StandingApprovals
+        options={STANDING_APPROVAL_OPTIONS.map((o) => ({ ...o }))}
+        initial={sanitizeStandingApprovals(prefs?.standingApprovals)}
       />
     </PageLayout>
   );
