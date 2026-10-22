@@ -60,6 +60,11 @@ function WidgetChat({
       <ChatThread
         messages={state.messages.map(({ footer: _f, ...m }) => m)}
         live={state.live}
+        onReply={
+          !state.sending && state.modes.some((mode) => mode.id === "ask")
+            ? (text) => deps.send("ask", text)
+            : undefined
+        }
         renderLink={renderLink as never}
         renderFooter={(m) => <Dom node={footers.get(m.id)} className="fc-kit-footer" />}
       >

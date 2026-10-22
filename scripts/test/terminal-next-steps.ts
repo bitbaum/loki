@@ -46,8 +46,12 @@ check(
 const rules = ["Yes, go ahead.", "Summarize what you did and what is left."];
 check("no AI yet → the rules", mergeSteps(null, rules).join("|") === rules.join("|"));
 check("AI failed (empty) → the rules", mergeSteps([], rules).length === 2);
-const merged = mergeSteps(["Do option 2.", "yes, go ahead."], rules);
-check("AI leads", merged[0] === "Do option 2.");
+const merged = mergeSteps(["Run the tests first.", "yes, go ahead."], rules);
+check("AI leads", merged[0] === "Run the tests first.");
+check(
+  "a numbered-menu pick is never offered (it would be typed as text)",
+  !mergeSteps(["Do option 2.", "2", "Fix the build."], rules).some((s) => /option|^2$/i.test(s)),
+);
 check("no case-only duplicates", merged.filter((s) => /go ahead/i.test(s)).length === 1);
 check("never more than three", mergeSteps(["a", "b", "c"], rules).length === 3);
 

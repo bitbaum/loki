@@ -1,0 +1,46 @@
+# Sign Cursor or Grok in on the cloud builder with the CLI's own device login
+# (no API key). Prints the sign-in URL/code; approve it in a browser within 15 min.
+#   gh workflow run builder-agent-login.yml -f agent=cursor
+name: Builder agent login
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: "Agent to sign in"
+        required: true
+        default: cursor
+        type: choice
+        options: [cursor, grok]
+      mode:
+        description: "login (start, print URL, exit) or status"
+        required: true
+        default: login
+        type: choice
+        options: [login, status, reprobe]
+
+concurrency:
+  group: builder-agent-login
+  cancel-in-progress: false
+
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  ServerAliveInterval 30\n' "$HETZNER_IP" >> ~/.ssh/config
+      - name: Login
+        env:
+          AGENT: ${{ inputs.agent }}
+          MODE: ${{ inputs.mode }}
+        run: ssh "root@$HETZNER_IP" bash -s -- "$AGENT" "$MODE" < scripts/hetzner/builder-agent-login.sh

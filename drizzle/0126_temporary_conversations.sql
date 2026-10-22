@@ -1,0 +1,1 @@
+ALTER TABLE "conversations" ADD COLUMN "ephemeral" boolean DEFAULT false NOT NULL;

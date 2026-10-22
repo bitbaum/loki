@@ -9,6 +9,7 @@
  *     publish a non-durable fast-lane event to the bridge; the runner writes it
  *     into its PTY. NOT pending_commands — a DB row per keystroke is catastrophic.
  */
+import { stripTerminalReports } from "@/lib/terminal-reports";
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getApiUserId } from "@/lib/session";
@@ -57,8 +58,10 @@ export async function POST(req: NextRequest) {
   const wsId = workspaceIdFor(userId, body.tab);
   const wsHandle = isRuntimeAvailable() ? executor.get(wsId) : null;
   if (wsHandle && wsHandle.status !== "exited") {
-    if (body.kind === "key") executor.write(wsId, body.data);
-    else if (geometry) executor.resize(wsId, geometry.cols, geometry.rows);
+    if (body.kind === "key") {
+      const keys = stripTerminalReports(body.data);
+      if (keys) executor.write(wsId, keys);
+    } else if (geometry) executor.resize(wsId, geometry.cols, geometry.rows);
     return NextResponse.json({
       ok: true,
       mode: "pty",
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
       kind: "rawkey",
       u: userId,
       tab: body.tab,
-      b: body.data,
+      b: stripTerminalReports(body.data),
       ...(ch ? { ch } : {}),
     });
   } else if (geometry) {

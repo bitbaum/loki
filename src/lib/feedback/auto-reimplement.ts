@@ -2,7 +2,8 @@ import { getFeedbackByRunId } from "@/db/queries/site-feedback";
 import { mergeRunPayload, stampFeedbackAutoRetried } from "@/db/queries/orchestration-runs";
 import { logDebug } from "@/db/queries/debug-logs";
 import { implementFeedback } from "@/lib/feedback/implement";
-import { decideAutoReimplement } from "@/lib/feedback/auto-reimplement-policy";
+import { decideAutoReimplement, providersTriedAfter } from "@/lib/feedback/auto-reimplement-policy";
+import { providerLabel } from "@/config/quota-alternatives";
 import { AUTO_DISPATCH_OFF_REASON, autoDispatchEnabled } from "@/lib/auto-dispatch";
 
 export { decideAutoReimplement, autoRetryNotice } from "@/lib/feedback/auto-reimplement-policy";
@@ -37,13 +38,33 @@ export async function autoReimplementAfterRunnerNack(
   userId: string,
   runId: string,
   error: string | null | undefined,
-  runPayload: { priorRunId?: unknown; feedbackAutoRetriedAt?: unknown } | null | undefined,
+  runPayload:
+    | { priorRunId?: unknown; feedbackAutoRetriedAt?: unknown; providersTried?: unknown }
+    | null
+    | undefined,
+  runAdapter?: string | null,
 ): Promise<{ retried: boolean; reason?: string; newRunId?: string }> {
   try {
-    // Off by default: a retry spends the operator's quota on a decision
-    // nobody made (src/lib/auto-dispatch.ts). The row keeps Failed + Retry.
-    if (!autoDispatchEnabled()) return { retried: false, reason: AUTO_DISPATCH_OFF_REASON };
     const decision = decideAutoReimplement(error, runPayload);
+    // Quota failover is NOT gated by LOKI_AUTO_DISPATCH. It continues the
+    // person's own tap on the same item — the operator asked for it
+    // (2026-10-21: "out of Claude and ChatGPT tokens", keep going on the
+    // others) — and it never re-spends the agent that ran out. Every other
+    // automatic retry is still off by default (src/lib/auto-dispatch.ts).
+    if (decision.retry && decision.failover) {
+      const feedback = await getFeedbackByRunId(userId, runId);
+      if (!feedback) return { retried: false, reason: "not-feedback" };
+      return await failoverOnQuota(
+        userId,
+        runId,
+        feedback.id,
+        runPayload,
+        runAdapter,
+        decision.because,
+        decision.failoverWhy ?? "ran out of quota",
+      );
+    }
+    if (!autoDispatchEnabled()) return { retried: false, reason: AUTO_DISPATCH_OFF_REASON };
     if (!decision.retry) return { retried: false, reason: decision.reason };
     const feedback = await getFeedbackByRunId(userId, runId);
     if (!feedback) return { retried: false, reason: "not-feedback" };
@@ -81,4 +102,51 @@ export async function autoReimplementAfterRunnerNack(
     }).catch(() => undefined);
     return { retried: false, reason: "threw" };
   }
+}
+
+/**
+ * One hop of the quota failover chain: record what this run tried, start the
+ * same item on the next provider that has not run out, and carry the list
+ * forward. When none is left, the failed run keeps the full list so its row
+ * reads "tried Claude Code, Codex — sign another in", not "Done — try again".
+ */
+async function failoverOnQuota(
+  userId: string,
+  runId: string,
+  feedbackId: string,
+  runPayload: { providersTried?: unknown } | null | undefined,
+  runAdapter: string | null | undefined,
+  because: string,
+  why: string,
+): Promise<{ retried: boolean; reason?: string; newRunId?: string }> {
+  const tried = providersTriedAfter(runPayload, runAdapter);
+  await stampFeedbackAutoRetried(runId, userId);
+  await mergeRunPayload(runId, { providersTried: tried }).catch(() => undefined);
+  const result = await implementFeedback(userId, feedbackId, { exclude: tried });
+  const newRunId = typeof result.body.runId === "string" ? result.body.runId : undefined;
+  if (!newRunId) {
+    void logDebug({
+      source: "feedback-auto-reimplement",
+      level: "warn",
+      message: `Quota failover for feedback ${feedbackId} stopped: ${String(result.body.error ?? result.status)}`,
+      meta: { userId, runId, tried, body: result.body },
+    });
+    return {
+      retried: false,
+      reason: result.body.exhausted ? "failover-exhausted" : `not-accepted:${result.status}`,
+    };
+  }
+  const last = tried[tried.length - 1];
+  await mergeRunPayload(newRunId, {
+    priorRunId: runId,
+    providersTried: tried,
+    autoRetriedBecause: last ? `${providerLabel(last)} ${why}` : because,
+  }).catch(() => undefined);
+  void logDebug({
+    source: "feedback-auto-reimplement",
+    level: "info",
+    message: `Feedback ${feedbackId} failed over (${why}): tried ${tried.join(", ")}`,
+    meta: { userId, runId, newRunId, tried },
+  });
+  return { retried: true, newRunId };
 }
