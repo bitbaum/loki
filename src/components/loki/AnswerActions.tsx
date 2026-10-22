@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ThumbsDown } from "lucide-react";
 import { AnswerActions as ChatkitAnswerActions } from "@bitbaum/chatkit/react";
 import type { Speaker } from "@bitbaum/chatkit";
 import { NO_SCREEN_DEFAULT_VOICE } from "@/config/no-screen";
 import { createServerSpeaker, createSynthSpeaker } from "@/lib/voice/speaker";
-import { ReportAnswer } from "./ReportAnswer";
+import { postChatFeedback } from "@/lib/loki/post-chat-feedback";
 
 /**
  * The studio voice for Listen, made on the first tap: the audio context must
@@ -41,50 +40,33 @@ function makeStudioSpeaker(): Speaker {
 }
 
 /**
- * The row under an answer — Copy, Listen, Share, Try again — chatkit's, the
- * same in every product, shared by Loki's own chat and the Claude Code
- * conversation on /terminal. Listen reads in the studio voice. Thumbs-down
- * shows only where the caller passes `report` (Loki's own answers): it files
- * a feedback report, and a Claude Code answer on /terminal is not Loki's to
- * be judged in Loki's inbox.
+ * The row under an answer — Copy, Listen, Share, Try again, and the thumbs —
+ * chatkit's, the same in every product, shared by Loki's own chat and the
+ * Claude Code conversation on /terminal. Listen reads in the studio voice.
+ * The thumbs show only where the caller passes `feedback` (Loki's own
+ * answers, by conversation and message): a thumb goes to /api/chat/feedback
+ * and a thumb down is also filed as a report in Loki's inbox. A Claude Code
+ * answer on /terminal is not Loki's to be judged in Loki's inbox.
  */
 export function AnswerActions({
   text,
   onRetry,
-  report,
+  feedback,
 }: {
   text: string;
   onRetry?: () => void;
-  /** Offer thumbs-down; `question` is what the answer was answering. */
-  report?: { question: string | null };
+  /** Offer the thumbs; where the answer lives, so the thumb is kept with it. */
+  feedback?: { conversationId: string; messageId: string };
 }) {
-  const [reporting, setReporting] = useState(false);
   const [speaker] = useState(makeStudioSpeaker);
 
   return (
-    <>
-      <ChatkitAnswerActions text={text} onRetry={onRetry} speaker={speaker}>
-        {report && (
-          <button
-            type="button"
-            className="ck-action"
-            onClick={() => setReporting((v) => !v)}
-            aria-label="Bad answer — file feedback"
-            aria-expanded={reporting}
-            aria-pressed={reporting}
-          >
-            <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
-            <span>Bad answer</span>
-          </button>
-        )}
-      </ChatkitAnswerActions>
-      {report && reporting && (
-        <ReportAnswer
-          answer={text}
-          question={report.question}
-          onClose={() => setReporting(false)}
-        />
-      )}
-    </>
+    <ChatkitAnswerActions
+      text={text}
+      onRetry={onRetry}
+      speaker={speaker}
+      messageId={feedback?.messageId}
+      onFeedback={feedback ? (f) => postChatFeedback(feedback.conversationId, f) : undefined}
+    />
   );
 }

@@ -74,3 +74,5 @@ export * from "./npm-publish-keys";
 
 export * from "./site-reviews";
 export * from "./build-requests";
+
+export * from "./chat-feedback";

@@ -7739,21 +7739,6 @@
   .ui-loki-scope-dot-needs-gateway {
     @apply bg-status-warning;
   }
-  /* Thumbs-down's small form under an answer (ReportAnswer), and the line
-     that replaces it once the report is filed. */
-  /* The thumbs-down form is part of the thread, in the thread's own type:
-     no second box with its own border and fill, no filled call to action.
-     (Phone, 2026-10-10: a grey card with an orange button under a grey
-     answer bubble read as a different app's dialog.) */
-  .ui-loki-report {
-    @apply mt-2 flex max-w-xl flex-col gap-2;
-  }
-  .ui-loki-report-label {
-    @apply text-sm text-text-secondary;
-  }
-  .ui-loki-report-done {
-    @apply mt-1 flex items-center gap-2 text-sm text-text-secondary;
-  }
   .ui-loki-followups {
     @apply mt-1 flex flex-col;
   }

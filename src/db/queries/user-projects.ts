@@ -496,6 +496,28 @@ export async function findCodeCustodyByGitUrl(
   return row?.codeCustody ?? null;
 }
 
+/**
+ * The project whose repository is `bitbaum/<name>`, across every account —
+ * the nightly chat review files a product's findings on the Loki project that
+ * builds it, owned by whoever registered it. The URL is matched as people
+ * write it: with or without `.git`, a trailing slash or capitals. The oldest
+ * row wins when two accounts link the same repository.
+ */
+export async function findProjectByRepo(
+  repo: string,
+): Promise<Pick<UserProject, "id" | "userId" | "name"> | null> {
+  const wanted = repo.toLowerCase();
+  const rows = await db
+    .select({ id: userProjects.id, userId: userProjects.userId, name: userProjects.name })
+    .from(userProjects)
+    .where(
+      sql`lower(regexp_replace(${userProjects.gitUrl}, '^(https?://|git@)github\.com[:/]|(\.git)?/?$', '', 'g')) = ${wanted}`,
+    )
+    .orderBy(asc(userProjects.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function deleteUserProject(id: string, userId: string): Promise<void> {
   await db
     .delete(userProjects)

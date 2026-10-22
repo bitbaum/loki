@@ -265,6 +265,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "debug-log",
   "event-stream-token",
   "events",
+  "chat", // A thumb on the caller's own thread, filed into the fixed Loki project like the widget does; the export answers only the shared bearer, never a session.
   "feedback",
   "fleet",
   "goals",

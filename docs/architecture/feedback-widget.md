@@ -418,6 +418,13 @@ Gotchas already known:
 - CORS: this is a cross-origin POST from customer sites. `Content-Type: application/json`
   triggers preflight — the OPTIONS handler is not optional.
 
+## Chat answers reviewed every night
+
+The same inbox takes findings from the fleet's chats: a thumb under any
+chatkit answer, and a nightly judge reading each product's day of
+conversations, file into `/feedback` on that product's Loki project as
+`source: ai_review` — see `docs/architecture/chat-review.md`.
+
 ## Inbox UI (Phase 3)
 
 Per the UX north star (minimize clicks, act in place, lead with the one thing that

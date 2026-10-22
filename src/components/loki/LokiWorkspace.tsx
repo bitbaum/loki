@@ -613,6 +613,7 @@ export function LokiWorkspace({
       )}
 
       <Thread
+        conversationId={activeId}
         messages={messages}
         live={stream.live}
         loading={transcriptLoading}

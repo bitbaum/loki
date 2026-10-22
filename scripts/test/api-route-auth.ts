@@ -48,6 +48,8 @@ const GUARDS = [
   "requirePrivateApiAccess", // also matches ...WithBearer
   // Scheduled jobs — src/lib/cron-auth.ts
   "requireCronAuth",
+  // The fleet chat review — src/lib/chat-review/auth.ts: the shared CHAT_REVIEW_TOKEN as a bearer, constant-time, 503 while unset
+  "requireChatReviewAuth",
   // Machine callers
   "getBearerUserId", // ck_* runner/agent token, src/lib/runner-auth.ts
   "validateAgentToken",
