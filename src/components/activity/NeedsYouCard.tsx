@@ -3,7 +3,7 @@ import type { DigestWindow } from "@/db/queries/digests";
 import { Section } from "@/components/ui/section-heading";
 import { List, ListRow } from "@/components/ui/list-row";
 import { ActivityRetryButton } from "./ActivityRetryButton";
-import { activityHref, formatClockTime, type ProjectNames } from "./activity-shared";
+import { activityHref, type ProjectNames } from "./activity-shared";
 import { NEEDS_YOU_LABELS } from "@/lib/needs-you";
 import { groupFailuresByCause } from "@/lib/activity-grouping";
 import { plainFailure, watchHref } from "./activity-words";
@@ -43,7 +43,11 @@ export function NeedsYouCard({
       link={
         groups.length > MAX_SHOWN
           ? {
-              href: activityHref({ window: digestWindow, project: projectKey, filter: "attention" }),
+              href: activityHref({
+                window: digestWindow,
+                project: projectKey,
+                filter: "attention",
+              }),
               label: `See all ${events.length}`,
             }
           : undefined
@@ -59,9 +63,12 @@ export function NeedsYouCard({
               key={first.id}
               href={watchHref(first, names)}
               status="negative"
-              title={many ? `${projects.length > 1 ? projects.join(", ") : projects[0]}` : titleOf(first.projectKey)}
+              title={
+                many
+                  ? `${projects.length > 1 ? projects.join(", ") : projects[0]}`
+                  : titleOf(first.projectKey)
+              }
               secondary={`${many ? `${group.events.length} runs · ` : ""}${plainFailure(first)}`}
-              trailing={formatClockTime(first.occurredAt)}
               menu={<ActivityRetryButton event={first} />}
             />
           );

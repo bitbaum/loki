@@ -108,10 +108,7 @@ export async function ActivityView({
           }
           action={
             digest.projectKey ? (
-              <Link
-                href={activityHref({ window: digest.window })}
-                className="ui-btn-secondary"
-              >
+              <Link href={activityHref({ window: digest.window })} className="ui-btn-secondary">
                 Show every project
               </Link>
             ) : suggestion && suggestion !== digest.window ? (

@@ -62,9 +62,8 @@ export function EventStream({
     <ListRow
       key={event.id}
       href={watchHref(event, names)}
-      status={
-        event.status === "negative" ? "negative" : event.status === "warning" ? "warning" : undefined
-      }
+      // Red is the only colour here: running is not something to act on.
+      status={event.status === "negative" ? "negative" : undefined}
       title={titleOf(event.projectKey)}
       secondary={eventLine(event)}
       trailing={formatClockTime(event.occurredAt)}
@@ -100,15 +99,15 @@ export function EventStream({
             return (
               <div key={group.day}>
                 <h3 className="ui-activity-dayhead">{formatDayHeading(group.day)}</h3>
-                <List aria-label={formatDayHeading(group.day)}>
-                  {rows.map(row)}
-                </List>
+                <List aria-label={formatDayHeading(group.day)}>{rows.map(row)}</List>
                 {bare.length > 0 && (
                   <details className="ui-activity-fold-row">
                     <summary>
                       <span className="ui-listrow-title">{bare.length} sent, no word back yet</span>
                       <span className="ui-activity-fold-row-who">
-                        {projectTally(bare.map((e) => ({ ...e, projectKey: titleOf(e.projectKey) })))}
+                        {projectTally(
+                          bare.map((e) => ({ ...e, projectKey: titleOf(e.projectKey) })),
+                        )}
                       </span>
                     </summary>
                     <List>{bare.map(row)}</List>

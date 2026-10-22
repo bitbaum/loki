@@ -95,19 +95,6 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
     }
   };
 
-  // The button says what CLICKING does; the line under it says what the last
-  // click led to. Folding the lifecycle into the button label (as this first
-  // shipped) meant a settled run left no way back — and, worse, no colour: a
-  // failed retry read exactly like a working one.
-  const label =
-    state === "sending"
-      ? "Sending…"
-      : state === "error"
-        ? "Try again"
-        : state === "sent" && live && !live.terminal
-          ? "Sent"
-          : "Run it again";
-
   // Errors and refusals come from the POST itself. Once a dispatch is
   // accepted the polled lifecycle is more current than the message stamped at
   // accept time, so it takes over — same tone vocabulary the Loki transcript,
@@ -147,7 +134,7 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
       disabled={state === "sending" || (state === "sent" && live?.status !== "failed")}
       title={note?.text}
       aria-label={`${word}: ${event.projectKey}`}
-      className="ui-activity-retry"
+      className="ui-row-verb"
     >
       {state === "sending" ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
