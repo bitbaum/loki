@@ -116,6 +116,7 @@ const PAGES = [
   "/voice",
   "/control",
   "/projects",
+  "/missions",
   // Package rows carry a name, a version and up to four tags that wrap; a
   // long package name must break, not push the row sideways. The detail
   // sample is a package every fleet register lists (it is the AI layer).
