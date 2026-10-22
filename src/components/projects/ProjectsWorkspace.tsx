@@ -228,8 +228,9 @@ export function ProjectsWorkspace({
       {archivedShown.length > 0 && (
         <details className="ui-projects-archived" open={Boolean(debouncedQuery.trim())}>
           <summary className="ui-projects-archived-summary">
-            <span className="ui-section-heading">Archived</span>
-            <span className="ui-listrow-trail">{archivedShown.length}</span>
+            <span className="ui-section-heading">
+              Archived <span className="ui-projects-archived-count">{archivedShown.length}</span>
+            </span>
           </summary>
           <List aria-label="Archived projects">
             {archivedShown.map((p) =>

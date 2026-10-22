@@ -63,15 +63,18 @@ check("nothing in the row hides at a breakpoint", () => {
   assert(listRow.includes("ui-listrow-trail"), "ListRow no longer draws its trailing fact");
 });
 
-check("the trailing fact and the line read the same clock", () => {
+check("the time is said once, as the trailing fact", () => {
   const now = Date.parse("2026-10-21T12:00:00Z");
   const ran = new Date(now - 2 * 60 * 60 * 1000).toISOString();
   assert(projectListTrailing(ran, now) === "2h", `trailing said ${projectListTrailing(ran, now)}`);
   const line = projectListLine(
     { attrs: {}, liveUrl: "https://x.orangecat.ch", siteOk: true },
-    { lastRunAt: ran, nowMs: now },
+    { lastRunAt: ran },
   );
-  assert(line.text === "Live · updated 2h ago", `line said ${line.text}`);
+  // The time is the trailing fact; the line says how it is, and never the
+  // time a second time ("Worked on 1d ago … 1d").
+  assert(line.text === "Live", `line said ${line.text}`);
+  assert(!/\d+[mhdw]\b|ago/.test(line.text), `the line repeats the time: ${line.text}`);
   assert(projectListTrailing(null, now) === null, "a project never run shows no time");
 });
 

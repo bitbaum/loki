@@ -79,6 +79,12 @@ export function ProjectBuildStatus({
         View progress <ArrowRight className="h-4 w-4" aria-hidden="true" />
       </Link>
     );
+  } else if (status.kind === "needs_you") {
+    action = (
+      <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11 gap-2">
+        See what it needs <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
+    );
   } else if (status.kind === "queued") {
     action = (
       <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11">

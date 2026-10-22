@@ -2,7 +2,7 @@ import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 import { HEALTH_SIGNAL_BASE } from "@/components/projects/project-detail-types";
 import { PROJECT_STAGE, resolveProjectStage } from "@/lib/constants/statuses";
 import { signalIsLive } from "@/lib/project-signals";
-import { shortTimeAgo, timeAgo } from "@/lib/dates";
+import { shortTimeAgo } from "@/lib/dates";
 
 /**
  * What one row of /projects says about a project — design reset rule 3
@@ -22,7 +22,7 @@ import { shortTimeAgo, timeAgo } from "@/lib/dates";
  */
 
 /** What is running on a project right now (lib/project-build-status kinds). */
-export type ProjectRunNow = "building" | "queued" | "stalled";
+export type ProjectRunNow = "building" | "queued" | "needs_you" | "stalled";
 
 export type ProjectListTone = "negative" | "warning" | "positive" | null;
 
@@ -45,14 +45,12 @@ export function projectListLine(
     lastRunAt,
     newNotes = 0,
     runNow = null,
-    nowMs = Date.now(),
   }: {
     /** ISO of the newest agent run on this project; null = never. */
     lastRunAt?: string | null;
     /** Notes from the site nobody has looked at yet. */
     newNotes?: number;
     runNow?: ProjectRunNow | null;
-    nowMs?: number;
   } = {},
 ): ProjectListLine {
   if (project.liveUrl && project.siteOk === false)
@@ -65,6 +63,7 @@ export function projectListLine(
 
   if (runNow === "building") return { text: "Building now", tone: "positive" };
   if (runNow === "queued") return { text: "Starting", tone: "positive" };
+  if (runNow === "needs_you") return { text: "Needs you: the agent is waiting", tone: "warning" };
   if (runNow === "stalled") return { text: "Didn't start — try again", tone: "warning" };
 
   if (newNotes > 0)
@@ -73,13 +72,14 @@ export function projectListLine(
       tone: "warning",
     };
 
-  const ran = lastRunAt ? Date.parse(lastRunAt) : NaN;
-  const when = Number.isFinite(ran) ? timeAgoAt(ran, nowMs) : null;
+  // How it is. WHEN it was last worked on is the row's trailing fact
+  // (projectListTrailing), so the line never says it twice ("Worked on 1d
+  // ago … 1d" read as a stutter on the first screenshot).
   const stage = resolveProjectStage(project.attrs.status);
-
   if (stage === PROJECT_STAGE.PAUSED) return { text: "Paused", tone: null };
-  if (project.liveUrl) return { text: when ? `Live · updated ${when}` : "Live", tone: null };
-  if (when) return { text: `Worked on ${when}`, tone: null };
+  if (project.liveUrl) return { text: "Live", tone: null };
+  if (lastRunAt && Number.isFinite(Date.parse(lastRunAt)))
+    return { text: "Not live yet", tone: null };
   return { text: "Not started yet", tone: null };
 }
 
@@ -110,11 +110,8 @@ export function isEarlierCopy(name: string): boolean {
   return /-refresh-[0-9a-f]{32}$/.test(name);
 }
 
-// timeAgo/shortTimeAgo read the wall clock; these let the caller (and a test)
-// pass one.
-function timeAgoAt(ms: number, nowMs: number): string {
-  return timeAgo(ms - (nowMs - Date.now()));
-}
+// shortTimeAgo reads the wall clock; this lets the caller (and a test) pass
+// one.
 function shortTimeAgoAt(ms: number, nowMs: number): string {
   return shortTimeAgo(ms - (nowMs - Date.now()));
 }

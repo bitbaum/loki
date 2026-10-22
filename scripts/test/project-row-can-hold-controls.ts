@@ -81,37 +81,38 @@ check("the row carries no control of its own (one target)", () => {
 });
 
 check("the line: broken, then busy, then waiting on you, then how it is", () => {
-  const now = Date.parse("2026-10-21T12:00:00Z");
   const base = { attrs: {} as Record<string, string>, liveUrl: null, siteOk: null };
   const down = projectListLine(
     { ...base, liveUrl: "https://a.ch", siteOk: false },
-    {
-      runNow: "building",
-      newNotes: 3,
-      nowMs: now,
-    },
+    { runNow: "building", newNotes: 3 },
   );
   assert(down.text === "Site is down" && down.tone === "negative", `down said ${down.text}`);
-  const busy = projectListLine(base, { runNow: "building", newNotes: 3, nowMs: now });
+  const busy = projectListLine(base, { runNow: "building", newNotes: 3 });
   assert(busy.text === "Building now", `busy said ${busy.text}`);
-  const notes = projectListLine(base, { newNotes: 3, nowMs: now });
+  const waiting = projectListLine(base, { runNow: "needs_you", newNotes: 3 });
+  assert(
+    waiting.tone === "warning" && /^Needs you/.test(waiting.text),
+    `waiting said ${waiting.text}`,
+  );
+  const notes = projectListLine(base, { newNotes: 3 });
   assert(
     notes.text === "Needs you: 3 notes" && notes.tone === "warning",
     `notes said ${notes.text}`,
   );
-  const one = projectListLine(base, { newNotes: 1, nowMs: now });
+  const one = projectListLine(base, { newNotes: 1 });
   assert(one.text === "Needs you: 1 note", `one said ${one.text}`);
-  const fresh = projectListLine(base, { nowMs: now });
+  const fresh = projectListLine(base, {});
   assert(fresh.text === "Not started yet" && fresh.tone === null, `fresh said ${fresh.text}`);
-  const paused = projectListLine({ ...base, attrs: { status: "paused" } }, { nowMs: now });
+  const worked = projectListLine(base, { lastRunAt: "2026-10-20T12:00:00Z" });
+  assert(worked.text === "Not live yet", `worked said ${worked.text}`);
+  const paused = projectListLine({ ...base, attrs: { status: "paused" } }, {});
   assert(paused.text === "Paused" && paused.tone === null, `paused said ${paused.text}`);
 });
 
 check("no internal words or counts on the row", () => {
-  const now = Date.parse("2026-10-21T12:00:00Z");
   const said = [
-    projectListLine({ attrs: {}, liveUrl: null, siteOk: null }, { nowMs: now }).text,
-    projectListLine({ attrs: {}, liveUrl: "https://a.ch", siteOk: true }, { nowMs: now }).text,
+    projectListLine({ attrs: {}, liveUrl: null, siteOk: null }, {}).text,
+    projectListLine({ attrs: {}, liveUrl: "https://a.ch", siteOk: true }, {}).text,
     projectListLine({ attrs: {}, liveUrl: null, siteOk: null }, { runNow: "stalled" }).text,
   ].join(" ");
   assert(!/checks|runner|dispatch|connected|https?:/i.test(said), `the row says: ${said}`);

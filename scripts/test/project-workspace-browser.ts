@@ -207,12 +207,12 @@ async function main() {
         await page.keyboard.press("Escape");
         await page.getByRole("listbox").waitFor({ state: "hidden" });
         await sections.pick("context");
-        await page.getByRole("button", { name: "Edit project name" }).click();
+        await page.getByRole("button", { name: "Rename the project" }).click();
         await page
           .getByRole("textbox", { name: "Project name", exact: true })
           .fill("Renamed draft");
         await page.getByRole("textbox", { name: "Project name", exact: true }).press("Enter");
-        await page.getByRole("alert").filter({ hasText: "Could not save the name" }).waitFor();
+        await page.getByRole("alert").filter({ hasText: "That name was not saved" }).waitFor();
         assert.equal(
           await page.getByRole("textbox", { name: "Project name", exact: true }).inputValue(),
           "Renamed draft",

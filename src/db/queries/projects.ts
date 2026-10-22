@@ -22,6 +22,7 @@ import { findProjectEntityByName } from "./project-merge";
 import { z } from "zod";
 import { AUTO_INJECT_MODE_VALUES, type AutoInjectMode } from "@/config/beacon";
 import { deriveBuildStatus } from "@/lib/project-build-status";
+import type { ProjectRunNow } from "@/lib/project-list-line";
 
 export const RECENT_INTERACTION_LIMIT = 5;
 
@@ -422,7 +423,7 @@ export async function getProjectsLastDispatch(userId: string): Promise<Record<st
 
 /**
  * What is running on each project right now, for the /projects list: entity
- * id → "building" / "queued" / "stalled". Projects with nothing running are
+ * id → "building" / "queued" / "needs_you" / "stalled". Projects with nothing running are
  * absent.
  *
  * The same answer the project page gives (lib/project-build-status), from the
@@ -433,7 +434,7 @@ export async function getProjectsLastDispatch(userId: string): Promise<Record<st
 export async function getProjectsRunNow(
   userId: string,
   nowMs = Date.now(),
-): Promise<Record<string, "building" | "queued" | "stalled">> {
+): Promise<Record<string, ProjectRunNow>> {
   const since = new Date(nowMs - 24 * 60 * 60 * 1000);
   const [runs, states] = await Promise.all([
     db
@@ -443,6 +444,8 @@ export async function getProjectsRunNow(
         finishedAt: orchestrationRuns.finishedAt,
         outcome: orchestrationRuns.outcome,
         state: orchestrationRuns.state,
+        // The open run's own record says when its agent waits on a person.
+        payload: orchestrationRuns.payload,
       })
       .from(orchestrationRuns)
       .where(
@@ -472,13 +475,11 @@ export async function getProjectsRunNow(
   const ids = new Set<string>();
   for (const r of runs) if (r.projectId) ids.add(r.projectId);
   for (const s of states) if (s.projectId) ids.add(s.projectId);
-  const out: Record<string, "building" | "queued" | "stalled"> = {};
+  const out: Record<string, ProjectRunNow> = {};
   for (const id of ids) {
     const status = deriveBuildStatus({
       state: states.find((s) => s.projectId === id) ?? null,
-      runs: runs
-        .filter((r) => r.projectId === id)
-        .map((r) => ({ ...r, summary: null, payload: null })),
+      runs: runs.filter((r) => r.projectId === id).map((r) => ({ ...r, summary: null })),
       commits: null,
       nowMs,
     });

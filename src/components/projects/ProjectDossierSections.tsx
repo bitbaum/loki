@@ -311,7 +311,13 @@ export function DoneSection({ dossier }: { dossier: ProjectDossier }) {
 }
 
 function devLogNewestFirst(dossier: ProjectDossier): DevLogEntry[] {
-  return [...((dossier.detail.devLog ?? []) as DevLogEntry[])].reverse();
+  // By date, not by position: the log is appended in order by the runner, but
+  // imported and seeded entries are not, and "What changed" read oldest-first.
+  const entries = [...((dossier.detail.devLog ?? []) as DevLogEntry[])].reverse();
+  return entries
+    .map((entry, i) => ({ entry, i, at: Date.parse(entry.date) }))
+    .sort((a, b) => (b.at || 0) - (a.at || 0) || a.i - b.i)
+    .map(({ entry }) => entry);
 }
 
 /** Collapse near-duplicate changelog entries (an agent re-writing the same

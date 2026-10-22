@@ -310,7 +310,6 @@ export function ProjectWorkspaceView({
                       ownerView={!dossier.readonly}
                     />
                   )}
-                  {shortcuts}
                   {!dossier.readonly && (!showKickoff || autoInterview) && (
                     <ProjectInterview
                       projectId={project.id}
@@ -345,6 +344,7 @@ export function ProjectWorkspaceView({
                     />
                   )}
                   {showKickoff && <KitPlanPreview dossier={dossier} clientWork={clientWork} />}
+                  {shortcuts}
                 </>
               ),
             },
@@ -361,7 +361,6 @@ export function ProjectWorkspaceView({
                 <>
                   <ProjectIdentitySettings
                     projectId={project.id}
-                    name={projectTitle(project)}
                     userProjectId={userProject?.id ?? null}
                     description={cleanDescription(project.description)}
                     status={attrs.status ?? null}

@@ -4101,7 +4101,7 @@
     @apply w-full justify-end rounded-none border-0 bg-transparent px-0 py-0 hover:bg-transparent;
   }
   .ui-health-label {
-    @apply text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+    @apply text-sm font-medium text-text-secondary;
   }
   .ui-health-track {
     @apply flex shrink-0 gap-0.5;
@@ -6246,6 +6246,9 @@
   .ui-projects-archived > summary {
     @apply flex min-h-11 cursor-pointer list-none items-center justify-between gap-3;
   }
+  .ui-projects-archived-count {
+    @apply ml-1 font-normal text-text-tertiary;
+  }
   .ui-projects-archived > summary::-webkit-details-marker {
     display: none;
   }
@@ -6395,6 +6398,22 @@
   /* A small label inside a section ("Saved changes", "Past work"). */
   .ui-project-subhead {
     @apply text-sm font-medium text-text-secondary;
+  }
+  /* What changed (DevLogList): a row per handoff, the date on the right. */
+  .ui-devlog {
+    @apply flex flex-col;
+  }
+  .ui-devlog-row {
+    @apply flex items-start gap-3 py-3;
+  }
+  .ui-devlog-row + .ui-devlog-row {
+    @apply border-t border-border-subtle;
+  }
+  .ui-devlog-done {
+    @apply text-base leading-snug text-text-primary;
+  }
+  .ui-devlog-next {
+    @apply mt-1 text-sm leading-snug text-text-secondary;
   }
   /* "Needs fixing": one row per problem, the button that fixes it beside it. */
   .ui-project-flag-list {

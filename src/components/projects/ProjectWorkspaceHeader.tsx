@@ -109,8 +109,13 @@ function ProjectTitle({ projectId, name }: { projectId: string; name: string }) 
   const save = async () => {
     const next = draft?.trim() ?? "";
     if (!next || next === name) return setDraft(null);
-    const response = await patchJson(`/api/projects/${projectId}`, { title: next });
-    if (!response.ok) return setError("That name was not saved. Try again.");
+    // The title, not the name: the name keys the project's history (activity,
+    // runs, jobs), so a rename must never hide its past. A failure keeps the
+    // draft in the box.
+    const response = await patchJson(`/api/projects/${projectId}`, { title: next }).catch(
+      () => null,
+    );
+    if (!response?.ok) return setError("That name was not saved. Your draft is still here.");
     setDraft(null);
     setError("");
     router.refresh();

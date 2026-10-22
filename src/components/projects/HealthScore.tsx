@@ -209,7 +209,7 @@ export function HealthScoreBar({
     </span>
   ) : (
     <>
-      <span className="ui-health-label">Checks</span>
+      <span className="ui-health-label">Profile</span>
       {bar}
       <span className="ui-health-score">
         {score}/{health.max}

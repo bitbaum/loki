@@ -112,8 +112,8 @@ export function ProjectDocSync({
           className="ui-btn-chip ui-tap gap-1.5 px-3 text-xs"
           title="Paste an updated concept/spec — AI updates only the fields that changed and proposes new ones. You review before it applies."
         >
-          <RefreshCw className="h-3.5 w-3.5 text-accent-text" />
-          Sync from doc
+          <RefreshCw className="h-3.5 w-3.5" />
+          Paste a doc
         </button>
       )}
 

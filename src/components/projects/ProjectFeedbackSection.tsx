@@ -239,7 +239,11 @@ export function ProjectFeedbackSection({
             aria-hidden="true"
           />
           <span className="text-sm font-medium text-text-primary">
-            {live ? "Widget is live" : paused ? "Widget is paused" : "Widget is on, not seen on the site yet"}
+            {live
+              ? "Widget is live"
+              : paused
+                ? "Widget is paused"
+                : "Widget is on, not seen on the site yet"}
           </span>
           {site && (
             <span className="truncate text-xs text-text-tertiary">
@@ -442,14 +446,15 @@ function WidgetSetupCard({
       : "ui-callout-accent flex-col sm:flex-row sm:items-center";
 
   return (
-    <section className="ui-panel mb-5 p-5 sm:p-6">
-      <div className="flex flex-col gap-4">
+    // On the page, not in a card: the status below is the one box (design
+    // reset rule 3 — it was a callout inside a panel).
+    <section className="mb-6">
+      <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="ui-page-title text-lg sm:text-xl">Feedback widget</h2>
-            <p className="ui-page-subtitle">
-              Visitors point at the broken element. Reports land here. One click sends the fix to
-              the project agent.
+            <h2 className="ui-project-section-title">The feedback button</h2>
+            <p className="mt-0.5 text-sm text-text-secondary">
+              Visitors tap it on your site and point at what is wrong. Their notes land here.
             </p>
           </div>
           {onClose && (
@@ -478,8 +483,8 @@ function WidgetSetupCard({
                     : live
                       ? `Live${site ? ` · ${site.replace(/^https:\/\//, "")}` : ""}`
                       : token
-                        ? "Token ready — not seen on the live site yet"
-                        : "Not enabled"}
+                        ? "Turned on — not seen on the site yet"
+                        : "Not on your site yet"}
                 </p>
                 <p className="mt-0.5 text-xs text-text-secondary">
                   {paused
@@ -487,8 +492,8 @@ function WidgetSetupCard({
                     : live
                       ? `Last boot ${compactRelativeDate(new Date(token!.lastSeenAt!))}`
                       : token
-                        ? `The script must run on ${site ?? "the live origin"} (CSP must allow loki.orangecat.ch). A boot heartbeat is Live — HTML containing the tag is not.`
-                        : "Enable a token, then add the script to the site (copy, or queue an agent)."}
+                        ? `It shows as live once it has loaded on ${site ? site.replace(/^https:\/\//, "") : "the site"}.`
+                        : "Put it on the site in one tap, or turn it on and add it yourself."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -505,7 +510,7 @@ function WidgetSetupCard({
                       ) : (
                         <Rocket className="h-3.5 w-3.5" />
                       )}
-                      Enable & install
+                      Put it on the site
                     </button>
                     <button
                       type="button"
@@ -513,7 +518,7 @@ function WidgetSetupCard({
                       disabled={busy}
                       className="ui-btn-secondary gap-1.5"
                     >
-                      Enable only
+                      Turn on only
                     </button>
                   </>
                 ) : (
@@ -794,14 +799,14 @@ function AutoShipToggle({ projectId }: { projectId: string }) {
     }
   };
   return (
-    <div className="mb-3 flex items-start justify-between gap-4 rounded-xl border border-border-subtle bg-surface-base px-3 py-3">
+    <div className="mb-4 flex items-start justify-between gap-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-text-primary">Ship fixes automatically</p>
         <p className="mt-0.5 text-xs text-text-tertiary">
           {on
-            ? "When an agent's pull request passes its checks, Loki merges it and the site deploys. A repository with no checks is never merged, and one broken deploy pauses this."
+            ? "When an agent's pull request passes its tests, Loki merges it and the site deploys. A repository with no tests is never merged, and one broken deploy pauses this."
             : neverChosen
-              ? "Right now a fix waits for you to merge its pull request. Loki can do that itself once the checks pass — it only ever merges the pull request it opened for this project."
+              ? "Right now a fix waits for you to merge its pull request. Loki can do that itself once its tests pass — it only ever merges the pull request it opened for this project."
               : "A fix waits for you to merge its pull request."}
         </p>
         {error && <p className="mt-1 text-xs text-status-negative">{error}</p>}

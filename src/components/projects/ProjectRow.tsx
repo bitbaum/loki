@@ -8,7 +8,7 @@ import type { ProjectGridRow } from "./project-grid-row";
  * reset rule 3, docs/development/design-reset-2026-10.md).
  *
  * An initial, the project's name, ONE line saying how it is ("Building now",
- * "Live · updated 2h ago", "Needs you: 3 notes"), and when an agent last
+ * "Live", "Needs you: 3 notes"), and when an agent last
  * worked on it. That is all. The row it replaces carried stage capitals,
  * "Not connected" in orange, "8 of 10 checks", "last run …" and "8 feedback"
  * on every project — the owner's "Frankenstein element" (2026-10-21). Checks,
@@ -34,7 +34,7 @@ export function ProjectRow({
   secondary?: string;
 }) {
   const title = projectTitle(project);
-  const line = projectListLine(project, { lastRunAt: lastDispatchAt, newNotes, runNow, nowMs });
+  const line = projectListLine(project, { lastRunAt: lastDispatchAt, newNotes, runNow });
   return (
     <ListRow
       href={`/projects/${project.id}`}
