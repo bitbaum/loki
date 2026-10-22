@@ -170,7 +170,9 @@ src/
 │   │                 (SessionInfo chip, "Opus 5.5") and the one answering
 │   │                 Loki (loki/ModelPicker, "Loki answers with").
 │   │                 See docs/development/responsive-design.md.
-│   ├── activity/  → ActivityView, EventStream, DigestPanel (fleet activity timeline + digests)
+│   ├── activity/  → ActivityView (scope menus, the answer as a sentence, NeedsYouCard
+│   │                 and EventStream as ListRows), ActivityReport (the written
+│   │                 report, the page's one action, in a sheet)
 │   ├── today/     → StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard, CommitmentsCard, SubscriptionsCard, HabitsList
 │   ├── people/    → PeopleGrid, PersonCard, PersonDetail
 │   ├── crew/      → CrewWorkspace (board + roster), AssignmentCard,
@@ -188,8 +190,10 @@ src/
 │   ├── money/     → SubscriptionActions, NewSubscriptionButton
 │   ├── habits/    → HabitHeatmap (per-row daily check-off lives in today/)
 │   ├── events/    → EventCard, AddEventForm, EventsGrid
-│   ├── prompts/   → PromptCard (replaced the old FeaturedCard + PromptRow),
-│   │                 GroupBar (was CategoryBar), RunModal, ScheduleModal
+│   ├── prompts/   → PromptLibraryClient (ListRows: yours, then Loki's by group),
+│   │                 RunModal (THE Run sheet: one Run button — a project's
+│   │                 agent for project work, Loki for personal prompts,
+│   │                 lib/prompt-run), ScheduleModal, PromptForm, PromptPreview
 │   ├── settings/  → TeamSettings (invite flow)
 │   └── system/    → JobDetail, SystemStats, FleetDoctorCard, ScheduledJobsCard,
 │   │                 RecentFailuresCard, HetznerCapacityCard (no AutopilotCard)
@@ -317,7 +321,7 @@ Panels:    ui-panel, ui-card-shell, ui-card-shell-raised, ui-settings-section
 Buttons:   ui-btn-primary, ui-btn-secondary, ui-btn-ghost, ui-btn-chip,
            ui-btn-icon, ui-btn-xs, ui-btn-save, ui-btn-submit,
            ui-btn-ready-primary, ui-btn-ready-action, ui-btn-ready-more,
-           ui-btn-confirm, ui-btn-danger, ui-btn-overlay
+           ui-btn-confirm, ui-btn-danger
 Inputs:    ui-input, ui-input-compact, ui-input-tight, ui-input-inline
 Text:      ui-kicker, ui-micro-label, ui-page-title, ui-page-subtitle, ui-error
 Chips:     ui-chip-filter, ui-chip-toggle, ui-badge, ui-tag (+ variants)
@@ -640,7 +644,7 @@ prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
 | Packages | /packages | What the fleet is built from: every shared package in bitbaum/fleet's register (read through the fleet brief's one fetch, `lib/packages/catalogue.ts`), its latest version, and which of your projects is on which version (`/packages/[slug]`, behind first). Rows in `project_packages` are OBSERVATIONS read from each repo's package.json + lockfile (`lib/packages/sync.ts`) — never decisions; a project's Story tab shows the same as "Built from". Each project's UPDATE SETTING (`user_projects.package_updates`: Automatic / Ask me / Stay on these versions, SSOT `config/package-updates.ts`) is applied to its open Dependabot PRs every 15 minutes (`lib/packages/updates.ts`, cron `sync-package-updates`): Loki adds its own `hold` label where the setting or a breaking bump says wait, removes only holds it added, and merges only a breaking update a person approved once green — Dependabot proposes, the fleet sweep merges. Held updates are cards on /approvals, read from `package_update_requests`. The package's OWNER (whoever owns the Loki project that is the package repo; with no such project, whoever's GitHub token can push — `lib/packages/release-access.ts`) releases from `/packages/[slug]` ("Unreleased": changes since the highest version tag, next version from conventional commits — under 1.0 breaking is a minor — `lib/packages/release.ts`): Loki dispatches the repo's own `release.yml` (bitbaum/fleet `templates/package`) with an exact version and stores nothing about it. "Rollout" per recent version is DERIVED (`lib/packages/rollout.ts`); "Pause vX.Y.Z everywhere" is the one stored decision (`package_release_pauses`, SSOT words `config/package-releases.ts`): the update sync holds every open update to that version in every project whatever its setting, and resume removes only holds nothing else wants. **npm** (the panel at the top): the owner pastes ONE npm key (made on npmjs.com from a phone; settings SSOT `config/npm-publishing.ts`), Loki keeps it sealed (`lib/secret-box.ts`, table `npm_publish_keys`, never sent to a browser), and for every package npm does not know yet writes it into the package repo as the Actions secret `NPM_BOOTSTRAP_TOKEN` and starts its `publish.yml`, which publishes the first version and links itself as trusted publisher — later releases need no key. The 15-minute package cron does the same for packages registered later (`lib/packages/npm-publish.ts`). Android Chrome/Brave run no extensions, so this needs no browser extension at all |
 | Habits | /habits | 30-day heatmap per habit, streak indicator, summary stats |
 | Events | /events | Opportunities and deadlines, type-chip filter, archive flow |
-| Prompts | /prompts | Prompt library, run-now via Loki, schedule as cron job |
+| Prompts | /prompts | Your prompts and Loki's library as rows; a row opens the Run sheet with ONE Run (the project's agent — started or queued through the inject core, also for a repo-only project — or Loki, streamed, for personal prompts); repeat on a schedule from the row's menu |
 | System | /system | Gateway, memory, disk, uptime, autopilot jobs |
 | Memory | /memory | Knowledge graph stats and recent activity |
 | Thoughts | /thoughts | Published essays on architecture and execution systems |

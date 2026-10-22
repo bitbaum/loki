@@ -6,6 +6,8 @@ import { useFetch } from "@/hooks/use-fetch";
 import { deleteJson, postJson } from "@/lib/api/fetch";
 import { NPM_KEY_SETTINGS, NPM_NEW_KEY_URL } from "@/config/npm-publishing";
 import type { FirstPublishResult } from "@/lib/packages/npm-publish-rules";
+import { Section } from "@/components/ui/section-heading";
+import { List, ListRow } from "@/components/ui/list-row";
 
 type NpmKeyState = {
   key: { npmUser: string | null; expiresAt: string | null; usable: boolean } | null;
@@ -13,19 +15,24 @@ type NpmKeyState = {
 };
 
 const OUTCOME_WORDS: Record<FirstPublishResult["outcome"], string> = {
-  started: "publishing now — on npm in a few minutes",
-  "on-npm": "already on npm",
-  waiting: "publish already running",
-  "no-workflow": "its repository has no publish.yml yet",
-  "not-yours": "not yours to publish",
-  private: "marked private — never published",
-  failed: "could not start",
+  started: "Publishing now, on npm in a few minutes",
+  "on-npm": "Already on npm",
+  waiting: "Already publishing",
+  "no-workflow": "Its repository cannot publish yet",
+  "not-yours": "Not yours to publish",
+  private: "Private, never published",
+  failed: "Could not start",
 };
 
 /**
- * "npm" on /packages: one key from the owner, and Loki puts every package on
- * npm — the first version through the key, every later one through GitHub
- * with no key at all (src/lib/packages/npm-publish.ts).
+ * "Publish to npm" on /packages: one key from the owner, and Loki puts every
+ * package on npm — the first version through the key, every later one through
+ * GitHub with no key at all (src/lib/packages/npm-publish.ts).
+ *
+ * Drawn as two numbered steps on the page, not a bordered panel: make the key
+ * (the exact settings npm asks for, then the link), paste it. It was a card
+ * listing every unpublished package by name in one long sentence above a
+ * nested list and two filled buttons.
  */
 export function NpmPublishPanel() {
   const { data, refetch } = useFetch<NpmKeyState>("/api/packages/npm-key", { timeoutMs: 20_000 });
@@ -73,106 +80,106 @@ export function NpmPublishPanel() {
     : null;
 
   return (
-    <section className="ui-card-shell space-y-4 p-4" aria-labelledby="npm-panel-title">
-      <div className="space-y-1">
-        <h2 id="npm-panel-title" className="text-sm font-medium text-text-primary">
-          npm
-        </h2>
-        {saved ? (
-          <p className="text-sm text-text-secondary">
-            Loki holds {saved.npmUser ? `${saved.npmUser}'s` : "your"} npm key
-            {until ? ` until ${until}` : ""}. New packages go to npm by themselves; every release
-            after the first needs no key at all.
-          </p>
-        ) : (
-          <p className="text-sm text-text-secondary">
-            {data.notOnNpm.length === 1 ? "1 package is" : `${data.notOnNpm.length} packages are`}{" "}
-            not on npm yet: {data.notOnNpm.join(", ")}. npm lets only your account create a package,
-            so it needs one key from you — Loki does the rest, now and for every new package until
-            the key expires.
-          </p>
-        )}
-      </div>
+    <Section title="Publish to npm">
+      {saved ? (
+        <p className="text-sm text-text-secondary">
+          Loki holds {saved.npmUser ? `${saved.npmUser}'s` : "your"} npm key
+          {until ? ` until ${until}` : ""}. New packages go to npm by themselves.
+        </p>
+      ) : (
+        <p className="text-sm text-text-secondary">
+          {data.notOnNpm.length === 1
+            ? `${data.notOnNpm[0]} is not on npm yet.`
+            : `${data.notOnNpm.length} packages are not on npm yet.`}{" "}
+          npm needs one key from you; Loki does the rest.
+        </p>
+      )}
 
       {results && results.length > 0 && (
-        <ul className="space-y-1 text-sm">
+        <List aria-label="What happened">
           {results
             .filter((r) => r.outcome !== "not-yours")
             .map((r) => (
-              <li key={r.name} className="flex flex-wrap gap-x-2">
-                <span className="font-mono text-text-primary">{r.name}</span>
-                <span className={r.outcome === "failed" ? "ui-error-xs" : "text-text-tertiary"}>
-                  {OUTCOME_WORDS[r.outcome]}
-                  {r.detail ? ` — ${r.detail}` : ""}
-                </span>
-              </li>
+              <ListRow
+                key={r.name}
+                title={r.name}
+                status={r.outcome === "failed" ? "negative" : undefined}
+                secondary={OUTCOME_WORDS[r.outcome]}
+              />
             ))}
-        </ul>
+        </List>
       )}
 
       {(!saved || replacing) && (
-        <div className="space-y-3">
-          <ol className="list-decimal space-y-2 pl-5 text-sm text-text-secondary">
-            <li>
+        <ol className="ui-steps">
+          <li className="ui-step">
+            <span className="ui-step-number" aria-hidden>
+              1
+            </span>
+            <div className="ui-step-body">
+              <p className="ui-step-title">Make a key on npm</p>
+              <dl className="ui-step-settings">
+                {NPM_KEY_SETTINGS.map((s) => (
+                  <div key={s.field} className="contents">
+                    <dt>{s.field}</dt>
+                    <dd>{s.value}</dd>
+                  </div>
+                ))}
+              </dl>
               <a
                 href={NPM_NEW_KEY_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="ui-btn-secondary inline-flex min-h-11 items-center gap-2"
+                className="ui-btn-secondary inline-flex min-h-11 items-center gap-2 self-start"
               >
-                Make the key on npm <ExternalLink className="h-4 w-4" aria-hidden />
+                Open npm <ExternalLink className="h-4 w-4" aria-hidden />
               </a>
-              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                {NPM_KEY_SETTINGS.map((s) => (
-                  <div key={s.field} className="contents">
-                    <dt className="text-text-tertiary">{s.field}</dt>
-                    <dd className="min-w-0 text-text-primary">{s.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </li>
-            <li>Copy the key npm shows once, paste it here:</li>
-          </ol>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="text"
-              inputMode="text"
-              autoComplete="off"
-              spellCheck={false}
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="npm_…"
-              aria-label="npm key"
-              className="ui-input ui-input-secret min-w-0 flex-1 font-mono"
-            />
-            <button
-              type="button"
-              onClick={save}
-              disabled={busy || key.trim().length === 0}
-              className="ui-btn-primary inline-flex min-h-11 items-center justify-center gap-2"
-            >
-              {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-              Publish to npm
-            </button>
-          </div>
-          {error && <p className="ui-error-xs">{error}</p>}
-        </div>
+            </div>
+          </li>
+          <li className="ui-step">
+            <span className="ui-step-number" aria-hidden>
+              2
+            </span>
+            <div className="ui-step-body">
+              <label htmlFor="npm-key" className="ui-step-title">
+                Paste the key npm shows once
+              </label>
+              <input
+                id="npm-key"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                spellCheck={false}
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder="npm_…"
+                className="ui-input ui-input-secret min-w-0 font-mono"
+              />
+              {error && <p className="ui-prompt-sheet-error">{error}</p>}
+              <button
+                type="button"
+                onClick={save}
+                disabled={busy || key.trim().length === 0}
+                className="ui-btn-primary inline-flex min-h-11 items-center justify-center gap-2 self-start"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                Publish to npm
+              </button>
+            </div>
+          </li>
+        </ol>
       )}
 
       {saved && !replacing && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setReplacing(true)}
-            className="ui-btn-secondary min-h-11"
-          >
+        <div className="flex flex-wrap gap-x-4">
+          <button type="button" onClick={() => setReplacing(true)} className="ui-section-link">
             New key
           </button>
-          <button type="button" onClick={forget} disabled={busy} className="ui-btn-ghost min-h-11">
+          <button type="button" onClick={forget} disabled={busy} className="ui-section-link">
             Forget key
           </button>
         </div>
       )}
-    </section>
+    </Section>
   );
 }

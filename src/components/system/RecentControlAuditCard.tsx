@@ -1,5 +1,5 @@
 import { ListChecks, PauseCircle, PlayCircle, Send, XCircle } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getRecentControlAuditEvents } from "@/db/queries/control-audit-events";
 import { compactRelativeDate } from "@/lib/dates";
@@ -20,10 +20,10 @@ export async function RecentControlAuditCard({ userId }: { userId: string }) {
   const blocked = rows.filter((r) => r.action === "off" || r.action === "refused").length;
 
   return (
-    <Card>
-      <CardHeader
+    <SystemBlock>
+      <SystemBlockHeader
         icon={ListChecks}
-        title="Control decisions"
+        title="What Loki decided"
         right={<span className="text-xs text-text-tertiary">{blocked} blocked</span>}
       />
       {rows.length === 0 ? (
@@ -56,6 +56,6 @@ export async function RecentControlAuditCard({ userId }: { userId: string }) {
           })}
         </ul>
       )}
-    </Card>
+    </SystemBlock>
   );
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { projectTitle } from "@/lib/project-display";
 import { reporterToneClass } from "@/lib/feedback/reporter-view";
 import type { ReporterFeedbackRow } from "@/lib/feedback/attach-reporter-view";
 import { FeedbackReportText } from "./FeedbackReportText";
@@ -15,26 +16,33 @@ import { GoLiveButton } from "./GoLiveButton";
  */
 export function ReporterFeedbackCard({
   row,
+  bare = false,
   children,
 }: {
   row: ReporterFeedbackRow;
+  /** Inside a sheet (/my-feedback): no box of its own around it. */
+  bare?: boolean;
   /** What only some readers get (the owner's own way forward). */
   children?: ReactNode;
 }) {
   return (
-    <article className="ui-card-shell space-y-2 p-4">
+    <article className={bare ? "space-y-3" : "ui-card-shell space-y-2 p-4"}>
       {/* The report leads, alone and clamped — same order as the operator
           row, so one report reads the same to both people. */}
       <FeedbackReportText text={row.suggestion} />
 
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
-        <span className={cn("ui-tag shrink-0", reporterToneClass(row.status.tone))}>
-          {row.status.label}
-        </span>
+        {/* In a sheet the status is the sheet's own title. */}
+        {!bare && (
+          <span className={cn("ui-tag shrink-0", reporterToneClass(row.status.tone))}>
+            {row.status.label}
+          </span>
+        )}
         {/* Labelled, because an unlabelled project name sat exactly where a
             person's name would and read as one. */}
         <span className="text-text-muted">
-          on {row.projectName} · <ReportedTime at={row.createdAt.toISOString()} />
+          on {projectTitle({ name: row.projectName })} ·{" "}
+          <ReportedTime at={row.createdAt.toISOString()} />
         </span>
       </p>
 

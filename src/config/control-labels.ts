@@ -8,8 +8,8 @@
  * - Prompt library: Loki starter templates on the project card
  */
 
-/** User-authored templates on /prompts */
-export const SAVED_PROMPTS_TITLE = "Saved prompts";
+/** User-authored templates on /prompts — the section above Loki's library. */
+export const SAVED_PROMPTS_TITLE = "Your prompts";
 
 /** Loki featured templates on the project card */
 export const PROMPT_LIBRARY_TITLE = "Prompt library";

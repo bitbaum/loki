@@ -17,6 +17,7 @@ import { decisionFacts } from "@/lib/feedback/decision-facts";
 import { NOTE_NONE } from "@/lib/feedback/fix-note";
 import { READ_SIZE_WORD, type FeedbackRead } from "@/lib/feedback/read-report";
 import { ReadBlock } from "@/components/feedback/ReadBlock";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * One decision Loki has already made, waiting for a yes.
@@ -90,7 +91,7 @@ export function DecisionCard({
           {kindWord(rec)} · {cost}
         </p>
         <span className="ui-fb-decision-where">
-          {project ? `${project.name} · ` : ""}
+          {project ? `${projectTitle({ name: project.name })} · ` : ""}
           {f.page && f.page !== "/" ? f.page : "home"} · {compactRelativeDate(f.createdAt)}
         </span>
       </div>

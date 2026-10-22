@@ -1,7 +1,7 @@
 "use client";
 
 import { Cpu, HardDrive, Radio, Server } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { FetchErrorState } from "@/components/ui/fetch-error-state";
 import { useFetch } from "@/hooks/use-fetch";
 import { ProgressBar, getProgressTone } from "@/components/ui/progress-bar";
@@ -57,10 +57,14 @@ export function SystemStats() {
   }
   if (error || !data) {
     return (
-      <Card>
-        <CardHeader icon={Cpu} title="System" />
-        <FetchErrorState message="Couldn't load system stats" detail={error} onRetry={refetch} />
-      </Card>
+      <SystemBlock>
+        <SystemBlockHeader icon={Cpu} title="Server" />
+        <FetchErrorState
+          message="Could not read the server just now"
+          detail={error}
+          onRetry={refetch}
+        />
+      </SystemBlock>
     );
   }
 
@@ -78,8 +82,8 @@ export function SystemStats() {
     // screen before the first reading with any detail in it. One card, three
     // sections; the inner grid keeps the horizontal layout on desktop, so only
     // the repeated card chrome is gone rather than the density.
-    <Card>
-      <CardHeader icon={Server} title="Box" />
+    <SystemBlock>
+      <SystemBlockHeader icon={Server} title="Server" />
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6">
         <section>
           <div className="ui-micro-label mb-2 flex items-center gap-1.5">
@@ -88,7 +92,7 @@ export function SystemStats() {
           </div>
           <div className="space-y-2">
             <div className="ui-label-row">
-              <span>Gateway</span>
+              <span>Assistant link</span>
               <span className="flex items-center gap-2 text-text-primary">
                 <span
                   className={`h-2 w-2 shrink-0 rounded-full ${gatewayStatus === "ok" ? "bg-status-positive" : "bg-status-negative"}`}
@@ -170,6 +174,6 @@ export function SystemStats() {
           )}
         </section>
       </div>
-    </Card>
+    </SystemBlock>
   );
 }

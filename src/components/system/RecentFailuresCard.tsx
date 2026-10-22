@@ -1,5 +1,5 @@
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getRecentDebugLogs } from "@/db/queries/debug-logs";
 import { compactRelativeDate } from "@/lib/dates";
@@ -46,8 +46,8 @@ export async function RecentFailuresCard() {
     );
 
   return (
-    <Card>
-      <CardHeader icon={AlertCircle} title="Recent telemetry" right={right} />
+    <SystemBlock>
+      <SystemBlockHeader icon={AlertCircle} title="Recent errors" right={right} />
       {rows.length === 0 ? (
         <EmptyState>No recent telemetry events</EmptyState>
       ) : (
@@ -79,6 +79,6 @@ export async function RecentFailuresCard() {
           })}
         </ul>
       )}
-    </Card>
+    </SystemBlock>
   );
 }

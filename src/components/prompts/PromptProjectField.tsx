@@ -46,16 +46,16 @@ export function PromptProjectField({
     return (
       <p className="text-sm text-text-secondary">
         You have no projects yet.{" "}
-        <Link href="/projects?new=1" className="underline underline-offset-2">
+        <Link href="/projects?new=1" className="ui-link-muted">
           Add one
         </Link>{" "}
-        to run this prompt against it.
+        to run this prompt in it.
       </p>
     );
   }
   return (
     <div>
-      <label className="ui-kicker mb-2 block text-text-tertiary" htmlFor={id}>
+      <label className="ui-prompt-field-label" htmlFor={id}>
         Project
       </label>
       <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="ui-input">
@@ -66,7 +66,7 @@ export function PromptProjectField({
           </option>
         ))}
       </select>
-      {hint && <p className="mt-1.5 text-xs text-text-muted">{hint}</p>}
+      {hint && <p className="mt-1.5 text-sm text-text-secondary">{hint}</p>}
     </div>
   );
 }

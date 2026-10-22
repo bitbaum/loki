@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { Package, Search } from "lucide-react";
 import { Highlight } from "@bitbaum/searchkit/react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { List, ListRow, ListSearch } from "@/components/ui/list-row";
 import { searchHits, type Range, type SearchSpec } from "@/lib/search";
 import type { PackageListRow } from "@/lib/packages/view";
 
@@ -21,20 +21,20 @@ function versionText(version: string | null): string {
   return version ? `v${version}` : "—";
 }
 
-function UsageTags({ row }: { row: PackageListRow }) {
-  if (row.usedBy === 0) {
-    return <span className="text-xs text-text-muted">Not in your projects</span>;
-  }
-  return (
-    <>
-      <span className="ui-badge">
-        Used by {row.usedBy} {row.usedBy === 1 ? "project" : "projects"}
-      </span>
-      {row.onLatest > 0 && <span className="ui-tag ui-tag-positive">{row.onLatest} on latest</span>}
-      {row.behind > 0 && <span className="ui-tag ui-tag-warning">{row.behind} behind</span>}
-      {row.unknown > 0 && <span className="ui-tag ui-tag-neutral">{row.unknown} unknown</span>}
-    </>
-  );
+/**
+ * "latest v1.20.1 · used by 3 projects, 1 behind" — the row's one line. It
+ * was a badge and up to three coloured tags per package ("Used by 3
+ * projects", "1 on latest", "1 behind", "1 unknown"); on latest is what
+ * "used by" means unless the line says otherwise.
+ */
+export function packageLine(row: PackageListRow): string {
+  const latest = `latest ${versionText(row.latest.version)}`;
+  if (row.usedBy === 0) return `${latest} · not in your projects`;
+  const extra = [
+    row.behind > 0 ? `${row.behind} behind` : null,
+    row.unknown > 0 ? `${row.unknown} unknown` : null,
+  ].filter(Boolean);
+  return `${latest} · used by ${row.usedBy} ${row.usedBy === 1 ? "project" : "projects"}${extra.length ? `, ${extra.join(", ")}` : ""}`;
 }
 
 /** Every fleet package, searchable; each row opens the package's own page. */
@@ -49,70 +49,39 @@ export function PackagesList({ rows }: { rows: PackageListRow[] }) {
   }, [rows, query]);
 
   return (
-    <div className="space-y-4">
-      <div className="relative min-w-0">
-        <Search
-          className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary"
-          aria-hidden
-        />
-        <input
-          type="search"
-          placeholder="Search packages…"
-          aria-label="Search packages"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setQuery("");
-          }}
-          className="ui-search-input"
-        />
-        <span className="ui-badge absolute right-3 top-1/2 -translate-y-1/2">{matches.length}</span>
-      </div>
-
+    <div>
+      <ListSearch value={query} onChange={setQuery} placeholder="Search packages" />
       {matches.length === 0 ? (
-        <EmptyState icon={Package} title={`No package matches “${query}”`} size="sm">
-          <button type="button" className="ui-btn-ghost min-h-11" onClick={() => setQuery("")}>
-            Show every package
-          </button>
-        </EmptyState>
+        <EmptyState
+          icon={Search}
+          title={`No package matches “${query}”`}
+          size="sm"
+          action={
+            <button type="button" className="ui-btn-secondary" onClick={() => setQuery("")}>
+              Show every package
+            </button>
+          }
+        />
       ) : (
-        <ul className="space-y-2">
+        <List aria-label="Packages">
           {matches.map(({ row, nameRanges }) => (
-            <li key={row.slug}>
-              <Link
-                href={`/packages/${row.slug}`}
-                className="ui-list-row ui-row-interactive flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="wrap-anywhere font-medium text-text-primary">
-                      {nameRanges ? (
-                        <Highlight
-                          text={row.name}
-                          ranges={nameRanges}
-                          markClassName="ui-search-mark"
-                        />
-                      ) : (
-                        row.name
-                      )}
-                    </span>
-                    <span className="font-mono text-xs text-text-tertiary">
-                      latest {versionText(row.latest.version)}
-                    </span>
-                  </span>
-                  {row.summary && (
-                    <span className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-text-tertiary">
-                      {row.summary}
-                    </span>
-                  )}
-                </span>
-                <span className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-                  <UsageTags row={row} />
-                </span>
-              </Link>
-            </li>
+            <ListRow
+              key={row.slug}
+              href={`/packages/${row.slug}`}
+              icon={Package}
+              title={
+                nameRanges ? (
+                  <Highlight text={row.name} ranges={nameRanges} markClassName="ui-search-mark" />
+                ) : (
+                  row.name
+                )
+              }
+              status={row.behind > 0 ? "warning" : undefined}
+              secondary={packageLine(row)}
+              chevron
+            />
           ))}
-        </ul>
+        </List>
       )}
     </div>
   );

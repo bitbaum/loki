@@ -1,9 +1,9 @@
-import { PageLayout } from "@/components/ui/page-layout";
 import { ActivityView } from "@/components/activity/ActivityView";
 import { requirePageUserId } from "@/lib/session";
 
 export const metadata = { title: "Activity" };
 
+/** ActivityView draws the page itself: its one action (the report) needs the window it covers. */
 export default async function ActivityPage({
   searchParams,
 }: {
@@ -13,13 +13,11 @@ export default async function ActivityPage({
   const params = await searchParams;
 
   return (
-    <PageLayout title="Activity" maxWidth="max-w-5xl">
-      <ActivityView
-        userId={userId}
-        window={params.window}
-        project={params.project}
-        status={params.status}
-      />
-    </PageLayout>
+    <ActivityView
+      userId={userId}
+      window={params.window}
+      project={params.project}
+      status={params.status}
+    />
   );
 }

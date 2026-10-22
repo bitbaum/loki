@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Server } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { FetchErrorState } from "@/components/ui/fetch-error-state";
 import { useFetch } from "@/hooks/use-fetch";
 import { REFRESH_CADENCE } from "@/config/refresh";
@@ -45,19 +45,19 @@ export function HetznerCapacityCard() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader icon={Server} title="Box capacity" />
+      <SystemBlock>
+        <SystemBlockHeader icon={Server} title="Server size" />
         <p className="text-sm text-text-secondary">Checking rescale availability...</p>
-      </Card>
+      </SystemBlock>
     );
   }
 
   if (error || !data) {
     return (
-      <Card>
-        <CardHeader icon={Server} title="Box capacity" />
+      <SystemBlock>
+        <SystemBlockHeader icon={Server} title="Server size" />
         <FetchErrorState message="Couldn't read box capacity" detail={error} onRetry={refetch} />
-      </Card>
+      </SystemBlock>
     );
   }
 
@@ -76,13 +76,13 @@ export function HetznerCapacityCard() {
   // is available". Unknown and unavailable are different answers.
   if (!data.tracked) {
     return (
-      <Card>
-        <CardHeader icon={Server} title="Box capacity" />
+      <SystemBlock>
+        <SystemBlockHeader icon={Server} title="Server size" />
         <p className="text-sm text-text-secondary">
           {data.reason ?? "No capacity reading available here."}
         </p>
         <p className="mt-2 text-xs text-text-tertiary">Track it externally: {radarLink}</p>
-      </Card>
+      </SystemBlock>
     );
   }
 
@@ -90,10 +90,10 @@ export function HetznerCapacityCard() {
   const age = freshness(data.ageSeconds);
 
   return (
-    <Card>
-      <CardHeader
+    <SystemBlock>
+      <SystemBlockHeader
         icon={Server}
-        title="Box capacity"
+        title="Server size"
         right={
           <span
             className={age.stale ? "text-xs text-status-warning" : "text-xs text-text-tertiary"}
@@ -156,6 +156,6 @@ export function HetznerCapacityCard() {
           — or watch the {radarLink}.
         </p>
       )}
-    </Card>
+    </SystemBlock>
   );
 }

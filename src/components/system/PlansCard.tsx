@@ -1,5 +1,5 @@
 import { Ticket } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { listUsersWithPlans } from "@/db/queries/users";
 import { PRICING_PLANS } from "@/config/plans";
@@ -31,8 +31,8 @@ export async function PlansCard() {
   const label = (r: (typeof rows)[number]) => r.username ?? r.name ?? r.email ?? r.id.slice(0, 8);
 
   return (
-    <Card>
-      <CardHeader
+    <SystemBlock>
+      <SystemBlockHeader
         icon={Ticket}
         title="Plans"
         right={
@@ -72,6 +72,6 @@ export async function PlansCard() {
           <PlanGrantForm users={rows.map((r) => ({ id: r.id, label: label(r), plan: r.plan }))} />
         </div>
       </div>
-    </Card>
+    </SystemBlock>
   );
 }

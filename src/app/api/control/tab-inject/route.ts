@@ -20,6 +20,7 @@ import { insertPromptHistory } from "@/db/queries/prompt-history";
 import { createOrchestrationRun } from "@/db/queries/orchestration-runs";
 import { createOrchestrationEvent } from "@/db/queries/orchestration-events";
 import { emitRunEvent } from "@/db/queries/run-events";
+import { injectPrompt } from "@/lib/inject-core";
 import type { UserProject } from "@/db/schema";
 
 const Body = z.object({
@@ -198,6 +199,26 @@ export async function POST(req: NextRequest) {
   // Project-aware default: a dirPath-only project (no cloneable repo) can only
   // execute where the directory exists — pin it to the local runner instead of
   // letting the cloud builder invent an empty workspace (BiasLens, 2026-07-14).
+  // A registered project with no directory on any machine yet — only a
+  // repository — is the inject core's to start: it cold-starts the agent in
+  // the folder the builder clones into, picks the builder the project stores,
+  // and opens its own tracked run. Queuing a bare `inject` here instead asked
+  // the builder to type into an agent that did not exist ("no running agent
+  // for 'substrata' on this runner", 2026-10-21), so Send to terminal failed
+  // on every repo-only project. One path, shared with /api/inject.
+  if (project && !project.dirPath) {
+    const { status, body } = await injectPrompt(
+      {
+        tab: project.name,
+        ...(project.entityProjectId ? { projectId: project.entityProjectId } : {}),
+        customPrompt: promptWithAttachments,
+        ...(staged.images.length > 0 ? { attachments: staged.images } : {}),
+      },
+      userId,
+    );
+    return NextResponse.json(body, { status });
+  }
+
   const execution = await resolveQueuedExecution(userId, { project });
   if (!execution.ok) {
     return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
