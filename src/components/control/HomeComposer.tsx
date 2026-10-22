@@ -9,6 +9,7 @@ import type { Attachment } from "@/components/loki/types";
 import { OptionRow } from "@/components/terminal/sheet-rows";
 import { useFleetProject } from "@/hooks/use-fleet-project";
 import { rememberFleetProject } from "@/lib/fleet-context";
+import { projectTitle } from "@/lib/project-display";
 import type { InjectResult } from "@/hooks/use-control-actions";
 
 export type HomeProject = { tab: string; detail?: string };
@@ -45,7 +46,9 @@ export function HomeComposer({
     tab ? (projects.find((p) => p.tab.toLowerCase() === tab.toLowerCase())?.tab ?? null) : null;
   const isNew = chosen === NEW_PROJECT || projects.length === 0;
   const project = isNew ? null : (known(chosen) ?? known(remembered) ?? projects[0]?.tab ?? null);
-  const chipLabel = project ?? "New project";
+  // What a person calls it; `project` stays the key the request is routed by.
+  const shown = project ? projectTitle({ name: project }) : null;
+  const chipLabel = shown ?? "New project";
 
   const send = async (text: string, attachments: Attachment[]): Promise<boolean> => {
     setSaid(null);
@@ -60,8 +63,8 @@ export function HomeComposer({
       const result = await onSend(project, text, attachments);
       setSaid(
         result.mode === "queued" && result.runnerConnected === false
-          ? `Saved for ${project}. It starts when the builder is back.`
-          : `Sent to ${project}. It shows under "Being built now" in a moment.`,
+          ? `Saved for ${shown}. It starts when the builder is back.`
+          : `Sent to ${shown}. It shows under "Being built" in a moment.`,
       );
       return true;
     } catch (e) {
@@ -74,7 +77,7 @@ export function HomeComposer({
     <div className="ui-home-box">
       <Composer
         placeholder="What should we build?"
-        ariaLabel={project ? `What should ${project} build next` : "What should the new project be"}
+        ariaLabel={shown ? `What should ${shown} build next` : "What should the new project be"}
         onSend={(text, _choice, attachments) => send(text, attachments)}
         attachmentOnlyText="Look at the attached screenshot and fix what is wrong."
         tools={
@@ -136,7 +139,7 @@ export function HomeComposer({
             {projects.map((p) => (
               <OptionRow
                 key={p.tab}
-                title={p.tab}
+                title={projectTitle({ name: p.tab })}
                 detail={p.detail}
                 active={p.tab === project}
                 onSelect={() => {
