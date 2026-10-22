@@ -8,7 +8,14 @@ import { postJson } from "@/lib/api/fetch";
 import { PERSON_FORM } from "@/config/ai-forms";
 import type { CreatePersonInput } from "@/db/queries/people";
 
-export function NewPersonButton({ onCreated }: { onCreated?: () => void } = {}) {
+export function NewPersonButton({
+  onCreated,
+  trigger,
+}: {
+  onCreated?: () => void;
+  /** "page-action": the page's one primary action (see ModalForm). */
+  trigger?: "button" | "page-action" | "secondary";
+} = {}) {
   const form = useAiForm({ target: PERSON_FORM.key, fields: PERSON_FORM.fields });
   const { create, saving, error, setError } = useCreateMutation<CreatePersonInput>({
     request: (body) => postJson("/api/people", body),
@@ -31,8 +38,10 @@ export function NewPersonButton({ onCreated }: { onCreated?: () => void } = {}) 
 
   return (
     <ModalForm
-      title="Add Person"
-      submitLabel="Add Person"
+      trigger={trigger}
+      triggerLabel="Add person"
+      title="Add a person"
+      submitLabel="Add person"
       savingLabel="Adding…"
       canSubmit={!!form.text("name").trim()}
       saving={saving}
