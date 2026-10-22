@@ -129,61 +129,79 @@ for (const [label, vp] of [
       localStorage.setItem("loki-theme", t);
     } catch {}
   }, THEME);
-  const page = await ctx.newPage();
   const extra = [];
   for (let i = 0; i < ROUTES.length + extra.length; i++) {
     const route = i < ROUTES.length ? ROUTES[i] : extra[i - ROUTES.length];
-    const errs = [],
-      bad = [];
-    page.removeAllListeners("console");
-    page.removeAllListeners("response");
-    page.on("console", (m) => m.type() === "error" && errs.push(m.text().slice(0, 200)));
-    page.on(
-      "response",
-      (r) =>
-        r.status() >= 400 &&
-        bad.push(
-          `${r.status()} ${r.request().method()} ${r.url().replace(BASE, "").slice(0, 100)}`,
-        ),
-    );
+    // A page of its own per route: a tall page can crash Chromium's renderer,
+    // and a crashed page must not take every route after it down too.
+    const page = await ctx.newPage();
     try {
-      await page.goto(BASE + route, { waitUntil: "networkidle", timeout: 30000 });
-    } catch (e) {
-      errs.push("goto: " + e.message.slice(0, 120));
-    }
-    await page.waitForTimeout(2500);
-    const name = route.replace(/\W+/g, "_").replace(/^_/, "") || "root";
-    await page
-      .screenshot({ path: `${OUT}/${label}-${name}.png` })
-      .catch((e) => errs.push("screenshot: " + e.message.slice(0, 80)));
-    if (label === "phone")
-      await page
-        .screenshot({ path: `${OUT}/${label}-${name}-full.png`, fullPage: true })
-        .catch(() => undefined);
-    const m = await measure(page);
-    report[`${label} ${route}`] = {
-      finalUrl: page.url().replace(BASE, ""),
-      consoleErrors: [...new Set(errs)].slice(0, 8),
-      failedRequests: [...new Set(bad)].slice(0, 12),
-      ...m,
-    };
-    if (label === "phone" && route === "/projects" && !process.env.ROUTES) {
-      const href = await page
-        .locator('a[href^="/projects/"]')
-        .first()
-        .getAttribute("href")
-        .catch(() => null);
-      if (href) {
-        extra.push(href, href + "/watch");
+      const errs = [],
+        bad = [];
+      page.removeAllListeners("console");
+      page.removeAllListeners("response");
+      page.on("console", (m) => m.type() === "error" && errs.push(m.text().slice(0, 200)));
+      page.on(
+        "response",
+        (r) =>
+          r.status() >= 400 &&
+          bad.push(
+            `${r.status()} ${r.request().method()} ${r.url().replace(BASE, "").slice(0, 100)}`,
+          ),
+      );
+      try {
+        await page.goto(BASE + route, { waitUntil: "networkidle", timeout: 30000 });
+      } catch (e) {
+        errs.push("goto: " + e.message.slice(0, 120));
       }
-    }
-    if (label === "phone" && route === "/feedback" && !process.env.ROUTES) {
-      const href = await page
-        .locator('a[href^="/feedback/"]')
-        .first()
-        .getAttribute("href")
-        .catch(() => null);
-      if (href) extra.push(href);
+      await page.waitForTimeout(2500);
+      const name = route.replace(/\W+/g, "_").replace(/^_/, "") || "root";
+      await page
+        .screenshot({ path: `${OUT}/${label}-${name}.png` })
+        .catch((e) => errs.push("screenshot: " + e.message.slice(0, 80)));
+      if (label === "phone")
+        await page
+          .screenshot({ path: `${OUT}/${label}-${name}-full.png`, fullPage: true })
+          .catch(() => undefined);
+      // A dev server recompiles and reloads a page it just served; measure
+      // once it has settled rather than losing the whole report to one reload.
+      let m;
+      for (let attempt = 0; attempt < 3 && !m; attempt++) {
+        m = await measure(page).catch(async () => {
+          await page.waitForLoadState("networkidle").catch(() => undefined);
+          await page.waitForTimeout(1500);
+          return undefined;
+        });
+      }
+      m ??= { error: "page kept reloading" };
+      report[`${label} ${route}`] = {
+        finalUrl: page.url().replace(BASE, ""),
+        consoleErrors: [...new Set(errs)].slice(0, 8),
+        failedRequests: [...new Set(bad)].slice(0, 12),
+        ...m,
+      };
+      if (label === "phone" && route === "/projects" && !process.env.ROUTES) {
+        const href = await page
+          .locator('a[href^="/projects/"]')
+          .first()
+          .getAttribute("href")
+          .catch(() => null);
+        if (href) {
+          extra.push(href, href + "/watch");
+        }
+      }
+      if (label === "phone" && route === "/feedback" && !process.env.ROUTES) {
+        const href = await page
+          .locator('a[href^="/feedback/"]')
+          .first()
+          .getAttribute("href")
+          .catch(() => null);
+        if (href) extra.push(href);
+      }
+    } catch (e) {
+      report[`${label} ${route}`] = { error: String(e.message ?? e).slice(0, 160) };
+    } finally {
+      await page.close().catch(() => undefined);
     }
   }
   if (label === "phone") ROUTES.push(...extra.filter((r) => !ROUTES.includes(r)));
