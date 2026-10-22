@@ -176,6 +176,9 @@ export function AttentionBar({
           return (
             <ListRow
               key={f.id}
+              // The reason gets the row's width and the fix sits under it
+              // (ui-home-failure): beside a button, × and time it was 133px.
+              className="ui-home-failure"
               icon={AlertTriangle}
               title={`${failureTitle(f)}${group.count > 1 ? ` · ${group.count} times` : ""}`}
               secondary={`${why} · ${timeAgo(new Date(f.executedAt).getTime())}`}

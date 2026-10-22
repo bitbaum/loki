@@ -134,7 +134,16 @@ export function NotificationPanel({ onClose, titleId }: { onClose: () => void; t
   );
 }
 
-function AlertRow({ alert, onDismiss }: { alert: Alert; onDismiss: (ids: string[]) => void }) {
+function AlertRow({
+  alert,
+  onDismiss,
+  quiet = false,
+}: {
+  alert: BellRow;
+  onDismiss: (ids: string[]) => void;
+  /** Under "Earlier": a record, so no coloured dot. */
+  quiet?: boolean;
+}) {
   const { summary } = splitDescription(alert.description);
   const status =
     alert.severity === ALERT_SEVERITY.URGENT

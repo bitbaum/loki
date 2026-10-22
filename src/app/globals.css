@@ -6725,6 +6725,31 @@
   .ui-home-fix {
     @apply relative z-[1] inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-raised disabled:opacity-50;
   }
+  /* A failure row: the title and its reason take the full text column (the
+     reason in up to two lines), × stays at the end of that line, and the fix
+     wraps underneath at the text's left edge — the fix right there, without
+     squeezing the reason into a third of the row. */
+  .ui-home-failure .ui-listrow-main {
+    @apply flex-wrap gap-y-2;
+  }
+  .ui-home-failure .ui-listrow-text {
+    flex: 1 1 calc(100% - 3.5rem);
+  }
+  .ui-home-failure .ui-listrow-menu {
+    order: 1;
+  }
+  .ui-home-failure .ui-listrow-trail {
+    order: 2;
+  }
+  .ui-home-failure .ui-listrow-secondary {
+    @apply items-start;
+  }
+  .ui-home-failure .ui-listrow-secondary .ui-dot {
+    @apply mt-1.5;
+  }
+  .ui-home-failure .ui-listrow-secondary-text {
+    @apply line-clamp-2 whitespace-normal;
+  }
   .ui-home-foot .ui-listrow-title {
     @apply text-sm font-normal text-text-secondary;
   }
