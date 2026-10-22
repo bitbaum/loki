@@ -4328,6 +4328,51 @@
     @apply space-y-5 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
     box-shadow: var(--shadow-panel);
   }
+  /* ── One header for every settings card ────────────────────────────────
+     Title, one line under it, and an optional action on the right: the same
+     anatomy on every card of the Settings surface, so siblings share a frame
+     (fleet AGENTS.md → "One shape per kind"). The title carries no icon: an
+     icon beside two titles and none beside the third, and a lede pulled up
+     into its title with a negative margin, were what the AI tab shipped with
+     (owner, 2026-10-21: "cramped"). */
+  .ui-settings-head {
+    @apply flex flex-col;
+  }
+  /* The action shares the TITLE's row, never the lede's: beside a lede it
+     wrapped under the paragraph on a phone and read as a stray link. */
+  .ui-settings-head-row {
+    @apply flex items-start justify-between gap-4;
+  }
+  .ui-settings-title {
+    @apply min-w-0 text-base font-semibold leading-9 text-text-primary;
+  }
+  .ui-settings-lede {
+    @apply mt-1 text-sm leading-relaxed text-text-secondary;
+  }
+  .ui-settings-lede a {
+    @apply text-accent-text underline-offset-2 hover:underline;
+  }
+  /* ── On/off, as one control ─────────────────────────────────────────────
+     Three settings drew their own 44×24 pill with a white knob; on the dark
+     theme the "on" track is near-white too, so the knob vanished. The knob is
+     the page colour: it contrasts with the accent track when on and with the
+     overlay track when off, in both themes. */
+  .ui-switch {
+    @apply relative h-6 w-11 shrink-0 rounded-full border border-border-subtle bg-surface-overlay transition-colors disabled:opacity-50;
+  }
+  .ui-switch-on {
+    @apply border-accent-primary bg-accent-primary;
+  }
+  .ui-switch-knob {
+    @apply absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-text-primary shadow-panel transition-transform;
+  }
+  .ui-switch-on > .ui-switch-knob {
+    @apply translate-x-5 bg-surface-page;
+  }
+  /* An on/off setting is a row: the words on the left, the switch on the right. */
+  .ui-switch-row {
+    @apply flex items-center justify-between gap-4;
+  }
   /* ── "Show this project in Loki's catalogue?" ──────────────────────────
      An invitation, not an alert: it uses the accent border rather than a
      status colour, because nothing is wrong and nothing is required. Stacks
@@ -4437,8 +4482,18 @@
   }
   /* A lever and its consequence on one line: the button never stands alone,
      because a bare verb is a guess and a verb with its effect is a decision. */
-  .ui-budget-action {
-    @apply flex flex-wrap items-center gap-x-3 gap-y-1;
+  /* Adding is the last row of the list it adds to (fleet AGENTS.md). */
+  .ui-list-add-row {
+    @apply flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-40;
+  }
+  /* A source's primary sentence — what is left — and the lines under it. */
+  .ui-budget-left {
+    @apply text-sm text-text-primary;
+  }
+  /* A source sits on the raised surface, so its track needs the next tone
+     up or an empty track is invisible and a 3% fill reads as a stray dash. */
+  .ui-budget-source .ui-quota-track {
+    @apply bg-surface-overlay;
   }
   .ui-list-item {
     @apply flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3;

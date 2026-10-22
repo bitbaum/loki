@@ -14,6 +14,12 @@ import { GoalProgressBar } from "@/components/shared/GoalProgressBar";
 import { requirePageUserId } from "@/lib/session";
 import { getProjectDossier } from "@/db/queries/project-dossier";
 import { missionFromProject } from "@/lib/missions/project-mission";
+import { MissionContinueAction } from "@/components/missions/MissionContinueAction";
+import { missionContinueOffer } from "@/lib/missions/continue-offer";
+import { getProjectAccess } from "@/db/queries/project-access";
+import { deriveBuildStatus } from "@/lib/project-build-status";
+import { answer, cleanDescription } from "@/lib/project-display";
+import { factReachesAgent } from "@/lib/project-signals";
 
 export const metadata = { title: "Mission control" };
 export const dynamic = "force-dynamic";
@@ -37,6 +43,30 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   });
   const runHistory = dossier.runs.slice(0, 5);
   const latest = [...(dossier.detail.devLog ?? [])].reverse()[0] ?? null;
+  // Same ownership and capability decision as POST /api/projects/[id]/dispatch.
+  const access = await getProjectAccess(userId, id);
+  const buildStatus = deriveBuildStatus({
+    state: dossier.state,
+    runs: dossier.runs,
+    commits: dossier.commits,
+    nowMs: dossier.builtAtMs,
+  });
+  const fromHandoff = answer(latest?.next);
+  const fromAttr = answer(attrs.next_step);
+  const nextStep =
+    fromHandoff ||
+    (fromAttr && factReachesAgent(fromAttr, dossier.detail.attrMeta?.next_step?.source ?? null)
+      ? fromAttr
+      : null);
+  const offer = missionContinueOffer({
+    canEdit: Boolean(access?.canEdit && access.ownerUserId === dossier.ownerId),
+    buildStatus: buildStatus.kind,
+    hasRepo: Boolean(dossier.userProject?.gitUrl ?? project.gitUrl),
+    hasQueuedNextStep: Boolean(nextStep),
+    hasBriefOrGoals: Boolean(
+      cleanDescription(project.description) || dossier.detail.linkedGoals.length,
+    ),
+  });
 
   return (
     <PageLayout
@@ -100,6 +130,27 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </p>
         </section>
       </div>
+
+      <section
+        aria-labelledby="mission-continue-title"
+        className="rounded-xl border border-border-subtle p-5"
+      >
+        <h2 id="mission-continue-title" className="text-base font-semibold text-text-primary">
+          Next move
+        </h2>
+        <p className="mb-4 mt-2 text-sm text-text-secondary">
+          {offer.type === "dispatch"
+            ? offer.kind === "next_step"
+              ? "Request the next recorded project step. The actual agent run will appear in the project timeline."
+              : "Start from the project's existing brief and roadmap."
+            : "Continue from the project's current real execution state."}
+        </p>
+        <MissionContinueAction
+          projectId={id}
+          workspaceKey={dossier.userProject?.name ?? project.name}
+          offer={offer}
+        />
+      </section>
 
       <section
         aria-labelledby="mission-roadmap-title"

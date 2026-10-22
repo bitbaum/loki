@@ -169,8 +169,8 @@ export type BudgetView = {
   meaning: BudgetMeaning;
   /** When the free pool refills, as an ISO instant, for a client that wants a countdown. */
   resetsAt: string;
-  /** The person's paid plan allowance this month, in words. Null on Free. */
-  plan: { line: string } | null;
+  /** The person's paid plan allowance this month, as a source of its own. Null on Free. */
+  plan: { name: string; answersMonthly: number; answersLeft: number; line: string } | null;
 };
 
 export type BudgetInput = {
@@ -396,7 +396,10 @@ function ownKey(k: BudgetInput["ownKeys"][number]): OwnKeyBudget {
       ? "Nothing spent on it yet."
       : `Today ${count(u.tokensToday)} tokens in ${plural(u.callsToday, "answer")} · ` +
         `30 days ${count(u.tokens30d)} tokens in ${plural(u.calls30d, "answer")}.`;
-  const cap = k.limit ? ` — set a ${k.limit} there and it protects you whatever Loki does` : "";
+  // The vendor's own word for its cap carries its article ("a monthly spending
+  // limit", config/model-vendors.ts), so the sentence does not add one: "set a
+  // a monthly spending limit" shipped on 2026-10-21.
+  const cap = k.limit ? ` — set ${k.limit} there and it protects you whatever Loki does` : "";
   return {
     kind: "own-key",
     vendor: k.vendor,
@@ -408,7 +411,7 @@ function ownKey(k: BudgetInput["ownKeys"][number]): OwnKeyBudget {
     calls30d: u?.calls30d ?? 0,
     line,
     left: ownKeyLeft(k.quota ?? [], k.label, k.model),
-    consequence: `No cap from Loki — ${k.label} bills you directly${cap}.`,
+    consequence: `No limit from Loki — ${k.label} bills you directly${cap}.`,
     billingUrl: k.billingUrl,
   };
 }
@@ -537,7 +540,7 @@ function meaningOf(
     actions.push({
       id: "plans",
       label: "See plans",
-      why: "A paid plan adds a monthly allowance of answers with no daily wait. Payments are not open yet — you can reserve one, and nothing is charged.",
+      why: "A paid plan adds a monthly allowance of answers with no daily wait, on top of the free share.",
       href: "/pricing",
     });
   }
@@ -613,7 +616,14 @@ export function userBudgetView(input: BudgetInput): BudgetView {
     models,
     meaning: meaningOf(input, pool, ownKeys),
     resetsAt: nextUtcMidnight(input.now).toISOString(),
-    plan: input.plan ? { line: planLine(input.plan) } : null,
+    plan: input.plan
+      ? {
+          name: input.plan.name,
+          answersMonthly: input.plan.answersMonthly,
+          answersLeft: Math.max(0, input.plan.answersLeft),
+          line: planLine(input.plan),
+        }
+      : null,
   };
 }
 

@@ -54,6 +54,8 @@ type Props = {
     /** A builder on Loki's cloud (the founder's, or their own private one):
      *  Settings → AI then offers "also for building" on a key. */
     cloudBuilder: boolean;
+    /** The operator of this server: Settings → AI adds the server's own vendor counters. */
+    operator: boolean;
   };
   /** Plan, expiry, the pass ledger and the Bitcoin checkout links — server-derived. */
   billing: BillingView;
@@ -249,11 +251,14 @@ export function SettingsTabs({
           {shown === "voice" && <VoiceSettings initialPrefs={userPrefs} />}
           {shown === "ai" && (
             <div className="space-y-6">
-              {/* Your own model first: it is the way past the shared pool below. */}
+              {/* What is left on every source, then the levers in the order a
+                  person reaches for them: the keys (and what Auto picks from
+                  them), the engine builds run on, and — for the operator only —
+                  the server's own vendor counters. */}
               <AiBudgetSettings />
-              {user.cloudBuilder && <BuildEngineChoice />}
               <OwnModelSettings cloudBuilder={user.cloudBuilder} />
-              <AiQuotaSettings />
+              {user.cloudBuilder && <BuildEngineChoice />}
+              {user.operator && <AiQuotaSettings />}
             </div>
           )}
           {shown === "privacy" && <PrivacySettings />}

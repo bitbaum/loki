@@ -67,5 +67,10 @@ export function ownKeyLeft(rows: QuotaRowView[], label: string, model: string): 
  */
 function saysLeft(detail: string): string {
   if (/\bleft\b/.test(detail)) return detail;
-  return detail.replace(/ (today|this minute)$/, " left $1");
+  // A counter whose window the vendor never named ("7,200 of 7,200
+  // requests") must still say which way it reads — it shipped without the
+  // word on 2026-10-21 and could be read as all spent or all left.
+  if (/ (today|this minute)$/.test(detail))
+    return detail.replace(/ (today|this minute)$/, " left $1");
+  return `${detail} left`;
 }

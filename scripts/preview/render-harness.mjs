@@ -49,6 +49,10 @@ export async function renderPreview({ entry, name, queries = [""], outDir }) {
       "next/link": resolve(here, "shims/next-link.tsx"),
       "next/navigation": resolve(here, "shims/next-navigation.ts"),
     },
+    // A pure module may `await import("undici")` or `import("node:dns")` on a
+    // server-only path (lib/models/endpoint-guard.ts); the browser never
+    // reaches it, so those stay outside the bundle instead of failing it.
+    external: ["undici", "node:*"],
     define: { "process.env.NODE_ENV": '"development"' },
     // Shared config modules read process.env at import time; the browser has no
     // `process`, so give the bundle an empty one rather than patch app code.
@@ -81,7 +85,11 @@ export async function renderPreview({ entry, name, queries = [""], outDir }) {
     );
   }
 
-  const browser = await chromium.launch();
+  // A sandbox that ships one Chromium for every Playwright version names it
+  // here; everywhere else Playwright's own download is used.
+  const browser = await chromium.launch({
+    ...(process.env.PREVIEW_CHROMIUM ? { executablePath: process.env.PREVIEW_CHROMIUM } : {}),
+  });
   const problems = [];
   for (const theme of ["dark", "light"]) {
     for (const [vp, width, height] of [

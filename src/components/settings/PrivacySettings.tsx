@@ -393,15 +393,9 @@ function MemoryConsentToggle() {
         aria-label="Build fleet memory from my data"
         onClick={toggle}
         disabled={saving || !data}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-          enabled ? "bg-accent-primary" : "bg-surface-overlay border border-border-subtle"
-        }`}
+        className={enabled ? "ui-switch ui-switch-on" : "ui-switch"}
       >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            enabled ? "translate-x-[22px]" : "translate-x-0.5"
-          }`}
-        />
+        <span className="ui-switch-knob" />
       </button>
     </div>
   );

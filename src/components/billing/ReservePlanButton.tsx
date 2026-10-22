@@ -57,7 +57,7 @@ export function ReservePlanButton({
         <>
           <p className="text-sm font-medium text-text-primary">
             {planName} is reserved for you, since {new Date(reserved.at).toLocaleDateString()}.
-            Nothing is charged; you hear from us when payments open.
+            Nothing is charged; you hear from us the day checkout opens for your account.
           </p>
           <button
             type="button"

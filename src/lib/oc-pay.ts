@@ -13,8 +13,9 @@ import type { Plan } from "@/db/schema/users";
  * existed on OrangeCat. While every paid tier had no price this was invisible;
  * the day prices were set (2026-10-17) every paid plan's button became "Pay in
  * Bitcoin" to an OrangeCat page that answered 404 — skipping the reservation
- * flow it was meant to fall back to. Payments open when the company is
- * registered; that is a decision, so it is a switch, not an inference.
+ * flow it was meant to fall back to. Payments open on the owner's
+ * decision; that is a decision, so it is a switch, not an inference. The copy
+ * around the switch says only that checkout is not open yet, never why.
  */
 export function paymentsOpen(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.LOKI_PAYMENTS_OPEN?.trim() === "1";
