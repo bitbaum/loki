@@ -17,6 +17,7 @@ import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref, withTerminalView } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { cn } from "@/lib/utils";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * One feedback report, everywhere feedback renders.
@@ -403,7 +404,7 @@ function WhereLine({
   if (project)
     parts.push(
       <Link key="p" href={`/projects/${project.id}#feedback`} className="ui-fb-row-project">
-        {project.name}
+        {projectTitle({ name: project.name })}
       </Link>,
     );
   if (pageLabel) parts.push(<span key="pg">{pageLabel}</span>);

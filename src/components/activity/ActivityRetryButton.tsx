@@ -6,6 +6,7 @@ import { postJson } from "@/lib/api/fetch";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import type { StatusTone } from "@/lib/constants/statuses";
 import type { ActivityEvent } from "@/lib/activity-events";
+import { projectTitle } from "@/lib/project-display";
 
 /** The dispatch pipeline caps a custom prompt at 4000 chars (see the zod
  *  schema on /api/inject). Trim here so a long replay fails visibly at the
@@ -133,7 +134,7 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
       onClick={() => void run()}
       disabled={state === "sending" || (state === "sent" && live?.status !== "failed")}
       title={note?.text}
-      aria-label={`${word}: ${event.projectKey}`}
+      aria-label={`${word}: ${projectTitle({ name: event.projectKey })}`}
       className="ui-row-verb"
     >
       {state === "sending" ? (

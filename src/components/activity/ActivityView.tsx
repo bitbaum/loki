@@ -11,7 +11,7 @@ import { ActivityScope } from "./ActivityScope";
 import { ActivityReport } from "./ActivityReport";
 import { NeedsYouCard } from "./NeedsYouCard";
 import { EventStream } from "./EventStream";
-import { RANGE_LABEL, activityHref, type ProjectNames } from "./activity-shared";
+import { RANGE_LABEL, activityHref, titleFor, type ProjectNames } from "./activity-shared";
 
 /**
  * /activity — what the fleet did, as a sentence and a list. Rebuilt to the
@@ -47,7 +47,7 @@ export async function ActivityView({
   // its row opens that project's Watch page.
   const names: ProjectNames = {};
   for (const p of projects) names[p.name] = { title: projectTitle(p), id: p.id };
-  const titleOf = (key: string) => names[key]?.title ?? key;
+  const titleOf = (key: string) => titleFor(names, key);
 
   const summary = summarizeActivity(digest.events);
   const momentum = computeMomentum(digest.events.length, digest.previousCount);

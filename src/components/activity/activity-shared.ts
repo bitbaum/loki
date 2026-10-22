@@ -2,6 +2,7 @@ import { APP_LOCALE, DEFAULT_TIMEZONE } from "@/lib/constants";
 import type { DigestWindow } from "@/db/queries/digests";
 import type { ActivityFilter } from "@/lib/activity-events";
 import type { StatusTone } from "@/lib/constants/statuses";
+import { projectTitle } from "@/lib/project-display";
 
 // Density used to be a page-wide compact/detailed switch. It is gone: each row
 // now expands on its own, so "show me more of THIS one" no longer means
@@ -20,6 +21,12 @@ export const RANGE_LABEL: Record<DigestWindow, string> = {
 /** Each project key → what a person calls it (projectTitle) and the id its
  *  Watch page lives at. Built once by the page from the person's projects. */
 export type ProjectNames = Record<string, { title: string; id: string }>;
+
+/** A project key as a person says it: its own title, else projectTitle's
+ *  reading of the key ("aoz-housing" → "Aoz housing") — never the bare key. */
+export function titleFor(names: ProjectNames, key: string): string {
+  return names[key]?.title ?? projectTitle({ name: key });
+}
 
 /** The time menu's choices. */
 export const WINDOW_CHOICE_LABEL: Record<DigestWindow, string> = {

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { timeAgo } from "@/lib/dates";
 import type { ReadCoverage } from "@/lib/packages/load";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * How much of the picture the page is showing: how many repositories were
@@ -56,7 +57,7 @@ export function ReadCoverageNote({
                   href={f.href}
                   className="font-medium text-text-secondary hover:text-text-primary"
                 >
-                  {f.projectName}
+                  {projectTitle({ name: f.projectName })}
                 </Link>
                 <span>{f.detail}</span>
               </li>

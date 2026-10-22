@@ -9,6 +9,7 @@ import type { CronJob } from "@/lib/crons-shared";
 import { humanCronSchedule, SCHEDULED_JOBS_LABEL } from "@/lib/crons-shared";
 import { patchCronJob } from "@/lib/api/crons";
 import { JobDetail } from "./JobDetail";
+import { projectTitle } from "@/lib/project-display";
 
 function StatusDot({ status, errors }: { status?: string; errors?: number }) {
   if (!status || status === "never")
@@ -129,7 +130,10 @@ export function ScheduledJobsCard({ initialJobs }: { initialJobs: CronJob[] }) {
       if (existing) {
         existing.jobs.push(job);
       } else {
-        projectGroups.set(job.projectId, { name: job.projectName, jobs: [job] });
+        projectGroups.set(job.projectId, {
+          name: projectTitle({ name: job.projectName }),
+          jobs: [job],
+        });
       }
     } else {
       globalJobs.push(job);

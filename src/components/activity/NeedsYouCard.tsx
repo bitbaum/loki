@@ -3,7 +3,7 @@ import type { DigestWindow } from "@/db/queries/digests";
 import { Section } from "@/components/ui/section-heading";
 import { List, ListRow } from "@/components/ui/list-row";
 import { ActivityRetryButton } from "./ActivityRetryButton";
-import { activityHref, type ProjectNames } from "./activity-shared";
+import { activityHref, titleFor, type ProjectNames } from "./activity-shared";
 import { NEEDS_YOU_LABELS } from "@/lib/needs-you";
 import { groupFailuresByCause } from "@/lib/activity-grouping";
 import { plainFailure, watchHref } from "./activity-words";
@@ -35,7 +35,7 @@ export function NeedsYouCard({
   // One row per CAUSE: four projects failing with one sentence is one row.
   const groups = groupFailuresByCause(events);
   const shown = groups.slice(0, MAX_SHOWN);
-  const titleOf = (key: string) => names[key]?.title ?? key;
+  const titleOf = (key: string) => titleFor(names, key);
 
   return (
     <Section

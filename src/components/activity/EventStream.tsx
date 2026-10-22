@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { List, ListRow } from "@/components/ui/list-row";
 import { projectTally, splitBareDispatches } from "@/lib/activity-grouping";
 import { ActivityShowMenu } from "./ActivityScope";
-import { formatClockTime, formatDayHeading, type ProjectNames } from "./activity-shared";
+import { formatClockTime, formatDayHeading, titleFor, type ProjectNames } from "./activity-shared";
 import { eventLine, watchHref } from "./activity-words";
 
 const SHOW_LABEL: Record<ActivityFilter, string> = {
@@ -45,7 +45,7 @@ export function EventStream({
   const tallies = tallyActivityEvents(events);
   const visible = filterActivityEvents(events, filter);
   const groups = groupEventsByDay(visible);
-  const titleOf = (key: string) => names[key]?.title ?? key;
+  const titleOf = (key: string) => titleFor(names, key);
   const count: Record<ActivityFilter, number> = {
     all: tallies.total,
     attention: tallies.attention,
