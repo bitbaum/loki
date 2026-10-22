@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Bitcoin, Check } from "lucide-react";
+import { SettingsSectionHeader } from "./SettingsSectionHeader";
 import { PRICING_BILLING_NOTE, PRICING_CURRENCY, PRICING_PLANS } from "@/config/plans";
 import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 import { passDaysLeft } from "@/lib/plan-pass";
@@ -67,26 +68,29 @@ export function BillingSettings({
 
   return (
     <section className="ui-settings-section">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-medium text-text-primary">Your plan</h2>
-          <p className="text-sm text-text-tertiary">
-            <span className="font-medium text-text-secondary">{PLAN_LABEL[plan]}</span>
+      <SettingsSectionHeader
+        title="Your plan"
+        lede={
+          <>
+            <span className="font-medium text-text-primary">{PLAN_LABEL[plan]}</span>
             {planStatus === "past_due" && (
-              <span className="ml-2 text-xs text-status-warning">· payment past due</span>
+              <span className="text-status-warning"> · payment past due</span>
             )}
             {expiry && daysLeft !== null && (
-              <span className="ml-2 text-xs text-text-tertiary">
-                · {daysLeft > 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : "ended"},
-                until {expiry.toLocaleDateString()}
-              </span>
+              <>
+                {" · "}
+                {daysLeft > 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : "ended"}, until{" "}
+                {expiry.toLocaleDateString()}
+              </>
             )}
-          </p>
-        </div>
-        <Link href="/pricing" className="ui-btn-secondary shrink-0 text-sm">
-          See plans
-        </Link>
-      </div>
+          </>
+        }
+        action={
+          <Link href="/pricing" className="ui-btn-secondary min-h-9 shrink-0 text-sm">
+            See plans
+          </Link>
+        }
+      />
 
       {/* Two ways past the free tier, side by side, because they answer
           different wants: a stronger model (your key) or more room (a pass). */}
@@ -107,9 +111,9 @@ export function BillingSettings({
         <div className="rounded-lg border border-border-subtle p-3">
           <p className="text-sm font-medium text-text-primary">Want more room?</p>
           <p className="mt-1 text-xs text-text-secondary">
-            A pass lifts the project limit and adds a monthly allowance of Loki answers, a month at
-            a time. Paid in Bitcoin on OrangeCat; it lands here when the payment settles, and
-            nothing renews by itself.
+            A plan lifts the project limit and adds a monthly allowance of Loki answers with no
+            daily wait, a month at a time. Paid in Bitcoin on OrangeCat; it lands here when the
+            payment settles, and nothing renews by itself.
           </p>
           {buyable.length > 0 ? (
             <ul className="mt-2 flex flex-wrap gap-2">
@@ -122,7 +126,9 @@ export function BillingSettings({
                     rel="noopener noreferrer"
                   >
                     <Bitcoin className="h-3.5 w-3.5" aria-hidden="true" />
-                    {plan === p.key && daysLeft !== null && daysLeft > 0 ? "Extend" : "Buy"}{" "}
+                    {plan === p.key && daysLeft !== null && daysLeft > 0
+                      ? "Extend"
+                      : "Subscribe to"}{" "}
                     {p.name} · {PRICING_CURRENCY} {p.priceMonthly}
                   </a>
                 </li>
@@ -132,8 +138,8 @@ export function BillingSettings({
             <>
               <p className="mt-2 text-xs text-text-muted">
                 {reservedPlan
-                  ? `You reserved ${PLAN_LABEL[reservedPlan]}. Payments open once Loki's company is registered — nothing is charged until then.`
-                  : "Payments open once Loki's company is registered. Reserve a plan now — nothing is charged."}
+                  ? `You reserved ${PLAN_LABEL[reservedPlan]}. Your place is kept and nothing is charged until checkout opens for your account — you hear from us the day it does.`
+                  : "Reserve a plan today: your place is kept and nothing is charged until checkout opens for your account."}
               </p>
               <ul className="mt-2 flex flex-wrap gap-2">
                 {priced.map((p) => (

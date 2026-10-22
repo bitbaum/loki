@@ -1,13 +1,15 @@
 "use client";
 
-import { Hammer } from "lucide-react";
-
 /**
- * "Also for building": one key, one switch. On, the key reaches the person's
- * private builder on Loki's cloud as the agent CLI's own variable and their
- * builds run on it; off, it powers Loki's chat only. The sentence under it
- * says which CLI and what it costs them, so nobody marks a key for building
- * without knowing whose meter it runs on.
+ * "Also for building": one key, one switch, as a row. On, the key reaches the
+ * person's private builder on Loki's cloud as the agent CLI's own variable
+ * and their builds run on it; off, it powers Loki's chat only. The line under
+ * the label says which CLI and whose meter it runs on, so nobody marks a key
+ * for building without knowing who pays.
+ *
+ * It was a chip with its explanation squeezed into the column beside it,
+ * wrapping four words to a line on a phone (2026-10-21). An on/off setting is
+ * a row: the words on the left, the switch on the right, like every other.
  */
 export function BuildEngineToggle({
   agent,
@@ -21,23 +23,26 @@ export function BuildEngineToggle({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <div className="mt-2 flex items-start gap-3 text-xs">
+    <div className="ui-switch-row mt-2">
+      <div className="min-w-0">
+        <p className="text-sm text-text-primary">Also for building</p>
+        <p className="text-xs text-text-secondary">
+          {on
+            ? `${agent} in your cloud builder runs on this key — your vendor bills every build. Reaches the builder within a minute.`
+            : `Lets ${agent} in your cloud builder run on this key instead of a sign-in. Your vendor bills the builds.`}
+        </p>
+      </div>
       <button
         type="button"
         role="switch"
         aria-checked={on}
-        className={on ? "ui-chip-toggle ui-chip-toggle-active shrink-0" : "ui-chip-toggle shrink-0"}
+        aria-label={`Also for building with ${agent}`}
+        className={on ? "ui-switch ui-switch-on" : "ui-switch"}
         disabled={busy}
         onClick={() => onChange(!on)}
       >
-        <Hammer className="h-3.5 w-3.5" aria-hidden="true" />
-        {on ? `Builds with ${agent}` : `Also for building`}
+        <span className="ui-switch-knob" />
       </button>
-      <span className="min-w-0 flex-1 text-text-secondary">
-        {on
-          ? `${agent} in your cloud builder runs on this key — your vendor bills every build. Reaches the builder within a minute.`
-          : `Lets ${agent} in your cloud builder run on this key instead of a sign-in. Your vendor bills the builds.`}
-      </span>
     </div>
   );
 }

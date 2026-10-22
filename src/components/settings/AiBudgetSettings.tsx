@@ -1,82 +1,78 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ExternalLink, Gauge, KeyRound, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, ExternalLink, Gauge, KeyRound, Loader2, Ticket } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
-import type { BudgetAction, BudgetView, FreePoolBudget, OwnKeyBudget } from "@/lib/ai/budget-view";
-import { ownModelRequest } from "@/lib/own-model-client";
+import type { BudgetView, FreePoolBudget, OwnKeyBudget } from "@/lib/ai/budget-view";
 import { describeChatModel } from "@/lib/loki/models";
 import { MODEL_STORE_PATH } from "@/lib/own-model-path";
+import { SettingsRefresh, SettingsSectionHeader } from "./SettingsSectionHeader";
 
 /**
- * "Your AI budget today" — what this person can still ask, on every source
- * Loki can answer from, before they are refused.
+ * "What you have left" — every source Loki can answer from, what is left on
+ * each, and the two ways to add more.
  *
- * The card below it ("The free pool") is the operator's: vendor counters for
- * the whole box. This one is the person's: their share of that pool and how
- * much of it has unlocked so far, what their own keys spent, and what each
- * free model's vendor last said. It reads the same view the gate refuses on
- * (`/api/ai/budget`), so the number here and the refusal in the chat can
- * never disagree.
+ * One list, one row anatomy: the source's name, the sentence that says what
+ * is left, the line of what it has cost, the line of what to do about it.
+ * The person's own keys come first (they answer first), a paid plan next,
+ * the shared free pool last — the same order Loki draws on them. The number
+ * is always answers, never a percentage; a bar only where there is a ceiling
+ * to draw against.
  *
- * Built to the same rule as the capacity card: no bare percentage. The big
- * number is answers, the bar is the share, and every source ends in what to
- * do about it.
+ * It reads the same view the gate refuses on (`/api/ai/budget`), so the
+ * number here and a refusal in the chat can never disagree. Every number
+ * states its basis: a measured per-answer cost says "your own", a starting
+ * estimate says so, and a vendor that has not reported is "not yet", never
+ * "full".
+ *
+ * Under the list, the two ways to add more brain are equal cells: another
+ * provider, or a plan. They are always there, not only when something has
+ * run out — the owner's rule (2026-10-21): it should always be easy to add
+ * more.
  */
 export function AiBudgetSettings() {
   const { data, loading, error, refetch } = useFetch<BudgetView>("/api/ai/budget");
 
   return (
-    <section className="ui-settings-section" id="budget">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 basis-56">
-          <h2 className="font-medium text-text-primary">Your AI budget today</h2>
-          <p className="-mt-1 text-sm text-text-secondary">
-            What you can still ask, on every source Loki answers from. Only chat on the free pool
-            draws on your share; your own keys never do.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={refetch}
-          className="ui-btn-ghost min-h-8 shrink-0 gap-1.5 px-2 text-xs"
-          disabled={loading}
-        >
-          <RefreshCw
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          />
-          Refresh
-        </button>
-      </div>
+    <section className="ui-settings-section" id="budget" aria-labelledby="budget-title">
+      <SettingsSectionHeader
+        id="budget-title"
+        title="What you have left"
+        lede="Every source Loki answers from, and what is left on each. Your own keys and a plan have no daily limit; only the shared free pool is counted per day."
+        action={<SettingsRefresh loading={loading} onClick={refetch} />}
+      />
 
       {loading && !data && (
         <p className="flex items-center gap-2 text-sm text-text-muted" role="status">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Reading your budget
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Reading your sources
         </p>
       )}
 
       {/* What failed AND what it does not mean: "could not look" is not "nothing left". */}
       {error && !data && (
         <p className="ui-error text-sm">
-          Could not read your budget just now — this says nothing about what is left.
+          Could not read your sources just now — this says nothing about what is left.
         </p>
       )}
 
       {data && (
         <>
-          {data.plan && <p className="text-sm text-text-primary">{data.plan.line}</p>}
-          {data.ownKeys.map((k) => (
-            <OwnKeySource key={`${k.vendor}/${k.model}`} source={k} />
-          ))}
-          <FreePoolSource
-            pool={data.freePool}
-            models={data.models}
-            ownKeys={data.ownKeys}
-            meaning={data.meaning}
-          />
-          <Actions actions={data.meaning.actions} onChanged={refetch} />
+          <ul className="space-y-3" aria-label="Sources Loki answers from">
+            {data.ownKeys.map((k) => (
+              <li key={`${k.vendor}/${k.model}`}>
+                <OwnKeySource source={k} />
+              </li>
+            ))}
+            {data.plan && (
+              <li>
+                <PlanSource plan={data.plan} />
+              </li>
+            )}
+            <li>
+              <FreePoolSource pool={data.freePool} models={data.models} meaning={data.meaning} />
+            </li>
+          </ul>
+          <AddMore onPlan={data.plan !== null} />
           <WhatThisMeans explain={data.meaning.explain} />
         </>
       )}
@@ -85,59 +81,31 @@ export function AiBudgetSettings() {
 }
 
 /**
- * The levers, as buttons. A number without a way to act on it is decoration;
- * these are the ways. "Let Auto spend less" is performed here (one PUT, the
- * same one Settings → AI's routing panel makes); the rest are places to go.
+ * The two ways to add more, as equal cells. Both say where they go: the
+ * store, where providers are compared and a key is added in one paste; or
+ * the plans, where a monthly allowance is bought.
  */
-function Actions({ actions, onChanged }: { actions: BudgetAction[]; onChanged: () => void }) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  if (actions.length === 0) return null;
-
-  async function thrifty() {
-    setBusy("thrifty");
-    setError(null);
-    try {
-      await ownModelRequest("/api/settings/model/routing", "PUT", { stance: "thrifty" });
-      onChanged();
-    } catch {
-      setError("Couldn't change how Auto spends — try it from the routing panel below.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
+function AddMore({ onPlan }: { onPlan: boolean }) {
   return (
-    <div className="space-y-2">
-      {actions.map((a) => (
-        <div key={a.id} className="ui-budget-action">
-          {a.href ? (
-            <Link href={a.href} className="ui-btn-secondary min-h-9 shrink-0 px-3 text-xs">
-              {a.label} →
-            </Link>
-          ) : a.id === "thrifty" ? (
-            <button
-              type="button"
-              onClick={thrifty}
-              disabled={busy !== null}
-              className="ui-btn-secondary min-h-9 shrink-0 px-3 text-xs"
-            >
-              {busy === "thrifty" && <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden />}
-              {a.label}
-            </button>
-          ) : (
-            <span className="ui-badge shrink-0">{a.label}</span>
-          )}
-          <span className="ui-quota-consequence">{a.why}</span>
-        </div>
-      ))}
-      {error && <p className="ui-error text-xs">{error}</p>}
+    <div className="grid grid-cols-2 gap-2">
+      <Link href={MODEL_STORE_PATH} className="ui-btn-secondary min-h-11 w-full">
+        Add a provider
+      </Link>
+      {onPlan ? (
+        <a href="#billing" className="ui-btn-secondary min-h-11 w-full">
+          Manage plan
+        </a>
+      ) : (
+        <Link href="/pricing" className="ui-btn-secondary min-h-11 w-full">
+          Upgrade plan
+        </Link>
+      )}
     </div>
   );
 }
 
 /**
- * Each number in plain words, one tap away. The meters above answer "how
+ * Each number in plain words, one tap away. The rows above answer "how
  * much"; this answers "of what, and why does it move" — the question a
  * person has the first time they see a share that was 40 answers yesterday
  * and is 12 today.
@@ -161,15 +129,79 @@ function WhatThisMeans({ explain }: { explain: BudgetView["meaning"]["explain"] 
   );
 }
 
+function OwnKeySource({ source }: { source: OwnKeyBudget }) {
+  return (
+    <div className={`ui-budget-source ${source.left?.spent ? "ui-budget-source-spent" : ""}`}>
+      <div className="ui-quota-row-head">
+        <KeyRound className="h-4 w-4 shrink-0 text-accent-text" aria-hidden="true" />
+        <span className="ui-quota-provider">{source.label}</span>
+        <span className="ui-quota-model">{source.model}</span>
+        <span className="ui-quota-state">no limit from Loki</span>
+      </div>
+      {/* Three states, never two: the vendor said what is left, the vendor
+          said it is refusing, or the vendor has not said — which is not "full". */}
+      <p className={source.left?.spent ? "ui-error text-sm" : "ui-budget-left"}>
+        {source.left
+          ? source.left.line
+          : `${source.label} has not reported what is left on your account yet — it shows here as soon as the vendor says so with an answer.`}
+      </p>
+      <p className="ui-quota-detail">{source.line}</p>
+      <p className="ui-quota-consequence">
+        {source.consequence}
+        {source.billingUrl && (
+          <>
+            {" "}
+            <a
+              href={source.billingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-accent-text underline-offset-2 hover:underline"
+            >
+              Billing at {source.label}
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </a>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function PlanSource({ plan }: { plan: NonNullable<BudgetView["plan"]> }) {
+  const spent = plan.answersLeft === 0;
+  return (
+    <div className={`ui-budget-source ${spent ? "ui-budget-source-low" : ""}`}>
+      <div className="ui-quota-row-head">
+        <Ticket className="h-4 w-4 shrink-0 text-accent-text" aria-hidden="true" />
+        <span className="ui-quota-provider">{plan.name} plan</span>
+        <span className="ui-quota-state">
+          {spent ? "used for this month" : `${plan.answersLeft.toLocaleString("en-US")} this month`}
+        </span>
+      </div>
+      {/* The bar is the allowance used, so a glance reads the same on the 2nd and the 28th. */}
+      <div className="ui-quota-track" role="presentation">
+        <span
+          className="ui-quota-fill"
+          style={{
+            width: `${Math.round((1 - plan.answersLeft / Math.max(1, plan.answersMonthly)) * 100)}%`,
+          }}
+        />
+      </div>
+      <p className="ui-budget-left">{plan.line}</p>
+      <p className="ui-quota-consequence">
+        Counted only when the free share is spent, with no daily wait. Starts over on the 1st.
+      </p>
+    </div>
+  );
+}
+
 function FreePoolSource({
   pool,
   models,
-  ownKeys,
   meaning,
 }: {
   pool: FreePoolBudget;
   models: BudgetView["models"];
-  ownKeys: OwnKeyBudget[];
   meaning: BudgetView["meaning"];
 }) {
   const tone =
@@ -179,6 +211,7 @@ function FreePoolSource({
         ? "ui-budget-source-low"
         : "";
   const noteFor = new Map(models.map((m) => [m.id, m.note]));
+  const counted = pool.state === "ok" || pool.state === "paced";
 
   return (
     <div className={`ui-budget-source ${tone}`}>
@@ -188,60 +221,76 @@ function FreePoolSource({
         <span className="ui-quota-state">{poolStateLabel(pool)}</span>
       </div>
 
+      {/* The number is said ONCE: the hero while answers are being counted,
+          the sentence when the news is that there are none. Both at once
+          said "134 … 267" twice on one card (2026-10-21). */}
+      {counted ? (
+        <div className="ui-budget-hero">
+          <span className="ui-budget-number">
+            {pool.state === "paced"
+              ? pool.answersToday.toLocaleString("en-US")
+              : `~${pool.answersNow.toLocaleString("en-US")}`}
+          </span>
+          <span className="ui-budget-unit">
+            {pool.state === "paced" ? (
+              <>
+                free answer{pool.answersToday === 1 ? "" : "s"} today · the next one{" "}
+                {pool.nextAt ?? "soon"}
+              </>
+            ) : (
+              <>
+                free answer{pool.answersNow === 1 ? "" : "s"} now
+                {pool.answersToday !== pool.answersNow && (
+                  <> · {pool.answersToday.toLocaleString("en-US")} by the end of the day</>
+                )}
+                {" · full again "}
+                {pool.fullAgainAt}
+              </>
+            )}
+          </span>
+        </div>
+      ) : (
+        <p className="ui-budget-left">{pool.line}</p>
+      )}
+
       {pool.state !== "none" && (
         <>
-          <div className="ui-budget-hero">
-            <span className="ui-budget-number">~{pool.answersNow.toLocaleString("en-US")}</span>
-            <span className="ui-budget-unit">
-              answer{pool.answersNow === 1 ? "" : "s"} now
-              {pool.answersToday !== pool.answersNow && (
-                <> · {pool.answersToday.toLocaleString("en-US")} by the end of the day</>
-              )}
-            </span>
-          </div>
           {/* The bar is the SHARE, used: the one quantity that only moves one way
               through a day, so a glance reads the same at 09:00 and 21:00. */}
           <div className="ui-quota-track" role="presentation">
             <span
-              className={pool.state === "spent" ? "ui-quota-fill-spent" : "ui-quota-fill"}
+              className={
+                pool.state === "spent" || pool.state === "pool-spent"
+                  ? "ui-quota-fill-spent"
+                  : "ui-quota-fill"
+              }
               style={{ width: `${Math.round(pool.usedLevel * 100)}%` }}
             />
           </div>
+          {/* Every number names its basis. The per-answer cost is this person's
+              own mean once there is one, and a starting estimate — said to be
+              one — before that. */}
           <p className="ui-quota-detail">
             {pool.spentTokens.toLocaleString("en-US")} of ~
-            {pool.shareTokens.toLocaleString("en-US")} tokens used ·{" "}
-            {pool.activeUsers === 1 ? "only you" : `${pool.activeUsers} people`} drawing today ·
-            counted at {pool.measured ? "your own" : "about"}{" "}
-            {pool.tokensPerAnswer.toLocaleString("en-US")} tokens an answer
+            {pool.shareTokens.toLocaleString("en-US")} tokens of your share used ·{" "}
+            {pool.activeUsers === 1 ? "only you" : `${pool.activeUsers} people`} drawing today ·{" "}
+            {pool.measured
+              ? `counted at your own ${pool.tokensPerAnswer.toLocaleString("en-US")} tokens an answer`
+              : `counted at a starting estimate of ${pool.tokensPerAnswer.toLocaleString("en-US")} tokens an answer until Loki has measured yours`}
           </p>
-          {/* The forecast and the week: what the meter is NOT saying. "57%
-              used" is true at 09:00 and at 21:00 and means opposite things;
-              the pace line is the difference. */}
           {meaning.pace && <p className="ui-quota-detail">{meaning.pace}</p>}
           {meaning.week && <p className="ui-quota-detail">{meaning.week.line}</p>}
         </>
       )}
 
-      <p className="text-sm text-text-primary">{pool.line}</p>
-      <p className="ui-quota-consequence">
-        {pool.consequence}
-        {ownKeys.length === 0 && pool.state !== "none" && (
-          <>
-            {" "}
-            <Link
-              href={MODEL_STORE_PATH}
-              className="text-accent-text underline-offset-2 hover:underline"
-            >
-              Bring one →
-            </Link>
-          </>
-        )}
-      </p>
+      <p className="ui-quota-consequence">{pool.consequence}</p>
 
       {pool.models.length > 0 && (
         <details className="ui-disclosure">
           <summary className="ui-disclosure-summary">
-            Models in the free pool · {pool.models.length}
+            <ChevronDown className="ui-disclosure-chevron" aria-hidden="true" />
+            <span>Models in the free pool</span>
+            <span className="text-micro text-text-muted">{pool.models.length}</span>
           </summary>
           <ul className="ui-disclosure-body space-y-1" aria-label="Models in the free pool">
             {pool.models.map((id) => {
@@ -276,40 +325,4 @@ function poolStateLabel(pool: FreePoolBudget): string {
     case "none":
       return "not on this server";
   }
-}
-
-function OwnKeySource({ source }: { source: OwnKeyBudget }) {
-  return (
-    <div className="ui-budget-source">
-      <div className="ui-quota-row-head">
-        <KeyRound className="h-4 w-4 shrink-0 text-accent-text" aria-hidden="true" />
-        <span className="ui-quota-provider">{source.label}</span>
-        <span className="ui-quota-model">{source.model}</span>
-        <span className="ui-quota-state">no cap from Loki</span>
-      </div>
-      {source.left && (
-        <p className={source.left.spent ? "ui-error text-sm" : "text-sm text-text-primary"}>
-          {source.left.line}
-        </p>
-      )}
-      <p className="text-sm text-text-secondary">{source.line}</p>
-      <p className="ui-quota-consequence">
-        {source.consequence}
-        {source.billingUrl && (
-          <>
-            {" "}
-            <a
-              href={source.billingUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-accent-text underline-offset-2 hover:underline"
-            >
-              Billing at {source.label}
-              <ExternalLink className="h-3 w-3" aria-hidden="true" />
-            </a>
-          </>
-        )}
-      </p>
-    </div>
-  );
 }

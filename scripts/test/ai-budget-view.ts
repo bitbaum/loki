@@ -258,7 +258,7 @@ check("own keys: their own line, no Loki cap, and the pool becomes the fallback"
           label: "Anthropic",
           model: "claude-sonnet-5",
           billingUrl: "https://console.anthropic.com/settings/billing",
-          limit: "spend limit",
+          limit: "a spend limit",
           usage: { tokensToday: 3_200, callsToday: 4, tokens30d: 48_000, calls30d: 51 },
         },
         {
@@ -278,7 +278,7 @@ check("own keys: their own line, no Loki cap, and the pool becomes the fallback"
     a!.line,
   );
   assert(
-    /No cap from Loki — Anthropic bills you directly — set a spend limit there/.test(
+    /No limit from Loki — Anthropic bills you directly — set a spend limit there/.test(
       a!.consequence,
     ),
     a!.consequence,

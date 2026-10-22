@@ -101,6 +101,8 @@ export type RoutingView = {
     tier: ModelTier;
   }>;
   keys: Array<{ vendor: VendorId; model: string; label: string | null }>;
+  /** When the catalogue the prices and index come from was last read; null when it never was. */
+  catalogReadAt: number | null;
 };
 
 /** Everything the settings block and the store strip show. */
@@ -133,6 +135,7 @@ export async function routingFor(userId: string): Promise<RoutingView> {
       .sort((a, b) => (b.index ?? -1) - (a.index ?? -1) || a.name.localeCompare(b.name))
       .slice(0, 120),
     keys: keys.map((k) => ({ vendor: k.vendor, model: k.model, label: k.label })),
+    catalogReadAt: catalog?.fetchedAt ?? null,
   };
 }
 
