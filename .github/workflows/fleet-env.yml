@@ -1,0 +1,53 @@
+name: Fleet env
+
+# /opt/fleet/env: the fleet's shared keys (AI vendors, web search, the shared
+# mail account), held ONCE on the box and read by every app before its own
+# .env (scripts/hetzner/fleet-env.sh, launch.sh.tmpl). "seed" fills keys the
+# file lacks with the value the apps already share and never overwrites one;
+# "show" lists each key as set or not with an 8-character fingerprint. No
+# value is ever printed. Rotating a key is one edit to /opt/fleet/env.
+#
+# Manual on purpose: it writes to the box.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "seed or show"
+        required: true
+        default: show
+        type: choice
+        options: [show, seed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  fleet-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: ${{ inputs.action }}
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          set -euo pipefail
+          BOX="ubuntu@$HETZNER_IP"
+          SSH="ssh -o BatchMode=yes -i $HOME/.ssh/id_deploy"
+          $SSH "$BOX" 'sudo install -d -m 0755 /opt/fleet && sudo install -d -m 0755 -o ubuntu -g ubuntu /opt/fleet/bin'
+          scp -q -o BatchMode=yes -i ~/.ssh/id_deploy scripts/hetzner/fleet-env.sh scripts/hetzner/fleet-keys.conf "$BOX:/opt/fleet/bin/"
+          $SSH "$BOX" "test -f /opt/fleet/env || { sudo install -m 600 -o ubuntu -g ubuntu /dev/null /opt/fleet/env; }; bash /opt/fleet/bin/fleet-env.sh $ACTION"

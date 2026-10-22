@@ -30,7 +30,7 @@
 #
 # Overridable for tests (see test-api-key-check.sh):
 #   MON        alert state/config dir   (default /opt/monitoring)
-#   ENV_FILES  env files to read        (default /opt/*/shared/.env /opt/*/app/.env)
+#   ENV_FILES  env files to read        (default /opt/fleet/env /opt/*/shared/.env /opt/*/app/.env)
 #   CURL       curl binary              (default curl)
 set -uo pipefail   # NOT -e: one unreadable file or vendor must never abort the sweep
 
@@ -51,9 +51,10 @@ GEMINI_API_KEY|gemini|https://generativelanguage.googleapis.com/v1beta/models|go
 TOGETHER_API_KEY|together|https://api.together.xyz/v1/models|bearer'
 
 # shellcheck disable=SC2206
-files=(${ENV_FILES:-/opt/*/shared/.env /opt/*/app/.env})
+files=(${ENV_FILES:-/opt/fleet/env /opt/*/shared/.env /opt/*/app/.env})
 
-app_of() {  # /opt/<app>/shared/.env | /opt/<app>/app/.env → <app>
+app_of() {  # /opt/<app>/shared/.env | /opt/<app>/app/.env → <app>; /opt/fleet/env → fleet
+  case "$1" in */fleet/env) echo fleet; return ;; esac
   local d; d="$(dirname "$1")"; d="$(dirname "$d")"; basename "$d"
 }
 
