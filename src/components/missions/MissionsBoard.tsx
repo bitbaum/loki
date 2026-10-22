@@ -189,7 +189,7 @@ export function MissionsBoard({ missions }: { missions: readonly MissionBoardIte
                 className="ui-search-input"
               />
             </div>
-            <div role="group" aria-label="Filter missions" className="ui-filter-chip-row">
+            <div role="group" aria-label="Filter missions" className="ui-filter-chip-row ui-scroll-fade-right">
               {FILTERS.map((item) => (
                 <button
                   key={item.id}
