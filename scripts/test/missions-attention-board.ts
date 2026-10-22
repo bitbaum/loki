@@ -150,10 +150,11 @@ assert.match(page, /requirePageUserId\(\)/);
 assert.match(page, /getProjects\(userId\)/);
 assert.match(page, /getGoals\(userId\)/);
 assert.match(page, /missionAlertFromProject\(project\)/);
-assert.match(view, /type="search"/);
-assert.match(view, /aria-pressed={filter === item.id}/);
-assert.match(view, /min-h-11/);
-assert.match(view, /lastDispatchAt\.slice\(0, 10\)/);
+// The board is rows (design reset): a search row, a Show menu, one row per
+// project — and progress stays "reported", never verified.
+assert.match(view, /<ListSearch/);
+assert.match(view, /<ChoiceMenu/);
+assert.match(view, /goals reported done/);
 assert.doesNotMatch(view, /getProjects\(/);
 assert.doesNotMatch(page + view, /export async function (POST|PATCH|PUT|DELETE)\(/);
 

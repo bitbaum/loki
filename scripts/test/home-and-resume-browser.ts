@@ -111,7 +111,7 @@ async function main() {
     await chip.waitFor();
     assert.equal(
       await chip.getAttribute("aria-label"),
-      "Project: loki. Change the project",
+      "Project: Loki. Change the project",
       "the box starts in the project you were last in",
     );
     await chip.click();

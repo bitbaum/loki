@@ -126,7 +126,7 @@ export function RunnerStatusBanner({
       <List aria-label="Builder">
         <ListRow
           icon={Radio}
-          title={EXECUTOR_COPY.runnerBanner.neverSeenTitle}
+          title={EXECUTOR_COPY.runnerBanner.neverSeenRowTitle}
           secondary={EXECUTOR_COPY.runnerBanner.neverSeenDetail}
           onClick={() => setExpanded(true)}
           chevron

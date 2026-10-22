@@ -71,7 +71,7 @@ export type BuildStatus =
    *  stopped before finishing — the same reading Feedback and Watch give. */
   | { kind: "needs_you"; sinceMs: number; question: string }
   /** Dispatched, never observed running, and past the grace window. */
-  | { kind: "stalled"; sinceMs: number }
+  | { kind: "stalled"; sinceMs: number; delivered?: boolean }
   /** Nothing running. `last` is the most recent finished run, if any. */
   | { kind: "idle"; last: LastAttempt | null };
 
@@ -119,6 +119,7 @@ export function deriveBuildStatus(input: {
       blockedQuestion?: unknown;
       lastProgressAt?: unknown;
       lastStep?: { text?: unknown } | null;
+      deliveredAt?: unknown;
     };
     const q = typeof p.blockedQuestion === "string" ? p.blockedQuestion.trim() : "";
     if (p.blocked === "permission")
@@ -143,9 +144,13 @@ export function deriveBuildStatus(input: {
       const step = typeof p.lastStep?.text === "string" ? p.lastStep.text : null;
       return { kind: "building", sinceMs, label: step };
     }
+    // A request that reached an agent which then went silent is not one
+    // "nobody picked up": Watch said the agent went quiet while this page
+    // said nobody came, for the same run (2026-10-22).
+    const delivered = typeof p.deliveredAt === "string";
     return nowMs - sinceMs < BUILD_QUEUED_GRACE_MS
       ? { kind: "queued", sinceMs }
-      : { kind: "stalled", sinceMs };
+      : { kind: "stalled", sinceMs, ...(delivered ? { delivered: true } : {}) };
   }
 
   const finished = runs

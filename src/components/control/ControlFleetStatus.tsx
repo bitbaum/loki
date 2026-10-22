@@ -1,5 +1,6 @@
 "use client";
 
+import { projectTitle } from "@/lib/project-display";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { activityHref } from "@/components/activity/activity-shared";
@@ -257,7 +258,7 @@ export function ControlFleetStatus({
   // and their own destination rather than being folded into a count of
   // projects they are not.
   const needsYou = attentionProjects.length;
-  const attentionNames = attentionProjects.slice(0, 3).map((p) => p.name);
+  const attentionNames = attentionProjects.slice(0, 3).map((p) => projectTitle({ name: p.name }));
   const headline = !countsKnown
     ? { dot: "ui-dot-neutral", text: "Checking projects…", sub: null as string | null }
     : needsYou > 0
@@ -377,7 +378,7 @@ export function ControlFleetStatus({
           onClick={() => onFocusProject(topAttention.tab)}
           className="ui-hero-action ui-btn-primary"
         >
-          Open {topAttention.name}
+          Open {projectTitle({ name: topAttention.name })}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : failedCount > 0 ? (

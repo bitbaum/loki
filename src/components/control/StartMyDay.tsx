@@ -8,6 +8,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { postJson, throwApiError } from "@/lib/api/fetch";
 import { NAV } from "@/config/navigation";
 import { trackUsage } from "@/lib/usage/track";
+import { projectTitle } from "@/lib/project-display";
 import type { DayPlan } from "@/lib/start-my-day/rank";
 import type { FleetKickResult } from "@/lib/fleet-kick";
 
@@ -293,7 +294,7 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
                         />
                         <span className="flex min-w-0 flex-col">
                           <span className="text-sm font-medium text-text-primary break-words">
-                            {p.name}
+                            {projectTitle({ name: p.name })}
                           </span>
                           <span className="text-xs text-text-muted">{p.why}</span>
                           {p.unavailable && !submitted && (
@@ -359,7 +360,7 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
               {lastStarted.map((p) => (
                 <li key={p.id}>
                   <Link href={p.href} className="ui-link-muted inline-flex ui-tap">
-                    {p.name} →
+                    {projectTitle({ name: p.name })} →
                   </Link>
                 </li>
               ))}

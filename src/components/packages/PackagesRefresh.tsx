@@ -74,12 +74,10 @@ export function PackagesRefresh({
         >
           {state === "reading" ? "Reading…" : state === "error" ? "Try again" : label}
         </button>
-        {message && (
-          <span role={state === "error" ? "alert" : "status"}>
-            {" "}
-            {state === "error" ? "Could not read them just now." : message}
-          </span>
-        )}
+        {/* Only a failure to read at all is said here. "N could not be read"
+            is already the line below this one, with the reasons: said twice it
+            ran the sentence on into its own link. */}
+        {state === "error" && <span role="alert"> Could not read them just now.</span>}
       </>
     );
   }

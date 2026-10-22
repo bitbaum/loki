@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { MissionsBoard } from "@/components/missions/MissionsBoard";
 import { requirePageUserId } from "@/lib/session";
@@ -45,19 +43,7 @@ export default async function MissionsPage() {
   }));
 
   return (
-    <PageLayout
-      title="Missions"
-      subtitle="Choose an objective. Follow the work. See what actually happened."
-      maxWidth="max-w-5xl"
-      right={
-        <Link
-          href="/projects?new=1"
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border-subtle px-3 text-sm font-medium text-text-primary hover:bg-surface-overlay"
-        >
-          <Plus className="h-4 w-4" aria-hidden /> New project
-        </Link>
-      }
-    >
+    <PageLayout title="Missions">
       <MissionsBoard missions={missions} />
     </PageLayout>
   );

@@ -337,7 +337,7 @@ function ReadyPlatformPanel({
       <div className="flex flex-col items-center gap-3">
         <a href={platform.primary.url} className="ui-public-download-cta">
           {platform.primary.label}
-          <span className="ui-public-download-cta-note">({platform.primary.note})</span>
+          <span className="ui-public-download-cta-note">{platform.primary.note}</span>
         </a>
         {platform.secondary.length > 0 && (
           <div className="flex flex-wrap justify-center gap-2">
