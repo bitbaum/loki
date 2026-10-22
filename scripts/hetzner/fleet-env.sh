@@ -17,6 +17,7 @@
 #   fleet-env.sh show          # each key: set or not, an 8-char fingerprint, never a value
 #   fleet-env.sh seed          # fill keys MISSING from /opt/fleet/env with the value most
 #                              # apps already share; never overwrites a key already there
+#   fleet-env.sh secret KEY    # generate KEY (32 random bytes, hex) if the file lacks it
 #
 # Overridable for tests (test-fleet-env.sh): FLEET_ENV, ENV_FILES, KEYS_FILE.
 set -euo pipefail
@@ -59,7 +60,7 @@ shared_value() {
 }
 
 seed() {
-  install -d -m 0755 "$(dirname "$FLEET_ENV")"
+  mkdir -p "$(dirname "$FLEET_ENV")"
   [ -f "$FLEET_ENV" ] || { umask 077; printf '# Fleet-wide shared keys (scripts/hetzner/fleet-env.sh). Values are never printed.\n' > "$FLEET_ENV"; }
   chmod 600 "$FLEET_ENV"
   local k v added=0
@@ -74,8 +75,23 @@ seed() {
   echo "seeded $added key(s) into $FLEET_ENV"
 }
 
+# A key the fleet MAKES rather than collects (a signing secret): generated once,
+# never replaced, never printed.
+secret() {
+  local k="${1:?usage: fleet-env.sh secret KEY}"
+  grep -qxF "$k" < <(keys) || { echo "refused: $k is not in $(basename "$KEYS_FILE")" >&2; exit 2; }
+  mkdir -p "$(dirname "$FLEET_ENV")"
+  [ -f "$FLEET_ENV" ] || { umask 077; : > "$FLEET_ENV"; }
+  chmod 600 "$FLEET_ENV"
+  if [ -n "$(value_of "$FLEET_ENV" "$k")" ]; then echo "$k already set ($(fingerprint "$(value_of "$FLEET_ENV" "$k")"))"; return; fi
+  local v; v="$(od -An -tx1 -N32 /dev/urandom | tr -d ' \n')"
+  printf '%s="%s"\n' "$k" "$v" >> "$FLEET_ENV"
+  echo "generated $k ($(fingerprint "$v"))"
+}
+
 case "${1:-show}" in
   show) show ;;
   seed) seed; show ;;
-  *) echo "usage: fleet-env.sh show|seed" >&2; exit 2 ;;
+  secret) secret "${2:-}" ;;
+  *) echo "usage: fleet-env.sh show|seed|secret KEY" >&2; exit 2 ;;
 esac

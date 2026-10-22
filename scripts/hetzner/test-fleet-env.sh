@@ -28,4 +28,11 @@ shown="$(bash "$HERE/fleet-env.sh" show)"
 grep -q '^GROQ_API_KEY *set' <<<"$shown" || fail "show reports set"
 grep -q '^GEMINI_API_KEY *not set' <<<"$shown" || fail "show reports not set"
 case "$shown" in *gsk_*) fail "show never prints a value" ;; esac
+out="$(bash "$HERE/fleet-env.sh" secret MAIL_INBOUND_SECRET)"
+v="$(sed -nE 's/^MAIL_INBOUND_SECRET="([0-9a-f]{64})"$/\1/p' "$FLEET_ENV")"
+[ -n "$v" ] || fail "secret generates 32 random bytes as hex"
+case "$out" in *"$v"*) fail "secret never prints the value" ;; esac
+bash "$HERE/fleet-env.sh" secret MAIL_INBOUND_SECRET >/dev/null
+[ "$(grep -c '^MAIL_INBOUND_SECRET=' "$FLEET_ENV")" = 1 ] || fail "secret is generated once"
+if bash "$HERE/fleet-env.sh" secret NOT_A_FLEET_KEY >/dev/null 2>&1; then fail "secret refuses a key not in fleet-keys.conf"; fi
 echo "fleet-env: all checks passed"
