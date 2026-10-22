@@ -89,3 +89,18 @@ export function heroHasNewsFor(
     (pulseKey === "failing" && attentionCount === 0)
   );
 }
+
+/** Home while it loads: the composer's shape and three row lines — the page
+ *  it becomes, not three empty cards. */
+export function HomeLoading() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Loading Home">
+      <div className="ui-home-skel-box" />
+      <div className="ui-home-skel-rows">
+        <span />
+        <span />
+        <span />
+      </div>
+    </div>
+  );
+}

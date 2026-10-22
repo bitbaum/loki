@@ -7,6 +7,7 @@ import { postJson } from "@/lib/api/fetch";
 import {
   FINISH_PROMPT,
   HomeAllProjects,
+  HomeLoading,
   HomeNeeds,
   failureFixes,
   heroHasNewsFor,
@@ -336,17 +337,7 @@ export function ControlPanel({
   // inside the panel — the page showed the same heading and count twice.
   const livePanel = <LiveTerminalPanel {...livePanelProps} embedded />;
 
-  if (!data) {
-    return (
-      <div className="space-y-6" aria-busy="true" aria-label="Loading live fleet state">
-        <div className="ui-panel h-36 animate-pulse bg-surface-base" />
-        <div className="ui-control-loading-grid">
-          <div className="ui-panel animate-pulse bg-surface-base" />
-          <div className="ui-panel animate-pulse bg-surface-base" />
-        </div>
-      </div>
-    );
-  }
+  if (!data) return <HomeLoading />;
 
   return (
     <div className="ui-home-page space-y-6">

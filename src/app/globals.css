@@ -560,9 +560,6 @@
   .app-page-compact {
     @apply py-3 sm:py-5 md:py-8;
   }
-  .ui-control-loading-grid {
-    @apply grid min-h-[28rem] gap-4 md:grid-cols-[17rem_minmax(0,1fr)];
-  }
 
   /* App top bar — slim, sticky, hosts Cmd-K + global status pills. On a phone:
      the page's name on the left, then round 40px icons with no borders, then
@@ -731,39 +728,10 @@
   .ui-sidebar-section-lock-active {
     @apply h-3 w-3 text-accent-text;
   }
-  /* Today's Watch — Loki's proactive read on the user's private life,
-     pinned to the top of /today when the zone is unlocked. */
-  .ui-today-watch {
-    @apply rounded-2xl border border-border-subtle bg-surface-base p-5 space-y-3;
-  }
-  .ui-today-watch-head {
-    @apply flex items-center gap-2;
-  }
-  .ui-today-watch-eyebrow {
-    @apply text-micro font-semibold uppercase tracking-caps text-text-muted;
-  }
-  .ui-today-watch-focus-kind {
-    @apply text-xs uppercase tracking-caps text-status-warning;
-  }
-  .ui-today-watch-focus-title {
-    @apply flex items-center justify-between gap-3 text-lg font-semibold text-text-primary transition-colors hover:text-accent-text;
-  }
-  .ui-today-watch-focus-context {
-    @apply text-sm text-text-secondary;
-  }
-  .ui-today-watch-totals {
-    @apply text-sm text-text-tertiary;
-  }
-  .ui-today-watch-clear {
-    @apply flex items-center gap-2 text-sm text-text-secondary;
-  }
-  .ui-today-watch-action {
-    @apply pt-1;
-  }
-  /* Loki-composed prose under a Watch focus. Lights up once the compose
+  /* Loki-composed prose under Today's "In focus" row (TodayWatch). Lights up once the compose
      endpoint returns; falls back invisibly if Groq is unavailable. */
   .ui-loki-nudge {
-    @apply mt-1 flex items-start gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 py-2;
+    @apply mt-1 flex min-h-11 items-center gap-2 py-2 text-sm text-text-secondary;
   }
   /* Clamped: the composed nudge is a third telling of the same item — the
      focus title says it, `focus.context` dates it, and this restates both in
@@ -6749,6 +6717,17 @@
   }
   .ui-home-failure .ui-listrow-secondary-text {
     @apply line-clamp-2 whitespace-normal;
+  }
+  /* Home while it loads: the composer's shape and three row lines — the
+     page it becomes, not three empty cards. */
+  .ui-home-skel-box {
+    @apply h-28 animate-pulse rounded-3xl bg-surface-raised;
+  }
+  .ui-home-skel-rows {
+    @apply flex flex-col gap-5 pt-2;
+  }
+  .ui-home-skel-rows > span {
+    @apply h-10 animate-pulse rounded-xl bg-surface-raised;
   }
   .ui-home-foot .ui-listrow-title {
     @apply text-sm font-normal text-text-secondary;
