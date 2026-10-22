@@ -78,7 +78,10 @@ async function main() {
       ).h;
       h.onConnected(true);
       h.onReset();
-      h.onOutput(Array.from({ length: 120 }, (_, i) => `line ${i}`).join("\n"));
+      // Enough lines that one swipe cannot reach the top: at 390px the fitted
+      // font gives ~66 rows a screen, so 120 lines left only ~54 above the fold
+      // and a 300px swipe landed exactly on the oldest line.
+      h.onOutput(Array.from({ length: 300 }, (_, i) => `line ${i}`).join("\n"));
     });
     await page.waitForTimeout(300);
     const viewport = () =>
@@ -102,6 +105,14 @@ async function main() {
 
     const box = (await page.locator(".xterm").boundingBox())!;
     const cdp = await context.newCDPSession(page);
+    // A DRAG, not a flick: the finger stops and only then lifts. CDP delivers
+    // the twelve moves a millisecond or two apart, which the scroller reads as
+    // a very fast finger, and the glide after a flick runs on that speed — on
+    // a quick runner one 300px swipe glided past every kept line to the top
+    // and the "as far back" note appeared a swipe early (CI, 2026-10-22, twice
+    // on one commit). Six still moves before the lift decay the smoothed
+    // velocity to nothing (×0.2 per still move), so a swipe moves exactly
+    // what the finger moved.
     const swipe = async (dy: number) => {
       const x = box.x + box.width / 2;
       const y0 = box.y + 120;
@@ -115,6 +126,13 @@ async function main() {
           touchPoints: [{ x, y: y0 + (dy * i) / 12 }],
         });
       }
+      for (let i = 0; i < 6; i++) {
+        await page.waitForTimeout(30);
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ x, y: y0 + dy }],
+        });
+      }
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       await page.waitForTimeout(900);
     };
@@ -125,7 +143,7 @@ async function main() {
     assert.equal(await page.getByRole("status").filter({ hasText: "as far back" }).count(), 0);
 
     // To the top, and once more: the screen says so, and where the rest is.
-    for (let i = 0; i < 6 && (await viewport()).y > 0; i++) await swipe(400);
+    for (let i = 0; i < 12 && (await viewport()).y > 0; i++) await swipe(400);
     assert.equal((await viewport()).y, 0, "reaches the oldest kept line");
     await swipe(200);
     const note = page
