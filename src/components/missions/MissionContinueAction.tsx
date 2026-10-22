@@ -98,7 +98,7 @@ export function MissionContinueAction({
       </button>
       <p className="flex items-start gap-2 text-xs text-text-tertiary">
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        This explicitly requests one agent run through Loki's normal permission and execution
+        This explicitly requests one agent run through Loki&apos;s normal permission and execution
         checks. It does not approve spending, human assignments or robot actions.
       </p>
       {state.phase === "error" && (
