@@ -1,5 +1,5 @@
 import { ChevronDown, Lightbulb } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { listOpenProposals } from "@/db/queries/frontier";
 import { ProposalRow } from "./ProposalRow";
@@ -29,8 +29,8 @@ export async function FrontierProposalsCard({ userId }: { userId: string }) {
     );
 
   return (
-    <Card>
-      <CardHeader icon={Lightbulb} title="Frontier proposals" right={right} />
+    <SystemBlock>
+      <SystemBlockHeader icon={Lightbulb} title="Ideas to read" right={right} />
       {proposals.length === 0 ? (
         <EmptyState>
           The fleet hasn&apos;t drafted new directions since you last reviewed. It mines each
@@ -62,6 +62,6 @@ export async function FrontierProposalsCard({ userId }: { userId: string }) {
           )}
         </>
       )}
-    </Card>
+    </SystemBlock>
   );
 }

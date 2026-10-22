@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
 import { ChevronDown } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { SystemStats } from "@/components/system/SystemStats";
@@ -57,59 +57,45 @@ export default async function SystemPage() {
 
   return (
     <PullToRefresh>
-      <PageLayout title="System">
-        {/* One page, three questions, in the order an operator asks them.
+      <PageLayout title="System" maxWidth="max-w-2xl">
+        {/* One page, read top to bottom in the order an operator asks:
+            anything wrong (alarms, then — the founder's — the server), what
+            runs by itself, and the records behind one tap. Each part is a
+            plain heading over its content (SystemBlock); it was eleven
+            bordered cards under three question headings, "Fleet Doctor" and
+            "Global auto-continue" among them. */}
+        <Suspense fallback={<CardSkeleton />}>
+          <SystemAlertsCard />
+        </Suspense>
+        {isFounder && (
+          <>
+            <SystemStats />
+            {/* Directly under the server: when disk/RAM are tight, the next
+                question is always "can I upgrade yet?" */}
+            <HetznerCapacityCard />
+            <Suspense fallback={<CardSkeleton />}>
+              <CapacityCard />
+            </Suspense>
+            <FleetDoctorCard />
+            <Suspense fallback={<CardSkeleton />}>
+              <RecentFailuresCard />
+            </Suspense>
+          </>
+        )}
 
-            This page used to stack eleven cards of equal weight — alerts,
-            host stats, revenue, the doctor, the auto-continue switch, the
-            jobs, memory, failures, the audit log and a reading queue of
-            ideas — so "is the machine all right?" meant reading all of
-            them. The same treatment /today and /feedback got: the answer
-            on top, what runs by itself next, and the record behind one
-            tap. The cards are unchanged; only their place is. */}
-        <SystemSection
-          title="Is it healthy?"
-          hint={isFounder ? "Alarms first, then the box, then what failed lately." : "Your alarms."}
-        >
-          {/* The builder's alarms live here, in full; /today links them in one line. */}
-          <Suspense fallback={<CardSkeleton />}>
-            <SystemAlertsCard />
-          </Suspense>
-          {isFounder && (
-            <>
-              <SystemStats />
-              {/* Directly under the host stats: when disk/RAM are tight, the
-                  next question is always "can I upgrade yet?" */}
-              <HetznerCapacityCard />
-              <Suspense fallback={<CardSkeleton />}>
-                <CapacityCard />
-              </Suspense>
-              <FleetDoctorCard />
-              <Suspense fallback={<CardSkeleton />}>
-                <RecentFailuresCard />
-              </Suspense>
-            </>
-          )}
-        </SystemSection>
-
-        <SystemSection
-          title="What runs on its own"
-          hint="The switch that lets agents keep going, and every scheduled job."
-        >
-          <GlobalAutoContinueCard />
-          <ScheduledJobsCard initialJobs={jobs} />
-        </SystemSection>
+        <GlobalAutoContinueCard />
+        <ScheduledJobsCard initialJobs={jobs} />
 
         {/* Records, not decisions: closed by default, still in the DOM. */}
-        <details className="ui-disclosure">
-          <summary className="ui-disclosure-summary">
-            <ChevronDown className="ui-disclosure-chevron" aria-hidden="true" />
-            <span className="ui-section-label">Records &amp; ideas</span>
-            <span className="text-micro text-text-muted">
-              {isFounder ? "revenue · plans · " : ""}memory · control log · proposals
+        <details className="ui-sys-more">
+          <summary>
+            <span className="ui-section-heading">More records</span>
+            <span className="ui-sys-more-hint">
+              {isFounder ? "Revenue, plans, " : ""}memory, what Loki decided, ideas
             </span>
+            <ChevronDown className="ui-sys-more-chevron" aria-hidden="true" />
           </summary>
-          <div className="ui-disclosure-body space-y-4">
+          <div className="mt-4 flex flex-col gap-6">
             {isFounder && (
               <Suspense fallback={<CardSkeleton />}>
                 <RevenueCard />
@@ -140,26 +126,5 @@ export default async function SystemPage() {
         <AutoRefresh intervalMs={REFRESH_CADENCE.system} />
       </PageLayout>
     </PullToRefresh>
-  );
-}
-
-/** A titled group of cards: the question it answers, and one line on what is in it. */
-function SystemSection({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint: string;
-  children: ReactNode;
-}) {
-  return (
-    <section aria-label={title} className="space-y-3">
-      <header>
-        <h2 className="ui-section-label">{title}</h2>
-        <p className="mt-0.5 text-xs text-text-tertiary">{hint}</p>
-      </header>
-      {children}
-    </section>
   );
 }

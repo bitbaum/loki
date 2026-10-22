@@ -8,7 +8,7 @@ import { cronProblem, describeCron } from "@/lib/cron-words";
  * fleet Build all/Pause all toggle). SSOT for every heading/label that names this
  * feature. Prose sentences use the lowercase noun "scheduled job(s)".
  */
-export const SCHEDULED_JOBS_LABEL = "Scheduled Jobs";
+export const SCHEDULED_JOBS_LABEL = "Runs on a schedule";
 
 export const CreateCronBody = z.object({
   name: z.string().trim().min(1, "name is required"),

@@ -1,5 +1,5 @@
 import { Gauge } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   buildsByAccountThisMonth,
@@ -32,17 +32,12 @@ export async function CapacityCard() {
   if (!waits || !builds || welcomeUsd == null) return null;
 
   return (
-    <Card>
-      <CardHeader
-        icon={Gauge}
-        title="Capacity"
-        right={
-          <span className="text-xs text-text-tertiary">
-            welcome builds {chf(welcomeUsd)} of CHF {WELCOME_MONTHLY_CAP_CHF} this month
-          </span>
-        }
-      />
+    <SystemBlock>
+      <SystemBlockHeader icon={Gauge} title="Room for more work" />
       <div className="space-y-4">
+        <p className="text-sm text-text-secondary">
+          Welcome builds this month: {chf(welcomeUsd)} of CHF {WELCOME_MONTHLY_CAP_CHF}.
+        </p>
         <div>
           <p className="ui-micro-label mb-1">Waited for a builder, last 24 h</p>
           {waits.length === 0 ? (
@@ -86,6 +81,6 @@ export async function CapacityCard() {
           )}
         </div>
       </div>
-    </Card>
+    </SystemBlock>
   );
 }

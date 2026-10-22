@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, Stethoscope, TriangleAlert, XCircle } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { FetchErrorState } from "@/components/ui/fetch-error-state";
 import { useFetch } from "@/hooks/use-fetch";
 import { REFRESH_CADENCE } from "@/config/refresh";
@@ -34,19 +34,19 @@ export function FleetDoctorCard() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader icon={Stethoscope} title="Fleet Doctor" />
+      <SystemBlock>
+        <SystemBlockHeader icon={Stethoscope} title="Health check" />
         <p className="text-sm text-text-secondary">Checking local runtime...</p>
-      </Card>
+      </SystemBlock>
     );
   }
 
   if (error || !data) {
     return (
-      <Card>
-        <CardHeader icon={Stethoscope} title="Fleet Doctor" />
+      <SystemBlock>
+        <SystemBlockHeader icon={Stethoscope} title="Health check" />
         <FetchErrorState message="Couldn't run Fleet Doctor" detail={error} onRetry={refetch} />
-      </Card>
+      </SystemBlock>
     );
   }
 
@@ -55,10 +55,10 @@ export function FleetDoctorCard() {
   // manufactured a permanent false alarm on /system. Say what's true, calmly.
   if (!data.runtime) {
     return (
-      <Card>
-        <CardHeader
+      <SystemBlock>
+        <SystemBlockHeader
           icon={Stethoscope}
-          title="Fleet Doctor"
+          title="Health check"
           right={
             <span className="text-xs font-medium text-text-tertiary">not applicable here</span>
           }
@@ -67,17 +67,17 @@ export function FleetDoctorCard() {
           Full health checks run where the local runtime lives — the desktop app or the box install.
           Nothing is wrong; this hosted view just can&apos;t run them.
         </p>
-      </Card>
+      </SystemBlock>
     );
   }
 
   const summaryTone = TONE[data.summary.status];
 
   return (
-    <Card>
-      <CardHeader
+    <SystemBlock>
+      <SystemBlockHeader
         icon={Stethoscope}
-        title="Fleet Doctor"
+        title="Health check"
         right={
           <span className={`text-xs font-medium ${summaryTone.cls}`}>{summaryTone.label}</span>
         }
@@ -104,6 +104,6 @@ export function FleetDoctorCard() {
           );
         })}
       </ul>
-    </Card>
+    </SystemBlock>
   );
 }

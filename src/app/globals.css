@@ -4976,11 +4976,6 @@
     }
   }
 
-  /* Icon/content overlay button — border + surface-overlay bg, caller adds padding */
-  .ui-btn-overlay {
-    @apply rounded-xl border border-border-subtle bg-surface-overlay text-text-tertiary transition-colors hover:border-border-default hover:text-text-primary;
-  }
-
   /* Filter/tab toggle pill */
   .ui-chip-filter {
     @apply shrink-0 rounded-xl border border-border-subtle bg-surface-overlay px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
@@ -5803,41 +5798,6 @@
     @apply inline-flex min-h-9 items-center text-xs text-text-secondary underline decoration-border-subtle underline-offset-2 transition-colors hover:decoration-current;
   }
 
-  /* ── /feedback: one inbox, not a pile of parts ─────────────────────────────
-     Reported from a phone on 2026-10-03: "a bunch of random elements". It was:
-     a lone bordered "Studio requests" button, two rows of pills, a sentence
-     restating the chip you had just tapped, three bordered cards with grey
-     headers, and rows whose buttons came in three heights and two fills, with
-     the row's own status floating between them in a different place each time.
-
-     The page now has ONE structure, top to bottom:
-       lens    — Needs you · Under way · Shipped. Which question you are asking.
-       filters — one line: projects (scroll) + source + Studio requests.
-       list    — one panel; every row is context → message → why → actions.
-     Every button in a row's action bar is one height. The bar's labelled
-     buttons are the decision; the icon buttons (note, resolve, archive) sit
-     at its trailing edge, so the decision lines up down the page. */
-  /* The heading is the count and the scope: "6 decisions · substrata ▾". */
-  .ui-fb-head {
-    @apply flex flex-wrap items-baseline gap-x-2 gap-y-1;
-  }
-  .ui-fb-head-count {
-    @apply text-xl font-semibold tracking-tight text-text-primary;
-  }
-  /* One button for every yes, with what it spends written on it. */
-  .ui-fb-doall {
-    @apply flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-raised p-4 sm:flex-row sm:items-center sm:justify-between;
-  }
-  .ui-fb-doall-text {
-    @apply text-sm text-text-secondary;
-  }
-  .ui-fb-quiet-line {
-    @apply px-1 text-sm text-text-tertiary;
-  }
-  /* A decision: the tap, the reason, the report beneath in smaller type. */
-  .ui-fb-decisions {
-    @apply divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised;
-  }
   /* One decision, opened in its sheet (design reset: the list is rows; the
      card is the single object a row opens, so it carries no box of its own). */
   .ui-fb-decision {
@@ -5952,36 +5912,6 @@
   .ui-fb-decision-reporter {
     @apply font-medium not-italic text-text-primary;
   }
-  /* What is not a decision: one line each, open on demand. */
-  .ui-fb-section > summary {
-    @apply flex min-h-11 cursor-pointer list-none flex-col justify-center gap-0.5 px-1 py-2;
-  }
-  .ui-fb-section-title {
-    @apply text-sm font-medium text-text-primary;
-  }
-  .ui-fb-section-hint {
-    @apply text-xs text-text-tertiary;
-  }
-  .ui-fb-section[open] > summary {
-    @apply mb-2;
-  }
-  .ui-fb-night {
-    @apply px-1 text-xs text-text-secondary;
-  }
-  .ui-fb-foot {
-    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs text-text-tertiary;
-  }
-  /* A picker is a word with a chevron, not a third bordered box under the
-     bordered lens strip and above the bordered list. */
-  .ui-fb-select {
-    @apply min-h-9 rounded-lg border-0 bg-transparent px-1 text-xs text-text-secondary;
-  }
-  .ui-fb-list {
-    @apply divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised;
-  }
-  .ui-fb-list > * {
-    @apply px-4;
-  }
   .ui-fb-row {
     @apply flex flex-col gap-1.5 py-4;
   }
@@ -6073,13 +6003,10 @@
   .ui-fb-row-actions :is(.ui-btn-save, .ui-btn-secondary, .ui-btn-primary) {
     @apply min-h-9 gap-1.5 rounded-lg px-3 py-1.5 text-xs;
   }
-  .ui-fb-more {
-    @apply flex min-h-11 w-full items-center text-xs text-text-tertiary transition-colors hover:text-text-secondary;
-  }
 
   /* ── design reset: work tools (prompts, feedback, activity, system, packages) ── */
-  /* A feedback row's yes — "Build it" — one tap, at the row's end. */
-  .ui-fb-row-go {
+  /* A row's own verb at its end — "Build it", "Run again": one tap, no fill. */
+  .ui-row-verb {
     @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:text-text-tertiary;
   }
   /* "Run" at the end of a prompt row: the row's verb, quiet until pressed. */
@@ -6146,9 +6073,57 @@
     font-size: var(--text-meta);
     @apply mb-1 mt-2 font-medium text-text-tertiary;
   }
-  /* A row's own small action — "Run again" at the end of a failure. */
-  .ui-activity-retry {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:text-text-tertiary;
+  /* /system: each part a heading over its content, on the page (SystemBlock). */
+  .ui-sys-block {
+    @apply flex min-w-0 flex-col;
+  }
+  /* "More records": one row that opens the rest. */
+  .ui-sys-more > summary {
+    @apply flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-border-subtle pt-4;
+  }
+  .ui-sys-more > summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-sys-more-hint {
+    @apply min-w-0 flex-1 truncate text-sm text-text-tertiary;
+  }
+  .ui-sys-more-chevron {
+    @apply h-4 w-4 shrink-0 text-text-muted transition-transform;
+  }
+  .ui-sys-more[open] .ui-sys-more-chevron {
+    @apply rotate-180;
+  }
+  /* "1 repository could not be read": a line that opens, not a box. */
+  .ui-coverage-more > summary {
+    @apply inline-flex min-h-11 cursor-pointer list-none items-center text-sm text-text-secondary underline underline-offset-4 hover:text-text-primary;
+  }
+  .ui-coverage-more > summary::-webkit-details-marker {
+    display: none;
+  }
+  /* A numbered how-to: a small circle per step, the step's words beside it. */
+  .ui-steps {
+    @apply mt-3 flex list-none flex-col gap-5 p-0;
+  }
+  .ui-step {
+    @apply flex gap-3;
+  }
+  .ui-step-number {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-sm font-medium text-text-primary;
+  }
+  .ui-step-body {
+    @apply flex min-w-0 flex-1 flex-col gap-2 pt-0.5;
+  }
+  .ui-step-title {
+    @apply text-base font-medium text-text-primary;
+  }
+  .ui-step-settings {
+    @apply grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm;
+  }
+  .ui-step-settings dt {
+    @apply text-text-tertiary;
+  }
+  .ui-step-settings dd {
+    @apply min-w-0 text-text-primary;
   }
   /* A day's bare "sent" rows, folded into one row of the list. */
   .ui-activity-fold-row > summary {
@@ -6969,269 +6944,6 @@
   }
   .ui-proposal-source {
     @apply inline-flex items-center gap-1 font-mono text-micro uppercase tracking-wider text-text-muted hover:text-text-secondary;
-  }
-
-  /* ── Activity hero ───────────────────────────────────────────────────────
-     The answer, before the evidence. One sentence, one picture, three numbers
-     that are also destinations. */
-  .ui-activity-hero {
-    @apply space-y-3 rounded-2xl border border-border-subtle bg-surface-raised p-4 sm:p-5;
-    box-shadow: var(--shadow-panel);
-  }
-  /* A window containing failures announces itself in the frame, so the state is
-     legible before a single word is read. */
-  .ui-activity-hero-alert {
-    @apply border-status-negative/30;
-  }
-  /* Big enough to be the first thing read at arm's length, and it wraps to two
-     lines on a 320px phone rather than shrinking. */
-  .ui-activity-headline {
-    @apply text-lg font-semibold leading-snug text-text-primary sm:text-xl;
-    text-wrap: balance;
-  }
-  .ui-activity-context {
-    @apply text-xs leading-relaxed text-text-muted;
-  }
-  .ui-activity-kpis {
-    @apply flex flex-wrap gap-2;
-  }
-  /* Each tile is a link into the feed, already filtered — hence the tap floor. */
-  .ui-activity-kpi {
-    @apply inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border-subtle bg-surface-base px-3 text-text-tertiary transition-colors hover:border-border-default hover:text-text-primary;
-    min-width: 6.5rem;
-  }
-  .ui-activity-kpi-alert {
-    @apply border-status-negative/40 bg-status-negative-subtle/50 text-status-negative;
-  }
-  .ui-activity-kpi-good {
-    @apply border-status-positive/30 text-status-positive;
-  }
-  .ui-activity-kpi-value {
-    @apply text-base font-semibold;
-  }
-  .ui-activity-kpi-label {
-    @apply text-xs;
-  }
-
-  /* ── Activity pulse ──────────────────────────────────────────────────────
-     Volume by HEIGHT in a single hue; failures by SHAPE (the tick below the
-     axis) plus a worded legend. Outcome is deliberately never encoded by hue:
-     on the dark surface this app ships by default, --status-positive and
-     --status-negative sit ΔE 3.1 apart under deuteranopia, so a green/red
-     stacked bar would be a solid block of one colour to a red-green colourblind
-     operator. See ActivityPulse.tsx. */
-  .ui-pulse {
-    @apply space-y-1.5;
-  }
-  .ui-pulse-plot {
-    @apply flex h-16 items-end gap-px sm:h-20;
-  }
-  .ui-pulse-slot {
-    @apply flex h-full min-w-0 flex-1 flex-col justify-end gap-1;
-  }
-  .ui-pulse-track {
-    @apply flex min-h-0 flex-1 items-end;
-  }
-  /* Rounded data-end anchored to the baseline; no border between bars — the 1px
-     gap on the flex row is the separator. */
-  .ui-pulse-bar {
-    @apply w-full rounded-t bg-accent-primary/70 transition-colors;
-    min-height: 2px;
-  }
-  .ui-pulse-slot:hover .ui-pulse-bar {
-    @apply bg-accent-primary;
-  }
-  /* The axis rail. A slice with a failure raises a solid tick in the status
-     colour; every other slice keeps a hairline so the baseline stays continuous
-     and the tick reads as a mark ON it, not as a floating dot. */
-  .ui-pulse-tick {
-    @apply h-0.5 w-full shrink-0 rounded-full bg-border-subtle;
-  }
-  .ui-pulse-tick-alert {
-    @apply h-1 bg-status-negative;
-  }
-  .ui-pulse-caption {
-    @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-micro text-text-muted;
-  }
-  .ui-pulse-legend {
-    @apply inline-flex items-center gap-1.5;
-  }
-  .ui-pulse-legend-bar {
-    @apply inline-block h-2.5 w-1.5 rounded-sm bg-accent-primary/70;
-  }
-  .ui-pulse-legend-alert {
-    @apply text-status-negative;
-  }
-  .ui-pulse-peak {
-    @apply ml-auto tabular-nums;
-  }
-
-  /* ── Needs you ───────────────────────────────────────────────────────────
-     Failures hoisted out of the feed, each with a way out. Renders nothing when
-     healthy — a permanent "all clear" panel teaches people to skip the exact
-     spot real alarms appear in. */
-  .ui-needs-you {
-    @apply space-y-3 rounded-2xl border border-status-negative/40 bg-status-negative-subtle/30 p-4 sm:p-5;
-  }
-  .ui-needs-you-title {
-    @apply flex items-center gap-2 text-sm font-semibold text-status-negative;
-  }
-  .ui-needs-you-list {
-    @apply space-y-3;
-  }
-  .ui-needs-you-item {
-    @apply space-y-1.5 border-t border-status-negative/20 pt-3 first:border-t-0 first:pt-0;
-  }
-  .ui-needs-you-head {
-    @apply flex flex-wrap items-center gap-x-2 gap-y-1;
-  }
-  .ui-needs-you-project {
-    @apply text-sm font-semibold text-text-primary;
-  }
-  .ui-needs-you-outcome {
-    @apply rounded-full border border-status-negative/40 px-2 py-px text-micro font-medium text-status-negative;
-  }
-  .ui-needs-you-meta {
-    @apply ml-auto shrink-0 text-xs tabular-nums text-text-muted;
-  }
-  .ui-needs-you-why {
-    @apply text-sm leading-relaxed text-text-secondary;
-  }
-  .ui-needs-you-actions {
-    @apply flex flex-wrap items-center gap-x-4;
-  }
-  .ui-needs-you-action {
-    @apply inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-status-negative transition-opacity hover:opacity-80;
-  }
-  .ui-needs-you-action-quiet {
-    @apply inline-flex min-h-11 items-center gap-1.5 text-xs text-text-tertiary transition-colors hover:text-text-primary;
-  }
-  /* Inline outcome of a retry — "queued, no builder online" and friends. Wraps
-     under the button on a phone instead of truncating the one sentence that
-     explains why nothing appears to be happening. Carries the same tone dot as
-     every other dispatch surface: without it a failed retry and a working one
-     are the same grey sentence, which is the bug this card exists to end. */
-  .ui-needs-you-note {
-    @apply inline-flex min-w-0 basis-full items-center gap-1.5 text-xs text-text-tertiary;
-  }
-  .ui-needs-you-more {
-    @apply inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-status-negative transition-opacity hover:opacity-80;
-  }
-  /* Page refactor, batch B (2026-10-02): runs that failed for the same cause,
-     one compact line each under the cause they share. */
-  .ui-needs-you-runs {
-    @apply divide-y divide-status-negative/15;
-  }
-  .ui-needs-you-run {
-    @apply flex flex-wrap items-center gap-x-3;
-  }
-  .ui-needs-you-run-project {
-    @apply min-w-0 truncate text-sm font-medium text-text-primary;
-  }
-  .ui-needs-you-run-actions {
-    @apply ml-auto flex items-center gap-x-4;
-  }
-
-  /* ── Activity feed ───────────────────────────────────────────────────────
-     One unit of work per row, readable top-down at any width. The old feed put
-     timestamp/project/title/duration on one wrapping flex line, which on a
-     phone collapsed into a ragged block with no hierarchy. Here each line has
-     one job and the row degrades by dropping lines, never by reflowing them. */
-  .ui-activity-list {
-    @apply divide-y divide-border-subtle;
-  }
-  .ui-activity-row {
-    @apply space-y-1.5 py-3;
-  }
-  /* A failure gets a rail, not a full red wash: it must catch the eye while
-     scrolling without making its own body text harder to read. */
-  .ui-activity-row-alert {
-    @apply -mx-2 border-l-2 border-status-negative bg-status-negative-subtle/40 px-2;
-  }
-  .ui-activity-head {
-    @apply flex flex-wrap items-center gap-x-2 gap-y-1;
-  }
-  .ui-activity-dot {
-    @apply inline-block h-2 w-2 shrink-0 rounded-full;
-  }
-  .ui-activity-project {
-    @apply min-w-0 truncate text-sm font-semibold text-text-primary;
-  }
-  /* Pushed to the far end on wide rows, wraps under on narrow ones. */
-  .ui-activity-meta {
-    @apply ml-auto shrink-0 text-xs tabular-nums text-text-muted;
-  }
-  .ui-activity-sub {
-    @apply text-xs text-text-tertiary;
-  }
-  /* The ask — the line the whole page exists for, so it reads as body copy
-     rather than metadata. */
-  .ui-activity-ask {
-    @apply text-sm leading-relaxed text-text-secondary;
-  }
-  .ui-activity-ask-missing {
-    @apply text-xs italic text-text-muted;
-  }
-  .ui-activity-done {
-    @apply text-sm leading-relaxed text-text-primary;
-  }
-  .ui-activity-error {
-    @apply text-sm leading-relaxed text-status-negative;
-  }
-  .ui-activity-verify {
-    @apply flex items-start gap-1.5 text-xs leading-relaxed;
-  }
-  .ui-activity-next {
-    @apply flex items-start gap-1.5 text-sm leading-relaxed text-text-secondary;
-  }
-  .ui-activity-full {
-    @apply mt-2 rounded-lg border border-border-subtle bg-surface-base p-3;
-  }
-  /* The literal payload that was sent. Wraps rather than scrolls sideways:
-     a phone cannot afford a horizontal scroll inside a vertical feed. */
-  .ui-activity-pre {
-    @apply max-h-96 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-text-secondary;
-    font-family: var(--font-mono);
-  }
-  .ui-activity-actions {
-    @apply flex flex-wrap items-center gap-x-3;
-  }
-  .ui-activity-toggle,
-  .ui-activity-action {
-    @apply inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary;
-  }
-  .ui-activity-day {
-    @apply mb-1 px-1 text-micro font-semibold uppercase tracking-wider text-text-muted;
-  }
-  /* Page refactor, batch B: a day's bare "sent" rows, folded into one line. */
-  .ui-activity-fold-summary {
-    @apply flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-2 px-1 text-xs text-text-tertiary transition-colors hover:text-text-secondary;
-  }
-  .ui-activity-fold-who {
-    @apply min-w-0 truncate text-text-muted;
-  }
-  .ui-activity-fold[open] > .ui-activity-fold-summary {
-    @apply text-text-secondary;
-  }
-  /* Triage tabs. Horizontally scrollable on a phone instead of wrapping into
-     two rows that push the feed below the fold. */
-  .ui-activity-tabs {
-    @apply -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
-  }
-  .ui-activity-tab {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-base px-3 text-xs font-medium text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
-  }
-  .ui-activity-tab-active {
-    @apply border-accent-primary/40 bg-accent-muted text-text-primary;
-  }
-  .ui-activity-tab-alert {
-    @apply border-status-negative/40 text-status-negative;
-  }
-  .ui-activity-tab-count {
-    @apply rounded-full bg-surface-overlay px-1.5 py-px text-micro;
-  }
-  .ui-activity-tab-active .ui-activity-tab-count {
-    @apply bg-surface-base;
   }
 
   /* ── Crew — assignments handed to humans ──────────────────────────────────
@@ -9062,7 +8774,6 @@
      These measured 42px: near-misses are still misses, and "nearly" is not a
      category the finger recognises. */
   .ui-input,
-  .ui-btn-overlay,
   .ui-locked-banner,
   .ui-app-topbar-search,
   /* The marketing surfaces have their own namespace but not their own

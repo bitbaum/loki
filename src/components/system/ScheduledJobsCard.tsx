@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Bot, CheckCircle2, XCircle, Clock, AlertTriangle, Folder } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDistanceToNow } from "date-fns";
 import type { CronJob } from "@/lib/crons-shared";
@@ -138,8 +138,8 @@ export function ScheduledJobsCard({ initialJobs }: { initialJobs: CronJob[] }) {
 
   return (
     <>
-      <Card>
-        <CardHeader
+      <SystemBlock>
+        <SystemBlockHeader
           icon={Bot}
           title={SCHEDULED_JOBS_LABEL}
           right={
@@ -206,7 +206,7 @@ export function ScheduledJobsCard({ initialJobs }: { initialJobs: CronJob[] }) {
             )}
           </div>
         )}
-      </Card>
+      </SystemBlock>
 
       {selected && (
         <JobDetail

@@ -16,11 +16,15 @@ export function PackagesRefresh({
   autoStart = false,
   projectId,
   label = "Refresh",
+  variant = "button",
 }: {
   autoStart?: boolean;
   /** Read only this project. */
   projectId?: string;
   label?: string;
+  /** `link`: a quiet text button at the end of a line (/packages' read line),
+   *  where the state is the button's own word. */
+  variant?: "button" | "link";
 }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "reading" | "error">("idle");
@@ -58,6 +62,27 @@ export function PackagesRefresh({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
   }, [autoStart]);
+
+  if (variant === "link") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={state === "reading"}
+          className="ui-link-muted"
+        >
+          {state === "reading" ? "Reading…" : state === "error" ? "Try again" : label}
+        </button>
+        {message && (
+          <span role={state === "error" ? "alert" : "status"}>
+            {" "}
+            {state === "error" ? "Could not read them just now." : message}
+          </span>
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="flex flex-col items-start gap-1.5 sm:items-end">

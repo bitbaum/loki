@@ -1,5 +1,5 @@
 import { Server } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { EmptyState } from "@/components/ui/empty-state";
 import { listUsersWithPlans } from "@/db/queries/users";
 import { PrivateBuilderForm } from "./PrivateBuilderForm";
@@ -19,8 +19,8 @@ export async function PrivateBuildersCard() {
   const label = (r: (typeof rows)[number]) => r.username ?? r.name ?? r.email ?? r.id.slice(0, 8);
 
   return (
-    <Card>
-      <CardHeader
+    <SystemBlock>
+      <SystemBlockHeader
         icon={Server}
         title="Private builders"
         right={
@@ -57,6 +57,6 @@ export async function PrivateBuildersCard() {
           />
         </div>
       </div>
-    </Card>
+    </SystemBlock>
   );
 }
