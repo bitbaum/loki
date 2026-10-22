@@ -217,9 +217,7 @@ export function RunModal({
           <h2 id={titleId} className="ui-prompt-sheet-title">
             {template.name}
           </h2>
-          {template.description && (
-            <p className="ui-prompt-sheet-desc">{template.description}</p>
-          )}
+          {template.description && <p className="ui-prompt-sheet-desc">{template.description}</p>}
         </div>
         <button
           type="button"

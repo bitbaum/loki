@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Copy, Pencil } from "lucide-react";
 import { Section } from "@/components/ui/section-heading";
+import { SAVED_PROMPTS_TITLE } from "@/config/control-labels";
 import { List, ListRow } from "@/components/ui/list-row";
 import { RowActions } from "@/components/ui/row-actions";
 import { DeleteButton } from "@/components/ui/delete-button";
@@ -107,13 +108,13 @@ export function UserPromptsSection({
   if (visiblePrompts.length === 0) return null;
 
   return (
-    <Section title="Your prompts">
+    <Section title={SAVED_PROMPTS_TITLE}>
       {copiesError && (
         <p className="ui-prompt-sheet-error mb-2" role="alert">
           {copiesError}
         </p>
       )}
-      <List aria-label="Your prompts">
+      <List aria-label={SAVED_PROMPTS_TITLE}>
         {visiblePrompts.map((p) => {
           const mine = ownRows.get(dupeKey(p)) ?? [];
           const extraCopies = Math.max(0, mine.length - 1);

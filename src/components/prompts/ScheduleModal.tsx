@@ -62,7 +62,7 @@ export function ScheduleModal({
   const needed = needsProject(template);
   const { project, projectId, setProjectId } = usePromptProject(projects, pinnedProjectId);
   const [varValues, setVarValues] = useState<Record<string, string>>({});
-  // A person picks a schedule in words; the cron line is written for them.
+  // A person picks a schedule in words; the schedule line is written for them.
   // The prompt's suggested line opens as the pick it stands for.
   const [pick, setPick] = useState<SchedulePick>(() =>
     pickFromCron(template.suggestedSchedule ?? "0 9 * * 1"),
@@ -145,7 +145,12 @@ export function ScheduleModal({
           </h2>
           <p className="ui-prompt-sheet-desc">Loki runs it for you on the days you pick.</p>
         </div>
-        <button type="button" onClick={onClose} className="ui-topbar-btn shrink-0" aria-label="Close">
+        <button
+          type="button"
+          onClick={onClose}
+          className="ui-topbar-btn shrink-0"
+          aria-label="Close"
+        >
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -271,10 +276,7 @@ export function ScheduleModal({
         {inWords && (
           <p className="text-sm text-text-primary">
             {inWords}, {zone}.{" "}
-            <Link
-              href="/settings#location"
-              className="ui-link-muted text-sm"
-            >
+            <Link href="/settings#location" className="ui-link-muted text-sm">
               Change time zone
             </Link>
           </p>
