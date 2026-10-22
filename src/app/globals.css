@@ -5838,16 +5838,17 @@
   .ui-fb-decisions {
     @apply divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised;
   }
+  /* One decision, opened in its sheet (design reset: the list is rows; the
+     card is the single object a row opens, so it carries no box of its own). */
   .ui-fb-decision {
-    @apply flex flex-col gap-1.5 px-4 py-4 transition-opacity;
+    @apply flex flex-col gap-2 transition-opacity;
   }
   .ui-fb-decision-taken {
     @apply opacity-60;
   }
   .ui-fb-decision-kicker {
-    font-size: 0.75rem;
-    @apply font-semibold uppercase text-text-secondary;
-    letter-spacing: var(--tracking-label);
+    font-size: var(--text-meta);
+    @apply text-text-tertiary;
   }
   .ui-fb-decision-why {
     @apply text-sm font-medium leading-snug text-text-primary;
@@ -5867,7 +5868,7 @@
     @apply grid grid-cols-[5.75rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug;
   }
   .ui-fb-decision-fact-label {
-    @apply pt-px text-xs font-medium uppercase tracking-caps text-text-tertiary;
+    @apply pt-px text-sm text-text-tertiary;
   }
   .ui-fb-decision-fact {
     @apply min-w-0 text-text-secondary;
@@ -5892,7 +5893,7 @@
     @apply text-sm text-text-tertiary;
   }
   .ui-fb-decision-row {
-    @apply mt-2 rounded-xl border border-border-subtle bg-surface-base px-4;
+    @apply mt-2 border-t border-border-subtle;
   }
   /* The picture Loki took of the live page: a phone-sized crop, the whole page on a tap. */
   .ui-fb-looked {
@@ -6074,6 +6075,91 @@
   }
   .ui-fb-more {
     @apply flex min-h-11 w-full items-center text-xs text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+
+  /* ── design reset: work tools (prompts, feedback, activity, system, packages) ── */
+  /* A feedback row's yes — "Build it" — one tap, at the row's end. */
+  .ui-fb-row-go {
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:text-text-tertiary;
+  }
+  /* "Run" at the end of a prompt row: the row's verb, quiet until pressed. */
+  .ui-prompt-run-cue {
+    @apply text-sm font-medium text-text-secondary;
+  }
+  /* A sheet: title and close on top, a scrolling body, the one action below. */
+  .ui-prompt-sheet-head {
+    @apply flex shrink-0 items-start justify-between gap-3 px-4 pb-2 pt-4 md:px-5;
+  }
+  .ui-prompt-sheet-title {
+    font-size: var(--text-bar-title);
+    @apply font-semibold leading-snug text-text-primary;
+  }
+  .ui-prompt-sheet-desc {
+    @apply mt-0.5 text-sm text-text-secondary;
+  }
+  .ui-prompt-sheet-body {
+    @apply flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-2 md:px-5;
+  }
+  .ui-prompt-field-label {
+    @apply mb-1.5 block text-sm font-medium text-text-primary;
+  }
+  .ui-prompt-sheet-result {
+    @apply text-sm text-text-primary;
+  }
+  .ui-prompt-sheet-error {
+    @apply text-sm text-status-negative;
+  }
+  .ui-prompt-sheet-link {
+    @apply inline-flex min-h-11 items-center gap-1 text-sm font-medium text-text-primary underline underline-offset-4;
+  }
+  .ui-prompt-sheet-answer {
+    @apply flex flex-col gap-1 border-t border-border-subtle pt-4;
+  }
+  /* "See the prompt": folded, a line you can open. */
+  .ui-prompt-preview-summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center gap-1 text-sm font-medium text-text-secondary hover:text-text-primary;
+  }
+  .ui-prompt-preview-summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-prompt-preview-chevron {
+    @apply h-4 w-4 transition-transform;
+  }
+  .ui-prompt-preview[open] .ui-prompt-preview-chevron {
+    @apply rotate-180;
+  }
+  .ui-prompt-preview-body {
+    @apply mt-1 max-h-72 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-border-subtle p-3 font-mono text-sm leading-relaxed text-text-secondary;
+  }
+  /* A blank the prompt still needs, named in words — never "{{project_name}}". */
+  .ui-prompt-blank {
+    @apply rounded-md border border-dashed border-border-strong px-1.5 font-sans text-text-primary;
+  }
+  /* /activity: the answer as a sentence, then rows. */
+  .ui-activity-lede {
+    @apply text-lg font-semibold leading-snug text-text-primary;
+  }
+  .ui-activity-lede-sub {
+    @apply mt-1 text-sm text-text-secondary;
+  }
+  .ui-activity-dayhead {
+    font-size: var(--text-meta);
+    @apply mb-1 mt-2 font-medium text-text-tertiary;
+  }
+  /* A row's own small action — "Run again" at the end of a failure. */
+  .ui-activity-retry {
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:text-text-tertiary;
+  }
+  /* A day's bare "sent" rows, folded into one row of the list. */
+  .ui-activity-fold-row > summary {
+    @apply flex min-h-14 cursor-pointer list-none flex-col justify-center rounded-xl px-3 py-2 transition-colors hover:bg-surface-raised;
+    margin-inline: -0.75rem;
+  }
+  .ui-activity-fold-row > summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-activity-fold-row-who {
+    @apply mt-0.5 truncate text-sm text-text-secondary;
   }
 
   /* "Back in 30 minutes": one quiet line while away, one card on return.

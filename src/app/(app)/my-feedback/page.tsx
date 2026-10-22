@@ -2,8 +2,7 @@ import { requirePageUserId } from "@/lib/session";
 import { listReporterFeedback } from "@/db/queries/site-feedback";
 import { attachReporterView } from "@/lib/feedback/attach-reporter-view";
 import { PageLayout } from "@/components/ui/page-layout";
-import { ReporterFeedbackCard } from "@/components/feedback/ReporterFeedbackCard";
-import { OwnerFeedbackActions } from "@/components/feedback/OwnerFeedbackActions";
+import { MyFeedbackList } from "@/components/feedback/MyFeedbackList";
 import { getProjectAccess } from "@/db/queries/project-access";
 
 export const metadata = { title: "My feedback" };
@@ -37,28 +36,11 @@ export default async function MyFeedbackPage() {
   const canEdit = new Map(access);
 
   return (
-    <PageLayout
-      title="My feedback"
-      subtitle="Reports you submitted, and where each one has got to."
-      maxWidth="max-w-4xl"
-    >
-      {rows.length === 0 ? (
-        <div className="ui-empty-page">No claimed feedback yet.</div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((row) => (
-            <ReporterFeedbackCard key={row.id} row={row}>
-              {canEdit.get(row.projectId) && (
-                <OwnerFeedbackActions
-                  feedbackId={row.id}
-                  projectId={row.projectId}
-                  canStart={row.canStart}
-                />
-              )}
-            </ReporterFeedbackCard>
-          ))}
-        </div>
-      )}
+    <PageLayout title="My feedback" maxWidth="max-w-2xl">
+      <MyFeedbackList
+        rows={rows}
+        ownProjectIds={[...canEdit].filter(([, own]) => own).map(([id]) => id)}
+      />
     </PageLayout>
   );
 }

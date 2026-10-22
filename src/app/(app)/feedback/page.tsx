@@ -10,18 +10,20 @@ export const metadata = { title: "Feedback" };
  * The feedback product's own front door (SoC): visitor reports, AI-review
  * findings, and synthesized briefs across every project, each with the live
  * phase of its fix. Control stays operations; Projects stays the catalog;
- * the ironing-out loop lives here.
+ * the ironing-out loop lives here. The inbox draws its own page header: its
+ * one action ("Do all") needs the list's state.
  */
 export default async function FeedbackPage() {
   await requirePageUserId();
   return (
-    // Studio requests is linked from the inbox's filter line, not a lone
-    // bordered button above everything (on a phone it sat by itself between
-    // the top bar and the filters, reading as the page's main action).
-    <PageLayout title="Feedback" maxWidth="max-w-5xl">
-      <Suspense fallback={<CardSkeleton />}>
-        <FeedbackInbox />
-      </Suspense>
-    </PageLayout>
+    <Suspense
+      fallback={
+        <PageLayout title="Feedback" maxWidth="max-w-2xl">
+          <CardSkeleton />
+        </PageLayout>
+      }
+    >
+      <FeedbackInbox />
+    </Suspense>
   );
 }

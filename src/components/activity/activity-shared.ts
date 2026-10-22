@@ -1,6 +1,6 @@
 import { APP_LOCALE, DEFAULT_TIMEZONE } from "@/lib/constants";
 import type { DigestWindow } from "@/db/queries/digests";
-import type { ActivityFilter, ActivityOutcome } from "@/lib/activity-events";
+import type { ActivityFilter } from "@/lib/activity-events";
 import type { StatusTone } from "@/lib/constants/statuses";
 
 // Density used to be a page-wide compact/detailed switch. It is gone: each row
@@ -10,13 +10,6 @@ import type { StatusTone } from "@/lib/constants/statuses";
 
 // ─── Labels (humanized variants of the typed enums) ──────────────────────────
 
-export const WINDOW_LABEL: Record<DigestWindow, string> = {
-  hour: "Hour",
-  day: "Day",
-  week: "Week",
-  month: "Month",
-};
-
 export const RANGE_LABEL: Record<DigestWindow, string> = {
   hour: "the last hour",
   day: "the last 24 hours",
@@ -24,12 +17,16 @@ export const RANGE_LABEL: Record<DigestWindow, string> = {
   month: "the last 30 days",
 };
 
-export const FILTER_LABEL: Record<ActivityFilter, string> = {
-  all: "All",
-  attention: "Needs attention",
-  running: "Running",
-  queued: "Queued",
-  done: "Done",
+/** Each project key → what a person calls it (projectTitle) and the id its
+ *  Watch page lives at. Built once by the page from the person's projects. */
+export type ProjectNames = Record<string, { title: string; id: string }>;
+
+/** The time menu's choices. */
+export const WINDOW_CHOICE_LABEL: Record<DigestWindow, string> = {
+  hour: "Last hour",
+  day: "Last 24 hours",
+  week: "Last 7 days",
+  month: "Last 30 days",
 };
 
 // ─── Status → dot class (SSOT for the colored circles) ──────────────────────
@@ -39,23 +36,6 @@ export const STATUS_DOT_CLASS: Record<StatusTone, string> = {
   warning: "ui-dot-warning",
   positive: "ui-dot-positive",
   neutral: "bg-text-tertiary",
-};
-
-/**
- * Outcome → tag variant. Paired with the base `.ui-tag` class at every call
- * site: `.ui-tag-*` alone sets colors and a border-COLOR, but not the border
- * width, radius or padding that make it read as a chip.
- */
-export const OUTCOME_TAG_CLASS: Record<ActivityOutcome, string> = {
-  error: "ui-tag-negative",
-  unconfirmed: "ui-tag-negative",
-  timeout: "ui-tag-negative",
-  hang: "ui-tag-negative",
-  user_abort: "ui-tag-warning",
-  partial: "ui-tag-warning",
-  running: "ui-tag-accent",
-  success: "ui-tag-positive",
-  dispatched: "ui-tag-neutral",
 };
 
 // ─── URL builder for in-page navigations ─────────────────────────────────────

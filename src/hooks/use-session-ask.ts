@@ -33,6 +33,9 @@ export type SessionAsk = {
   reply: (text: string) => Promise<boolean>;
   stop: () => void;
   clearError: () => void;
+  /** The Loki thread these turns live in, once the first one opened it —
+   *  so a surface can offer "Continue in Loki" on the same conversation. */
+  conversationId: string | null;
 };
 
 /**
@@ -121,5 +124,6 @@ export function useSessionAsk(project: string | null): SessionAsk {
       setError(null);
       stream.clearError();
     },
+    conversationId,
   };
 }

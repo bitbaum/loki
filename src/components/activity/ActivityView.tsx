@@ -1,31 +1,30 @@
-import { FileText } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import Link from "next/link";
+import { Activity } from "lucide-react";
+import { PageLayout } from "@/components/ui/page-layout";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getActivitySnapshot, getProjectDigest } from "@/db/queries/digests";
+import { getActivitySnapshot, getProjectDigest, type DigestWindow } from "@/db/queries/digests";
+import { getProjects } from "@/db/queries/projects";
 import { eventNeedsAttention, normalizeActivityFilter } from "@/lib/activity-events";
-import {
-  buildActivityPulse,
-  computeMomentum,
-  pulseBucketCount,
-  summarizeActivity,
-} from "@/lib/activity-summary";
-import { DigestPanel } from "./DigestPanel";
-import { ActivityHero } from "./ActivityHero";
+import { activityHeadline, computeMomentum, summarizeActivity } from "@/lib/activity-summary";
+import { projectTitle } from "@/lib/project-display";
+import { ActivityScope } from "./ActivityScope";
+import { ActivityReport } from "./ActivityReport";
 import { NeedsYouCard } from "./NeedsYouCard";
-import { StatusStrip } from "./StatusStrip";
-import { FilterCard } from "./FilterCard";
 import { EventStream } from "./EventStream";
-import { EmptyLookback } from "./EmptyLookback";
-import { RANGE_LABEL } from "./activity-shared";
+import { RANGE_LABEL, activityHref, type ProjectNames } from "./activity-shared";
 
-// The single composing view for /activity. Server component — all data comes
-// from getProjectDigest, no client fetch.
-//
-// The order is the argument. Answer first (hero: one sentence, one picture),
-// then the thing that needs a human (needs-you, hoisted out of the feed), then
-// the evidence (the feed), then the narrative (report). Controls come AFTER the
-// answer, because filtering is what you do second — the previous version opened
-// with two rows of chips and made you scroll to learn anything at all.
+/**
+ * /activity — what the fleet did, as a sentence and a list. Rebuilt to the
+ * design reset (docs/development/design-reset-2026-10.md) from the owner's
+ * phone, where the page opened with a bordered hero, a bar chart, four
+ * coloured tiles, a red card of failures, a strip of project chips, a time
+ * picker in its own card, a second row of count chips and a report card —
+ * eight boxes before the first thing that happened.
+ *
+ * Now: one line of scope (time and project, each a menu), the answer as a
+ * sentence, what needs you as rows, then what happened as rows under day
+ * headings. The page's one action is the written report.
+ */
 export async function ActivityView({
   userId,
   window,
@@ -37,115 +36,103 @@ export async function ActivityView({
   project?: string;
   status?: string;
 }) {
-  const [digest, snapshot] = await Promise.all([
+  const [digest, snapshot, projects] = await Promise.all([
     getProjectDigest(userId, { window, projectKey: project }),
     getActivitySnapshot(userId),
+    getProjects(userId).catch(() => []),
   ]);
   const filter = normalizeActivityFilter(status);
   const hasActivity = digest.events.length > 0;
-  const inactiveProjects = digest.projects.filter((p) => p.activity === 0);
+  // Every project is named the way a person names it (projectTitle), and
+  // its row opens that project's Watch page.
+  const names: ProjectNames = {};
+  for (const p of projects) names[p.name] = { title: projectTitle(p), id: p.id };
+  const titleOf = (key: string) => names[key]?.title ?? key;
 
   const summary = summarizeActivity(digest.events);
   const momentum = computeMomentum(digest.events.length, digest.previousCount);
-  const pulse = buildActivityPulse(
-    digest.events,
-    digest.since,
-    digest.until,
-    pulseBucketCount(digest.window),
-  );
   const attentionEvents = digest.events.filter(eventNeedsAttention);
+  const context = [
+    summary.agentLabel ? `${summary.agentLabel} of agent time` : null,
+    momentum.label,
+  ].filter(Boolean);
+
+  // Nothing in this window: say when there last was, and offer the window
+  // that has it.
+  const suggestion = hasActivity ? null : lookback(snapshot.latestPromptAt, digest.until);
 
   return (
-    <div className="space-y-4">
-      {hasActivity && (
+    <PageLayout
+      title="Activity"
+      maxWidth="max-w-2xl"
+      action={<ActivityReport window={digest.window} project={digest.projectKey} />}
+    >
+      <div className="flex flex-col gap-3">
+        <ActivityScope
+          window={digest.window}
+          project={digest.projectKey}
+          filter={filter}
+          projects={digest.projects.map((p) => ({ key: p.key, title: titleOf(p.key) }))}
+        />
+        {hasActivity && (
+          <div>
+            <p className="ui-activity-lede">{activityHeadline(summary)}</p>
+            {context.length > 0 && <p className="ui-activity-lede-sub">{context.join(" · ")}</p>}
+          </div>
+        )}
+      </div>
+
+      {hasActivity ? (
         <>
-          <ActivityHero
-            summary={summary}
-            momentum={momentum}
-            pulse={pulse}
-            digestWindow={digest.window}
-            projectKey={digest.projectKey}
-          />
           <NeedsYouCard
             events={attentionEvents}
             digestWindow={digest.window}
             projectKey={digest.projectKey}
+            names={names}
           />
-        </>
-      )}
-
-      <StatusStrip
-        digestWindow={digest.window}
-        projectKey={digest.projectKey}
-        filter={filter}
-        statuses={digest.projectStatuses}
-        inactiveProjects={inactiveProjects}
-      />
-
-      <FilterCard
-        digestWindow={digest.window}
-        projectKey={digest.projectKey}
-        filter={filter}
-        since={digest.since}
-      />
-
-      {!hasActivity ? (
-        <Card className="space-y-4">
-          <EmptyState icon={FileText} title={`No activity in ${RANGE_LABEL[digest.window]}`}>
-            Dispatch prompts or finish agent runs, then return here. Or pick a wider window above.
-          </EmptyState>
-          {snapshot.latestPromptAt &&
-            snapshot.totalPrompts > 0 &&
-            (() => {
-              const ageMs = Date.parse(digest.until) - Date.parse(snapshot.latestPromptAt);
-              const ageHours = Math.floor(ageMs / (60 * 60 * 1000));
-              const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
-              const ageLabel =
-                ageDays >= 1
-                  ? `${ageDays} day${ageDays === 1 ? "" : "s"} ago`
-                  : ageHours >= 1
-                    ? `${ageHours} hour${ageHours === 1 ? "" : "s"} ago`
-                    : "a moment ago";
-              const suggestedWindow =
-                ageHours < 1
-                  ? ("hour" as const)
-                  : ageHours < 24
-                    ? ("day" as const)
-                    : ageDays < 7
-                      ? ("week" as const)
-                      : ("month" as const);
-              // Pick the label that describes what clicking actually changes:
-              // - same window + filtered to a project → clearing the project
-              // - different window (regardless of filter) → switching window
-              // - same window + no project filter → no useful action, skip the link
-              const windowChanged = suggestedWindow !== digest.window;
-              const projectCleared = digest.projectKey !== null;
-              let suggestionLabel: string | null = null;
-              if (windowChanged) suggestionLabel = `Show ${RANGE_LABEL[suggestedWindow]}`;
-              else if (projectCleared) suggestionLabel = "Show all projects";
-              return (
-                <EmptyLookback
-                  ageLabel={ageLabel}
-                  latestPromptProject={snapshot.latestPromptProject}
-                  totalPrompts={snapshot.totalPrompts}
-                  distinctProjects={snapshot.distinctProjects}
-                  suggestedWindow={suggestedWindow}
-                  suggestionLabel={suggestionLabel}
-                />
-              );
-            })()}
-        </Card>
-      ) : (
-        <>
           <EventStream
             events={digest.events}
             filter={filter}
             digestWindow={digest.window}
             projectKey={digest.projectKey}
+            names={names}
           />
-          <DigestPanel window={digest.window} project={digest.projectKey} />
         </>
+      ) : (
+        <EmptyState
+          icon={Activity}
+          title={
+            digest.projectKey
+              ? `Nothing in ${titleOf(digest.projectKey)} in ${RANGE_LABEL[digest.window]}`
+              : `Nothing happened in ${RANGE_LABEL[digest.window]}`
+          }
+          action={
+            digest.projectKey ? (
+              <Link
+                href={activityHref({ window: digest.window })}
+                className="ui-btn-secondary"
+              >
+                Show every project
+              </Link>
+            ) : suggestion && suggestion !== digest.window ? (
+              <Link href={activityHref({ window: suggestion })} className="ui-btn-secondary">
+                Show {RANGE_LABEL[suggestion]}
+              </Link>
+            ) : undefined
+          }
+        />
       )}
-    </div>
+    </PageLayout>
   );
+}
+
+/** The narrowest window that holds the last thing that happened. */
+function lookback(latestAt: string | null, until: string): DigestWindow | null {
+  if (!latestAt) return null;
+  const hours = (Date.parse(until) - Date.parse(latestAt)) / 3_600_000;
+  if (hours < 1) return "hour";
+  if (hours < 24) return "day";
+  if (hours < 24 * 7) return "week";
+  if (hours < 24 * 30) return "month";
+  return null;
 }

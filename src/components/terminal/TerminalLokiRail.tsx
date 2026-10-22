@@ -26,36 +26,10 @@ import {
   summaryPrompt,
   terminalContextAttachment,
 } from "@/lib/terminal-summary";
-import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
-import type { LiveTurn } from "@/hooks/use-loki-stream";
+import { useLiveStatus } from "@/hooks/use-live-status";
 import { commandIn } from "@/lib/terminal-commands";
 import { typeCommand } from "@/lib/session-keystrokes";
 import { TerminalComposer } from "./TerminalComposer";
-
-/**
- * "12s · Running list_projects" — the live line /loki's own thread prints.
- * This panel used to say only "Working on it", with no clock, for turns that
- * run tens of seconds: on a phone that is indistinguishable from a hang.
- */
-function useLiveStatus(live: LiveTurn | null): string | undefined {
-  const [now, setNow] = useState(() => Date.now());
-  const since = live?.startedAt ?? 0;
-  useEffect(() => {
-    if (!since) return;
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
-  }, [since]);
-  if (!live || !since) return undefined;
-  const s = Math.max(0, Math.floor((now - since) / 1000));
-  const clock = s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
-  const running = live.tools.findLast((t) => t.phase === "start");
-  const doing = live.status
-    ? LOKI_STATUS_COPY[live.status]
-    : running
-      ? `Running ${running.name.replace(/_/g, " ")}`
-      : LOKI_STATUS_COPY.thinking;
-  return `${clock} · ${doing}`;
-}
 
 type RunPayload = { ok?: boolean; view: TerminalRunView | null; error?: string };
 
