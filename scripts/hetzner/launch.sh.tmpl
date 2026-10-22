@@ -14,6 +14,10 @@ set -euo pipefail
 # moment sync-infra.sh ran without a subsequent deploy. Fixing the output of a
 # generator does not fix the generator.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# The fleet's shared keys first (AI vendors, web search, the shared mail
+# account; scripts/hetzner/fleet-env.sh), then the app's own .env, so an app
+# that holds its own key for any of them keeps it.
+if [ -f /opt/fleet/env ]; then set -a; source /opt/fleet/env; set +a; fi
 if [ -f "$HERE/.env" ]; then set -a; source "$HERE/.env"; set +a; fi
 # HOSTNAME defaults to loopback; an app sets BIND_HOST in its .env (sourced
 # just above, so it wins) to bind elsewhere. Solon needed BIND_HOST=0.0.0.0

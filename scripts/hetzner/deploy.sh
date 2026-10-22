@@ -27,6 +27,10 @@ cd "$SRC"
 # Build with the runtime env: NEXT_PUBLIC_* is baked at build time, and SSG
 # pages may query the DB — tunnel build-time DB access to the box's Postgres.
 [ -f "$SRC/.env.selfhost.local" ] || { echo "ERROR: $SRC/.env.selfhost.local missing — run gen-env.sh $NAME"; exit 1; }
+# The fleet's shared keys first, then the app's own (which wins), exactly as
+# launch.sh.tmpl reads them at runtime. .env.fleet is pulled from
+# /opt/fleet/env by selfhost-deploy.yml; it is only read here, never uploaded.
+if [ -f "$SRC/.env.fleet" ]; then set -a; source "$SRC/.env.fleet"; set +a; fi
 set -a; source "$SRC/.env.selfhost.local"; set +a
 STAGE=""
 TUNNEL_SOCK=$(mktemp -u /tmp/deploy-tunnel.XXXXXX)
