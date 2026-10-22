@@ -38,11 +38,12 @@ function MobileNavRow({
       className={cn("ui-mobile-nav-row", isActive && "ui-mobile-nav-row-active")}
       aria-current={isActive ? "page" : undefined}
     >
-      <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{item.label}</span>
-        <span className="block truncate text-xs text-text-tertiary">{item.description}</span>
-      </span>
+      <Icon className="h-5 w-5 shrink-0 text-text-secondary" aria-hidden="true" />
+      {/* The name only. Each row used to carry its one-line description,
+          cut off with "…" on every phone (owner, 2026-10-21: "Talk to Loki
+          with the screen off — it reads the fleet out …"). A menu of places
+          is read by name; what a page is for, the page says. */}
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
     </Link>
   );
 }
@@ -65,7 +66,7 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
       />
       <div className="ui-mobile-nav-sheet" role="dialog" aria-label="More">
         <div className="ui-mobile-nav-sheet-header">
-          <span className="text-sm font-semibold text-text-primary">More</span>
+          <span className="ui-mobile-nav-sheet-title">More</span>
           <button
             type="button"
             onClick={onClose}
@@ -90,13 +91,8 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
                 <div key={section.id} className="px-3 pb-2">
                   <p className="ui-mobile-nav-sheet-label">{section.label}</p>
                   <Link href="/unlock" onClick={onClose} className="ui-mobile-nav-row">
-                    <Lock className="h-5 w-5 shrink-0 text-accent-text" aria-hidden="true" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">Unlock private zone</span>
-                      <span className="block text-xs text-text-tertiary">
-                        People, goals, habits, events, money, memory
-                      </span>
-                    </span>
+                    <Lock className="h-5 w-5 shrink-0 text-text-secondary" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">Unlock</span>
                   </Link>
                 </div>
               );

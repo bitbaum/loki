@@ -152,7 +152,7 @@ function SidebarNavSection({
           <span>{section.label}</span>
           <Lock className="ui-sidebar-section-lock-active" />
         </span>
-        <span className="text-text-muted text-micro uppercase tracking-caps">Unlock</span>
+        <span className="text-xs text-text-muted">Unlock</span>
       </Link>
     );
   }

@@ -66,12 +66,14 @@ export function ListRow({
   external = false,
   control,
   className,
+  label,
 }: {
   /** The row opens this page. */
   href?: string;
   /** `href` is another site: it opens in a new tab. */
   external?: boolean;
-  /** Or the row does this. Ignored when `href` is set. */
+  /** Or the row does this. With `href` it runs as the link is followed
+   *  (to record the tap), and the link still navigates. */
   onClick?: () => void;
   /** Leading icon (20px, secondary ink). */
   icon?: LucideIcon;
@@ -91,21 +93,41 @@ export function ListRow({
   /** A leading control with its own action, in place of `icon`/`avatar`. */
   control?: React.ReactNode;
   className?: string;
+  /** The row's accessible name, when the title alone does not say what a tap
+   *  does ("Resume loki" for a row titled "loki"). */
+  label?: string;
 }) {
   const interactive = !!href || !!onClick;
   const titleNode = <span className="ui-listrow-title">{title}</span>;
   const hit = href ? (
     external ? (
-      <a href={href} target="_blank" rel="noreferrer" className="ui-listrow-hit ui-listrow-title">
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={onClick}
+        aria-label={label}
+        className="ui-listrow-hit ui-listrow-title"
+      >
         {title}
       </a>
     ) : (
-      <Link href={href} className="ui-listrow-hit ui-listrow-title">
+      <Link
+        href={href}
+        onClick={onClick}
+        aria-label={label}
+        className="ui-listrow-hit ui-listrow-title"
+      >
         {title}
       </Link>
     )
   ) : onClick ? (
-    <button type="button" onClick={onClick} className="ui-listrow-hit ui-listrow-title">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="ui-listrow-hit ui-listrow-title"
+    >
       {title}
     </button>
   ) : (

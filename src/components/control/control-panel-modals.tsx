@@ -153,7 +153,7 @@ export function LaunchTabModal({
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-text-tertiary uppercase tracking-caps">
+          <label className="text-xs font-medium text-text-tertiary">
             Initial task <span className="font-normal normal-case text-text-muted">— optional</span>
           </label>
           <select

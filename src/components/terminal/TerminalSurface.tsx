@@ -20,6 +20,7 @@ import {
   TERMINAL_MODE_STORAGE_KEY,
   TERMINAL_RAIL_QUERY,
   TERMINAL_RAIL_STORAGE_KEY,
+  TERMINAL_SOURCES,
   type TerminalSource,
 } from "@/config/terminal-modes";
 import type { TerminalContext } from "@/app/api/terminal/context/route";
@@ -41,6 +42,7 @@ import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { buildStripTabs, agentName } from "./terminal-strip-tabs";
+import { SESSION_STATUS_WORDS } from "@/lib/terminal-session-status";
 import { TerminalAgentTabs } from "./TerminalAgentTabs";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
@@ -48,6 +50,10 @@ import { TerminalOfflineActions } from "./TerminalOfflineActions";
 import { cloudBuilderState } from "@/lib/builder-way-forward";
 import type { BuilderPresenceSnapshot } from "@/hooks/use-builder-presence";
 import { TerminalPaneActions } from "./TerminalPaneActions";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { ChoiceMenu } from "@/components/ui/choice-menu";
+import { EmptyState } from "@/components/ui/empty-state";
+import { projectTitle } from "@/lib/project-display";
 import { useTerminalView } from "./use-terminal-view";
 import { useScreenSuggestions } from "./use-screen-suggestions";
 import { TerminalActions } from "./TerminalActions";
@@ -487,7 +493,7 @@ export function TerminalSurface({
   const agentSwitchDisabledReason = !activeTab
     ? "Open a session first — switching swaps the CLI running in a tab."
     : !tabContext?.dir
-      ? `“${activeTab}” isn’t linked to a project directory, so Loki doesn’t know where to relaunch the agent.`
+      ? "This session has no project folder, so its agent cannot be changed."
       : null;
   const news = useSessionStatuses(activeTab);
   const stripTabs = useMemo(
@@ -495,20 +501,9 @@ export function TerminalSurface({
     [tabs, activeTab, context, ta.aliases, ta.layout, news.statuses],
   );
 
-  // Where we looked, and the one place we haven't — both named in the miss
-  // state, since "not on Cloud" and "nowhere" are very different news.
-  const sourceLabel =
-    source === "machine"
-      ? EXECUTOR_COPY.terminal.thisComputerLabel
-      : EXECUTOR_COPY.terminal.cloudLabel;
-  const otherSourceLabel =
-    source === "machine"
-      ? sources.includes("cloud")
-        ? EXECUTOR_COPY.terminal.cloudLabel
-        : null
-      : sources.includes("machine")
-        ? EXECUTOR_COPY.terminal.thisComputerLabel
-        : null;
+  // Where the sessions run, in the words the session sheet uses ("Cloud",
+  // "Your computer") — never "Cloud builder" on a person's screen.
+  const sourceLabel = TERMINAL_SOURCES.find((s) => s.id === source)?.label ?? "Cloud";
 
   // Constant across substrates: scope on top, then the tab strip, then the
   // controls that act on the selected tab.
@@ -528,7 +523,9 @@ export function TerminalSurface({
   // behind it, in the sheet.
   const activeStrip = stripTabs.find((t) => t.id === activeTab);
   const headerTitle =
-    source === "shell" ? "Shell" : (activeStrip?.label ?? activeTab ?? sourceLabel);
+    source === "shell"
+      ? "Shell"
+      : (activeStrip?.label ?? (activeTab ? projectTitle({ name: activeTab }) : "Sessions"));
   const agentShown = source === "shell" || !activeTab ? null : activeAgentId;
   const headerAgent =
     agentShown && agentName(activeStrip?.badge, context?.agents.agents, agentShown);
@@ -626,7 +623,6 @@ export function TerminalSurface({
       onSwitchAgent={(id) => void ta.switchAgent(id)}
       switchingAgent={ta.switchingAgent}
       agentSwitchDisabledReason={agentSwitchDisabledReason}
-      honesty={honesty}
     />
   ) : moreOpen ? (
     <TerminalMoreSheet
@@ -683,10 +679,12 @@ export function TerminalSurface({
         <TerminalSessionMiss
           resume={resume}
           requestedTab={resolvedInitialTab!}
-          sourceLabel={sourceLabel}
-          otherSourceLabel={otherSourceLabel}
-          hasOthers={tabs.length > 0}
-          onSwitchSource={() => setSource(source === "machine" ? "cloud" : "machine")}
+          openSessions={stripTabs.map((t) => ({
+            id: t.id,
+            label: t.label,
+            detail: t.status ? SESSION_STATUS_WORDS[t.status] : null,
+          }))}
+          onOpenSession={setUserSelection}
         />
       );
     }
@@ -701,19 +699,9 @@ export function TerminalSurface({
       // Three honest states, in priority order: gated (this account may not use
       // this builder) → offline (allowed, nothing connected) → online-but-idle
       // (allowed and connected, just nothing running → offer the next step).
-      // Deep link ?tab=X with no session is the common Install/Implement Watch
-      // dead-end — say so plainly instead of a generic empty cloud.
-      const tabHint =
-        initialTab && !offline && !gatedMessage
-          ? // Name the button Attention ACTUALLY shows for this case. This branch
-            // is the no-running-agent case by definition, which maps to
-            // START_SESSION — Retry is deliberately not offered there, because
-            // repeating a command against an absent target fails identically
-            // forever. The old copy said "Retry", so it sent the reader to
-            // Control to hunt for a button that is not drawn.
-            `No live session for “${initialTab}”. If you just dispatched work, check its status on Home. Start a session here when you want to launch an agent directly.`
-          : null;
-      const hint = gatedMessage ?? emptyStateHint({ offline, source, presence, tabHint });
+      // A deep link ?tab=X with nothing open lists X first among the Resume
+      // rows (emptyStateProject), so it needs no sentence of its own.
+      const hint = gatedMessage ?? emptyStateHint({ offline, source, presence, tabHint: null });
       // `initialTab` is the ATTACHED tab, which is null on exactly this
       // screen — nothing is running, that is why the empty state renders. Fall
       // back to the workspace project so these two buttons keep the scope the
@@ -722,12 +710,26 @@ export function TerminalSurface({
       if (!gatedMessage && !offline) {
         // Allowed and connected, nothing open: what you had, one tap from
         // each — not a form that read as if it never existed.
+        // One line and a row per project; where they run is a menu on the
+        // line, only when there is a choice. It said "Nothing is open on the
+        // cloud builder. Pick up where you left off:" over a boxed list, under
+        // a second header naming the builder (owner, 2026-10-21).
+        const runsOn = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
         return (
-          <div className="ui-empty-page">
-            <p className="text-sm text-text-secondary">
-              Nothing is open on the {sourceLabel.toLowerCase()}. Pick up where you left off:
-            </p>
-            {tabHint && <p className="max-w-md text-center text-xs text-text-muted">{tabHint}</p>}
+          <div className="ui-term-nothing-open">
+            <SectionHeading
+              title="Pick up where you left off"
+              right={
+                runsOn.length > 1 ? (
+                  <ChoiceMenu
+                    label="On"
+                    value={source}
+                    options={runsOn.map((s) => ({ value: s.id, label: s.label, hint: s.hint }))}
+                    onChange={setSource}
+                  />
+                ) : undefined
+              }
+            />
             <TerminalResume
               {...resume}
               activeProject={emptyStateProject}
@@ -737,14 +739,15 @@ export function TerminalSurface({
         );
       }
       return (
-        <div className="ui-empty-page">
-          <MonitorSmartphone className="h-6 w-6 text-text-muted" aria-hidden="true" />
-          <p className="text-sm text-text-secondary">
-            {offline ? copy.empty.replace("right now", "— builder offline") : copy.empty}
-          </p>
-          <p className="max-w-md text-center text-xs text-text-muted">{hint}</p>
-          <TerminalOfflineActions source={source} presence={presence} onSwitch={setSource} />
-        </div>
+        // Gated or offline: the one sentence that says why, and the way on.
+        <EmptyState
+          icon={MonitorSmartphone}
+          title={hint}
+          size="lg"
+          action={
+            <TerminalOfflineActions source={source} presence={presence} onSwitch={setSource} />
+          }
+        />
       );
     }
     // A source switch can briefly leave the previous source's selected tab in
@@ -755,11 +758,7 @@ export function TerminalSurface({
       return (
         <div className="ui-empty-page">
           <Loader2 className="ui-spinner h-5 w-5" aria-hidden="true" />
-          <p className="text-sm text-text-secondary">Selecting an available session…</p>
-          <p className="max-w-md text-center text-xs text-text-muted">
-            Loki is reconciling the sessions reported by {sourceLabel}. This page will attach
-            automatically; you do not need to retry.
-          </p>
+          <p className="text-sm text-text-secondary">Opening the session…</p>
         </div>
       );
     }
@@ -806,7 +805,10 @@ export function TerminalSurface({
   return (
     <div className="flex h-full min-h-0 flex-col gap-2" style={rootStyle}>
       {sourceBar}
-      <div className="md:hidden">{mobileHeader}</div>
+      {/* With nothing open the app's own top bar names the page, and the
+          list below is the way in: a second header saying "Cloud builder ·
+          4 sessions" over it was a second title (owner, 2026-10-21). */}
+      {activeTab && <div className="md:hidden">{mobileHeader}</div>}
       <TerminalAgentTabs
         tabs={stripTabs}
         activeTab={activeTab}

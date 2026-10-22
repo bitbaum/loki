@@ -627,11 +627,10 @@
     @apply hidden md:flex items-center gap-4 px-5 py-2 text-text-tertiary;
     font-family: var(--font-mono);
     font-size: var(--text-micro);
-    letter-spacing: 0.04em;
     box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.04);
   }
   .ui-app-footer-cell {
-    @apply inline-flex items-center gap-1.5 uppercase transition-colors hover:text-text-secondary;
+    @apply inline-flex items-center gap-1.5 transition-colors hover:text-text-secondary;
   }
   .ui-app-footer-dot {
     @apply inline-block h-1.5 w-1.5 rounded-full;
@@ -660,20 +659,26 @@
     @apply fixed bottom-0 inset-x-0 z-50 flex max-h-[min(88svh,calc(100svh-var(--mobile-chrome-bottom)))] flex-col rounded-t-2xl border-t border-border-default bg-surface-base shadow-panel-strong md:hidden;
   }
   .ui-mobile-nav-sheet-header {
-    @apply flex shrink-0 items-center justify-between border-b border-border-subtle px-4 py-3;
+    @apply flex shrink-0 items-center justify-between px-4 pb-1 pt-2;
+  }
+  .ui-mobile-nav-sheet-title {
+    font-size: var(--text-bar-title);
+    @apply font-semibold text-text-primary;
   }
   .ui-mobile-nav-sheet-scroll {
     @apply min-h-0 flex-1 overflow-y-auto overscroll-contain py-2;
   }
   .ui-mobile-nav-sheet-label {
-    @apply mb-1 mt-3 px-3 text-sm font-semibold text-text-secondary;
+    font-size: var(--text-section);
+    @apply mb-1 mt-4 px-3 font-semibold text-text-primary;
   }
   /* The section's question, shown only in the Menu sheet. The sidebar keeps
      it as a tooltip instead: the sheet is a surface you open to ask "where
      can I go?", so the taxonomy is the content there; the sidebar is always
      on screen, where the same line would be permanent noise. */
+  /* One place per row: an icon and its name — no description to cut off. */
   .ui-mobile-nav-row {
-    @apply flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-left text-text-primary transition-colors hover:bg-surface-raised;
+    @apply flex min-h-12 items-center gap-3 rounded-xl px-3 py-2 text-left text-base font-medium text-text-primary transition-colors hover:bg-surface-raised;
   }
   .ui-mobile-nav-row-active {
     @apply bg-accent-muted text-text-primary;
@@ -715,12 +720,12 @@
   /* Sidebar section headers — small caps label introducing a group of items
      (Work / Private / Site). Toggle button collapses/expands the section. */
   .ui-sidebar-section-toggle {
-    @apply mb-2 flex w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-micro font-semibold uppercase tracking-caps text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary;
+    @apply mb-1 flex min-h-8 w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-sm font-medium text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-secondary;
   }
   /* Non-toggleable header used for the Private section when the zone is
      locked — clicking the row itself routes to /unlock. */
   .ui-sidebar-section-locked {
-    @apply mb-2 flex w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-micro font-semibold uppercase tracking-caps text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary;
+    @apply mb-1 flex min-h-8 w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-sm font-medium text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-secondary;
   }
   .ui-sidebar-section-lock {
     @apply h-3 w-3 opacity-40;
@@ -2978,7 +2983,7 @@
     font-family: var(--font-mono);
   }
   .ui-term-pane-state {
-    @apply text-micro uppercase tracking-caps text-text-muted;
+    @apply text-micro text-text-muted;
   }
   .ui-term-pane-actions {
     @apply ml-auto flex items-center gap-0.5;
@@ -3049,7 +3054,7 @@
     @apply flex items-start gap-2 border-t border-border-subtle bg-surface-base px-2.5 py-1.5;
   }
   .ui-term-linkbar-label {
-    @apply mt-0.5 shrink-0 text-micro font-semibold uppercase tracking-caps text-text-muted;
+    @apply mt-0.5 shrink-0 text-micro font-semibold text-text-muted;
   }
   .ui-term-linkbar-list {
     @apply flex min-w-0 flex-1 flex-col gap-1;
@@ -3062,7 +3067,7 @@
     font-family: var(--font-mono);
   }
   .ui-term-linkbar-btn {
-    @apply shrink-0 rounded border border-border-subtle px-1.5 py-0.5 text-micro font-semibold uppercase tracking-caps text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
+    @apply shrink-0 rounded border border-border-subtle px-1.5 py-0.5 text-micro font-semibold text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
   }
   .ui-term-linkbar-dismiss {
     @apply shrink-0 rounded p-0.5 text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary;
@@ -3109,7 +3114,7 @@
     @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border-subtle text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
   .ui-term-font-reset {
-    @apply inline-flex h-8 shrink-0 items-center rounded-md px-2 text-micro uppercase tracking-caps text-text-muted transition-colors hover:text-text-primary;
+    @apply inline-flex h-8 shrink-0 items-center rounded-md px-2 text-xs text-text-muted transition-colors hover:text-text-primary;
   }
 
   /* ── Phone terminal ──────────────────────────────────────────────────────
@@ -3154,73 +3159,31 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
   .ui-sessions-head {
-    @apply sticky top-0 z-10 flex items-start gap-3 border-b border-border-subtle bg-surface-page px-4 py-3;
-    padding-top: max(0.75rem, env(safe-area-inset-top));
+    @apply sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface-page px-4 py-2;
+    padding-top: max(0.5rem, env(safe-area-inset-top));
   }
   .ui-sessions-title {
-    @apply text-lg font-semibold text-text-primary;
-  }
-  .ui-sessions-sub {
-    @apply text-sm text-text-tertiary;
+    font-size: var(--text-bar-title);
+    @apply font-semibold text-text-primary;
   }
   .ui-sessions-body {
-    @apply flex flex-col gap-6 px-4 py-4;
-  }
-  .ui-sessions-body > section {
-    @apply flex flex-col gap-2;
-  }
-  .ui-sessions-label {
-    @apply text-micro font-semibold uppercase tracking-caps text-text-muted;
+    @apply flex flex-col gap-6 px-4 pb-4 pt-2;
   }
   .ui-sessions-note {
     @apply text-sm text-text-secondary;
   }
-  .ui-sessions-list {
-    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-base;
-  }
-  .ui-sessions-row {
-    @apply flex min-h-15 w-full items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-raised active:bg-surface-overlay;
-  }
-  .ui-sessions-row[aria-current="page"] {
-    @apply bg-surface-raised;
-  }
-  .ui-sessions-name {
-    @apply block truncate text-base font-medium text-text-primary;
-  }
-  .ui-sessions-line {
-    @apply flex min-w-0 items-center gap-1.5 text-sm text-text-tertiary;
-  }
-  .ui-sessions-chev {
-    @apply h-4 w-4 shrink-0 text-text-muted;
-  }
-  .ui-sessions-search {
-    @apply w-full rounded-xl border border-border-default bg-surface-base py-2.5 pl-10 pr-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:border-border-strong;
-  }
-  .ui-sessions-search-icon {
-    @apply pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted;
-  }
   /* The terminal with nothing open: your projects, each one tap from its
      session (TerminalResume). Rows, not a form. */
   .ui-term-resume {
-    @apply mt-2 flex w-full max-w-md flex-col gap-3;
+    @apply flex w-full flex-col gap-2;
   }
-  .ui-term-resume-list {
-    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-base;
-  }
-  .ui-term-resume-row {
-    @apply flex min-h-14 w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-raised active:bg-surface-overlay;
-  }
-  .ui-term-resume-name {
-    @apply block truncate text-base font-medium text-text-primary;
-  }
-  .ui-term-resume-detail {
-    @apply block truncate text-xs text-text-tertiary;
-  }
+  /* The verb at the end of each row: the row is the button, this says what
+     a tap does. */
   .ui-term-resume-go {
     @apply inline-flex h-9 shrink-0 items-center rounded-full border border-border-default px-4 text-sm font-medium text-text-primary;
   }
   .ui-term-resume-opening {
-    @apply flex items-center justify-center gap-2 text-center text-sm text-text-secondary;
+    @apply flex items-center gap-2 py-3 text-sm text-text-secondary;
   }
   /* "substrata 2 finished · Open": news from another session, one line. */
   .ui-term-notice {
@@ -3263,9 +3226,6 @@
   .ui-term-mhead .ui-term-view > svg,
   .ui-term-mhead .ui-term-view-active > svg {
     @apply hidden;
-  }
-  .ui-term-mhead-icon {
-    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface-raised text-text-secondary transition-colors active:bg-surface-overlay;
   }
 
   /* The PTY takes every column the rail does not. The rail used to be 40% of
@@ -3418,7 +3378,7 @@
     @apply flex shrink-0 items-center gap-1.5;
   }
   .ui-term-key-group-label {
-    @apply shrink-0 text-micro uppercase tracking-caps text-text-muted;
+    @apply shrink-0 text-micro text-text-muted;
   }
 
   /* ── Dock — keys and composer as one block under the screen ─────────────── */
@@ -3579,7 +3539,7 @@
     @apply flex flex-col gap-1;
   }
   .ui-sheet-label {
-    @apply mb-1 text-micro font-semibold uppercase tracking-caps text-text-muted;
+    @apply mb-1 text-micro font-semibold text-text-muted;
   }
   .ui-sheet-option {
     @apply flex min-h-11 w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition-colors active:bg-surface-overlay disabled:opacity-40;
@@ -3653,17 +3613,17 @@
     @apply shrink-0 border-t border-border-subtle p-4;
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
-  .ui-term-font-reset-on {
-    @apply text-text-primary;
-  }
 
   /* Deep-link miss — a session that isn't here. Occupies the terminal's slot
      rather than sitting above someone else's live session. */
+  /* A deep link to a project with nothing open: one line, its Resume row,
+     and (on a phone) the sessions that are open. On the page, not in a box. */
   .ui-term-miss {
-    @apply flex h-full min-h-0 flex-col items-center justify-center gap-2 overflow-y-auto rounded-md border border-border-subtle bg-surface-base p-4 text-center;
+    @apply mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col gap-4 overflow-y-auto pt-2 md:pt-6;
   }
   .ui-term-miss-title {
-    @apply text-sm font-medium text-text-primary;
+    font-size: var(--text-section);
+    @apply font-semibold text-text-primary;
   }
   .ui-term-miss-body {
     @apply text-xs text-text-muted;
@@ -4086,7 +4046,7 @@
   }
   /* Group heading inside the health worklist ("4 to earn"). */
   .ui-health-group-label {
-    @apply mb-1.5 mt-3 text-micro font-medium uppercase tracking-wide text-text-tertiary;
+    @apply mb-1.5 mt-3 text-micro font-medium text-text-tertiary;
   }
   /* One outstanding check: what it is, why it is not passing, and its editor. */
   .ui-health-row {
@@ -4135,7 +4095,7 @@
      rather than duplicating the markup. */
   .ui-stat-card-label {
     @apply order-2 text-xs font-medium normal-case text-text-secondary;
-    @apply sm:order-none sm:block sm:font-semibold sm:uppercase;
+    @apply sm:order-none sm:block sm:font-semibold;
     /* Matches .ui-kicker at sm+ — the same 0.75rem and label tracking, stated
        as CSS rather than an arbitrary `text-[0.75rem]` utility. */
     @media (min-width: 40rem) {
@@ -5120,7 +5080,7 @@
     @apply space-y-0.5;
   }
   .ui-walk-label {
-    @apply text-xs font-medium uppercase tracking-caps text-text-tertiary;
+    @apply text-xs font-medium text-text-tertiary;
   }
   .ui-walk-text {
     @apply text-sm leading-relaxed text-text-primary wrap-anywhere;
@@ -5727,7 +5687,7 @@
     @apply min-w-0 font-medium text-text-primary;
   }
   .ui-fb-walk-marked {
-    @apply text-xs font-normal uppercase tracking-caps text-text-tertiary;
+    @apply text-xs font-normal text-text-tertiary;
   }
   .ui-fb-walk-seen {
     @apply text-xs text-text-secondary;
@@ -6055,7 +6015,7 @@
     @apply inline-flex min-h-11 w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors disabled:opacity-50 border border-border-default bg-surface-base text-text-primary hover:border-border-strong hover:bg-surface-overlay;
   }
   .ui-control-project-autopilot-paused {
-    @apply shrink-0 text-micro font-medium uppercase tracking-wide text-text-muted;
+    @apply shrink-0 text-micro font-medium text-text-muted;
   }
   .ui-control-live-details {
     @apply rounded-2xl border border-border-subtle bg-surface-raised;
@@ -6422,7 +6382,7 @@
     /* Esthetics: consistent 2xl rounding, subtle lift on hover for premium 'instrument panel' feel */
   }
   .ui-control-metric-label {
-    @apply flex items-center gap-1.5 text-micro font-semibold uppercase tracking-[0.12em] text-text-tertiary sm:gap-2 sm:text-xs sm:tracking-[0.14em];
+    @apply flex items-center gap-1.5 text-micro font-semibold text-text-tertiary sm:gap-2 sm:text-xs;
   }
   .ui-control-metric-value {
     @apply mt-2 text-2xl font-semibold tracking-tight text-text-primary sm:mt-3 sm:text-3xl;
@@ -6489,7 +6449,7 @@
     @apply w-full min-w-[40rem] table-fixed border-separate border-spacing-0 text-sm;
   }
   .ui-control-live-table th {
-    @apply border-b border-border-subtle pb-2 text-left text-micro font-semibold uppercase tracking-[0.12em] text-text-tertiary;
+    @apply border-b border-border-subtle pb-2 text-left text-micro font-semibold text-text-tertiary;
   }
   .ui-control-live-table td {
     @apply border-b border-border-subtle py-3 align-top text-text-secondary;
@@ -6554,7 +6514,7 @@
      class of bug that put React #418 on every authenticated page (#488). The
      browser already implements this one correctly. */
   .ui-section-label {
-    @apply text-micro font-medium uppercase tracking-wider text-text-muted;
+    @apply text-micro font-medium text-text-muted;
   }
   .ui-disclosure {
     @apply rounded-2xl border border-border-subtle bg-surface-base/40;
@@ -6803,7 +6763,7 @@
     @apply rounded border border-border-subtle px-1.5 py-0.5 font-mono text-micro text-text-secondary;
   }
   .ui-proposal-source {
-    @apply inline-flex items-center gap-1 font-mono text-micro uppercase tracking-wider text-text-muted hover:text-text-secondary;
+    @apply inline-flex items-center gap-1 font-mono text-micro text-text-muted hover:text-text-secondary;
   }
 
   /* ── Crew — assignments handed to humans ──────────────────────────────────
@@ -7125,7 +7085,7 @@
     @apply md:flex-row md:gap-4;
   }
   .ui-loki-history-rail {
-    @apply hidden min-h-0 w-60 shrink-0 flex-col border-r border-border-subtle pr-3 md:flex;
+    @apply hidden min-h-0 w-72 shrink-0 flex-col border-r border-border-subtle pr-1 md:flex;
   }
   .ui-loki-main {
     @apply flex min-h-0 min-w-0 flex-1 flex-col;
@@ -7299,97 +7259,65 @@
     @apply justify-end gap-3 pb-1 sm:justify-center sm:gap-4 sm:pb-16;
   }
 
-  /* Start screen: the spiral and one question centred in the free space, the
-     few recent threads docked just above the composer. The stage is
-     justify-end on a phone, so the greeting takes flex-1 and centres itself.
-     Scroll this content independently: project choices and recent chats must
-     not push the composer out of the viewport. */
+  /* ── design reset: Talk ── Loki's empty chat (StartScreen): the spiral and
+     one question centred in the free space, then a few rows — recent chats,
+     "Build next" — docked just above the composer, as Claude's and ChatGPT's
+     empty chats do. The stage is justify-end on a phone, so the greeting
+     takes flex-1 and centres itself. This content scrolls on its own, so it
+     can never push the composer out of the viewport. */
   .ui-loki-start {
-    @apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto sm:gap-6;
+    @apply flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto;
   }
   /* The inbox line above the greeting: what needs you, what runs, what
-     came back — each part a tap. Centred like the greeting it sits over. */
+     came back — each part a tap. Plain words, centred like the greeting. */
   .ui-loki-start-inbox {
-    @apply flex flex-wrap items-center justify-center gap-2;
+    @apply flex flex-wrap items-center justify-center gap-x-4 gap-y-1;
   }
   .ui-loki-start-inbox-item {
-    @apply inline-flex min-h-9 items-center gap-1 rounded-full border border-border-subtle px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+    @apply inline-flex min-h-11 items-center gap-1 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
   .ui-loki-start-inbox-needs {
-    @apply border-status-warning/40 font-medium text-text-primary;
+    @apply font-medium text-text-primary;
   }
   .ui-loki-start-hello {
-    @apply flex flex-1 flex-col items-center justify-center gap-3 text-center sm:flex-none;
+    @apply flex flex-1 flex-col items-center justify-center gap-3 text-center sm:flex-none sm:pt-8;
   }
   .ui-loki-start-title {
     @apply text-xl font-medium text-text-primary sm:text-2xl;
   }
-  .ui-loki-start-recent {
-    @apply flex flex-col gap-1;
+  /* A titled block of rows (Recent, Build next) — the List bleeds 12px. */
+  .ui-loki-start-section {
+    @apply flex min-w-0 flex-col px-1;
   }
-  .ui-loki-start-recent-head {
-    @apply flex items-center justify-between px-2;
+  .ui-loki-build-rotate {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
   }
-  .ui-loki-start-list {
-    @apply flex flex-col;
+  /* Sessions with nothing open (TerminalSurface): one line, then a Resume
+     row per project, on the page rather than in a box. */
+  .ui-term-nothing-open {
+    @apply mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col overflow-y-auto pt-2 md:pt-6;
   }
-  /* One line per thread: initial, title, project, time. Rows, not boxes. */
-  .ui-loki-start-row {
-    @apply flex min-h-11 w-full items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-surface-raised;
+  /* − / + / Fit at the end of the "Text size" row in the session's ⋮ sheet. */
+  .ui-sheet-step {
+    @apply inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-surface-raised px-3 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
-  .ui-loki-start-avatar {
-    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold text-text-secondary;
+  .ui-sheet-step-on {
+    @apply bg-surface-overlay font-medium text-text-primary ring-1 ring-border-default;
   }
-  /* Two lines, not one with an ellipsis: an untitled thread is the person's
-     own question, and "How should I price croissants for a small ba…" left
-     the half that says what it was about to a hover a phone does not have. */
-  .ui-loki-start-row-title {
-    @apply line-clamp-2 min-w-0 flex-1 text-sm text-text-primary;
+  /* An on/off switch drawn at the end of a row whose whole width is the
+     button (the terminal's "Live keystrokes"): a track and a knob. */
+  .ui-switch {
+    @apply relative inline-block h-6 w-10 shrink-0 rounded-full bg-border-strong transition-colors;
   }
-  .ui-loki-start-row-meta {
-    @apply max-w-28 shrink-0 truncate text-xs text-text-tertiary max-[360px]:hidden;
+  .ui-switch::after {
+    content: "";
+    @apply absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-surface-base transition-transform;
   }
-  .ui-loki-start-row-time {
-    @apply w-8 shrink-0 text-right text-xs text-text-muted;
+  .ui-switch-on {
+    @apply bg-accent-primary;
   }
-  .ui-loki-start-more {
-    @apply min-h-11 rounded-lg px-1 text-xs text-text-tertiary transition-colors hover:text-text-primary;
-  }
-
-  /* "Build next": suggestion chips ranked from the person's own records.
-     One scrolling row on every width — the row scrolls, never the page, so
-     min-w-0 on the section and overflow on the list are both load-bearing. */
-  .ui-loki-build {
-    @apply flex min-w-0 flex-col gap-1;
-  }
-  /* The edge reads as "more this way", never as a chip cut in half, and
-     never as the grey scrollbar Android drew under the row — at every width,
-     since the row scrolls at every width. */
-  .ui-loki-build-row {
-    @apply -mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
-    mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
-  }
-  @media (max-width: 639px) {
-    .ui-loki-build-row {
-      scroll-snap-type: x proximity;
-    }
-    .ui-loki-build-row > * {
-      scroll-snap-align: start;
-    }
-    .ui-loki-build-row::after {
-      content: "";
-      flex: 0 0 2.5rem;
-    }
-  }
-  .ui-loki-build-chip {
-    @apply inline-flex min-h-11 max-w-72 items-center gap-2 rounded-full border border-border-default bg-surface-raised px-4 text-sm text-text-primary transition-colors hover:border-border-strong;
-  }
-  .ui-loki-build-icon {
-    @apply h-4 w-4 shrink-0 text-text-secondary;
-  }
-  .ui-loki-build-label {
-    @apply min-w-0 truncate;
+  .ui-switch-on::after {
+    @apply translate-x-4;
   }
   /* One chat moving to another project: a quiet labelled rule (project-switches.ts). */
   .ui-loki-project-switch {
@@ -7467,66 +7395,15 @@
   .ui-loki-picker-answer {
     @apply inline-flex min-h-11 items-center gap-1.5 self-start rounded-full px-2 text-xs text-text-tertiary transition-colors hover:text-text-primary;
   }
-  /* Conversation list row (left pane). */
-  .ui-loki-convo {
-    @apply w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
-  }
+  /* The open chat's row in the rail (ThreadRail, a ListRow). */
   .ui-loki-convo-active {
-    @apply border-border-subtle bg-surface-raised text-text-primary;
-  }
-  /* Two lines, not one ellipsis. A conversation's title IS its identity in
-     this list, and at 42-45% visible — on DESKTOP, where there is room —
-     several threads collapsed to the same visible prefix ("Context EVIG
-     (evig.orangecat.ch) is my Zü…" twice over), so the list could not tell
-     you which chat was which. */
-  .ui-loki-convo-title {
-    @apply line-clamp-2 font-medium;
-  }
-  /* Where the thread stopped — its last line, one line. */
-  .ui-loki-convo-preview {
-    @apply mt-0.5 truncate text-xs text-text-secondary;
+    @apply bg-surface-raised;
   }
   .ui-loki-convo-meta {
     @apply mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-text-tertiary;
   }
-  /* What the thread needs from you, in words, with a dot or a spinner —
-     the one thing a list ordered by last touch could never say. */
-  .ui-loki-convo-state {
-    @apply inline-flex items-center gap-1 text-text-secondary;
-  }
-  .ui-loki-convo-state-needs {
-    @apply font-medium text-text-primary;
-  }
   .ui-loki-convo-pinned {
-    @apply mr-1 inline h-3 w-3 align-[-1px] text-text-tertiary;
-  }
-
-  /* Conversation row wrapper — holds the select button + a delete action that
-     stays out of the way until the row is hovered or focused within. */
-  /* `group/convo` marker is set in JSX — a group marker can't be @applied. */
-  .ui-loki-convo-row {
-    @apply relative;
-  }
-  /* Trash action pinned to the row's right edge. Hidden by default; revealed on
-     row hover or keyboard focus so it never crowds the title yet stays reachable.
-     The confirm state turns destructive to signal "click again to delete". */
-  .ui-loki-convo-delete {
-    @apply absolute right-1 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded p-1.5 text-text-muted opacity-0 transition-all hover:bg-surface-overlay hover:text-status-negative focus-visible:opacity-100;
-  }
-  .ui-loki-convo-delete-armed {
-    @apply opacity-100 text-status-negative bg-status-negative-subtle;
-  }
-  /* Pin sits one slot left of delete; same reveal, no destructive colour. */
-  .ui-loki-convo-pin {
-    @apply absolute right-10 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded p-1.5 text-text-muted opacity-0 transition-all hover:bg-surface-overlay hover:text-text-primary focus-visible:opacity-100;
-  }
-  /* Touch devices have no hover, so the delete would be permanently invisible.
-     Show it (dimmed) there; desktop keeps the reveal-on-hover behaviour. */
-  @media (hover: none) {
-    .ui-loki-convo-delete,
-    .ui-loki-convo-pin {
-      @apply opacity-60;
-    }
+    @apply mr-1 inline h-3.5 w-3.5 align-[-2px] text-text-tertiary;
   }
 
   /* Message bubbles (center pane). */
@@ -7695,34 +7572,34 @@
   .ui-voice-said {
     @apply mt-1 line-clamp-4 max-w-sm text-sm text-text-tertiary;
   }
+  /* The start screen (NoScreenStart): one line and Start, centred, then
+     the choices as titled sections of rows — the shape of every other page. */
   .ui-voice-start {
-    @apply mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-4 px-4 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center;
+    @apply mx-auto flex w-full max-w-md flex-1 flex-col gap-6 pb-[max(1.5rem,env(safe-area-inset-bottom))];
+  }
+  .ui-voice-start-head {
+    @apply flex flex-col items-center gap-3 pt-4 text-center md:pt-8;
+  }
+  .ui-voice-start-line {
+    @apply text-base text-text-secondary;
   }
   .ui-voice-start-btn {
-    @apply mt-2 inline-flex min-h-16 w-full items-center justify-center gap-3 rounded-full bg-accent-primary text-lg font-medium text-text-inverted transition-opacity hover:opacity-90;
+    @apply mt-2 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-full bg-accent-primary text-lg font-medium text-text-inverted transition-opacity hover:opacity-90;
   }
   .ui-voice-commands {
-    @apply mt-6 w-full space-y-3 text-left;
+    @apply flex w-full flex-col;
   }
   .ui-voice-command {
-    @apply flex flex-col gap-0.5 border-t border-border-subtle pt-3;
+    @apply flex flex-col gap-0.5 py-3;
+  }
+  .ui-voice-command + .ui-voice-command {
+    box-shadow: inset 0 1px 0 var(--border-subtle);
   }
   .ui-voice-command-say {
-    @apply text-sm font-medium text-text-primary;
+    @apply text-base font-medium text-text-primary;
   }
   .ui-voice-command-does {
-    @apply text-sm text-text-tertiary;
-  }
-  /* The four choices on the start screen: the voice as a <Segmented> grid,
-     the three switches as one row each, every one under a small heading. */
-  .ui-voice-settings {
-    @apply mt-2 w-full space-y-3 text-left;
-  }
-  .ui-voice-setting {
-    @apply flex flex-col gap-1.5;
-  }
-  .ui-voice-setting-label {
-    @apply text-xs font-semibold uppercase text-text-secondary;
+    @apply text-sm text-text-secondary;
   }
   /* The speaking screen's name. The app top bar carries the page's h1, but
      on a phone that bar steps aside for the open session, so this is the h1
@@ -7789,7 +7666,7 @@
     @apply border-l-2 border-accent-primary pl-3;
   }
   .ui-loki-handoff-who {
-    @apply mb-0.5 block text-micro font-medium uppercase tracking-wide text-accent-text;
+    @apply mb-0.5 block text-micro font-medium text-accent-text;
   }
   /* The one opener a carried-in conversation needs. */
   .ui-loki-suggest-chip-primary {
@@ -7927,37 +7804,20 @@
   .ui-loki-rail {
     @apply flex h-full min-h-0 flex-col gap-2;
   }
+  /* "New chat" — the rail's first row, drawn as a row. */
   .ui-loki-rail-new {
-    @apply inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-border-subtle px-3 text-sm font-medium text-text-primary transition-colors hover:border-border-default hover:bg-surface-raised;
+    @apply flex min-h-12 shrink-0 items-center gap-3 rounded-xl px-3 text-base font-medium text-text-primary transition-colors hover:bg-surface-raised;
   }
-  .ui-loki-rail-search {
-    @apply flex h-9 shrink-0 items-center gap-2 rounded-lg bg-surface-raised px-2.5;
-  }
-  .ui-loki-rail-search-input {
-    @apply min-w-0 flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none;
-  }
-  .ui-loki-rail-empty {
-    @apply px-2 text-xs text-text-muted;
+  /* The rail's list and its search scroll; "New chat" stays on top. */
+  .ui-loki-rail-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto px-3;
   }
   .ui-loki-rail-more {
-    @apply mt-1 inline-flex h-9 items-center gap-1 self-start rounded-lg px-2 text-xs text-text-tertiary transition-colors hover:text-text-primary;
+    @apply mt-1 inline-flex min-h-11 items-center self-start rounded-lg px-1 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
-  /* "What needs me" / "By project": two quiet words, one of them on. */
-  .ui-loki-rail-modes {
-    @apply flex shrink-0 items-center gap-1 px-1;
-  }
-  .ui-loki-rail-mode {
-    @apply min-h-8 rounded-lg px-2 text-xs text-text-tertiary transition-colors hover:text-text-primary;
-  }
-  .ui-loki-rail-mode-on {
-    @apply bg-surface-raised text-text-primary;
-  }
-  /* A project's header in the by-project rail: its name and what it asks. */
-  .ui-loki-rail-group {
-    @apply flex min-h-8 items-center justify-between gap-2 px-3 text-micro uppercase tracking-wider text-text-muted;
-  }
+  /* A project's counts beside its heading in the by-project rail. */
   .ui-loki-rail-group-counts {
-    @apply shrink-0 normal-case tracking-normal text-text-secondary;
+    @apply shrink-0 text-sm text-text-secondary;
   }
 
   /* ── Model picker ─────────────────────────────────────────────────────────
@@ -8193,7 +8053,7 @@
 
   /* Kind badge above an assistant turn (dispatch / chat / command). */
   .ui-loki-kind {
-    @apply mb-1 inline-flex items-center gap-1 self-start text-micro uppercase tracking-wider text-text-muted;
+    @apply mb-1 inline-flex items-center gap-1 self-start text-micro text-text-muted;
   }
   /* Provenance line under a Loki answer — which model, what was read, which
      tools ran, how long. Quiet by default: it is there to be glanced at when
@@ -8238,7 +8098,7 @@
     @apply space-y-2.5;
   }
   .ui-loki-update-label {
-    @apply text-xs font-medium uppercase tracking-caps text-text-tertiary;
+    @apply text-xs font-medium text-text-tertiary;
   }
   .ui-loki-update-text {
     @apply mt-0.5 text-sm leading-relaxed text-text-secondary;
@@ -8674,8 +8534,6 @@
      of finding. */
   .ui-theme-cycle-btn,
   .ui-topbar-btn,
-  .ui-loki-convo-delete,
-  .ui-loki-convo-pin,
   .ui-loki-topbar-btn,
   .ui-loki-jump {
     min-height: 2.75rem;

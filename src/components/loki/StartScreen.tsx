@@ -1,30 +1,30 @@
 "use client";
 
 import { shortTimeAgo } from "@/lib/dates";
+import { projectTitle } from "@/lib/project-display";
 import { BrandMark } from "@/components/shell/BrandMark";
-import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
+import { List, ListRow, RowInitial } from "@/components/ui/list-row";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { BuildSuggestions } from "./BuildSuggestions";
 import { ThreadInbox } from "./ThreadInbox";
 import type { ConversationSummary } from "./types";
-import { StartMyDay } from "@/components/control/StartMyDay";
 
-/** Threads offered for resuming. Four one-line rows fit above the composer on a
- *  390px phone without pushing the greeting off-screen; the rest are one tap
- *  away in "All chats". */
-const RESUME_LIMIT = 4;
+/** Threads offered for resuming. Three rows and two suggestions fit between
+ *  the greeting and the composer on a 390×844 phone; the rest of the chats are
+ *  one tap away in "All". */
+const RESUME_LIMIT = 3;
 
 /**
- * What a fresh /loki shows: Loki's spiral and one question in the free space,
- * then the few threads you were last in, right above the composer.
+ * What a fresh /loki shows — the empty chat of the apps the owner uses every
+ * day (Claude, ChatGPT, Grok): a greeting, a few rows, the box.
  *
- * It used to be a "Chats" heading over eight full-height rows — an inbox that
- * pushed the composer's purpose out of the first screen and read as a second
- * history page. The rail and the drawer already ARE the history; this screen
- * is a beginning, with a short way back into what was in flight.
- *
- * Under it, "Build next": the question answered for them, from their own
- * projects, reports, goals and notes and from open demand on OrangeCat — each
- * a tap away from an agent doing it (see BuildSuggestions).
+ * It had grown a "start my day" card, a "welcome back" card, a recent list
+ * with a project column, a horizontally scrolling strip of suggestion chips
+ * with its scrollbar showing, and three starter chips over the composer
+ * (owner, 2026-10-21: "poorly designed … makes me look bad"). Both cards are
+ * Home's and Today's, where they still are; the suggestions are rows; the
+ * starters are gone — "Build next" answers "what should I do" from the
+ * person's own records, which a generic "What needs me" chip only asked.
  */
 export function StartScreen({
   conversations,
@@ -53,12 +53,9 @@ export function StartScreen({
 
   return (
     <div className="ui-loki-start">
-      <AwayReturnCard />
-      <StartMyDay onlyWithWork />
       {/* One line of truth above the greeting: what needs you, what runs,
           what came back while you looked elsewhere — each a tap into the
-          first such thread. Claude's list makes you read every row for
-          this; here it is said once. */}
+          first such thread. Nothing at all when there is nothing to say. */}
       <ThreadInbox conversations={conversations} onOpen={onResume} />
       <div className="ui-loki-start-hello">
         <BrandMark showWordmark={false} />
@@ -66,39 +63,39 @@ export function StartScreen({
       </div>
 
       {recent.length > 0 && (
-        <nav aria-label="Recent chats" className="ui-loki-start-recent">
-          <div className="ui-loki-start-recent-head">
-            <span className="ui-micro-label">Recent</span>
-            {conversations.length > RESUME_LIMIT && (
-              <button type="button" className="ui-loki-start-more" onClick={onBrowseAll}>
-                All {conversations.length}
-              </button>
-            )}
-          </div>
-          <ul className="ui-loki-start-list">
-            {recent.map((convo) => (
-              <li key={convo.id}>
-                <button
-                  type="button"
-                  className="ui-loki-start-row"
-                  onClick={() => onResume(convo.id)}
-                >
-                  <span className="ui-loki-start-avatar" aria-hidden>
-                    {(convo.projectKeys[0] ?? convo.title).slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="ui-loki-start-row-title">{convo.title}</span>
-                  <span className="ui-loki-start-row-meta">{convo.projectKeys[0] ?? ""}</span>
-                  <span className="ui-loki-start-row-time">
-                    {shortTimeAgo(Date.parse(convo.updatedAt))}
-                  </span>
+        <nav aria-labelledby="loki-recent" className="ui-loki-start-section">
+          <SectionHeading
+            id="loki-recent"
+            title="Recent"
+            right={
+              conversations.length > RESUME_LIMIT ? (
+                <button type="button" className="ui-section-link" onClick={onBrowseAll}>
+                  All chats
                 </button>
-              </li>
-            ))}
-          </ul>
+              ) : undefined
+            }
+          />
+          <List>
+            {recent.map((convo) => {
+              const project = convo.projectKeys[0];
+              return (
+                <ListRow
+                  key={convo.id}
+                  onClick={() => onResume(convo.id)}
+                  avatar={
+                    <RowInitial name={project ? projectTitle({ name: project }) : convo.title} />
+                  }
+                  title={convo.title}
+                  secondary={project ? projectTitle({ name: project }) : undefined}
+                  trailing={shortTimeAgo(Date.parse(convo.updatedAt))}
+                />
+              );
+            })}
+          </List>
         </nav>
       )}
 
-      <BuildSuggestions onSend={onBuild} />
+      <BuildSuggestions onSend={onBuild} variant="rows" limit={2} />
     </div>
   );
 }

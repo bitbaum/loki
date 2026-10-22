@@ -1,29 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Bot, Check, Cloud, Laptop, Plus, SquareTerminal, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
-import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
-import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import type { AgentEntry } from "@/components/control/agent-switcher-popover";
-import { TERMINAL_SOURCES, terminalSourceHint, type TerminalSource } from "@/config/terminal-modes";
-import { OptionRow, SheetSection } from "./sheet-rows";
+import { TERMINAL_SOURCES, type TerminalSource } from "@/config/terminal-modes";
+import { SESSION_STATUS_WORDS, type SessionStatus } from "@/lib/terminal-session-status";
 
-export type SheetTab = { id: string; label: string; badge?: string };
+export type SheetTab = {
+  id: string;
+  label: string;
+  badge?: string;
+  status?: SessionStatus | null;
+};
+
+const SOURCE_ICON: Record<TerminalSource, typeof Cloud> = {
+  cloud: Cloud,
+  machine: Laptop,
+  shell: SquareTerminal,
+};
+
+/** Colour only where acting on it helps (design reset rule 8): a session
+ *  waiting on you. Finished, working and open are words. */
+const STATUS_DOT: Partial<Record<SessionStatus, "warning">> = {
+  "needs-you": "warning",
+};
 
 /**
  * Everything about WHICH session — what the session name in the phone header
  * opens: the sessions, a new one, where they run and which agent runs this one.
  *
- * The phone used to carry all of this in the page: a source select, a session
- * select, an agent button, an input-mode select, an honesty chip, a font
- * stepper and a hint paragraph — measured at 331px of controls above a terminal
- * that got four visible lines. Then the sessions became a scrolling row of tabs
- * in the header, which pushed "+" off the edge once two were open (owner,
- * 2026-10-19). A chat app names the conversation you are in and lists the rest
- * one tap behind its name; so does this. How the screen LOOKS (text size, live
- * keystrokes, full screen) and Loki's read of the run are the header's "⋮"
- * (TerminalMoreSheet), not here.
+ * A chat app names the conversation you are in and lists the rest one tap
+ * behind its name; so does this. Three short lists of rows, a check on the
+ * one in use, nothing to read: it was capital-letter section labels, a hint
+ * sentence under every place it could run, a status chip, a paragraph about
+ * relaunching the CLI and a Done button (owner, 2026-10-21). How the screen
+ * LOOKS (text size, live keystrokes, full screen) and Loki's read of the run
+ * are the header's "⋮" (TerminalMoreSheet), not here.
  */
 export function TerminalSessionSheet({
   onClose,
@@ -40,7 +55,6 @@ export function TerminalSessionSheet({
   onSwitchAgent,
   switchingAgent,
   agentSwitchDisabledReason,
-  honesty,
 }: {
   onClose: () => void;
   source: TerminalSource;
@@ -58,7 +72,6 @@ export function TerminalSessionSheet({
   onSwitchAgent: (agentId: string) => void;
   switchingAgent: boolean;
   agentSwitchDisabledReason: string | null;
-  honesty: ExecutorHonestyLabel | null;
 }) {
   // Closing stops a running agent, so the × arms first and a second tap
   // confirms — the strip's rule on desktop. It disarms on its own.
@@ -69,6 +82,7 @@ export function TerminalSessionSheet({
     return () => clearTimeout(t);
   }, [armed]);
   const sourceOptions = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
+  const check = <Check className="h-5 w-5 text-text-primary" aria-label="In use" />;
 
   return (
     <Modal
@@ -85,110 +99,114 @@ export function TerminalSessionSheet({
           Sessions
         </h2>
         {tabs && onSelectTab && (
-          <SheetSection label={tabs.length > 1 ? `Sessions · ${tabs.length}` : "Session"}>
+          <Section title="Open now">
+            <List>
+              {tabs.map((tab) => (
+                <ListRow
+                  key={tab.id}
+                  icon={SquareTerminal}
+                  title={tab.label}
+                  secondary={
+                    [tab.badge, tab.status ? SESSION_STATUS_WORDS[tab.status] : null]
+                      .filter(Boolean)
+                      .join(" · ") || undefined
+                  }
+                  status={tab.status ? STATUS_DOT[tab.status] : undefined}
+                  onClick={() => {
+                    onSelectTab(tab.id);
+                    onClose();
+                  }}
+                  trailing={tab.id === activeTab ? check : undefined}
+                  menu={
+                    onCloseTab ? (
+                      armed === tab.id ? (
+                        <button
+                          type="button"
+                          className="ui-btn-danger min-h-11"
+                          onClick={() => {
+                            setArmed(null);
+                            onCloseTab(tab.id);
+                          }}
+                        >
+                          End it?
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="ui-btn-icon min-h-11 min-w-11"
+                          onClick={() => setArmed(tab.id)}
+                          aria-label={`End ${tab.label}`}
+                          title="End this session"
+                        >
+                          <X className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      )
+                    ) : undefined
+                  }
+                />
+              ))}
+              {onNewSession && (
+                <ListRow
+                  icon={Plus}
+                  title="New session"
+                  onClick={() => {
+                    onClose();
+                    onNewSession();
+                  }}
+                />
+              )}
+            </List>
             {tabs.length === 0 && !onNewSession && (
-              <p className="ui-sheet-empty">Nothing is running here yet.</p>
+              <p className="ui-sheet-empty">Nothing is open here yet.</p>
             )}
-            {tabs.map((tab) => (
-              <div key={tab.id} className="flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <OptionRow
-                    title={tab.label}
-                    detail={tab.badge ? `running ${tab.badge}` : undefined}
-                    active={tab.id === activeTab}
-                    onSelect={() => {
-                      onSelectTab(tab.id);
-                      onClose();
-                    }}
-                  />
-                </div>
-                {onCloseTab &&
-                  (armed === tab.id ? (
-                    <button
-                      type="button"
-                      className="ui-btn-danger min-h-11 shrink-0"
-                      onClick={() => {
-                        setArmed(null);
-                        onCloseTab(tab.id);
-                      }}
-                    >
-                      Close?
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="ui-term-mhead-icon"
-                      onClick={() => setArmed(tab.id)}
-                      aria-label={`Close ${tab.label}`}
-                      title="Close this session"
-                    >
-                      <X className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  ))}
-              </div>
-            ))}
-            {onNewSession && (
-              <button
-                type="button"
-                className="ui-sheet-option"
-                onClick={() => {
-                  onClose();
-                  onNewSession();
-                }}
-              >
-                <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="ui-sheet-option-title min-w-0 flex-1 text-left">New session</span>
-              </button>
-            )}
-          </SheetSection>
+          </Section>
         )}
 
-        <SheetSection label="Where it runs">
-          {sourceOptions.map((option) => (
-            <OptionRow
-              key={option.id}
-              title={option.label}
-              detail={terminalSourceHint(option.id)}
-              active={option.id === source}
-              onSelect={() => {
-                onSourceChange(option.id);
-                onClose();
-              }}
-            />
-          ))}
-          <ExecutorHonestyChip honesty={honesty} className="self-start" />
-        </SheetSection>
+        {sourceOptions.length > 1 && (
+          <Section title="Runs on">
+            <List>
+              {sourceOptions.map((option) => (
+                <ListRow
+                  key={option.id}
+                  icon={SOURCE_ICON[option.id]}
+                  title={option.label}
+                  onClick={() => {
+                    onSourceChange(option.id);
+                    onClose();
+                  }}
+                  trailing={option.id === source ? check : undefined}
+                />
+              ))}
+            </List>
+          </Section>
+        )}
 
         {activeTab && agents.length > 0 && (
-          <SheetSection label="Agent">
-            {agentSwitchDisabledReason && (
-              <p className="ui-sheet-empty">{agentSwitchDisabledReason}</p>
-            )}
-            {!agentSwitchDisabledReason && (
-              <p className="ui-sheet-empty">
-                Switching quits the CLI running in this session and relaunches the new one.
-              </p>
-            )}
-            {agents.map((agent) => (
-              <OptionRow
-                key={agent.id}
-                title={agent.label}
-                active={agent.id === activeAgentId}
-                disabled={Boolean(agentSwitchDisabledReason) || switchingAgent}
-                busy={switchingAgent && agent.id !== activeAgentId}
-                onSelect={() => {
-                  if (agent.id !== activeAgentId) onSwitchAgent(agent.id);
-                }}
-              />
-            ))}
-          </SheetSection>
+          <Section title="Agent">
+            <List>
+              {agents.map((agent) => (
+                <ListRow
+                  key={agent.id}
+                  icon={Bot}
+                  title={agent.label}
+                  secondary={
+                    agent.id === activeAgentId && agentSwitchDisabledReason
+                      ? agentSwitchDisabledReason
+                      : switchingAgent && agent.id !== activeAgentId
+                        ? "Switching…"
+                        : undefined
+                  }
+                  onClick={
+                    agentSwitchDisabledReason || switchingAgent || agent.id === activeAgentId
+                      ? undefined
+                      : () => onSwitchAgent(agent.id)
+                  }
+                  trailing={agent.id === activeAgentId ? check : undefined}
+                />
+              ))}
+            </List>
+          </Section>
         )}
-      </div>
-
-      <div className="ui-sheet-foot">
-        <button type="button" className="ui-btn-secondary w-full" onClick={onClose}>
-          Done
-        </button>
       </div>
     </Modal>
   );

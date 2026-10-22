@@ -119,18 +119,20 @@ async function main() {
     const dialog = page.getByRole("dialog", { name: "Sessions" });
     await dialog.getByText("Bitbaum").waitFor();
 
-    // Says what it is, and counts what is open — not "42 PROJECTS".
-    assert.match(
-      (await dialog.locator(".ui-sessions-sub").textContent()) ?? "",
-      /^Where each project.s agent works with you$/,
-    );
-    assert.equal(await dialog.locator("#sessions-open").textContent(), "Open now · 2");
+    // Named once, with no sentence under the name (design reset rule 2), and
+    // headings in sentence case — not "42 PROJECTS".
+    assert.equal(await dialog.locator("#sessions-title").textContent(), "Sessions");
+    assert.equal(await dialog.locator(".ui-sessions-head p").count(), 0, "no subtitle");
+    assert.equal(await dialog.getByRole("heading", { name: "Open now", exact: true }).count(), 1);
 
     // Open now: only the open ones, each in words that say what a tap gives.
-    const openList = dialog.locator("section", { hasText: "Open now" }).getByRole("link");
+    // Each is a row (ListRow): the link is its title, the words its one line.
+    const openSection = dialog.locator("section", { hasText: "Open now" });
+    const openList = openSection.getByRole("link");
+    const openRows = openSection.locator("li");
     assert.equal(await openList.count(), 2, "only open sessions are under Open now");
-    assert.match((await openList.nth(0).textContent()) ?? "", /Working on Fix the contact form/);
-    assert.match((await openList.nth(1).textContent()) ?? "", /Finished — your turn/);
+    assert.match((await openRows.nth(0).textContent()) ?? "", /Working on Fix the contact form/);
+    assert.match((await openRows.nth(1).textContent()) ?? "", /Finished — your turn/);
     assert.equal(
       await openList.nth(0).getAttribute("href"),
       "/terminal?tab=Bitbaum",
@@ -139,14 +141,21 @@ async function main() {
 
     // The rest: plain rows, eight then "Show all", a tap starts the project's
     // own session (its Resume on the Sessions page).
-    const others = dialog.locator("section", { hasText: "Start in another project" });
+    const others = dialog.locator("section", { hasText: "Start another project" });
     assert.equal(await others.getByRole("link").count(), 8);
     const aoz = others.getByRole("link", { name: /aoz-housing/ });
     assert.equal(await aoz.getAttribute("href"), "/terminal?project=aoz-housing");
-    assert.match((await aoz.textContent()) ?? "", /No agent has worked here yet/);
     assert.match(
-      (await others.getByRole("link", { name: /project-1\b/ }).textContent()) ?? "",
-      /Agent last worked 2 days ago|Agent last worked 2d ago/,
+      (await others
+        .locator("li", { has: page.getByRole("link", { name: /aoz-housing/ }) })
+        .textContent()) ?? "",
+      /Not started yet/,
+    );
+    assert.match(
+      (await others
+        .locator("li", { has: page.getByRole("link", { name: /project-1\b/ }) })
+        .textContent()) ?? "",
+      /Last worked 2 days ago|Last worked 2d ago/,
     );
 
     // Words, never codes; one colour at most (the working pulse); no icons
@@ -160,9 +169,9 @@ async function main() {
 
     // Even rows, the full width, nothing sideways.
     const heights = await dialog
-      .locator(".ui-sessions-row")
+      .locator(".ui-listrow")
       .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
-    for (const h of heights) assert.ok(h >= 56 && h <= 68, `rows are 56–68px (got ${h})`);
+    for (const h of heights) assert.ok(h >= 56 && h <= 72, `rows are 56–72px (got ${h})`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
     fs.mkdirSync(".tmp/sessions-drawer", { recursive: true });
     await page.screenshot({ path: ".tmp/sessions-drawer/drawer-390.png", fullPage: true });
