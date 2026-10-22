@@ -331,6 +331,24 @@ ok(resolvePlaceDirective(["host"]) === "host", "host may be declared site-wide o
   );
 }
 
+// ---- a minimized launcher folds into the edge at the height the person left it ----
+{
+  const H = 800;
+  const T = 64;
+  ok(chooseTabTop(H, T, () => "free", 120) === 120, "a height the person chose is used first");
+  ok(chooseTabTop(H, T, () => "text", 120) === 120, "text under it is not a reason to move");
+  ok(
+    chooseTabTop(H, T, (y) => (y === 120 ? "blocked" : "free"), 120) ===
+      Math.round(H * 0.5 - T / 2),
+    "their height covers a control: the standard heights take over",
+  );
+  ok(
+    chooseTabTop(H, T, () => "free", H - 10) === Math.round(H * 0.5 - T / 2),
+    "a height that would leave the screen is ignored",
+  );
+  ok(chooseTabTop(H, T, () => "free", -5) === Math.round(H * 0.5 - T / 2), "so is one above it");
+}
+
 // ---- a corner holding the host's own floating button is the host's ----
 {
   const phone = { width: 390, height: 760 };

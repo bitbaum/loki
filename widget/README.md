@@ -405,6 +405,7 @@ switches the measuring off but `data-fc-place` still applies.
 | the operator, everywhere | pause the token on the project's Widget card (seconds, no deploy) | un-pause |
 | the host, on a route | `data-fc-place="hidden"` (above) | route leaves |
 | a visitor, for themselves | **Hide this button on this site** at the foot of the panel, or long-press / right-click the launcher → *Hide on this site* | the toast's **Undo**; later, open any page with `#loki` at the end of the address |
+| anyone, to make it small without losing it | long-press / right-click the launcher → **Minimize**: the pill (its microphone and remark bubbles with it) folds into the slim edge tab, on the side and at the height they left it, still one tap from Loki and still showing the live dot and the unread count | long-press / right-click the tab → **Expand**. Remembered per site in their browser; a minimized launcher outranks every placement heuristic (`widget/launcher.ts`, `scripts/test/widget-host-avoid-browser.ts` 8d) |
 | the host, as a switch for its people | `window.Loki.hide()` / `window.Loki.show()`, state in `window.Loki.hidden`, changes announced as a `loki:visibility` event on `window` (Loki's account menu: *Hide / Show feedback button*) | `Loki.show()` |
 
 A visitor's hide is remembered per site in their browser. It never disables

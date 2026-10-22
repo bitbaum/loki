@@ -11,7 +11,8 @@
  *            avoid pass so it never sits on a control.
  *   tab    — a slim handle flush against the side edge, used when no corner
  *            slot is clear, or when the page region says its corners are busy
- *            (`data-fc-place="tab"`: a terminal, a full-width composer).
+ *            (`data-fc-place="tab"`: a terminal, a full-width composer), or
+ *            because the person chose Minimize in the long-press menu.
  *
  * Off is a decision with an owner and a way back, never a side effect of
  * measuring: the operator pauses the token, the host renders a region with
@@ -26,9 +27,11 @@ import { h, PENCIL_SVG, spiralMark } from "./dom";
 import {
   dragTop,
   readDragPosition,
+  readMinimized,
   snapToEdge,
   SNAP_MARGIN,
   writeDragPosition,
+  writeMinimized,
   writeVisitorPlacement,
   type DragPosition,
 } from "./visitor-placement";
@@ -204,6 +207,22 @@ export function createLauncher(opts: {
 
   // Moving is a drag now (see "drag" below); the old "Move to other corner"
   // item only mirrored the corner and was the only way to move it at all.
+  // Minimize folds the pill (and the microphone and remark bubbles beside it)
+  // into the slim edge tab: the same button in its smallest shape, still one
+  // tap from Loki, still showing the live dot and the unread count. It is the
+  // gentler answer to "it is in my way" than hiding it, and it is remembered
+  // per site until they choose Expand from the tab's own long-press menu.
+  let minimized = readMinimized(token);
+  const minBtn = h("button", "fabmenu-item", "Minimize");
+  minBtn.setAttribute("role", "menuitem");
+  minBtn.addEventListener("click", () => {
+    minimized = !minimized;
+    writeMinimized(token, minimized);
+    hideMenu();
+    bubble.style.display = "none";
+    reposition();
+  });
+
   const hideBtn = h("button", "fabmenu-item", "Hide on this site");
   hideBtn.setAttribute("role", "menuitem");
   hideBtn.addEventListener("click", () => {
@@ -222,7 +241,7 @@ export function createLauncher(opts: {
     reposition();
   });
 
-  menu.append(hideBtn, resetBtn);
+  menu.append(minBtn, hideBtn, resetBtn);
   root.appendChild(menu);
 
   function showMenu() {
@@ -240,6 +259,10 @@ export function createLauncher(opts: {
       menu.style[y] = `${p.offsetY + 56}px`;
     }
     menu.style.display = "";
+    // Offered where it does something: a button can minimize; a minimized tab
+    // can expand; a tab the avoid pass chose has no bigger shape to go back to.
+    minBtn.textContent = minimized ? "Expand" : "Minimize";
+    minBtn.style.display = minimized || !tab ? "" : "none";
     resetBtn.style.display = opts.getVisitorOverride() || dragged ? "" : "none";
     document.addEventListener("click", onDocClick, true);
   }
@@ -407,16 +430,25 @@ export function createLauncher(opts: {
     fab.classList.toggle("tab", on);
   }
   /** The edge tab on `side`, at the first height that covers no control. */
-  const placeTab = (side: "left" | "right", scanner: ReturnType<typeof createHostScanner>) => {
+  const placeTab = (
+    side: "left" | "right",
+    scanner: ReturnType<typeof createHostScanner>,
+    preferredTop?: number,
+  ) => {
     bubble.style.display = "none";
     setTab(true);
     fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "auto";
     fab.style[side] = "0px";
     fab.classList.toggle("on-left", side === "left");
-    const top = chooseTabTop(window.innerHeight, fab.offsetHeight, (y) => {
-      fab.style.top = `${y}px`;
-      return scanner.verdict(fab.getBoundingClientRect());
-    });
+    const top = chooseTabTop(
+      window.innerHeight,
+      fab.offsetHeight,
+      (y) => {
+        fab.style.top = `${y}px`;
+        return scanner.verdict(fab.getBoundingClientRect());
+      },
+      preferredTop,
+    );
     fab.style.top = `${top}px`;
     show(true);
   };
@@ -457,6 +489,19 @@ export function createLauncher(opts: {
     // A previous region may have hidden the button; restore visibility before
     // measuring.
     show(true);
+    // Minimized is the person's own choice and outranks every heuristic below:
+    // the slim tab, on the side and at the height they had left it.
+    if (minimized) {
+      const scanner = createHostScanner(host);
+      setTab(true);
+      const tabSide = dragged?.side ?? side ?? cornerEdges(p.corner).x;
+      placeTab(
+        tabSide,
+        scanner,
+        dragged ? dragTop(dragged, fab.offsetHeight, window.innerHeight) : undefined,
+      );
+      return;
+    }
     // Where the person dragged it wins over every heuristic and over the
     // host's side/tab hints (only "hidden" above outranks it).
     if (dragged) {
