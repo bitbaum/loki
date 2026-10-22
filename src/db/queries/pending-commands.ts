@@ -12,7 +12,8 @@ import {
 } from "@/db/schema/pending-commands";
 import { eq, gte, isNull, isNotNull, and, inArray, notInArray, desc, sql } from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
-import { olderOpenRunSql } from "./orchestration-runs";
+import { closeRunSuperseded, olderOpenRunSql } from "./orchestration-runs";
+import { dispatchSupersededReason } from "@/lib/dispatch-superseded";
 import { requireNotDemo } from "@/lib/demo-guard";
 import type { BrowserTaskPayload } from "@/config/browser-tasks";
 
@@ -652,6 +653,61 @@ export async function reclaimStalePendingCommands(userIds: string[]): Promise<nu
   return hosted.length + local.length;
 }
 
+/**
+ * Unclaimed dispatch/inject rows whose work is already over — the run closed,
+ * or the feedback item it serves is done — are retired before any claim: the
+ * row is marked executed with the reason and its run (if still open) closes as
+ * superseded. Never delivered, so a restart or a released queue can never
+ * re-run finished work (lib/dispatch-superseded).
+ */
+export async function retireSupersededDispatches(userIds: string[]): Promise<number> {
+  if (userIds.length === 0) return 0;
+  const list = await db.execute<{
+    id: string;
+    user_id: string;
+    run_id: string;
+    run_finished: boolean;
+    feedback_status: string | null;
+  }>(sql`
+    SELECT pc.id, pc.user_id, pc.payload->>'runId' AS run_id,
+           (r.finished_at IS NOT NULL) AS run_finished,
+           f.status AS feedback_status
+      FROM pending_commands pc
+      JOIN orchestration_runs r ON r.id = (pc.payload->>'runId')::uuid
+      LEFT JOIN site_feedback f ON f.dispatched_run_id = r.id AND f.user_id = pc.user_id
+     WHERE pc.user_id IN (${sql.join(
+       userIds.map((id) => sql`${id}::uuid`),
+       sql`, `,
+     )})
+       AND pc.type IN ('dispatch','inject')
+       AND pc.claimed_at IS NULL
+       AND pc.executed_at IS NULL
+       AND pc.payload->>'runId' ~ '^[0-9a-f-]{36}$'
+       AND (r.finished_at IS NOT NULL OR f.status IN ('resolved','archived'))
+     LIMIT 20`);
+  let retired = 0;
+  for (const row of list) {
+    const reason = dispatchSupersededReason({
+      runFinished: row.run_finished,
+      feedbackStatus: row.feedback_status,
+    });
+    if (!reason) continue;
+    const [done] = await db
+      .update(pendingCommands)
+      .set({
+        claimedAt: new Date(),
+        executedAt: new Date(),
+        result: { ok: false, error: `Not delivered: ${reason}`, warning: "superseded" },
+      })
+      .where(and(eq(pendingCommands.id, row.id), isNull(pendingCommands.claimedAt)))
+      .returning({ id: pendingCommands.id });
+    if (!done) continue;
+    retired++;
+    if (!row.run_finished) await closeRunSuperseded(row.run_id, row.user_id, reason);
+  }
+  return retired;
+}
+
 export async function claimNextPendingCommand(
   userIds: string[],
   types?: string[],
@@ -660,6 +716,9 @@ export async function claimNextPendingCommand(
   if (userIds.length === 0) return null;
   await purgeStalePendingCommands(userIds);
   await reclaimStalePendingCommands(userIds);
+  await retireSupersededDispatches(userIds).catch((e) =>
+    console.error("[pending-commands] retire superseded failed:", e),
+  );
   const userFilter =
     userIds.length === 1
       ? eq(pendingCommands.userId, userIds[0])

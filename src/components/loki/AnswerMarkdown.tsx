@@ -11,10 +11,18 @@ import { withoutCitations, type CitationMap } from "@/components/ui/markdown-tex
  * things reads as cards, a table is a table, headings keep their level, and
  * the sources the answer cites are ONE button under it that opens every
  * record (CitationNote), the way MarkdownText did — the handles themselves
- * are taken out of the sentences first. Every other LLM-output surface
- * (digests, project bios, the work trail) still uses MarkdownText.
+ * are taken out of the sentences first. Other LLM-output surfaces
+ * (digests, project bios, the work trail) use the same renderer via MarkdownText.
  */
-export function AnswerMarkdown({ text, citations }: { text: string; citations?: CitationMap }) {
+export function AnswerMarkdown({
+  text,
+  citations,
+  onReply,
+}: {
+  text: string;
+  citations?: CitationMap;
+  onReply?: (text: string) => void;
+}) {
   const records = citations
     ? citedIds(text)
         .filter((id) => citations[id])
@@ -22,7 +30,12 @@ export function AnswerMarkdown({ text, citations }: { text: string; citations?: 
     : [];
   return (
     <>
-      <Markdown text={withoutCitations(text)} renderLink={renderLink} sources={false} />
+      <Markdown
+        text={withoutCitations(text)}
+        renderLink={renderLink}
+        sources={false}
+        onReply={onReply}
+      />
       {records.length > 0 && (
         <p className="ui-loki-answer-sources">
           <CitationNote records={records} />

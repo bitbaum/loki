@@ -61,7 +61,7 @@ import type { OwnModel } from "@/lib/own-model";
 import { modelIdentityLine } from "@/lib/agent/model-identity";
 import type { RetrievedSource } from "@/lib/agent/context";
 import { APP_NAME } from "@/config/brand";
-import { REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
+import { RICH_ANSWERS_INSTRUCTION, REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
 import { looksLikePlan, ANSWER_ONLY } from "@/lib/loki/plan-as-answer";
 import {
   GENERAL_ANSWER_SYSTEM,
@@ -373,7 +373,7 @@ async function runToolCalls(
 
 /** chatkit's suggested-replies ask, for a turn that lands in a chat with buttons. */
 function repliesLine(wanted: boolean | undefined): string {
-  return wanted ? `\n\n${REPLIES_INSTRUCTION}` : "";
+  return wanted ? `\n\n${RICH_ANSWERS_INSTRUCTION}\n\n${REPLIES_INSTRUCTION}` : "";
 }
 
 /**

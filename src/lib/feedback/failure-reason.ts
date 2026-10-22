@@ -12,7 +12,11 @@
 const has = (text: string, ...needles: (string | RegExp)[]) =>
   needles.some((n) => (typeof n === "string" ? text.includes(n) : n.test(text)));
 
-export function explainRunFailure(error: string | null | undefined): string {
+export function explainRunFailure(
+  error: string | null | undefined,
+  /** Labels of every agent a quota failover already tried, in order. */
+  opts: { tried?: readonly string[] } = {},
+): string {
   const text = (error ?? "").toLowerCase();
   if (!text.trim()) return "It stopped without saying why — Retry, or switch provider.";
   if (
@@ -27,8 +31,14 @@ export function explainRunFailure(error: string | null | undefined): string {
       "insufficient_quota",
       /\b429\b/,
     )
-  )
+  ) {
+    const tried = opts.tried ?? [];
+    if (tried.length > 1)
+      return `Every agent Loki could reach is out of quota (tried ${tried.join(", ")}) — sign in another agent on your builder under Settings → Agent, or Retry once a quota resets.`;
+    if (tried.length === 1)
+      return `${tried[0]} ran out of quota and no other agent on your builder can answer — sign one in under Settings → Agent, or Retry once it resets.`;
     return "The agent ran out of quota — switch provider, or Retry once it resets.";
+  }
   // Before the generic "never reached" line: the runner says the agent DID
   // open and take the prompt, and that it was the agent that stayed silent.
   // "Check the builder is online" was the wrong next move for that.
