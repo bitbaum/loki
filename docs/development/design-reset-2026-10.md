@@ -106,6 +106,8 @@ examples — copy them.
 | `ListSearch` | `ui/list-row.tsx` | A list's search, as its first row — it scrolls with the list (rule 6). |
 | `Section`, `SectionHeading` | `ui/section-heading.tsx` | A titled part of a page: sentence case, 15px semibold, optional "See all" `link` or a `right` control (rule 4). Replaces `ui-kicker` headings. |
 | `EmptyState` | `ui/empty-state.tsx` | An empty list or page: `icon`, one-line `title`, one `action` (rule 10). No box. Bare children = a dim one-liner inside a section. Don't pass `children` together with `title` in new code. |
+| `DetailSheet`, `SheetActions`, `SheetAction` | `ui/detail-sheet.tsx` | One thing opened from its row (a habit, a subscription, an event, an ask): bottom sheet on a phone, dialog from md up, its actions as full-width rows (`SHEET_ACTION` for a component that takes a className). What used to be a row's buttons and inline form goes here. |
+| `ListRow control` · `ModalForm trigger="secondary" \| "none"` | `ui/list-row.tsx`, `ui/modal-form.tsx` | A leading control that is its own action (a habit's check-off). A quiet bordered trigger for an empty state's one button; no trigger for a form opened from a row's menu (`defaultOpen`). |
 | `ChoiceMenu` | `ui/choice-menu.tsx` | "Sort: Priority ▾" when choices don't fit as a `Segmented` row (rule 7): one button, a bottom sheet on a phone, a popover from md up (`align`). |
 | `FeedbackLauncher` | `shell/FeedbackLauncher.tsx` | Loki's own feedback widget, drawn as a top-bar icon (rule 12). Nothing to do per page: the floating launcher is off wherever the top bar shows. |
 
