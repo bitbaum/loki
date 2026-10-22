@@ -57,9 +57,8 @@ export default async function PricingPage() {
     <PublicSurface right={<PublicHeaderActions />}>
       <main className="ui-public-container py-12 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <div className="ui-public-eyebrow">Pricing</div>
-          <h1 className="ui-public-display-md mt-3 sm:mt-4">Your agents, your keys. Start free.</h1>
-          <p className="ui-public-section-lede mx-auto mt-4 sm:mt-5">
+          <h1 className="ui-public-page-title">Your agents, your keys. Start free.</h1>
+          <p className="ui-public-body-lg mx-auto mt-4 sm:mt-5">
             Your agents run on your own computer with the Fleet Runner app, or on Loki&apos;s cloud
             builder where your account has it. Loki is the one place you start, watch and check
             their work. The plans differ in how many projects you can have and how many answers
@@ -106,7 +105,7 @@ export default async function PricingPage() {
                 <ul className="mt-5 flex flex-col gap-2.5">
                   {plan.highlights.map((h) => (
                     <li key={h} className="ui-public-price-feature">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-status-positive" aria-hidden />
+                      <Check className="ui-public-price-check" aria-hidden />
                       <span>{h}</span>
                     </li>
                   ))}
@@ -130,14 +129,14 @@ export default async function PricingPage() {
 
         {later.length > 0 && (
           <section className="mx-auto mt-8 max-w-2xl sm:mt-12" aria-labelledby="later-plans">
-            <h2 id="later-plans" className="ui-public-eyebrow text-center">
+            <h2 id="later-plans" className="ui-public-h3">
               Later plans — price to be announced
             </h2>
-            <ul className="mt-4 divide-y divide-border-subtle rounded-2xl border border-border-subtle">
+            <ul className="mt-2 divide-y divide-border-subtle border-y border-border-subtle">
               {later.map((plan) => (
                 <li
                   key={plan.key}
-                  className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-baseline sm:gap-4"
+                  className="flex flex-col gap-1 py-4 sm:flex-row sm:items-baseline sm:gap-4"
                 >
                   <span className="shrink-0 font-semibold text-text-primary sm:w-24">
                     {plan.name}
@@ -160,17 +159,19 @@ export default async function PricingPage() {
 
         {/* Every plan includes everything — stated once, honestly, rather
             than faked as per-tier gates the product doesn't enforce. */}
-        <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-border-subtle bg-surface-base p-5 sm:mt-16 sm:p-8">
-          <div className="ui-public-eyebrow">Every plan includes</div>
+        <section className="mx-auto mt-12 max-w-2xl sm:mt-16" aria-labelledby="every-plan">
+          <h2 id="every-plan" className="ui-public-h3">
+            Every plan includes
+          </h2>
           <ul className="mt-5 grid gap-3 sm:grid-cols-2">
             {PRICING_INCLUDED.map((item) => (
               <li key={item} className="ui-public-price-feature">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-status-positive" aria-hidden />
+                <Check className="ui-public-price-check" aria-hidden />
                 <span>{item}</span>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       </main>
     </PublicSurface>
   );

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { orangeCatProjectUrl } from "@/config/orangecat";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Search, SlidersHorizontal } from "lucide-react";
+import { FleetSortMenu } from "@/components/public/FleetSortMenu";
 import {
   applyQuery,
   emptyQuery,
@@ -17,6 +19,7 @@ import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { FinalCta } from "@/components/public/FinalCta";
 import { getSessionUserId } from "@/lib/session";
 import { getPubliclyListedProjects } from "@/db/queries/user-projects";
+import { projectTitle } from "@/lib/project-display";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { publicProfilePath } from "@/lib/register/map";
@@ -93,6 +96,8 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
   const result = applyQuery(rows, spec, query);
   const s = summarize(rows);
   const money = viewerIsOwner ? commerce(apps) : null;
+  // A project's own title, never its folder name ("loki", "datacat-web").
+  const titles = new Map(projects.map((p) => [p.id, projectTitle(p)]));
   const oc = await orangecatProjectsThatResolve(
     rows.map((r) => r.orangecat?.projectId).filter((id): id is string => !!id),
   );
@@ -121,32 +126,33 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
 
   return (
     <PublicSurface right={<PublicHeaderActions />}>
-      <div className="ui-public-container-mid py-12 sm:py-20 lg:py-24">
-        <div className="ui-public-eyebrow">Built with Loki</div>
-        <h1 className="ui-public-page-title mt-3 sm:mt-4">Every project, and where it lives.</h1>
+      <div className="ui-public-container-mid pb-6 pt-10 sm:pb-8 sm:pt-16">
+        <h1 className="ui-public-page-title">Every project, and where it lives.</h1>
         {/* "client work" broke the rule that bitbaum has no clients — its
             sites are Pilots and Concepts — and "each one is built and shipped
             by agents" overclaimed: some rows were never built through Loki,
-            they are only registered in it. */}
-        <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
+            they are only registered in it. The how-to-use sentence went: the
+            search box says it. */}
+        <p className="ui-public-lede mt-4 max-w-2xl">
           Projects their owners chose to show — products, pilots, concepts, demos, and the ones
-          still only named. Each one is registered in Loki. Search it, narrow it, and send anyone
-          the view you end up with.
+          still only named. Each one is registered in Loki.
         </p>
-        <div className="ui-public-surface-card-meta">
-          <span className="ui-public-surface-card-meta-chip">{s.projects} projects</span>
-          <span className="ui-public-surface-card-meta-chip">{s.sites} sites</span>
-          <span className="ui-public-surface-card-meta-chip">{s.orangecat} OrangeCat</span>
-          <span className="ui-public-surface-card-meta-chip">
-            {solon.checked ? `${s.solon} Solon` : "Solon unreachable"}
-          </span>
-        </div>
+        {/* A sentence, not four pills (design reset rule 7). */}
+        {rows.length > 0 && (
+          <p className="ui-public-facts">
+            {s.projects} {s.projects === 1 ? "project" : "projects"}, {s.sites}{" "}
+            {s.sites === 1 ? "site" : "sites"}, {s.orangecat} on OrangeCat,{" "}
+            {solon.checked ? `${s.solon} on Solon` : "Solon could not be checked"}
+          </p>
+        )}
       </div>
 
-      {/* The toolbar: a GET form and rows of links. No JavaScript, and the
-          address bar is the state. */}
-      <div className="ui-public-container-mid">
-        <form method="GET" action="/fleet" className="ui-fleet-searchbar">
+      {/* The toolbar: a GET form and links. Search and filters work with no
+          JavaScript, and the address bar is the state. Nothing here sticks.
+          With nothing listed there is nothing to search, so there is no
+          toolbar either. */}
+      <div className={rows.length > 0 ? "ui-public-container-mid" : "hidden"}>
+        <form method="GET" action="/fleet" role="search" className="ui-fleet-searchbar">
           {/* Carry the rest of the query through the submit — without these,
               searching would silently clear every filter the reader had set. */}
           {Object.entries(query.facets).flatMap(([k, vs]) =>
@@ -155,15 +161,17 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
           {query.sort !== spec.defaultSort && (
             <input type="hidden" name="sort" value={query.sort} />
           )}
+          <Search className="ui-fleet-search-icon" aria-hidden />
           <input
             type="search"
             name="q"
             defaultValue={query.q}
-            placeholder="Search name, address, description…"
+            placeholder="Search projects"
             aria-label="Search the fleet"
+            enterKeyHint="search"
             className="ui-fleet-search-input"
           />
-          <button type="submit" className="ui-fleet-search-go ui-tap">
+          <button type="submit" className="sr-only">
             Search
           </button>
         </form>
@@ -171,10 +179,12 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
         {/* On a phone these four rows measured 366px, putting the first project
           at y=1020 — more than a screenful of filters before any of the
           catalogue they filter. <details> collapses them there and costs no
-          JavaScript, which this page does not have and does not want; CSS
-          forces it open from md up, so nothing changes on a desktop. */}
+          JavaScript; CSS forces it open from md up. Each row is one line of
+          filters that scrolls sideways on a phone and fades at the edge, so
+          no word is ever cut. */}
         <details className="ui-fleet-filters">
           <summary className="ui-fleet-filters-summary">
+            <SlidersHorizontal className="h-4 w-4" aria-hidden />
             <span>Filters</span>
             {activeFacetCount > 0 && (
               <span className="ui-fleet-filters-badge">{activeFacetCount}</span>
@@ -227,13 +237,13 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
             way to use them was to count 38 rows by eye. */}
           <FacetRow label="Missing">
             <Chip href={href(withFlag("nosite"))} active={on("nosite")}>
-              no site
+              No site
             </Chip>
             <Chip href={href(withFlag("noorangecat"))} active={on("noorangecat")}>
-              no OrangeCat
+              No OrangeCat
             </Chip>
             <Chip href={href(withFlag("nosolon"))} active={on("nosolon")}>
-              no Solon
+              No Solon
             </Chip>
           </FacetRow>
         </details>
@@ -241,38 +251,34 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
         <div className="ui-fleet-resultbar">
           <p className="ui-fleet-count">
             {result.matched === result.total
-              ? `${result.total} projects`
+              ? `${result.total} ${result.total === 1 ? "project" : "projects"}`
               : `${result.matched} of ${result.total} projects`}
             {narrowed && (
               <>
                 {" · "}
                 <Link href={href(emptyQuery(spec))} className="ui-public-link-standalone">
-                  clear
+                  Clear
                 </Link>
               </>
             )}
           </p>
-          <div className="ui-fleet-sorts">
-            <span className="ui-fleet-facet-label">Sort</span>
-            {spec.sorts.map((sort) => (
-              <Chip
-                key={sort.key}
-                href={href({
-                  ...query,
-                  sort: sort.key,
-                  dir: sort.key === "newest" ? "desc" : "asc",
-                })}
-                active={query.sort === sort.key}
-              >
-                {SORT_LABEL[sort.key] ?? sort.key}
-              </Chip>
-            ))}
-          </div>
+          <FleetSortMenu
+            value={query.sort}
+            options={spec.sorts.map((sort) => ({
+              value: sort.key,
+              label: SORT_LABEL[sort.key] ?? sort.key,
+              href: href({
+                ...query,
+                sort: sort.key,
+                dir: sort.key === "newest" ? "desc" : "asc",
+              }),
+            }))}
+          />
         </div>
       </div>
 
       <div className="ui-public-container-mid space-y-12 pb-14 sm:space-y-16 sm:pb-24">
-        <section className="pt-8 sm:pt-10">
+        <section>
           {result.rows.length === 0 ? (
             /* Two different empty states, and conflating them was misleading:
                with nothing listed at all, the page said "Nothing matches that
@@ -283,25 +289,19 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
                distinguishes "you filtered it away" from "there is none yet". */
             rows.length === 0 ? (
               <div className="ui-fleet-empty">
-                <p className="ui-public-section-lede">
+                <p className="ui-public-body-lg mx-auto max-w-md">
                   No projects are listed here yet. Owners choose which of their projects appear —
                   nothing is published without them saying so.
                 </p>
-                <Link href="/" className="ui-public-link-standalone mt-3 text-sm">
+                <Link href="/" className="ui-public-text-link mt-2">
                   What Loki does →
                 </Link>
               </div>
             ) : (
               <div className="ui-fleet-empty">
-                <p className="ui-public-section-lede">
-                  Nothing matches that.{" "}
-                  {narrowed ? "The filters are narrower than the fleet." : null}
-                </p>
-                <Link
-                  href={href(emptyQuery(spec))}
-                  className="ui-public-link-standalone mt-3 text-sm"
-                >
-                  Clear the filters →
+                <p className="ui-public-body-lg">Nothing matches that.</p>
+                <Link href={href(emptyQuery(spec))} className="ui-public-text-link mt-2">
+                  {narrowed ? "Clear the filters" : "Show every project"} →
                 </Link>
               </div>
             )
@@ -311,6 +311,7 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
                 <Row
                   key={r.slug}
                   r={r}
+                  title={(r.loki && titles.get(r.loki.id)) || r.name || r.slug}
                   solonChecked={solon.checked}
                   canOpenProjects={canOpenProjects}
                   orangecatLive={oc.live}
@@ -322,7 +323,7 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
 
         {money && (
           <section id="money" className="border-t border-border-subtle pt-10 sm:pt-16">
-            <h2 className="ui-public-display-md">What it earns</h2>
+            <h2 className="ui-public-h2">What it earns</h2>
             <p className="ui-public-section-lede mt-3 sm:mt-4">
               {money.engagements > 0 && money.paying === 0
                 ? "Work shipped for other people, and what it is charged for. Right now that is nothing: every engagement is on favour terms. The sites are real; the invoices are the missing half."
@@ -355,7 +356,7 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
         )}
 
         <section className="border-t border-border-subtle pt-10 sm:pt-16">
-          <h2 className="ui-public-display-md">What this page does not know</h2>
+          <h2 className="ui-public-h2">What this page does not know</h2>
           <p className="ui-public-section-lede mt-3 sm:mt-4">
             &ldquo;Live&rdquo; here is what the hosting register declares, not a reading taken just
             now. A host that fell over ten minutes ago still says live on this page. Uptime is
@@ -377,7 +378,7 @@ function FacetRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="ui-fleet-facet-row">
       <span className="ui-fleet-facet-label">{label}</span>
-      <div className="ui-fleet-chips">{children}</div>
+      <div className="ui-filter-chip-row ui-scroll-fade-right">{children}</div>
     </div>
   );
 }
@@ -420,11 +421,13 @@ function norm(v: string): string {
 
 function Row({
   r,
+  title,
   solonChecked,
   canOpenProjects,
   orangecatLive,
 }: {
   r: RegisterRow;
+  title: string;
   solonChecked: boolean;
   canOpenProjects: boolean;
   orangecatLive: ReadonlySet<string>;
@@ -437,10 +440,10 @@ function Row({
       <div className="min-w-0">
         {r.loki ? (
           <Link href={publicProfileHref} className="ui-public-fleet-name">
-            {r.name ?? r.slug}
+            {title}
           </Link>
         ) : (
-          <div className="ui-public-fleet-name">{r.name ?? r.slug}</div>
+          <div className="ui-public-fleet-name">{title}</div>
         )}
         {r.description ? (
           <div className="ui-public-fleet-what">{r.description}</div>

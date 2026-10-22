@@ -92,30 +92,11 @@ export default async function ChangelogPage() {
 
   return (
     <PublicSurface right={<PublicHeaderActions />}>
-      <div className="ui-public-container-mid py-12 sm:py-24 lg:py-32">
-        <div className="ui-public-eyebrow">WHAT SHIPPED</div>
-        <h1 className="ui-public-page-title mt-3 sm:mt-4">Changelog</h1>
-        <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
-          Every entry is something a person can open and check: the numbers link to the pull request
-          that made the change. Fixes carry the same weight as features, and say what was wrong.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
-          <Link href="/releases" className="ui-btn-chip">
-            Fleet Runner releases
-          </Link>
-          <Link href="/roadmap" className="ui-btn-chip">
-            Roadmap
-          </Link>
-        </div>
-        {months.length > 1 && (
-          <nav className="ui-public-jumpbar" aria-label="Changelog months">
-            {months.map((m) => (
-              <a key={m.key} href={`#m-${m.key}`} className="ui-public-jumpbar-link">
-                {monthLabel(m.key)}
-              </a>
-            ))}
-          </nav>
-        )}
+      {/* Title, then the record. The month jump row went: it ran off a phone's
+          edge mid-word, and every older month is already one folded line
+          below, a tap from open. */}
+      <div className="ui-public-container-mid pb-4 pt-10 sm:pb-8 sm:pt-16">
+        <h1 className="ui-public-page-title">Changelog</h1>
       </div>
 
       <div className="ui-public-container-mid pb-14 sm:pb-24">
@@ -202,6 +183,10 @@ export default async function ChangelogPage() {
             <Link href="/releases" className="ui-public-link">
               Fleet Runner releases
             </Link>
+            ; what comes next is on the{" "}
+            <Link href="/roadmap" className="ui-public-link">
+              roadmap
+            </Link>
             .
           </p>
         )}
@@ -232,7 +217,7 @@ function ChangelogMonth({
   if (open) {
     return (
       <section id={id} className="border-t border-border-subtle pt-10 sm:pt-16">
-        <h2 className="ui-public-display-md">{label}</h2>
+        <h2 className="ui-public-h2">{label}</h2>
         {children}
       </section>
     );
@@ -240,7 +225,7 @@ function ChangelogMonth({
   return (
     <details id={id} className="ui-changelog-month border-t border-border-subtle pt-8 sm:pt-12">
       <summary className="ui-changelog-month-summary">
-        <h2 className="ui-public-display-md">{label}</h2>
+        <h2 className="ui-public-h2">{label}</h2>
         <span className="ui-public-meta">
           {count} {count === 1 ? "entry" : "entries"}
         </span>

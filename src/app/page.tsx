@@ -12,7 +12,6 @@ import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { ProblemsSection } from "@/components/public/ProblemsSection";
 import {
-  HOME_AUDIENCES,
   HOME_HERO_CONSOLE,
   HOME_PRODUCT_SURFACES,
   HOME_SAFETY_NOTE,
@@ -91,14 +90,23 @@ export default async function LandingPage({
     ? await getShippedFromFeedbackSnapshot(owner.id).catch(() => emptyShipped)
     : emptyShipped;
 
+  const primaryHref = signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP;
+  const primaryLabel = signedIn ? `Open ${APP_NAME}` : "Start a project";
+
+  // One page, read top to bottom on a phone: the promise and the one action,
+  // the evidence, then each section a plain heading over rows — no eyebrow
+  // labels, no cards inside bands, and orange only on the one action
+  // (docs/development/design-reset-2026-10.md). "Who it is for" was cut: its
+  // three doors (start a project, change a website, already use agents)
+  // repeated the problems list and the build paths word for word.
   return (
     <PublicSurface right={<PublicHeaderActions />}>
       <div className="ui-public-hero-fold">
         <div className="w-full max-w-5xl">
-          <div className="ui-public-hero-badge">
+          <p className="ui-public-hero-badge">
             <span className="sm:hidden">{MARKETING_POSITIONING_SHORT}</span>
             <span className="hidden sm:inline">{MARKETING_POSITIONING}</span>
-          </div>
+          </p>
 
           <h1 className="ui-public-hero-title">
             {MARKETING_HERO_PRIMARY}
@@ -108,30 +116,24 @@ export default async function LandingPage({
 
           <p className="ui-public-hero-lede">{MARKETING_TAGLINE}</p>
 
-          {/* One primary action. Three equal buttons used to compete here
-              ("Change an existing website", "Start building", "Download
-              runner") and the download — a desktop binary — led on phones,
-              where it is a dead end. The download lives in "Where the work
-              runs" below and in the nav. */}
+          {/* One primary action, and the other way in as a plain link under
+              it — two full-width buttons read as two equal choices. */}
           <div className="ui-public-hero-actions mx-auto">
-            <Link href={signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP} className="ui-public-cta">
-              {signedIn ? `Open ${APP_NAME}` : "Start a project"}
-            </Link>
-            <Link href={COMMISSION.path} className="ui-public-cta-ghost">
-              Change a website you have
+            <Link href={primaryHref} className="ui-public-cta">
+              {primaryLabel}
             </Link>
           </div>
-          <p className="ui-public-meta mt-4">
-            <Link href="/how-it-works" className="ui-public-link-standalone">
-              How it works →
+          <p className="mt-4">
+            <Link href={COMMISSION.path} className="ui-public-text-link">
+              Or change a website you have →
             </Link>
           </p>
 
           {/* Hero product visual — a REAL snapshot of the FLEET, fetched
               server-side: the showcase tier (owner consented AND operator
-              featured) plus fleet-wide counts. Public-safe fields only; "LIVE"
-              shows only when an agent is actually running. Hidden if there's no
-              fleet data, so we never render an empty/fake box. */}
+              featured) plus fleet-wide counts. Public-safe fields only; "Agent
+              working" shows only when an agent is actually running. Hidden if
+              there's no fleet data, so we never render an empty/fake box. */}
           {fleet.metrics.length > 0 && (
             <div className="ui-public-hero-console">
               <div className="ui-public-hero-console-bar">
@@ -191,28 +193,25 @@ export default async function LandingPage({
       </div>
 
       {/* 1 — How it works, in a newcomer's words. */}
-      <div className="ui-public-band ui-public-section" id="how">
+      <section className="ui-public-band ui-public-section" id="how" aria-labelledby="how-title">
         <div className="ui-public-container">
-          <div className="text-center">
-            <div className="ui-public-eyebrow">HOW IT WORKS</div>
-            <h2 className="ui-public-display-lg mt-3 sm:mt-4">
-              From a sentence to a working site.
-            </h2>
-          </div>
-          <div className="ui-public-section-gap ui-public-howto">
+          <h2 id="how-title" className="ui-public-h2">
+            From a sentence to a working site.
+          </h2>
+          <ol className="ui-public-section-gap ui-public-howto">
             {HOME_STEPS.map((step) => (
-              <section key={step.number} className="ui-public-howto-step">
+              <li key={step.number} className="ui-public-howto-step">
                 <span className="ui-public-howto-num" aria-hidden="true">
                   {step.number}
                 </span>
                 <h3 className="ui-public-howto-title">{step.title}</h3>
                 <p className="ui-public-howto-body">{step.body}</p>
-              </section>
+              </li>
             ))}
-          </div>
+          </ol>
           <p className="ui-public-howto-note">{HOME_SAFETY_NOTE}</p>
         </div>
-      </div>
+      </section>
 
       {/* What it solves — concrete problems, a person's first, then society's.
           Right after "how it works" so the mechanism is followed by what it
@@ -221,144 +220,98 @@ export default async function LandingPage({
 
       {/* 2 — Proof: real fixes that shipped because someone asked. */}
       {shipped.entries.length > 0 && (
-        <div className="ui-public-section">
+        <section className="ui-public-band ui-public-section" aria-labelledby="shipped-title">
           <div className="ui-public-container">
-            <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-end md:gap-10">
-              <div>
-                <div className="ui-public-eyebrow">FIXED BECAUSE SOMEONE ASKED</div>
-                <h2 className="ui-public-display-md mt-3 sm:mt-4">Notes in, fixes out.</h2>
-              </div>
-              <p className="ui-public-section-lede md:justify-self-end">
-                Real notes left through the Loki button on a site, fixed by an agent and put online
-                {shipped.resolvedCount > 0 && ` — ${shipped.resolvedCount} so far`}.
-              </p>
-            </div>
-            <div className="ui-public-section-gap grid gap-3 sm:grid-cols-3 sm:gap-4">
+            <h2 id="shipped-title" className="ui-public-h2">
+              Notes in, fixes out.
+            </h2>
+            <p className="ui-public-section-lede mt-3">
+              Real notes left through the Loki button on a site, fixed by an agent and put online
+              {shipped.resolvedCount > 0 && ` — ${shipped.resolvedCount} so far`}.
+            </p>
+            <ul className="ui-public-section-gap ui-public-rows">
               {shipped.entries.map((entry) => (
-                <section
-                  key={`${entry.project}-${entry.resolvedAt}`}
-                  className="ui-public-surface-card !min-h-0"
-                >
-                  <div className="ui-public-surface-card-label">{entry.project}</div>
-                  <p className="ui-public-surface-card-body">“{entry.excerpt}”</p>
-                  <div className="ui-public-surface-card-meta">
-                    <span className="ui-public-surface-card-meta-chip">
-                      {entry.page ? `${entry.page} · ` : ""}fixed{" "}
-                      {new Date(entry.resolvedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
+                <li key={`${entry.project}-${entry.resolvedAt}`} className="ui-public-surface-card">
+                  <div className="ui-public-surface-card-label">
+                    {entry.project} · {entry.page ? `${entry.page} · ` : ""}fixed{" "}
+                    {new Date(entry.resolvedAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </div>
-                </section>
+                  <p className="ui-public-surface-card-body">“{entry.excerpt}”</p>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 3 — Who it is for: three doors instead of one pitch. */}
-      <div className="ui-public-section">
+      {/* 3 — Three ways to get it built: yourself, with a partner, or by the
+          studio. One list (config/build-paths.ts), the same rows /build shows. */}
+      <section className="ui-public-band ui-public-section" aria-labelledby="paths-title">
         <div className="ui-public-container">
-          <div className="text-center">
-            <div className="ui-public-eyebrow">WHO IT IS FOR</div>
-            <h2 className="ui-public-display-lg mt-3 sm:mt-4">Start where you are.</h2>
-          </div>
-          <div className="ui-public-section-gap grid gap-3 sm:gap-4 md:grid-cols-3">
-            {HOME_AUDIENCES.map((door) => (
-              <Link key={door.title} href={door.href} className="ui-public-start-card">
-                <h3 className="ui-public-start-card-title">{door.title}</h3>
-                <p className="ui-public-start-card-body">{door.body}</p>
-                <span className="ui-public-start-card-link">{door.cta} →</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 3b — Three ways to get it built: yourself, with a partner, or by the
-          studio. One list (config/build-paths.ts), the same cards /build shows.
-          Before this the page offered only the first, and the other two were
-          a word in the nav. */}
-      <div className="ui-public-band ui-public-section">
-        <div className="ui-public-container">
-          <div className="text-center">
-            <div className="ui-public-eyebrow">{BUILD_PAGE.eyebrow}</div>
-            <h2 className="ui-public-display-lg mt-3 sm:mt-4">{BUILD_PAGE.title}</h2>
-            <p className="ui-public-section-lede mx-auto mt-4">{BUILD_PAGE.lede}</p>
-          </div>
+          <h2 id="paths-title" className="ui-public-h2">
+            {BUILD_PAGE.title}
+          </h2>
           <BuildPaths className="ui-public-section-gap" />
         </div>
-      </div>
+      </section>
 
       {/* 4 — What is inside, for a visitor who wants a look first. */}
-      <div className="ui-public-band ui-public-section">
+      <section className="ui-public-band ui-public-section" aria-labelledby="inside-title">
         <div className="ui-public-container">
-          <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-end md:gap-10">
-            <div>
-              <div className="ui-public-eyebrow">INSIDE {APP_NAME.toUpperCase()}</div>
-              <h2 className="ui-public-display-lg mt-3 sm:mt-4">You stay in charge.</h2>
-            </div>
-            <p className="ui-public-section-lede md:justify-self-end">
-              {APP_NAME} doesn&rsquo;t write code itself. It runs the AI coding agents that do — and
-              shows you what they are doing, what they changed, and what went online.
-            </p>
-          </div>
-          <div className="ui-public-section-gap grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <h2 id="inside-title" className="ui-public-h2">
+            You stay in charge.
+          </h2>
+          <p className="ui-public-section-lede mt-3">
+            {APP_NAME} doesn&rsquo;t write code itself. It runs the AI coding agents that do — and
+            shows you what they are doing, what they changed, and what went online.
+          </p>
+          <ul className="ui-public-section-gap ui-public-rows ui-public-rows-2">
             {HOME_PRODUCT_SURFACES.map((surface) => (
-              <section key={surface.label} className="ui-public-surface-card">
+              <li key={surface.label} className="ui-public-surface-card">
                 <div className="ui-public-surface-card-label">{surface.label}</div>
                 <h3 className="ui-public-surface-card-title">{surface.title}</h3>
                 <p className="ui-public-surface-card-body">{surface.body}</p>
-                <div className="ui-public-surface-card-meta">
-                  {surface.meta.split(" · ").map((term) => (
-                    <span key={term} className="ui-public-surface-card-meta-chip">
-                      {term}
-                    </span>
-                  ))}
-                </div>
-              </section>
+              </li>
             ))}
-          </div>
-          <p className="ui-public-meta mt-6 text-center sm:mt-8">
-            <Link href="/compare" className="ui-public-link-standalone">
+          </ul>
+          <p className="mt-2">
+            <Link href="/compare" className="ui-public-text-link">
               How Loki compares with Claude Code, Codex, Lovable and others →
             </Link>
           </p>
         </div>
-      </div>
+      </section>
 
       {/* 5 — Where the work runs, honest about who can use the cloud. */}
-      <div className="ui-public-section">
+      <section className="ui-public-band ui-public-section" aria-labelledby="runs-title">
         <div className="ui-public-container">
-          <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-end md:gap-10">
-            <div>
-              <div className="ui-public-eyebrow">{WHERE_IT_RUNS.eyebrow}</div>
-              <h2 className="ui-public-display-md mt-3 sm:mt-4">{WHERE_IT_RUNS.title}</h2>
-            </div>
-            <p className="ui-public-section-lede md:justify-self-end">{WHERE_IT_RUNS.lede}</p>
-          </div>
-          <div className="ui-public-section-gap grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <h2 id="runs-title" className="ui-public-h2">
+            {WHERE_IT_RUNS.title}
+          </h2>
+          <p className="ui-public-section-lede mt-3">{WHERE_IT_RUNS.lede}</p>
+          <ul className="ui-public-section-gap ui-public-rows ui-public-rows-2">
             {WHERE_IT_RUNS.options
               .filter((option) => !(insideRunner && option.cta.href === "/download"))
               .map((option) => (
-                <Link key={option.label} href={option.cta.href} className="ui-public-start-card">
-                  <div className="ui-public-surface-card-label">{option.label}</div>
-                  <h3 className="ui-public-start-card-title mt-2">{option.title}</h3>
-                  <p className="ui-public-start-card-body">{option.body}</p>
-                  <span className="ui-public-start-card-link">{option.cta.label} →</span>
-                </Link>
+                <li key={option.label} className="flex">
+                  <Link href={option.cta.href} className="ui-public-start-card w-full">
+                    <span className="ui-public-surface-card-label">{option.label}</span>
+                    <span className="ui-public-start-card-title">{option.title}</span>
+                    <span className="ui-public-start-card-body">{option.body}</span>
+                    <span className="ui-public-start-card-link">{option.cta.label} →</span>
+                  </Link>
+                </li>
               ))}
-          </div>
+          </ul>
         </div>
-      </div>
+      </section>
 
       <div className="ui-public-container border-t border-border-subtle py-14 text-center sm:py-20">
-        <Link
-          href={signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP}
-          className="ui-public-cta-lg w-full sm:w-auto"
-        >
-          {signedIn ? `Open ${APP_NAME}` : "Start a project"}
+        <Link href={primaryHref} className="ui-public-cta-lg w-full sm:w-auto">
+          {primaryLabel}
         </Link>
         <p className="ui-public-meta mt-4">
           Free while {APP_NAME} is in beta. Open source under the MIT licence.{" "}

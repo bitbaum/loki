@@ -52,7 +52,6 @@ for (const item of items) {
 
 const copy = [
   PROBLEMS_SECTION.title,
-  PROBLEMS_SECTION.lede,
   PROBLEMS_SECTION.closer.text,
   PROBLEMS_SECTION.closer.note,
   ...items.flatMap((i) => [i.problem, i.solution, i.link.label]),

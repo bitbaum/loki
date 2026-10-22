@@ -31,17 +31,23 @@ export function ShareBar({ url, title }: { url: string; title: string }) {
     }
   }
 
+  // Words in one line under the essay, not four bordered chips beside its
+  // title: sharing is what a reader does after reading.
   return (
-    <div className="flex items-center gap-2">
-      <span className="ui-micro-label">Share</span>
-      <a href={orangeCatHref} className="ui-btn-chip" aria-label={`Share "${title}" on OrangeCat`}>
+    <p className="ui-share-row">
+      <span className="text-text-tertiary">Share on</span>
+      <a
+        href={orangeCatHref}
+        className="ui-public-link-standalone"
+        aria-label={`Share "${title}" on OrangeCat`}
+      >
         OrangeCat
       </a>
       <a
         href={xHref}
         target="_blank"
         rel="noopener noreferrer"
-        className="ui-btn-chip"
+        className="ui-public-link-standalone"
         aria-label={`Share "${title}" on X`}
       >
         X
@@ -50,12 +56,20 @@ export function ShareBar({ url, title }: { url: string; title: string }) {
         href={linkedInHref}
         target="_blank"
         rel="noopener noreferrer"
-        className="ui-btn-chip"
+        className="ui-public-link-standalone"
         aria-label={`Share "${title}" on LinkedIn`}
       >
         LinkedIn
       </a>
-      <button type="button" onClick={copyLink} className="ui-btn-chip" aria-label="Copy link">
+      <span className="text-text-muted" aria-hidden>
+        ·
+      </span>
+      <button
+        type="button"
+        onClick={copyLink}
+        className="ui-public-link-standalone"
+        aria-label="Copy link"
+      >
         {copied ? (
           <span className="inline-flex items-center gap-1">
             <Check className="h-3.5 w-3.5" /> Copied
@@ -66,6 +80,6 @@ export function ShareBar({ url, title }: { url: string; title: string }) {
           </span>
         )}
       </button>
-    </div>
+    </p>
   );
 }

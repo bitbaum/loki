@@ -24,7 +24,6 @@ export function PublicSurface({
     // `.dark` here — that forced public/auth pages to ignore Light/Auto while
     // the signed-in app honored THEME_OPTIONS. ThemeToggle lives in the nav.
     <div className="ui-public-surface">
-      <div aria-hidden className="ui-public-backdrop" />
       <nav className="ui-public-nav">
         <div className="ui-public-nav-brand-row">
           <Link href={homeHref} className="ui-public-nav-home">

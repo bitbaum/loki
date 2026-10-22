@@ -73,7 +73,7 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
 
   return (
     <AuthShell>
-      <AuthHeading title={AUTH_COPY.signUp.title} description={AUTH_COPY.signUp.description} />
+      <AuthHeading title={AUTH_COPY.signUp.title} />
       {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signUp}</p>}
 
       <AuthCard>
@@ -118,8 +118,7 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
 
           <AuthSubmitButton
             loading={loading}
-            disabled={!name || !email || !password || !confirm}
-            label="Create account →"
+            label="Create account"
             loadingLabel="Creating account…"
           />
         </form>

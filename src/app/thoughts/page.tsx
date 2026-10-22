@@ -20,27 +20,19 @@ export default function ThoughtsPage() {
 
   return (
     <PublicSurface right={<PublicHeaderActions />}>
-      <div className="relative z-10 mx-auto max-w-5xl px-4 pb-14 pt-10 sm:px-10 sm:pb-24 sm:pt-16">
-        <div className="ui-public-doc-header">
-          <div className="ui-public-doc-meta-row">
-            <span className="ui-public-doc-badge">THOUGHTS</span>
-            <a
-              href="/rss.xml"
-              className="ui-btn-chip inline-flex items-center gap-1.5"
-              aria-label="RSS feed"
-            >
-              <Rss className="h-3.5 w-3.5" /> RSS
-            </a>
-          </div>
-          <h1 className="ui-public-doc-title">Thoughts</h1>
-          <p className="ui-public-doc-subtitle">
-            Essays on architecture, execution systems, and project momentum
-          </p>
+      <div className="ui-public-container-mid pb-14 pt-10 sm:pb-20 sm:pt-16">
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="ui-public-page-title">Thoughts</h1>
+          <a href="/rss.xml" className="ui-public-icon-link" aria-label="RSS feed" title="RSS feed">
+            <Rss className="h-5 w-5" aria-hidden />
+          </a>
         </div>
 
-        <ThoughtsLibrary articles={articles} tags={tags} />
+        <div className="mt-8">
+          <ThoughtsLibrary articles={articles} tags={tags} />
+        </div>
 
-        <div className="mt-10">
+        <div className="mt-14">
           <NewsletterSignup source="thoughts-index" />
         </div>
       </div>
