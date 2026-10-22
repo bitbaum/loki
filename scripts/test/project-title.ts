@@ -24,10 +24,13 @@ assert.equal(projectTitle({ name: legacy }), "Xhiva", "…even without a descrip
 assert.equal(projectTitle({ name: legacy, title: "Xhiva Art" }), "Xhiva Art", "a title wins");
 assert.equal(
   projectTitle({ name: "centersom", title: "  " }),
-  "centersom",
+  "Centersom",
   "blank title is no title",
 );
-assert.equal(projectTitle({ name: "loki" }), "loki", "ordinary names pass through");
+assert.equal(projectTitle({ name: "loki" }), "Loki", "a folder name reads as a word");
+assert.equal(projectTitle({ name: "murphys-bar" }), "Murphys bar", "dashes become spaces");
+assert.equal(projectTitle({ name: "orangecat-2" }), "Orangecat 2");
+assert.equal(projectTitle({ name: "BiasLens" }), "BiasLens", "a name typed with capitals is kept");
 
 assert.equal(projectHeadline(brief), "A new version of xhiva.art.");
 assert.equal(summarizeDescription(brief, 145), "A new version of xhiva.art.");
