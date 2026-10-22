@@ -32,6 +32,7 @@ import {
   looksLine,
   recommendFor,
   summarizeDecisions,
+  decisionKey,
   type Recommendation,
 } from "@/lib/feedback/recommend";
 
@@ -87,8 +88,16 @@ export function FeedbackInbox() {
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const { busyId, error, notice, dispatchFix, runInCloud, setStatus, feature } =
     useFeedbackActions(refetch);
-  /** Decisions taken on this screen: the card says "Done" until the list refreshes. */
+  /**
+   * Decisions taken on this screen, keyed by the decision itself (item + kind
+   * + the run it was about), not the item alone. Keyed by item, a "Build it"
+   * tap stayed "taken" after that run failed and the item came back as a new
+   * "Try again" decision — the card then read "Done — try again" over a
+   * failure (2026-10-21, Substrata). A new run or a new kind is a new decision.
+   */
   const [taken, setTaken] = useState<Set<string>>(new Set());
+  const isTaken = (f: { id: string; dispatchedRunId?: string | null }, rec: Recommendation) =>
+    taken.has(decisionKey(f, rec));
   /** The report opened in the sheet, and whether "Do all" is being confirmed. */
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
@@ -179,7 +188,9 @@ export function FeedbackInbox() {
   );
   const done = filtered.filter((f) => f.status === FEEDBACK_STATUS.RESOLVED);
   const archived = filtered.filter((f) => f.status === FEEDBACK_STATUS.ARCHIVED);
-  const summary = summarizeDecisions(decisions.filter((d) => !taken.has(d.f.id)).map((d) => d.rec));
+  const summary = summarizeDecisions(
+    decisions.filter((d) => !isTaken(d.f, d.rec)).map((d) => d.rec),
+  );
 
   /** Take one decision — the same routes the full row uses. */
   const inFlight = useRef<string | null>(null);
@@ -187,7 +198,7 @@ export function FeedbackInbox() {
     if (inFlight.current) return;
     const next = decisions.find(
       (d) =>
-        d.rec.kind === RECOMMEND.BUILD && !d.f.read && !(d.f.id in reads) && !taken.has(d.f.id),
+        d.rec.kind === RECOMMEND.BUILD && !d.f.read && !(d.f.id in reads) && !isTaken(d.f, d.rec),
     );
     if (!next || Object.keys(reads).length >= READS_PER_VISIT) return;
     const id = next.f.id;
@@ -205,6 +216,7 @@ export function FeedbackInbox() {
         inFlight.current = null;
         setReadingId(null);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isTaken reads `taken`
   }, [decisions, reads, taken]);
 
   const take = async (f: InboxItem, rec: Recommendation, ask?: string) => {
@@ -227,13 +239,13 @@ export function FeedbackInbox() {
       case RECOMMEND.LOOK:
         return;
     }
-    setTaken((s) => new Set(s).add(f.id));
+    setTaken((s) => new Set(s).add(decisionKey(f, rec)));
   };
 
   const takeAll = async () => {
     const todo = decisions.filter(
       (d) =>
-        d.rec.kind !== RECOMMEND.CONNECT && d.rec.kind !== RECOMMEND.LOOK && !taken.has(d.f.id),
+        d.rec.kind !== RECOMMEND.CONNECT && d.rec.kind !== RECOMMEND.LOOK && !isTaken(d.f, d.rec),
     );
     setBatch({ done: 0, total: todo.length });
     for (const [i, d] of todo.entries()) {
@@ -253,7 +265,7 @@ export function FeedbackInbox() {
   });
   const projectOf = (f: InboxItem) =>
     projectFilter || projects.length <= 1 ? null : { id: f.projectId, name: f.projectName };
-  const open = summary.total - [...taken].filter((id) => decided.has(id)).length;
+  const open = summary.total;
   const opened = openId ? all.find((f) => f.id === openId) : null;
   const openedDecision = opened ? decisions.find((d) => d.f.id === opened.id) : null;
 
@@ -344,7 +356,7 @@ export function FeedbackInbox() {
                   onClick={() => setOpenId(f.id)}
                   title={reportTitle(f)}
                   secondary={
-                    taken.has(f.id)
+                    isTaken(f, rec)
                       ? `Done: ${rec.label.toLowerCase()}`
                       : [projectOf(f) ? titleOf(f.projectName) : null, kindWord(rec)]
                           .filter(Boolean)
@@ -352,7 +364,7 @@ export function FeedbackInbox() {
                   }
                   trailing={compactRelativeDate(f.createdAt)}
                   menu={
-                    taken.has(f.id) || !oneTap(rec) ? undefined : (
+                    isTaken(f, rec) || !oneTap(rec) ? undefined : (
                       <button
                         type="button"
                         onClick={() => void take(f, rec, f.read?.ask ?? undefined)}
@@ -419,7 +431,7 @@ export function FeedbackInbox() {
                   item={opened}
                   rec={openedDecision.rec}
                   busy={busyId === opened.id}
-                  taken={taken.has(opened.id)}
+                  taken={isTaken(opened, openedDecision.rec)}
                   project={projectOf(opened)}
                   onTake={(ask) => void take(opened, openedDecision.rec, ask)}
                   read={reads[opened.id] ?? opened.read ?? null}

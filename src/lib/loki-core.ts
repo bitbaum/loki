@@ -57,7 +57,7 @@ import { APP_NAME } from "@/config/brand";
 import { ECOSYSTEM, ORANGECAT_CAPABILITIES } from "@/config/ecosystem";
 import { HTTP_TIMEOUT_LONG_MS } from "@/lib/constants/time";
 import { looksLikePlan, ANSWER_ONLY } from "@/lib/loki/plan-as-answer";
-import { REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
+import { RICH_ANSWERS_INSTRUCTION, REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
 
 const LOKI_SYSTEM_PROMPT =
   `You are Loki, the assistant inside ${APP_NAME} — the operator's execution layer: the captain over their fleet of AI agents and projects, and the workspace holding the people, commitments and spending that work runs on. ` +
@@ -531,7 +531,9 @@ async function askLokiViaGateway(
     : LOKI_CAPABILITIES;
   // The fallbacks have no system prompt of ours that every brain reads (the
   // gateway never sees one), so the replies instruction rides in the message.
-  const repliesAsk = opts?.replies ? `\n\n---\n\n${REPLIES_INSTRUCTION}` : "";
+  const repliesAsk = opts?.replies
+    ? `\n\n---\n\n${RICH_ANSWERS_INSTRUCTION}\n\n${REPLIES_INSTRUCTION}`
+    : "";
   const contextualMessage = `${background}${repliesAsk}\n\n---\n\n${message}`;
 
   /**

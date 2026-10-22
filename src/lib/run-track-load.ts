@@ -185,7 +185,14 @@ export async function loadRunTrack(
     phase: view.phase,
     stalled: view.stalled,
     lastProgressAt: snap?.lastProgressAt ?? null,
-    needsYou: snap?.blocked === RUN_BLOCKED.AUTH ? "It is waiting at a sign-in prompt." : null,
+    needsYou:
+      snap?.blocked === RUN_BLOCKED.AUTH
+        ? "It is waiting at a sign-in prompt."
+        : snap?.blocked === RUN_BLOCKED.PERMISSION
+          ? `It is asking: ${snap.blockedQuestion?.trim() || "permission to run a tool"}`
+          : snap?.blocked === RUN_BLOCKED.EXITED
+            ? `It stopped: ${snap.blockedQuestion?.trim() || "the agent process ended"}`
+            : null,
     builderLabel: BUILDER_WORDS[snap?.builderChannel ?? ""] ?? null,
     evidence,
     repo,

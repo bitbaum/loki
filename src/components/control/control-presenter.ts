@@ -1,3 +1,4 @@
+import { isRunProgressFresh } from "@/lib/run-progress";
 import {
   ACTIVE_WINDOW_S,
   AGENT_ABSENT_GRACE_S,
@@ -767,7 +768,13 @@ export function getProjectDisplayState(
   // server-side by OPEN_TURN_TTL_MS; a second time check here would be a
   // second definition of "too old" for the two to disagree about.
   const liveTurnRunning = (project.liveAgentTurns?.count ?? 0) > 0;
-  const verifiedRunRunning = project.verifiedRunActive;
+  // One run state (RUN-STATUS-SSOT): the open run's own record — the beats
+  // Feedback, Watch and the project page read — counts here too. A sealed
+  // agent runs inside gVisor where no process scan sees it, so Control said
+  // "0 working · 0 awaiting input" through an 18-minute Antigravity run while
+  // every other surface said Working (Substrata, 2026-10-21 23:40).
+  const runRead = openRunReading(project.latestOrchestrationRun, nowS * 1000);
+  const verifiedRunRunning = project.verifiedRunActive || runRead === "working";
 
   const isClosed =
     !dismissed && !project.agentRunning && withinWindow(project.closedAt, nowS, CLOSED_WINDOW_S);
@@ -804,8 +811,9 @@ export function getProjectDisplayState(
     !currentPrompt &&
     !liveTurnRunning &&
     !verifiedRunRunning &&
-    (project.agentRunning || isProjectTabOpen(project, liveTabs)) &&
-    isAwaitingUser(project.session);
+    (((project.agentRunning || isProjectTabOpen(project, liveTabs)) &&
+      isAwaitingUser(project.session)) ||
+      runRead === "waiting");
 
   const latestFinishedAtS = project.latestOrchestrationRun?.finishedAt
     ? Math.floor(new Date(project.latestOrchestrationRun.finishedAt).getTime() / 1000)
@@ -1225,4 +1233,19 @@ export function buildControlPageState(
       commitsToday,
     },
   };
+}
+
+/**
+ * Pure: what an OPEN run's own record says — "waiting" when its agent is
+ * blocked on a person (a question, a sign-in) or stopped, "working" while its
+ * progress beats are fresh, null when the run says nothing (closed, no beats).
+ */
+export function openRunReading(
+  run: ProjectState["latestOrchestrationRun"] | null | undefined,
+  nowMs: number,
+): "working" | "waiting" | null {
+  if (!run || run.finishedAt) return null;
+  if (run.blocked === "permission" || run.blocked === "auth" || run.blocked === "exited")
+    return "waiting";
+  return isRunProgressFresh(run.lastProgressAt, nowMs) ? "working" : null;
 }

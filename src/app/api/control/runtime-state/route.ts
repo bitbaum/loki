@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sanitizeInventory } from "@/lib/agents/provider-inventory";
 import {
   getProjectState,
   getProjectStatesByUserId,
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
     projects?: unknown;
     openTabs?: unknown;
     installedAgents?: unknown;
+    providerInventory?: unknown;
     observedAt?: unknown;
     panes?: unknown;
     runnerVersion?: unknown;
@@ -148,6 +150,7 @@ export async function POST(req: NextRequest) {
       panes,
       runnerVersion,
       powerSource,
+      providerInventory: sanitizeInventory(body.providerInventory),
     }).catch((err) => console.error("[runtime-state] runtime snapshot write failed:", err));
   }
 

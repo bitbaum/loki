@@ -4,7 +4,7 @@
  * another's thread). Messages are reached only through a conversation the
  * caller owns, so message writes verify ownership first.
  */
-import { and, desc, eq, asc, sql } from "drizzle-orm";
+import { and, desc, eq, asc, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { conversationImages } from "@/db/schema/conversation-images";
 import {
@@ -88,7 +88,8 @@ export async function listConversations(
     })
     .from(conversations)
     .innerJoin(conversationMessages, eq(conversationMessages.conversationId, conversations.id))
-    .where(eq(conversations.userId, userId))
+    // A temporary chat is never in the list: that is what temporary means.
+    .where(and(eq(conversations.userId, userId), eq(conversations.ephemeral, false)))
     .groupBy(
       conversations.id,
       conversations.title,
@@ -105,13 +106,32 @@ export async function listConversations(
   return rows.filter((r) => r.projectKeys.some((k) => wanted.has(k)));
 }
 
-/** Create a new conversation. Title is required; projectKeys defaults to []. */
+/** Create a new conversation. Title is required; projectKeys defaults to [].
+ *  `ephemeral` makes it a temporary chat (schema: conversations.ephemeral). */
 export async function createConversation(
   userId: string,
-  { title, projectKeys = [] }: { title: string; projectKeys?: string[] },
+  {
+    title,
+    projectKeys = [],
+    ephemeral = false,
+  }: { title: string; projectKeys?: string[]; ephemeral?: boolean },
 ): Promise<Conversation> {
-  const [row] = await db.insert(conversations).values({ userId, title, projectKeys }).returning();
+  const [row] = await db
+    .insert(conversations)
+    .values({ userId, title, projectKeys, ephemeral })
+    .returning();
   return row;
+}
+
+/** The daily sweep: a temporary chat the person never came back to leave
+ *  (a closed tab, a dead phone) is gone within a day regardless. Messages
+ *  cascade with the row. Returns how many were deleted. */
+export async function deleteStaleEphemeralConversations(before: Date): Promise<number> {
+  const rows = await db
+    .delete(conversations)
+    .where(and(eq(conversations.ephemeral, true), lt(conversations.updatedAt, before)))
+    .returning({ id: conversations.id });
+  return rows.length;
 }
 
 /** Fetch a conversation the user owns plus its messages (oldest-first).

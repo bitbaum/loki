@@ -39,7 +39,7 @@ export function looksLikeAgentCapacityIssue(text: string): boolean {
  * Loki's own retry, because the retry went straight back to Claude.
  */
 const NO_ANSWER_RE =
-  /could not verify generation|produced no response|never started generating|inject did not stick|waiting for workspace trust/i;
+  /could not verify generation|produced no response|never started generating|inject did not stick|never accepted the prompt|waiting for workspace trust/i;
 
 export function looksLikeAgentNoAnswer(text: string): boolean {
   return NO_ANSWER_RE.test(text);

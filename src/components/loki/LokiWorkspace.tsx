@@ -18,7 +18,6 @@ import { rememberFleetProject } from "@/lib/fleet-context";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useBuilderPresence } from "@/hooks/use-builder-presence";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
-import { Drawer } from "@/components/ui/modal";
 import { ThreadRail } from "./ThreadRail";
 import { StartScreen } from "./StartScreen";
 import { DemoChatNotice, useDemoChat } from "./DemoChatNotice";
@@ -28,9 +27,10 @@ import { Thread } from "./Thread";
 import { LokiComposer } from "./Composer";
 import { SaveContextBar } from "./SaveContextBar";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
+import { useTemporaryChat } from "@/hooks/use-temporary-chat";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { WorkspaceChrome, WorkspaceThreadHeader } from "./WorkspaceChrome";
-import { ProjectFilter } from "./ProjectFilter";
+import { WorkspaceChrome, WorkspacePhoneHeader } from "./WorkspaceChrome";
+import { WorkspaceDrawers } from "./WorkspaceDrawers";
 import { VoiceConversation } from "./VoiceConversation";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
 import type {
@@ -400,10 +400,9 @@ export function LokiWorkspace({
   }, [conversations, selectedProjects, activeId]);
 
   const createConversation = async (): Promise<string | null> => {
-    // Title is omitted — the create route defaults it (SSOT), and the first
-    // message auto-titles the thread server-side.
     const res = await postJson("/api/conversations", {
       projectKeys: selectedProjects,
+      ephemeral: temporary.armed,
     });
     if (!res.ok) {
       await throwApiError(res, "Could not create conversation.").catch((e: Error) =>
@@ -415,7 +414,8 @@ export function LokiWorkspace({
     // Claimed BEFORE setActiveId, so the switch-detection below already knows
     // this id is ours and never clears the transcript we are about to fill.
     setJustCreatedId(conversation.id);
-    setConversations((prev) => [conversation, ...prev]);
+    if (temporary.armed) temporary.claim(conversation.id);
+    else setConversations((prev) => [conversation, ...prev]);
     setActiveId(conversation.id);
     setMessages([]);
     return conversation.id;
@@ -570,14 +570,12 @@ export function LokiWorkspace({
       : null;
 
   const isStart = messages.length === 0 && !transcriptLoading && !sending && !activeId;
-  // A thread takes the whole phone (useImmersiveChat); the start keeps the shell.
-  useImmersiveChat(!isStart);
-  // The rail is `md:flex` — pinned or not, a phone never shows it. Treating
-  // "pinned" as "visible" hid the recent chats on every phone (the pin
-  // defaults to on), so Back from a thread landed on an empty screen.
+  const temporary = useTemporaryChat(activeId);
+  useImmersiveChat(true);
+  // The rail is `md:flex`: pinned or not, a phone never shows it (treating
+  // "pinned" as "visible" hid the recent chats on every phone).
   const wide = useMediaQuery("(min-width: 768px)");
-  // Which thread the menu opened "save to context" for — it closes itself by
-  // no longer matching when the operator moves to another thread.
+  // Which thread the menu opened "save to context" for (closes on a switch).
   const [saveFor, setSaveFor] = useState<string | null>(null);
   const activeThread = activeId ? conversations.find((c) => c.id === activeId) : undefined;
 
@@ -591,6 +589,8 @@ export function LokiWorkspace({
     onOpenHistory: () => setHistoryOpen(true),
     onNewChat: newChat.start,
     onLeaveThread: startNewConversation,
+    temporary: activeId ? temporary.id === activeId : temporary.armed,
+    onToggleTemporary: temporary.toggle,
     onOpenProjects: () => setFilterOpen(true),
     onSaveContext: () => setSaveFor(activeId ?? "new"),
     onTogglePin: inbox.pinConversation,
@@ -720,34 +720,6 @@ export function LokiWorkspace({
     />
   );
 
-  // History + project-scope slide-overs back the compact toolbar on phones and
-  // keep project inventory out of the primary chat on every breakpoint.
-  const drawers = (
-    <>
-      {historyOpen && (
-        <Drawer onClose={() => setHistoryOpen(false)} size="md">
-          <div className="flex min-h-0 flex-1 flex-col p-3">{historyList}</div>
-        </Drawer>
-      )}
-      {filterOpen && (
-        <Drawer onClose={() => setFilterOpen(false)} size="md">
-          <div className="flex min-h-0 flex-1 flex-col p-3">
-            <ProjectFilter
-              projects={projects}
-              selected={selectedProjects}
-              loading={projectsLoading}
-              error={projectsError}
-              onRetry={() => void reloadProjects()}
-              onToggle={toggleProject}
-              onSelectMany={selectManyProjects}
-              onClear={clearProjects}
-            />
-          </div>
-        </Drawer>
-      )}
-    </>
-  );
-
   return (
     <div
       className={historyPinned ? "ui-loki-workspace ui-loki-workspace-split" : "ui-loki-workspace"}
@@ -762,7 +734,6 @@ export function LokiWorkspace({
         <WorkspaceChrome
           {...chrome}
           onNewChat={newChat.start}
-          inThread={!isStart}
           historyPinned={historyPinned}
           onToggleHistoryPinned={() => setHistoryPinned((open) => !open)}
         />
@@ -777,13 +748,29 @@ export function LokiWorkspace({
         >
           <ChatScreen
             composer={dock}
-            header={!isStart && !wide ? <WorkspaceThreadHeader {...chrome} /> : undefined}
+            header={wide ? undefined : <WorkspacePhoneHeader start={isStart} {...chrome} />}
           >
             {conversation}
           </ChatScreen>
         </section>
 
-        {drawers}
+        <WorkspaceDrawers
+          historyOpen={historyOpen}
+          onCloseHistory={() => setHistoryOpen(false)}
+          history={historyList}
+          filterOpen={filterOpen}
+          onCloseFilter={() => setFilterOpen(false)}
+          filter={{
+            projects,
+            selected: selectedProjects,
+            loading: projectsLoading,
+            error: projectsError,
+            onRetry: () => void reloadProjects(),
+            onToggle: toggleProject,
+            onSelectMany: selectManyProjects,
+            onClear: clearProjects,
+          }}
+        />
       </div>
     </div>
   );
