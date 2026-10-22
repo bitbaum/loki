@@ -62,7 +62,7 @@ check("the row is a ListRow that opens the project", () => {
 
 check("ListRow: the title is the link, stretched over the row", () => {
   assert(
-    /<Link href=\{href\} className="ui-listrow-hit/.test(listRow),
+    /<Link\s+href=\{href\}[^>]*?className="ui-listrow-hit/.test(listRow),
     "the title is not the link",
   );
   const at = css.indexOf(".ui-listrow-hit::after {");

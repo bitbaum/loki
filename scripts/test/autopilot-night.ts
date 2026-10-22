@@ -176,7 +176,7 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
   // Said the way a person would: no "3 of 4 runs" ledger, the cost in francs.
   assert.equal(
     nightNoteText(summary, 1.2),
-    "Last night Loki started 2 fixes (kestrel, harbourlight), read ledgerpost, filed away 4 old reports. It cost CHF 0.96.",
+    "Last night Loki started 2 fixes (Kestrel, Harbourlight), read Ledgerpost, filed away 4 old reports. It cost CHF 0.96.",
   );
   assert.equal(
     nightNoteText({ ...summary, fixes: [], reads: [], archived: 1 }),

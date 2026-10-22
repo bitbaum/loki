@@ -143,17 +143,17 @@ async function main() {
     // own session (its Resume on the Sessions page).
     const others = dialog.locator("section", { hasText: "Start another project" });
     assert.equal(await others.getByRole("link").count(), 8);
-    const aoz = others.getByRole("link", { name: /aoz-housing/ });
+    const aoz = others.getByRole("link", { name: /Aoz housing/ });
     assert.equal(await aoz.getAttribute("href"), "/terminal?project=aoz-housing");
     assert.match(
       (await others
-        .locator("li", { has: page.getByRole("link", { name: /aoz-housing/ }) })
+        .locator("li", { has: page.getByRole("link", { name: /Aoz housing/ }) })
         .textContent()) ?? "",
       /Not started yet/,
     );
     assert.match(
       (await others
-        .locator("li", { has: page.getByRole("link", { name: /project-1\b/ }) })
+        .locator("li", { has: page.getByRole("link", { name: /Project 1\b/ }) })
         .textContent()) ?? "",
       /Last worked 2 days ago|Last worked 2d ago/,
     );

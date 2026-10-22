@@ -140,7 +140,8 @@ check("PRINCIPLE 5: the project list's one trailing column is tabular", () => {
   // jitter across 25 rows because every cell was content-sized. The row is a
   // ListRow now (design reset, 2026-10-21) with ONE trailing fact — the time
   // since the last run — and that column must not shiver either.
-  const at = css.indexOf(".ui-listrow-trail {");
+  // The rule itself, not a scoped override such as `.ui-home-failure .ui-listrow-trail`.
+  const at = css.search(/^\s*\.ui-listrow-trail \{/m);
   assert(at !== -1, "the list row's trailing column is gone");
   const block = css.slice(at, css.indexOf("}", at));
   assert(
