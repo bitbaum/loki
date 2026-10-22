@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { List, ListRow } from "@/components/ui/list-row";
+import { projectTitle } from "@/lib/project-display";
 import { NAV } from "@/config/navigation";
 import { patchJson } from "@/lib/api/fetch";
 import type { AgentMessage } from "@/lib/agent-comms";
@@ -56,7 +57,7 @@ export function AgentEscalations() {
           key={m.id}
           href={`${NAV.control.href}?project=${encodeURIComponent(m.from)}`}
           icon={AlertTriangle}
-          title={`${m.from} needs a decision`}
+          title={`${projectTitle({ name: m.from })} needs a decision`}
           secondary={m.re || m.body || `Escalated to ${m.to}`}
           status="negative"
           menu={
@@ -64,7 +65,7 @@ export function AgentEscalations() {
               type="button"
               onClick={() => void dismiss(m.id)}
               className="ui-btn-icon"
-              aria-label={`Dismiss escalation from ${m.from}`}
+              aria-label={`Dismiss escalation from ${projectTitle({ name: m.from })}`}
               title="Mark read — removes it from Home"
             >
               <X className="h-4 w-4" aria-hidden />

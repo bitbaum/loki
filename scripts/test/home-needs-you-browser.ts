@@ -106,7 +106,7 @@ async function main() {
     await card.waitFor();
     assert.equal(
       (await card.locator(".ui-listrow-title").textContent())?.trim(),
-      "Couldn't start work in loki",
+      "Couldn't start work in Loki",
       "the title says what happened, in words",
     );
     const body = (await card.locator(".ui-listrow-secondary-text").textContent()) ?? "";

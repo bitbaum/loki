@@ -614,9 +614,8 @@ export function ControlPanel({
           builderLabel={
             builderPresence?.any
               ? builderCompactLabel("connected", runnerVersion, builderPresence)
-              : "No builder connected"
+              : null
           }
-          builderOk={Boolean(builderPresence?.any)}
           builderNote={builderUpdateNote(data?.builderVersions?.cloud)}
           onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
           onOpenSettings={() => setFleetSettingsOpen(true)}

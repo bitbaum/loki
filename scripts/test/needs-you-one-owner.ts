@@ -101,7 +101,7 @@ console.log("needs-you-one-owner:");
 // Tiers, measured 2026-10-04: "17 things need you" for one security hole,
 // seven approvals, eight reports and a missing widget, at one weight.
 {
-  const { items, total, urgent } = composeNeedsYou({
+  const { items } = composeNeedsYou({
     ...base,
     projects: [
       { id: "ok", name: "heidi", reason: "Broken export", href: "/projects/ok" },
@@ -125,13 +125,39 @@ console.log("needs-you-one-owner:");
     items[0]?.detail?.[0]?.includes("get Staff") === true,
   );
   check(
-    "the headline leads with what is urgent",
-    needsYouHeadline(total, urgent) === `1 urgent · ${total - 1} waiting on you`,
-    needsYouHeadline(total, urgent),
+    "the headline leads with what is urgent, then says what the rest is",
+    needsYouHeadline(items).startsWith("1 urgent") &&
+      !needsYouHeadline(items).includes("·") &&
+      needsYouHeadline(items).endsWith("."),
+    needsYouHeadline(items),
   );
-  check("no urgency, plain count", needsYouHeadline(3, 0) === "3 things need you");
-  check("one thing is singular", needsYouHeadline(1, 0) === "1 thing needs you");
-  check("nothing is said plainly", needsYouHeadline(0, 0) === "Nothing needs you.");
+  const row = (key: string, weight: number, tier: "urgent" | "decide" | "tidy") => ({
+    key,
+    label: key,
+    href: null,
+    weight,
+    tier,
+  });
+  check(
+    "the parts are named",
+    needsYouHeadline([
+      row("project:a", 1, "urgent"),
+      row("approval:x", 1, "decide"),
+      row("approvals:checkins", 6, "decide"),
+      row("feedback", 42, "decide"),
+      row("project:b", 1, "decide"),
+      row("widget", 3, "tidy"),
+    ]) === "1 urgent, 7 approvals, 42 reports to triage and 1 other thing.",
+  );
+  check(
+    "one thing is singular",
+    needsYouHeadline([row("feedback", 1, "decide")]) === "1 report to triage.",
+  );
+  check("nothing is said plainly", needsYouHeadline([]) === "Nothing needs you.");
+  check(
+    "housekeeping never makes the sentence",
+    needsYouHeadline([row("widget", 2, "tidy")]) === "Nothing needs you.",
+  );
 }
 
 {

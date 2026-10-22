@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { AlertCircle, AlertTriangle, Check, ChevronRight, Loader2, Server } from "lucide-react";
 import { useControlInbox } from "@/hooks/use-control-inbox";
-import { DismissAlertButton } from "./DismissAlertButton";
 import { LokiDispatchButton } from "@/components/shared/LokiDispatchButton";
 import {
   composeNeedsYou,
@@ -62,7 +61,7 @@ export function NeedsYouVerdict({
     );
   }
 
-  const { items, total, urgent } = composeNeedsYou({
+  const { items, total } = composeNeedsYou({
     projects: flagged,
     approvals,
     feedbackCount: inbox.feedbackCount,
@@ -129,7 +128,7 @@ export function NeedsYouVerdict({
     <section className="ui-verdict ui-verdict-alert" aria-label="What needs you">
       <p className="ui-verdict-line">
         <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" aria-hidden />
-        {needsYouHeadline(total, urgent)}
+        {needsYouHeadline(items)}
       </p>
       {urgentItems.length > 0 && (
         <ul className="ui-verdict-list">
@@ -147,9 +146,12 @@ export function NeedsYouVerdict({
 }
 
 /**
- * An urgent item, whole: what is wrong in its own words, where to look, and
- * Loki one tap away. "Fix with Loki" opens Loki with the problem written out;
- * it starts nothing until the operator sends it.
+ * An urgent item, whole: what is wrong in its own words, and ONE action —
+ * "Fix with Loki", which opens Loki with the problem written out and starts
+ * nothing until the operator sends it. The title is the way to the page that
+ * acts on it. It carried "Fix with Loki", "Open" and × on every row: three
+ * actions where one is the job (design reset, 2026-10-22). Dismissing an
+ * alert is the bell's job.
  */
 function UrgentRow({ item }: { item: NeedsYouItem }) {
   const text = item.detail?.[0] ?? item.reason ?? "";
@@ -157,7 +159,13 @@ function UrgentRow({ item }: { item: NeedsYouItem }) {
     <div className="ui-verdict-urgent">
       <p className="ui-verdict-urgent-head">
         <AlertCircle className="h-3.5 w-3.5 shrink-0 text-status-negative" aria-hidden />
-        <span className="ui-verdict-label">{item.label}</span>
+        {item.href ? (
+          <Link href={item.href} className="ui-verdict-label ui-verdict-urgent-link">
+            {item.label}
+          </Link>
+        ) : (
+          <span className="ui-verdict-label">{item.label}</span>
+        )}
       </p>
       {text && <p className="ui-verdict-urgent-text">{text}</p>}
       <div className="ui-verdict-actions">
@@ -167,12 +175,6 @@ function UrgentRow({ item }: { item: NeedsYouItem }) {
           title={`Ask Loki to fix this in ${item.label}`}
           className="ui-btn-pill-positive"
         />
-        {item.href && (
-          <Link href={item.href} className="ui-verdict-open">
-            Open <ChevronRight className="h-3 w-3" aria-hidden />
-          </Link>
-        )}
-        {item.dismissAlertId && <DismissAlertButton alertId={item.dismissAlertId} />}
       </div>
     </div>
   );
@@ -207,7 +209,7 @@ function NeedsYouRow({ item }: { item: NeedsYouItem }) {
   // More behind it: open in place, and the page that acts on it is one tap
   // further — never a dead end, never a wall of detail by default.
   const detail = item.detail ?? [];
-  if (detail.length > 0 || item.dismissAlertId) {
+  if (detail.length > 0) {
     return (
       <details className="ui-verdict-expand">
         <summary className="ui-verdict-item">
@@ -224,14 +226,11 @@ function NeedsYouRow({ item }: { item: NeedsYouItem }) {
           ) : detail.length === 1 ? (
             <p>{detail[0]}</p>
           ) : null}
-          <div className="flex items-center gap-3">
-            {item.href && (
-              <Link href={item.href} className="ui-verdict-open">
-                Open <ChevronRight className="h-3 w-3" aria-hidden />
-              </Link>
-            )}
-            {item.dismissAlertId && <DismissAlertButton alertId={item.dismissAlertId} />}
-          </div>
+          {item.href && (
+            <Link href={item.href} className="ui-verdict-open">
+              Open <ChevronRight className="h-3 w-3" aria-hidden />
+            </Link>
+          )}
         </div>
       </details>
     );

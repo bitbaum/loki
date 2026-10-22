@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react";
 import { AlertTriangle, CircleAlert, Loader2, X } from "lucide-react";
 import { List, ListRow } from "@/components/ui/list-row";
+import { projectTitle } from "@/lib/project-display";
+import { attentionWords } from "@/lib/attention-words";
 import { remedyForFailure, FAILURE_REMEDY, REMEDY_LABEL } from "@/lib/failure-remedy";
 import type { AttentionItem } from "./control-presenter";
 import type { FailedCommand } from "@/lib/control-types";
@@ -41,7 +43,7 @@ function groupConsecutive(items: FailedCommand[]): FailureGroup[] {
 
 /** What the failed command was trying to do, in words a person would use. */
 function failureTitle(f: FailedCommand): string {
-  const where = f.tab !== "unknown" ? f.tab : "a project";
+  const where = f.tab !== "unknown" ? projectTitle({ name: f.tab }) : "a project";
   if (f.unverified) return `Sent to ${where}, but the agent did not start`;
   if (f.type === "dispatch") return `Couldn't start work in ${where}`;
   if (f.type === "launch_agent") return `Couldn't open a session in ${where}`;
@@ -206,14 +208,21 @@ export function AttentionBar({
           );
         })}
 
-        {items.map(({ project, reason }) => (
+        {items.map(({ project }) => (
           <ListRow
             key={project.tab}
             icon={CircleAlert}
-            title={project.tab}
-            secondary={
-              reason && reason.toLowerCase() !== "needs attention" ? reason : "Needs a look"
-            }
+            title={projectTitle({ name: project.tab })}
+            // What happened, from the run's own record — "last run: needs
+            // attention" told the owner nothing (lib/attention-words).
+            secondary={attentionWords({
+              sessionHealth: project.session?.health,
+              runHealth: project.latestOrchestrationRun?.summary?.health,
+              outcome: project.latestOrchestrationRun?.outcome,
+              error: project.latestOrchestrationRun?.payload?.error,
+              blockReason: project.latestOrchestrationRun?.summary?.["block-reason"],
+              next: project.latestOrchestrationRun?.summary?.next,
+            })}
             onClick={onFocusProject ? () => onFocusProject(project.tab) : undefined}
             chevron={Boolean(onFocusProject)}
           />

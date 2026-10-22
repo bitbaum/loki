@@ -5,12 +5,14 @@ import {
   Check,
   CircleAlert,
   CircleDashed,
+  CirclePause,
   Hammer,
   MessageCircle,
   Plus,
   Server,
 } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
+import { projectTitle } from "@/lib/project-display";
 import { List, ListRow } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
 import { elapsedLabel, type DoneJob, type NowJob } from "./control-now";
@@ -35,23 +37,41 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
   // One row per job (design reset, 2026-10): the project, what it is doing
   // this minute, how long. They were cards that each read "Next best step"
   // in large type — the prompt's name, the same on every card.
+  const active = jobs.filter((j) => j.tone !== "quiet");
+  const quiet = jobs.filter((j) => j.tone === "quiet");
+  const row = (job: NowJob) => (
+    <ListRow
+      key={job.tab}
+      href={job.href}
+      icon={job.tone === "you" ? MessageCircle : job.tone === "quiet" ? CirclePause : Hammer}
+      title={projectTitle({ name: job.tab })}
+      secondary={
+        job.tone === "you"
+          ? `Waiting for you · ${job.status}`
+          : job.tone === "quiet"
+            ? job.status
+            : jobLine(job)
+      }
+      status={job.tone === "you" ? "warning" : undefined}
+      trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
+      chevron
+    />
+  );
+  // Work that went quiet is not "being built": it sits under its own quieter
+  // heading and says what it is waiting on (control-now).
   return (
-    <Section title="Being built">
-      <List aria-label="Being built">
-        {jobs.map((job) => (
-          <ListRow
-            key={job.tab}
-            href={job.href}
-            icon={job.tone === "you" ? MessageCircle : Hammer}
-            title={job.tab}
-            secondary={job.tone === "you" ? `Waiting for you · ${job.status}` : jobLine(job)}
-            status={job.tone === "you" ? "warning" : undefined}
-            trailing={elapsedLabel(job.since, nowMs) ?? undefined}
-            chevron
-          />
-        ))}
-      </List>
-    </Section>
+    <>
+      {active.length > 0 && (
+        <Section title="Being built">
+          <List aria-label="Being built">{active.map(row)}</List>
+        </Section>
+      )}
+      {quiet.length > 0 && (
+        <Section title="Gone quiet">
+          <List aria-label="Gone quiet">{quiet.map(row)}</List>
+        </Section>
+      )}
+    </>
   );
 }
 
@@ -95,8 +115,8 @@ export function ControlDone({
               key={job.key}
               href={main?.href}
               icon={Icon}
-              title={said ? job.headline : job.tab}
-              secondary={said ? `${job.tab} · ${job.outcome}` : job.outcome}
+              title={said ? job.headline : projectTitle({ name: job.tab })}
+              secondary={said ? `${projectTitle({ name: job.tab })} · ${job.outcome}` : job.outcome}
               status={job.tone === "bad" ? "negative" : undefined}
               trailing={
                 job.tone === "bad" && onFinish ? (
@@ -150,30 +170,28 @@ function FinishButton({
  */
 export function ControlFoot({
   builderLabel,
-  builderOk,
   builderNote = null,
   onNewProject,
   onOpenSettings,
 }: {
-  builderLabel: string;
-  builderOk: boolean;
+  /** Which builder is on — null when none is: the builder row at the top
+   *  of Home already says so, and the foot saying "No builder connected"
+   *  under "Builder offline · last seen 1d ago" told one fact twice, two
+   *  different ways (owner, 2026-10-22). */
+  builderLabel: string | null;
   /** One clause after the label: "a newer version waits for its agents to finish". */
   builderNote?: string | null;
   onNewProject: () => void;
   onOpenSettings: () => void;
 }) {
-  // The last rows of the page, not a strip of chrome: which builder is on
-  // (opens the settings), and a new project. Plain rows, so nothing pokes
-  // out under the bottom bar the way the old footer's buttons did.
+  // The last rows of the page, not a strip of chrome: settings (naming the
+  // builder when one is on), and a new project.
   return (
     <List aria-label="Builder and settings" className="ui-home-foot">
       <ListRow
         icon={Server}
-        title={builderLabel}
-        secondary={
-          builderNote ?? (builderOk ? "Autopilot, refresh and agent settings" : "Settings")
-        }
-        status={builderOk ? undefined : "warning"}
+        title={builderLabel ?? "Settings"}
+        secondary={builderNote ?? "Autopilot, refresh and agents"}
         onClick={onOpenSettings}
         chevron
       />

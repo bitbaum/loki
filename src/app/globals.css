@@ -6184,6 +6184,10 @@
   .ui-verdict-urgent-head {
     @apply flex items-center gap-2 text-sm;
   }
+  /* The urgent item's title is the way to the page that acts on it. */
+  .ui-verdict-urgent-link {
+    @apply inline-flex items-center underline-offset-2 hover:underline;
+  }
   .ui-verdict-urgent-text {
     @apply text-sm text-text-secondary wrap-anywhere;
   }

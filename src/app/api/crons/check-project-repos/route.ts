@@ -38,6 +38,7 @@ import { userProjects } from "@/db/schema";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { logDebug } from "@/db/queries/debug-logs";
 import { dismissActiveAlertsByType, refreshOrInsertActiveAlert } from "@/db/queries/alerts";
+import { projectTitle } from "@/lib/project-display";
 import { getAllDistinctUserIds, getUserProjects } from "@/db/queries/user-projects";
 import { getGithubToken } from "@/lib/github-token";
 import { canSeePrivateRepos, checkRepo, parseGithubRepo, tokenScopes } from "@/lib/github-repo-ref";
@@ -118,14 +119,16 @@ export async function GET(req: NextRequest) {
         userId,
         type: ALERT_TYPE,
         severity: "warning",
+        // The project by name, and no URL or status code in the words a
+        // person reads (design reset rule 9): those stay in the record below
+        // the first paragraph, which only /system and "Details" show.
         title:
           gone.length === 1
-            ? "A project points at a repository that no longer exists"
-            : `${gone.length} projects point at repositories that no longer exist`,
+            ? `${projectTitle({ name: gone[0]!.project })}'s repository can't be found on GitHub`
+            : `${gone.length} projects' repositories can't be found on GitHub`,
         description:
-          `GitHub cannot find it — it was deleted, renamed or made private. Agents cannot ` +
-          `start work there until you pick the right repository, or remove it from the ` +
-          `project.\n\n${detail}\n\n` +
+          `It was deleted, renamed or made private. Agents can't start work there until ` +
+          `you pick the right repository, or remove it from the project.\n\n${detail}\n\n` +
           `GitHub answers 404 and there is no redirect to follow, so Loki cannot repair ` +
           `this on its own; every dispatch or clone starts from an address that does not ` +
           `resolve.`,

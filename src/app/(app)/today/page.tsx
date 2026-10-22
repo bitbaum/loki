@@ -24,6 +24,8 @@ import { hasProjectAttention, isSiteDown } from "@/lib/projects-page-stats";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import { signalIsLive } from "@/lib/project-signals";
 import { projectAttentionVerdict } from "@/lib/project-attention";
+import { attentionWords } from "@/lib/attention-words";
+import { projectTitle } from "@/lib/project-display";
 import { normalizeTabName } from "@/lib/agent-config";
 import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getLatestRunsByProjectPaths } from "@/db/queries/orchestration-runs";
@@ -105,14 +107,27 @@ async function loadTodayInputs() {
       return { project: p, verdict };
     })
     .filter(({ verdict }) => verdict.score > 0)
-    .map(({ project, verdict }) => ({
-      id: project.id,
-      name: project.name,
-      reason: verdict.reason,
-      // Only an ENTITY id resolves at /projects/[id]; a catalog row without
-      // one is named without a link rather than linked to a 404.
-      href: project.entityProjectId ? `/projects/${project.entityProjectId}` : null,
-    }));
+    .map(({ project }) => {
+      const run = project.dirPath ? latestRuns.get(project.dirPath) : undefined;
+      const payload = run?.payload as { error?: string } | null | undefined;
+      return {
+        id: project.id,
+        name: projectTitle(project),
+        // What happened, in words — the verdict's "last run: needs attention"
+        // decides THAT it needs you, never says what (lib/attention-words).
+        reason: attentionWords({
+          sessionHealth: sessionHealthByTab.get(normalizeTabName(project.name)),
+          runHealth: run?.summary?.health,
+          outcome: run?.outcome,
+          error: payload?.error,
+          blockReason: run?.summary?.["block-reason"],
+          next: run?.summary?.next,
+        }),
+        // Only an ENTITY id resolves at /projects/[id]; a catalog row without
+        // one is named without a link rather than linked to a 404.
+        href: project.entityProjectId ? `/projects/${project.entityProjectId}` : null,
+      };
+    });
 
   const FLAG_KEYS = [
     PROJECT_ATTR.SECURITY_VULNERABILITY,
@@ -130,7 +145,7 @@ async function loadTodayInputs() {
       const raw = key ? p.attrs[key] : siteDown ? "Live site is down" : "";
       return {
         id: p.id,
-        name: p.name,
+        name: projectTitle(p),
         reason: raw.length > 90 ? `${raw.slice(0, 89)}…` : raw,
         fullReason: raw,
         // An exposed hole or a dead site is the morning's first job, ahead of
