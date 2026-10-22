@@ -92,22 +92,21 @@ check("a project with NO flags still leads with the build status", () => {
   assert(/:\s*null/.test(view), "the no-flags branch does not render nothing");
 });
 
-check("the count is said in words, so the heading is not a bare number", () => {
-  assert(/flags? on this project/.test(view), "the flags block has no heading naming what it is");
+check("the block has a heading naming what it is, in words", () => {
+  // Design reset (2026-10-21): a sentence-case section heading — "Needs
+  // fixing" — over one row per problem, not a coloured count.
+  assert(/title="Needs fixing"/.test(view), "the flags block has no heading naming what it is");
 });
 
-check("it carries an edge and no tint (principles 2 and 3)", () => {
-  const at = css.indexOf(".ui-project-flags-lead {");
-  assert(at !== -1, "the leading flags block has no ui-* class — style lives in globals.css");
+check("it carries no tint: the alarm is a red dot per row (principles 2 and 3)", () => {
+  const at = css.indexOf(".ui-project-flag {");
+  assert(at !== -1, "the flag rows have no ui-* class — style lives in globals.css");
   const block = css.slice(at, css.indexOf("}", at));
   assert(
-    /border/.test(block),
-    `the alarm earns an edge and has none: ${block.replace(/\s+/g, " ")}`,
-  );
-  assert(
     !/\bbg-(?!transparent)/.test(block),
-    `the alarm is tinted; the rule is the only colour: ${block.replace(/\s+/g, " ")}`,
+    `the alarm is tinted; the dot is the only colour: ${block.replace(/\s+/g, " ")}`,
   );
+  assert(/ui-dot-negative/.test(view), "a flag row carries no red dot");
 });
 
 console.log(failures === 0 ? "  all good" : `  ${failures} failure(s)`);

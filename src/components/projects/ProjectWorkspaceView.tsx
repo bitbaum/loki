@@ -1,7 +1,7 @@
 import { ExternalLink, Eye, Globe } from "lucide-react";
 import { List, ListRow } from "@/components/ui/list-row";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { ownerSiteUrl } from "@/lib/feedback/owner-pass";
+import { ownerSiteUrl } from "../../../widget/owner-pass";
 import type { ProjectDossier } from "@/db/queries/project-dossier";
 import { ProjectWorkspaceHeader } from "./ProjectWorkspaceHeader";
 import { ProjectIdentitySettings } from "./ProjectIdentitySettings";

@@ -15,7 +15,20 @@ import {
   projectMemberships,
   orchestrationRuns,
 } from "@/db/schema";
-import { eq, and, asc, desc, inArray, ilike, isNull, or, isNotNull, max, sql } from "drizzle-orm";
+import {
+  eq,
+  and,
+  asc,
+  desc,
+  gte,
+  inArray,
+  ilike,
+  isNull,
+  or,
+  isNotNull,
+  max,
+  sql,
+} from "drizzle-orm";
 import { excludeSmokeDispatchesSql, SMOKE_MARKER_PREFIX } from "./smoke-filter";
 import { attrValuesFromMeta, fetchAttributesWithMetaByEntityIds, getOrgPeerIds } from "./utils";
 import { findProjectEntityByName } from "./project-merge";
@@ -452,7 +465,7 @@ export async function getProjectsRunNow(
         and(
           eq(orchestrationRuns.userId, userId),
           isNotNull(orchestrationRuns.projectId),
-          sql`${orchestrationRuns.startedAt} >= ${since}`,
+          gte(orchestrationRuns.startedAt, since),
         ),
       ),
     db

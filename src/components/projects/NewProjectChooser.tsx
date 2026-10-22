@@ -81,13 +81,13 @@ export function NewProjectChooser({
                 onClick={() => pick("site")}
                 icon={Globe}
                 title="Build a site"
-                secondary="A first website for someone, made from what you know"
+                secondary="A first website for someone"
               />
               <ListRow
                 onClick={() => pick("add")}
                 icon={FolderPlus}
                 title="Add an existing project"
-                secondary="Give it a name and a sentence; Loki does the rest"
+                secondary="Name it and say what it is"
               />
             </List>
           </Modal>,
