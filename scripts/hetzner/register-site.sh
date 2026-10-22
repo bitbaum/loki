@@ -406,6 +406,15 @@ else
   # a site registered last week must not keep last week's CI forever.
   for f in $SIDECARS; do
     [ -f "$WF_TMP/$f" ] || continue
+    # Non-starter apps already own their CI and auto-merge workflows. Preserve
+    # those even if the GitHub API temporarily cannot read the remote path:
+    # treating a 403/timeout as "missing" overwrote BiasLens's proven CI on
+    # its first registration. The local checkout is positive evidence that
+    # the workflow exists. Only the Deploy shim belongs to the registrar.
+    if ! is_starter_repo && [ -f "$REPO_DIR/.github/workflows/$f" ]; then
+      say "$f is present in the non-starter checkout — preserving product-owned workflow"
+      continue
+    fi
     if ! workflow_on_remote "$f"; then
       put_workflow "$f" "ci: $f (seeded by Loki register from the fleet starter)" \
         || say "⚠ $f is not on $GH_REPO — agent PRs on this site will wait for a human merge"
