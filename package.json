@@ -111,7 +111,7 @@
     "check:client-ledger": "bash scripts/ci/check-client-ledger.sh",
     "test:client-ledger-gate": "bash scripts/test/client-ledger-gate.sh",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --write scripts/test/missions-attention-board.ts src/components/missions/MissionsBoard.tsx src/lib/missions/mission-board.ts && git diff -- scripts/test/missions-attention-board.ts src/components/missions/MissionsBoard.tsx src/lib/missions/mission-board.ts && node -e \"process.exit(1)\"",
     "check:no-experiment-litter": "bash scripts/ci/check-no-experiment-litter.sh",
     "test:experiment-litter-gate": "bash scripts/test/experiment-litter-gate.sh",
     "verify:main": "pnpm run format:check && pnpm run check:deploy-ready && pnpm run check:client-ledger && pnpm run check:no-experiment-litter && pnpm run check:telegram-registry && tsc --noEmit && pnpm run lint && pnpm run check:design",
