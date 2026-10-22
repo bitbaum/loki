@@ -54,9 +54,7 @@ function MissionCard({ mission }: { mission: MissionBoardItem }) {
           <p className="flex items-center gap-2 text-xs font-semibold text-text-primary">
             <ShieldAlert className="h-4 w-4" aria-hidden /> {mission.alert.label}
           </p>
-          <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
-            {mission.alert.detail}
-          </p>
+          <p className="mt-1 line-clamp-2 text-xs text-text-secondary">{mission.alert.detail}</p>
         </div>
       )}
 
@@ -77,9 +75,7 @@ function MissionCard({ mission }: { mission: MissionBoardItem }) {
             </span>
           )}
         </div>
-        {mission.reportedProgress !== null && (
-          <GoalProgressBar value={mission.reportedProgress} />
-        )}
+        {mission.reportedProgress !== null && <GoalProgressBar value={mission.reportedProgress} />}
       </div>
 
       <div className="mt-4 min-h-12 border-t border-border-subtle pt-3">
@@ -118,11 +114,10 @@ export function MissionsBoard({ missions }: { missions: readonly MissionBoardIte
   const [filter, setFilter] = useState<MissionBoardFilter>("all");
   const [expanded, setExpanded] = useState(false);
 
-  const displayed = useMemo(() => filterMissionBoard(missions, query, filter), [
-    missions,
-    query,
-    filter,
-  ]);
+  const displayed = useMemo(
+    () => filterMissionBoard(missions, query, filter),
+    [missions, query, filter],
+  );
   const flagged = displayed.filter((mission) => mission.alert).length;
   const initialCount = Math.max(INITIAL_ROWS, flagged);
   const visible = expanded ? displayed : displayed.slice(0, initialCount);
@@ -212,8 +207,8 @@ export function MissionsBoard({ missions }: { missions: readonly MissionBoardIte
               ))}
             </div>
             <p className="text-xs text-text-tertiary" aria-live="polite">
-              Showing {visible.length} of {displayed.length} matching missions — site issues
-              first, then active work and recent dispatches.
+              Showing {visible.length} of {displayed.length} matching missions — site issues first,
+              then active work and recent dispatches.
             </p>
           </div>
 
@@ -237,7 +232,9 @@ export function MissionsBoard({ missions }: { missions: readonly MissionBoardIte
           ) : (
             <>
               <section aria-label="Matching missions" className="grid gap-4 md:grid-cols-2">
-                {visible.map((mission) => <MissionCard key={mission.projectId} mission={mission} />)}
+                {visible.map((mission) => (
+                  <MissionCard key={mission.projectId} mission={mission} />
+                ))}
               </section>
               {!expanded && displayed.length > initialCount && (
                 <button
@@ -245,7 +242,8 @@ export function MissionsBoard({ missions }: { missions: readonly MissionBoardIte
                   onClick={() => setExpanded(true)}
                   className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border-subtle px-4 text-sm font-medium text-text-primary hover:bg-surface-overlay"
                 >
-                  <ChevronDown className="h-4 w-4" aria-hidden /> Show all {displayed.length} missions
+                  <ChevronDown className="h-4 w-4" aria-hidden /> Show all {displayed.length}{" "}
+                  missions
                 </button>
               )}
             </>
