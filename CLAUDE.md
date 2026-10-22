@@ -70,12 +70,15 @@ src/
 │   │                 There is no ProjectTile. HomeComposer = the top: what to
 │   │                 build + a project chip, sent via /api/inject — the one
 │   │                 place work starts (no "Start something" card).
-│   │                 ControlNow = one card per job being built (title
-│   │                 from lib/task-title, live step from the runner's beat via
-│   │                 lib/run-step), each opening the live session; ControlDone
-│   │                 = the day's results; ControlFoot = builder + settings.
-│   │                 ControlFleetStatus = the hero, shown ONLY for alarms or
-│   │                 someone needed: ONE question, at most one button.
+│   │                 Under it, three sections of ListRows answer, in order:
+│   │                 "Needs you" (AttentionBar + ControlInbox + the hero,
+│   │                 heading hidden when all are quiet), "Being built"
+│   │                 (ControlNow: one row per job, live step from the
+│   │                 runner's beat via lib/run-step, opening the live
+│   │                 session) and "Done" (ControlDone). ControlFoot = two
+│   │                 rows: builder (opens settings) + New project.
+│   │                 ControlFleetStatus = the hero, shown ONLY for alarms the
+│   │                 rows do not already name: ONE question, one button.
 │   │                 ControlInbox = one collapsed queue for every small task
 │   │                 (feedback triage + widget coverage) — add a group, never a
 │   │                 new full-width strip. ControlSettingsSheet = autopilot,
@@ -173,7 +176,7 @@ src/
 │   ├── activity/  → ActivityView (scope menus, the answer as a sentence, NeedsYouCard
 │   │                 and EventStream as ListRows), ActivityReport (the written
 │   │                 report, the page's one action, in a sheet)
-│   ├── today/     → StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard, CommitmentsCard, SubscriptionsCard, HabitsList
+│   ├── today/     → Greeting, SummaryBar (the day in one sentence), StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard (one line), CommitmentsCard, HabitsList — sections of rows, no cards
 │   ├── people/    → PeopleGrid, PersonCard, PersonDetail
 │   ├── crew/      → CrewWorkspace (board + roster), AssignmentCard,
 │   │                 NewAssignmentButton, AddCrewButton, SharedTaskView.

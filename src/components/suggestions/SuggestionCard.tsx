@@ -1,8 +1,10 @@
 "use client";
 
-import { ArrowUpRight, Check, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { LIFE_KIND_ICON } from "@/config/suggestion-avenues";
 import { BUILD_KIND_ICON } from "@/components/loki/BuildSuggestions";
+import { ListRow } from "@/components/ui/list-row";
+import { RowActions } from "@/components/ui/row-actions";
 import type { Suggestion } from "@/lib/suggestions/types";
 
 const KIND_ICON = { ...BUILD_KIND_ICON, ...LIFE_KIND_ICON } satisfies Record<
@@ -11,10 +13,11 @@ const KIND_ICON = { ...BUILD_KIND_ICON, ...LIFE_KIND_ICON } satisfies Record<
 >;
 
 /**
- * One suggestion: the thing to do, the stored fact it came from, and two
- * answers. "Do it" hands it to Loki (or opens where it is done); "Not now"
- * puts it away for a while. The card never names its avenue: it always sits
- * under its avenue's heading, in the "All" view and the filtered one alike.
+ * One suggestion, as one row (design reset rule 3): the thing to do, the
+ * stored fact it came from on the grey line, and ONE action — the row itself,
+ * which hands it to Loki or opens where it is done. "Not now" is in the row's
+ * own menu. It was a bordered card with a black "Review task" button and a
+ * "Not now" beside it, repeated down the page.
  */
 export function SuggestionCard({
   suggestion,
@@ -25,35 +28,24 @@ export function SuggestionCard({
   onTake: (s: Suggestion) => void;
   onDismiss: (s: Suggestion) => void;
 }) {
-  const Icon = KIND_ICON[suggestion.kind];
-  const opens = Boolean(suggestion.href);
   return (
-    <li className="ui-sugg-card">
-      <div className="ui-sugg-card-top">
-        <Icon className="ui-loki-build-icon mt-0.5" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <div className="ui-sugg-card-label">{suggestion.label}</div>
-          <p className="ui-sugg-card-why">{suggestion.why}</p>
-        </div>
-      </div>
-      <div className="ui-sugg-card-actions">
-        <button type="button" className="ui-btn-primary" onClick={() => onTake(suggestion)}>
-          {opens ? (
-            <>
-              Open
-              <ArrowUpRight className="h-4 w-4" aria-hidden />
-            </>
-          ) : (
-            <>
-              <Check className="h-4 w-4" aria-hidden />
-              Review task
-            </>
-          )}
-        </button>
-        <button type="button" className="ui-btn-ghost" onClick={() => onDismiss(suggestion)}>
-          Not now
-        </button>
-      </div>
-    </li>
+    <ListRow
+      icon={KIND_ICON[suggestion.kind]}
+      title={suggestion.label}
+      secondary={suggestion.why}
+      onClick={() => onTake(suggestion)}
+      menu={
+        <RowActions label={`More for: ${suggestion.label}`}>
+          <button
+            type="button"
+            role="menuitem"
+            className="ui-menu-item"
+            onClick={() => onDismiss(suggestion)}
+          >
+            Not now
+          </button>
+        </RowActions>
+      }
+    />
   );
 }

@@ -8,7 +8,7 @@
  *
  * Run: npx tsx scripts/test/today-brief.ts
  */
-import { buildTodayBriefPrompt, TODAY_BRIEF_QUESTION } from "@/lib/today-brief";
+import { buildTodayBriefPrompt, TODAY_BRIEF_QUESTION, todaySentence } from "@/lib/today-brief";
 
 let failures = 0;
 function check(name: string, fn: () => void) {
@@ -102,6 +102,22 @@ check("the fleet line names only what is actually happening", () => {
     "running + degraded, no empty waiting",
   );
   assert(!out.includes("waiting"), "a zero bucket must not be listed");
+});
+
+check("the counts read as one sentence under the greeting", () => {
+  // Design reset rule 7: stats are a sentence, not a row of pills.
+  assert(todaySentence(NO_COUNTS, NO_FLEET) === null, "nothing to say says nothing");
+  const one = todaySentence({ ...NO_COUNTS, habitsDone: 1, habitsTotal: 2 }, NO_FLEET);
+  assert(one === "1 of 2 habits done.", `one part: ${one}`);
+  const many = todaySentence(
+    { ...NO_COUNTS, habitsDone: 3, habitsTotal: 4, overdueCommitments: 1, staleContacts: 9 },
+    { running: 2, waiting: 0, degraded: 0 },
+  );
+  assert(
+    many ===
+      "3 of 4 habits done, 1 commitment overdue, 9 people to catch up with and 2 builds running.",
+    `many parts: ${many}`,
+  );
 });
 
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`);

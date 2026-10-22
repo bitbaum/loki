@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { List, ListRow } from "@/components/ui/list-row";
 import { X, Radio, WifiOff, Download, Terminal, Cpu, Loader2 } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
@@ -118,23 +119,29 @@ export function RunnerStatusBanner({
 
   if (!runnerNeverSeen && !expanded) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised/60 px-3 py-2 text-xs text-text-tertiary">
-        <WifiOff className="h-3.5 w-3.5 shrink-0 text-status-warning" />
-        <span className="min-w-0 truncate">{EXECUTOR_COPY.runnerBanner.offlineChip(lastSeen)}</span>
-        <button
+      // One row, like the rest of Home (design reset, 2026-10): it was a
+      // bordered chip whose sentence was cut at "last seen 2…" on a phone.
+      <List aria-label="Builder">
+        <ListRow
+          icon={WifiOff}
+          title={EXECUTOR_COPY.runnerBanner.offlineTitle}
+          secondary={EXECUTOR_COPY.runnerBanner.offlineDetail(lastSeen)}
+          status="warning"
           onClick={() => setExpanded(true)}
-          className="ml-auto shrink-0 text-accent-text hover:underline"
-        >
-          {EXECUTOR_COPY.runnerBanner.reconnect}
-        </button>
-        <button
-          onClick={() => setDismissed(true)}
-          className="ui-tap-icon shrink-0 rounded p-0.5 text-text-muted transition-colors hover:text-text-primary"
-          aria-label="Dismiss"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
+          chevron
+          menu={
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              className="ui-btn-icon"
+              aria-label="Dismiss"
+              title="Dismiss"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          }
+        />
+      </List>
     );
   }
 

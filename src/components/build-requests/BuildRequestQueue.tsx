@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Hammer } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Section } from "@/components/ui/section-heading";
 import { BeforeAfter } from "@/components/public/InstantPreview";
 import { BUILD_REQUESTS } from "@/config/build-requests";
 import { compactRelativeDate } from "@/lib/dates";
@@ -31,19 +30,22 @@ export function BuildRequestQueue({ requests }: { requests: BuildRequestCard[] }
   if (requests.length === 0) return null;
   const waiting = requests.filter((r) => r.status === "waiting");
   return (
-    <Card id="build-requests">
-      <CardHeader icon={Hammer} title="Build requests" />
-      <div className="space-y-4">
-        <p className="text-sm text-text-secondary">
-          {waiting.length
-            ? "New accounts asked for these on /change. Nothing starts until you approve."
-            : "Nothing waiting. The latest decided ones are below."}
-        </p>
-        {requests.map((r) => (
-          <BuildRequestRow key={r.id} request={r} />
-        ))}
-      </div>
-    </Card>
+    <div id="build-requests" className="scroll-mt-24">
+      <Section
+        title="Build requests"
+        right={
+          waiting.length > 0 ? (
+            <span className="ui-approvals-count">{waiting.length}</span>
+          ) : undefined
+        }
+      >
+        <div className="ui-approvals-list">
+          {requests.map((r) => (
+            <BuildRequestRow key={r.id} request={r} />
+          ))}
+        </div>
+      </Section>
+    </div>
   );
 }
 
@@ -76,7 +78,7 @@ function BuildRequestRow({ request: r }: { request: BuildRequestCard }) {
   }
 
   return (
-    <div className="ui-card-shell-raised space-y-3 p-4">
+    <div className="ui-approvals-item space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="font-medium text-text-primary">{r.website}</span>
         <span className="text-xs text-text-muted">

@@ -60,7 +60,7 @@ export function MessageReachCard({
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={profileHref} className="ui-btn-primary min-h-11 justify-center text-sm">
+        <Link href={profileHref} className="ui-btn-secondary min-h-11 justify-center text-sm">
           Open profile
         </Link>
         <button

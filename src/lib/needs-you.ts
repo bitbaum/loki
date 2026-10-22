@@ -216,16 +216,32 @@ export function composeNeedsYou(input: NeedsYouInputs): {
 
 /**
  * The verdict's one line. With something urgent it leads with that, because
- * "1 urgent" is a different morning from "17 things"; otherwise the plain
- * count. Housekeeping never makes the sentence.
+ * "1 urgent" is a different morning from "17 things"; then what the rest is.
+ * Housekeeping never makes the sentence.
  */
-export function needsYouHeadline(total: number, urgent: number): string {
-  if (total === 0) return "Nothing needs you.";
-  if (urgent > 0) {
-    const rest = total - urgent;
-    return rest > 0 ? `${urgent} urgent · ${rest} waiting on you` : `${urgent} urgent`;
-  }
-  return total === 1 ? "1 thing needs you" : `${total} things need you`;
+export function needsYouHeadline(items: readonly NeedsYouItem[]): string {
+  // One sentence that says what the number is made of (design reset,
+  // 2026-10-22). "4 urgent · 53 waiting on you" sat under a bell reading 3,
+  // and nothing on the screen said the 53 were 42 reports and 7 approvals.
+  const counted = items.filter((i) => i.tier !== "tidy");
+  const sum = (pick: (i: NeedsYouItem) => boolean) =>
+    counted.filter(pick).reduce((n, i) => n + i.weight, 0);
+  const urgent = sum((i) => i.tier === "urgent");
+  const approvals = sum((i) => i.tier !== "urgent" && i.key.startsWith("approval"));
+  const reports = sum((i) => i.tier !== "urgent" && i.key === "feedback");
+  const other = sum(
+    (i) => i.tier !== "urgent" && !i.key.startsWith("approval") && i.key !== "feedback",
+  );
+  const parts = [
+    urgent > 0 && `${urgent} urgent`,
+    approvals > 0 && `${approvals} ${approvals === 1 ? "approval" : "approvals"}`,
+    reports > 0 && `${reports} ${reports === 1 ? "report" : "reports"} to triage`,
+    other > 0 && `${other} other ${other === 1 ? "thing" : "things"}`,
+  ].filter((p): p is string => typeof p === "string");
+  if (parts.length === 0) return "Nothing needs you.";
+  const text =
+    parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+  return `${text}.`;
 }
 
 function alertItem(alert: NeedsYouAlert): NeedsYouItem {
@@ -233,7 +249,9 @@ function alertItem(alert: NeedsYouAlert): NeedsYouItem {
     key: `alert:${alert.id}`,
     label: alert.title,
     href: alert.href,
-    detail: alert.description ? [alert.description] : undefined,
+    // The first paragraph says what is wrong; the rest is the technical
+    // record (producers write it that way) and stays on /system and the bell.
+    detail: alert.description ? [alert.description.split(/\n\s*\n/)[0]!.trim()] : undefined,
     urgent: alert.urgent,
     dismissAlertId: alert.id,
     weight: 1,

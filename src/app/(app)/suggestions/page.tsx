@@ -16,11 +16,7 @@ export const metadata = { title: NAV.suggestions.label };
 export default async function SuggestionsPage() {
   await requirePageUserId();
   return (
-    <PageLayout
-      title={NAV.suggestions.label}
-      subtitle="What to do next, from your own records. Pick one, and Loki takes it."
-      maxWidth="max-w-5xl"
-    >
+    <PageLayout title={NAV.suggestions.label} maxWidth="max-w-2xl">
       <SuggestionsBoard />
     </PageLayout>
   );

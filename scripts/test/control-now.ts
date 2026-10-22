@@ -80,7 +80,7 @@ ok(
   job?.href === "/terminal?project=center-com-3&view=chat&run=run-1",
   "the card opens the live conversation for this run",
 );
-ok(elapsedLabel(job!.since, NOW) === "12 min", "how long it has been at it");
+ok(elapsedLabel(job!.since, NOW) === "12m", "how long it has been at it");
 
 // A stale step is not presented as current.
 const stale = snap("a", "working", {
@@ -122,6 +122,10 @@ const quiet = snap("q", "not_running", {
   latestOrchestrationRun: run({ lastProgressAt: ago(40) }),
 });
 ok(buildNowJobs([quiet], NOW)[0]?.tone === "quiet", "an open run that went quiet says so");
+ok(
+  /^No word from the agent for \d+m$/.test(buildNowJobs([quiet], NOW)[0]?.status ?? ""),
+  "and says for how long, not 'No update for a while'",
+);
 
 // A parallel run opens its own tab.
 ok(
@@ -163,7 +167,8 @@ ok(
   "a finished run's session opens without pinning a closed run",
 );
 
-ok(elapsedLabel(NOW - 125 * 60_000, NOW) === "2 h 5 min", "hours");
+ok(elapsedLabel(NOW - 125 * 60_000, NOW) === "2h 5m", "hours");
+ok(elapsedLabel(NOW - 26 * 3_600_000, NOW) === "1d", "days, compact like the rest of Home");
 ok(elapsedLabel(NOW - 20_000, NOW) === "just now", "seconds");
 
 console.log(`✓ control-now: ${n} checks passed`);

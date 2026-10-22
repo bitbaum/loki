@@ -560,9 +560,6 @@
   .app-page-compact {
     @apply py-3 sm:py-5 md:py-8;
   }
-  .ui-control-loading-grid {
-    @apply grid min-h-[28rem] gap-4 md:grid-cols-[17rem_minmax(0,1fr)];
-  }
 
   /* App top bar — slim, sticky, hosts Cmd-K + global status pills. On a phone:
      the page's name on the left, then round 40px icons with no borders, then
@@ -731,39 +728,10 @@
   .ui-sidebar-section-lock-active {
     @apply h-3 w-3 text-accent-text;
   }
-  /* Today's Watch — Loki's proactive read on the user's private life,
-     pinned to the top of /today when the zone is unlocked. */
-  .ui-today-watch {
-    @apply rounded-2xl border border-border-subtle bg-surface-base p-5 space-y-3;
-  }
-  .ui-today-watch-head {
-    @apply flex items-center gap-2;
-  }
-  .ui-today-watch-eyebrow {
-    @apply text-micro font-semibold uppercase tracking-caps text-text-muted;
-  }
-  .ui-today-watch-focus-kind {
-    @apply text-xs uppercase tracking-caps text-status-warning;
-  }
-  .ui-today-watch-focus-title {
-    @apply flex items-center justify-between gap-3 text-lg font-semibold text-text-primary transition-colors hover:text-accent-text;
-  }
-  .ui-today-watch-focus-context {
-    @apply text-sm text-text-secondary;
-  }
-  .ui-today-watch-totals {
-    @apply text-sm text-text-tertiary;
-  }
-  .ui-today-watch-clear {
-    @apply flex items-center gap-2 text-sm text-text-secondary;
-  }
-  .ui-today-watch-action {
-    @apply pt-1;
-  }
-  /* Loki-composed prose under a Watch focus. Lights up once the compose
+  /* Loki-composed prose under Today's "In focus" row (TodayWatch). Lights up once the compose
      endpoint returns; falls back invisibly if Groq is unavailable. */
   .ui-loki-nudge {
-    @apply mt-1 flex items-start gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 py-2;
+    @apply mt-1 flex min-h-11 items-center gap-2 py-2 text-sm text-text-secondary;
   }
   /* Clamped: the composed nudge is a third telling of the same item — the
      focus title says it, `focus.context` dates it, and this restates both in
@@ -4397,58 +4365,6 @@
   .ui-callout-warning {
     @apply flex items-start gap-3 rounded-xl border border-status-warning/20 bg-status-warning-subtle px-4 py-3 text-sm;
   }
-  /* Home's one row to the project list on a phone (control/home-parts). */
-  .ui-home-all-projects {
-    @apply flex min-h-14 items-center gap-3 rounded-2xl border border-border-default bg-surface-base px-4 text-sm font-medium text-text-primary transition-colors active:bg-surface-overlay;
-  }
-  .ui-home-all-projects-count {
-    @apply text-sm tabular-nums text-text-muted;
-  }
-  /* "Needs you" on Home (control/AttentionBar). A card per thing that went
-     wrong: a title in words, the reason under it at full width, and the fix
-     as its one button — not a red strip with the text in a third of it. */
-  .ui-needs {
-    @apply flex flex-col gap-3;
-  }
-  .ui-needs-card {
-    @apply flex flex-col gap-2 rounded-2xl border border-border-default bg-surface-base px-4 py-3;
-  }
-  .ui-needs-head {
-    @apply flex items-start gap-2;
-  }
-  .ui-needs-icon {
-    @apply mt-1 h-4 w-4 shrink-0 text-status-negative;
-  }
-  .ui-needs-title {
-    @apply min-w-0 flex-1 text-base font-medium leading-snug text-text-primary;
-  }
-  .ui-needs-times {
-    @apply font-normal text-text-muted;
-  }
-  .ui-needs-dismiss {
-    @apply -mr-2 -mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:text-text-primary active:bg-surface-overlay;
-  }
-  .ui-needs-body {
-    @apply pl-6 text-sm leading-relaxed text-text-secondary;
-  }
-  .ui-needs-when {
-    @apply whitespace-nowrap text-text-muted;
-  }
-  .ui-needs-actions {
-    @apply flex flex-wrap gap-2 pl-6 empty:hidden;
-  }
-  .ui-needs-list {
-    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-default bg-surface-base;
-  }
-  .ui-needs-row {
-    @apply flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left transition-colors active:bg-surface-overlay disabled:cursor-default;
-  }
-  .ui-needs-row-name {
-    @apply block truncate text-sm font-medium text-text-primary;
-  }
-  .ui-needs-row-why {
-    @apply block truncate text-xs text-text-tertiary;
-  }
   .ui-callout-negative {
     @apply flex items-start gap-3 rounded-xl border border-status-negative/30 bg-status-negative-subtle px-4 py-3 text-sm;
   }
@@ -5547,86 +5463,6 @@
     @apply text-text-muted;
   }
 
-  /* ── Control: what is being built for you ───────────────────────────────
-     The top of Control answers "what is being made for me right now?" with
-     one card per job, and the whole card is the way in to watching it. Calm
-     on purpose: surface, one quiet border, generous type, a single moving
-     thing (the dot of work in progress). Phone first; nothing here waits for
-     `sm:` to look designed. */
-  .ui-now-header {
-    @apply flex items-center justify-between gap-3;
-  }
-  .ui-now-heading {
-    @apply text-base font-semibold tracking-tight text-text-primary;
-  }
-  .ui-now-card {
-    @apply flex flex-col gap-1.5 rounded-2xl border border-border-subtle bg-surface-base p-4 text-left transition-colors hover:border-border-interactive hover:bg-surface-raised sm:p-5;
-    box-shadow: var(--shadow-panel);
-  }
-  .ui-now-card-you {
-    @apply border-status-warning/40;
-  }
-  .ui-now-card-top {
-    @apply flex min-w-0 items-center gap-2 text-xs text-text-tertiary;
-  }
-  .ui-now-dot {
-    @apply inline-block h-2 w-2 shrink-0 rounded-full;
-  }
-  .ui-now-dot-working {
-    @apply animate-pulse bg-accent-primary;
-  }
-  .ui-now-dot-you {
-    @apply bg-status-warning;
-  }
-  .ui-now-dot-quiet {
-    @apply bg-border-strong;
-  }
-  .ui-now-dot-ok {
-    @apply bg-status-positive;
-  }
-  .ui-now-title {
-    @apply line-clamp-2 text-base font-medium leading-snug text-text-primary sm:text-lg;
-  }
-  .ui-now-status {
-    @apply line-clamp-2 text-sm leading-snug text-text-secondary;
-  }
-  .ui-now-go {
-    @apply mt-1 inline-flex items-center gap-0.5 self-start text-sm font-medium text-accent-text;
-  }
-  .ui-done-list {
-    @apply divide-y divide-border-subtle rounded-2xl border border-border-subtle bg-surface-base;
-  }
-  .ui-done-row {
-    @apply flex gap-3 px-4 py-3;
-  }
-  .ui-done-icon {
-    @apply mt-0.5 h-4 w-4 shrink-0;
-  }
-  .ui-done-icon-good {
-    @apply text-status-positive;
-  }
-  .ui-done-icon-partial {
-    @apply text-text-tertiary;
-  }
-  .ui-done-icon-bad {
-    @apply text-status-negative;
-  }
-  .ui-done-title {
-    @apply line-clamp-2 text-sm font-medium leading-snug text-text-primary;
-  }
-  .ui-done-result {
-    @apply mt-0.5 text-xs leading-snug text-text-secondary;
-  }
-  .ui-done-links {
-    @apply mt-1 flex flex-wrap gap-x-4;
-  }
-  .ui-done-link {
-    @apply inline-flex min-h-8 items-center gap-0.5 text-xs font-medium text-accent-text hover:underline;
-  }
-  .ui-now-foot {
-    @apply flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3 text-xs text-text-tertiary;
-  }
-
   /* ── Needs-you inbox ──────────────────────────────────────────────────────
      One panel for every small thing waiting on a human. It replaced two
      unbounded strips (widget coverage + feedback) that between them spent
@@ -6121,28 +5957,57 @@
   .ui-today-night {
     @apply flex min-h-11 items-start gap-2 rounded-xl border border-border-subtle bg-surface-base px-3 py-2.5 text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
-  .ui-today-brief-row {
-    @apply flex flex-wrap items-center gap-2;
-  }
 
   /* The account menu's styles live in @bitbaum/accountkit (imported at the
      top, colours mapped in :root). The .ui-account-* rules that were here
      drew Loki's own copy, which the shared menu replaced. */
 
   /* ── Notification panel ───────────────────────────────────────────────────
-     Dropdown panel from the bell icon showing alerts that need the operator. */
+     The bell's alerts (shell/NotificationPanel): a popover under the bell from
+     md up, a bottom sheet on a phone (NotificationsPill). Inside, alerts are
+     ListRows — what still needs you, then "Earlier" (lib/alerts/relevance). */
   .ui-notification-badge {
     @apply absolute right-0 top-0 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-status-negative px-1 text-micro font-medium tabular-nums;
     color: white;
   }
   .ui-notification-panel {
-    @apply fixed right-2 top-14 z-50 w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised shadow-panel-strong;
+    @apply fixed right-2 top-14 z-50 w-[min(26rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised shadow-panel-strong;
+  }
+  .ui-notification-panel .ui-notification-body {
+    @apply max-h-[min(34rem,75vh)];
+  }
+  /* The phone sheet owns its scrolling body, so the Modal panel does not
+     scroll as a whole (the header stays put). */
+  .ui-notification-modal {
+    @apply flex flex-col overflow-hidden;
+  }
+  .ui-notification-sheet {
+    @apply flex min-h-0 flex-col;
   }
   .ui-notification-header {
-    @apply flex items-center justify-between gap-2 border-b border-border-subtle px-4 py-3;
+    @apply flex shrink-0 items-center justify-between gap-2 py-1 pl-4 pr-1;
   }
   .ui-notification-title {
-    @apply text-sm font-semibold text-text-primary;
+    font-size: var(--text-bar-title);
+    @apply font-semibold text-text-primary;
+  }
+  .ui-notification-body {
+    @apply min-h-0 flex-1 overflow-y-auto px-4 pb-3;
+  }
+  .ui-notification-earlier {
+    @apply mt-4;
+  }
+  /* A notification's title may take two lines: it is the whole message,
+     and the time and × already share its row. */
+  .ui-notification-body .ui-listrow-title {
+    @apply line-clamp-2 whitespace-normal;
+  }
+  /* Earlier rows read as a record, not a call to act. */
+  .ui-notification-earlier .ui-listrow-title {
+    @apply font-normal text-text-secondary;
+  }
+  .ui-notification-quiet {
+    @apply py-3 text-sm text-text-tertiary;
   }
   /* Alerts — the bell's panel and /system (components/alerts/AlertList).
      One thing to read and one thing to do per row: no severity word in
@@ -6193,13 +6058,6 @@
   .ui-alert-action {
     @apply relative z-10 ml-auto inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-overlay;
   }
-  .ui-notification-list {
-    @apply max-h-[min(32rem,70vh)] overflow-y-auto;
-  }
-  .ui-notification-empty {
-    @apply px-4 py-8 text-center text-xs text-text-muted;
-  }
-
   .ui-control-operations-header {
     @apply flex flex-col gap-4 rounded-2xl border border-border-subtle bg-surface-raised p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5;
     box-shadow: var(--shadow-panel);
@@ -6289,14 +6147,15 @@
      separates): no box in the calm state — only the alarm state earns an edge,
      and it is a single left rule rather than a panel. Principle 2 (colour is
      for alarms): the only tint here is the warning rule and its icon. */
+  /* Under Today's "Needs you" heading (design reset, 2026-10): the headline
+     sentence, then one row per item between hairlines. No rule down the left
+     — the warning icon on the sentence is the alarm. */
   .ui-verdict {
-    @apply px-1 py-2;
+    @apply min-w-0;
   }
-  .ui-verdict-alert {
-    @apply border-l-2 border-l-status-warning/60 pl-3;
-  }
+  .ui-verdict-alert,
   .ui-verdict-unknown {
-    @apply border-l-2 border-l-border-default pl-3;
+    @apply min-w-0;
   }
   .ui-verdict-line {
     @apply flex items-center gap-2 text-base font-medium text-text-primary;
@@ -6305,13 +6164,16 @@
     @apply mt-1 text-sm text-text-secondary;
   }
   .ui-verdict-list {
-    @apply mt-2 space-y-1;
+    @apply mt-2 flex flex-col;
+  }
+  .ui-verdict-list > li + li {
+    box-shadow: inset 0 1px 0 var(--border-subtle);
   }
   .ui-verdict-item {
-    @apply flex min-h-11 flex-wrap items-baseline gap-x-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
+    @apply flex min-h-14 flex-wrap items-center gap-x-2 py-2 text-base text-text-secondary transition-colors hover:text-text-primary;
   }
   .ui-verdict-reason {
-    @apply min-w-0 basis-full text-xs text-text-tertiary sm:basis-auto;
+    @apply min-w-0 basis-full truncate text-sm text-text-secondary;
   }
   /* Page refactor, batch A (2026-10-01): the verdict is now Today's ONE list.
      One line per item; a line with more behind it opens in place. */
@@ -6345,6 +6207,10 @@
   }
   .ui-verdict-urgent-head {
     @apply flex items-center gap-2 text-sm;
+  }
+  /* The urgent item's title is the way to the page that acts on it. */
+  .ui-verdict-urgent-link {
+    @apply inline-flex items-center underline-offset-2 hover:underline;
   }
   .ui-verdict-urgent-text {
     @apply text-sm text-text-secondary wrap-anywhere;
@@ -6752,29 +6618,181 @@
   details[open] > summary .ui-disclosure-chevron {
     @apply rotate-180;
   }
-  /* One row of Today's cards: one column on a phone, two from md up.
-     
-     The cards inside a row render nothing when they have nothing to say — an
-     empty calendar, a quiet alerts card, anything behind the locked private
-     zone — and React drops a null child from the DOM entirely. A fixed two-track
-     grid then keeps both tracks, so a row that lost one card drew its survivor
-     at half width beside an equally wide void. Measured on prod 2026-09-18 with
-     the private zone locked: FOUR rows in a row, each a 408px card next to
-     408px of nothing, which is most of what the page looked like.
-
-     So the row is authored as a pair and degrades to a single: when only one
-     card survives it spans the whole row. Nothing changes when both render, so
-     the deliberate pairings the page comments defend ("the two cards that are
-     only true right now") are untouched. */
-  .ui-today-row {
-    @apply grid grid-cols-1 gap-4 md:grid-cols-2;
-  }
-  .ui-today-row > :only-child {
-    grid-column: 1 / -1;
-  }
-
   .ui-disclosure-body {
     @apply px-3 pb-4 pt-1;
+  }
+
+  /* ── design reset: Home and what needs me ── */
+  /* /control, /today, /approvals (and the bell, /suggestions above). Content
+     sits on the page: sections of rows between hairlines, no card around a
+     list, no card in a card (docs/development/design-reset-2026-10.md). */
+
+  /* Home (/control): three sections of rows — Needs you, Being built, Done —
+     under the box where work starts. A section with nothing in it is not
+     drawn: "Needs you" collects pieces that each decide for themselves
+     whether they have anything, so the heading goes when they all stay
+     quiet. */
+  .ui-home-needs:not(:has(.ui-home-needs-body > *)) {
+    display: none;
+  }
+  .ui-home-needs-body {
+    @apply flex min-w-0 flex-col gap-3;
+  }
+  /* A row's fix ("Retry", "Use Claude", "Ask it to finish"): a small
+     outlined pill at the row's end, never a filled button per row. */
+  .ui-home-fix {
+    @apply relative z-[1] inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-raised disabled:opacity-50;
+  }
+  /* A failure row: the title and its reason take the full text column (the
+     reason in up to two lines), × stays at the end of that line, and the fix
+     wraps underneath at the text's left edge — the fix right there, without
+     squeezing the reason into a third of the row. */
+  .ui-home-failure .ui-listrow-main {
+    @apply flex-wrap gap-y-2;
+  }
+  .ui-home-failure .ui-listrow-text {
+    flex: 1 1 calc(100% - 3.5rem);
+  }
+  .ui-home-failure .ui-listrow-menu {
+    order: 1;
+  }
+  .ui-home-failure .ui-listrow-trail {
+    order: 2;
+  }
+  .ui-home-failure .ui-listrow-secondary {
+    @apply items-start;
+  }
+  .ui-home-failure .ui-listrow-secondary .ui-dot {
+    @apply mt-1.5;
+  }
+  .ui-home-failure .ui-listrow-secondary-text {
+    @apply line-clamp-2 whitespace-normal;
+  }
+  /* Home while it loads: the composer's shape and three row lines — the
+     page it becomes, not three empty cards. */
+  .ui-home-skel-box {
+    @apply h-28 animate-pulse rounded-3xl bg-surface-raised;
+  }
+  .ui-home-skel-rows {
+    @apply flex flex-col gap-5 pt-2;
+  }
+  .ui-home-skel-rows > span {
+    @apply h-10 animate-pulse rounded-xl bg-surface-raised;
+  }
+  .ui-home-foot .ui-listrow-title {
+    @apply text-sm font-normal text-text-secondary;
+  }
+
+  /* /today — a greeting, one line of weather, the day in one sentence and
+     its two actions; then sections of rows (Needs you, Calendar, Habits,
+     Commitments, Sticky note, More). Modelled on OrangeCat's Cat page. */
+  .ui-today-head {
+    @apply flex min-w-0 flex-col gap-2;
+  }
+  .ui-today-weather {
+    @apply flex min-w-0 items-center gap-2 text-sm text-text-secondary;
+  }
+  .ui-today-summary {
+    @apply flex min-w-0 flex-col gap-3;
+  }
+  .ui-today-sentence {
+    @apply text-base text-text-primary;
+  }
+  .ui-today-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+  .ui-today-summary-skeleton {
+    @apply h-6 w-2/3 animate-pulse rounded-full bg-surface-raised;
+  }
+  /* "While you were away" and "Start my day" are sections of Today, not
+     cards on it: same pieces as on /loki, drawn flat here. */
+  .ui-today-page .ui-away,
+  .ui-home-page .ui-away {
+    @apply rounded-none border-0 bg-transparent p-0 shadow-none;
+  }
+  .ui-today-page .ui-away-title,
+  .ui-home-page .ui-away-title {
+    font-size: var(--text-section);
+    @apply font-semibold;
+  }
+  /* Habits and commitments: rows between hairlines, inside their section. */
+  .ui-today-rows {
+    @apply flex min-w-0 flex-col;
+  }
+  .ui-today-rows > * + * {
+    box-shadow: inset 0 1px 0 var(--border-subtle);
+  }
+  .ui-today-rows > * {
+    @apply py-1.5;
+  }
+
+  /* The review inbox (ControlInbox) inside Home's "Needs you": its groups
+     are rows of the section, not a panel with a second heading over them. */
+  .ui-home-needs .ui-inbox {
+    @apply overflow-visible rounded-none border-0 bg-transparent;
+  }
+  .ui-home-needs .ui-inbox-head {
+    @apply sr-only;
+  }
+  .ui-home-needs .ui-inbox-group {
+    @apply border-t-0;
+  }
+  /* The same geometry as a ListRow: 12px bleed, a 40px icon column, and a
+     hairline that starts at the text, so the inbox's groups and the rows
+     above them read as one list. */
+  .ui-home-needs .ui-inbox-group-btn {
+    @apply -mx-3 min-h-14 w-[calc(100%+1.5rem)] gap-3 rounded-xl px-3 hover:bg-surface-raised;
+  }
+  .ui-home-needs .ui-inbox-group-btn > span:first-child {
+    @apply flex h-10 w-10 items-center justify-center text-text-secondary;
+  }
+  .ui-home-needs .ui-inbox-group + .ui-inbox-group > .ui-inbox-group-btn {
+    background: linear-gradient(var(--border-subtle), var(--border-subtle)) no-repeat 4rem 0 /
+      calc(100% - 4rem) 1px;
+  }
+  .ui-home-needs .ui-inbox-group-label {
+    @apply text-base;
+  }
+  .ui-home-needs .ui-inbox-group-body {
+    @apply bg-transparent px-0;
+  }
+
+  /* /approvals — a section's waiting count, beside its heading. */
+  .ui-approvals-count {
+    font-size: var(--text-meta);
+    @apply tabular-nums text-text-tertiary;
+  }
+  /* A proposal, a build request or a package update: one item between
+     hairlines, its own yes/no on it — not a bordered box per item. */
+  .ui-approvals-list {
+    @apply flex min-w-0 flex-col;
+  }
+  .ui-approvals-item {
+    @apply min-w-0 py-4;
+  }
+  .ui-approvals-item + .ui-approvals-item {
+    box-shadow: inset 0 1px 0 var(--border-subtle);
+  }
+  .ui-approvals-summary {
+    @apply inline-flex min-h-11 cursor-pointer items-center text-sm text-text-tertiary transition-colors hover:text-text-primary;
+  }
+  .ui-approvals-subhead {
+    font-size: var(--text-section);
+    @apply mb-1 mt-6 font-semibold text-text-primary;
+  }
+  /* Standing approvals are switches in a list, not chosen cards: the "on"
+     state is the filled box at the row's end, not a border round the row. */
+  .ui-approvals-standing .ui-sheet-option {
+    @apply -mx-3 w-[calc(100%+1.5rem)] py-3;
+  }
+  .ui-approvals-standing .ui-sheet-option-active {
+    @apply border-transparent bg-transparent;
+  }
+  .ui-approvals-standing .ui-sheet-option-title {
+    @apply whitespace-normal text-base;
+  }
+  .ui-approvals-standing .ui-sheet-option-detail {
+    @apply text-sm text-text-secondary;
   }
 
   /* ── Row overflow menu ───────────────────────────────────────────────────
@@ -7275,15 +7293,16 @@
   .ui-loki-build {
     @apply flex min-w-0 flex-col gap-1;
   }
+  /* The edge reads as "more this way", never as a chip cut in half, and
+     never as the grey scrollbar Android drew under the row — at every width,
+     since the row scrolls at every width. */
   .ui-loki-build-row {
     @apply -mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
+    mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
   }
-  /* On a phone the edge reads as "more this way", never as a chip cut in
-     half, and never as the grey scrollbar Android drew under the row. */
   @media (max-width: 639px) {
     .ui-loki-build-row {
-      mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
-      -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
       scroll-snap-type: x proximity;
     }
     .ui-loki-build-row > * {
@@ -7333,72 +7352,22 @@
     @apply mt-1 list-disc space-y-1 pl-5 text-sm text-text-primary wrap-anywhere;
   }
   /* Control's idle state: the same suggestions with their reason showing. */
-  .ui-loki-build-cards {
-    @apply grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2;
-  }
-  .ui-loki-build-card {
-    @apply flex min-h-11 w-full min-w-0 items-start gap-3 rounded-xl border border-border-default bg-surface-raised px-4 py-3 text-left transition-colors hover:border-border-strong;
-  }
-  .ui-loki-build-card-label {
-    @apply text-sm font-medium text-text-primary;
-  }
-  .ui-loki-build-card-why {
-    @apply text-xs text-text-secondary;
-  }
 
-  /* /suggestions — the whole board (components/suggestions). The cards are
-     the Control idle cards grown an actions row; the momentum strip is three
-     recorded numbers, set large because they are the page's own score. */
+  /* /suggestions (design reset, 2026-10).
+     The board (components/suggestions): one line of what was chosen beside a
+     "Show: All ▾" menu, then each avenue as a Section of ListRows. No boxes,
+     no score tiles, no chip row (design-reset-2026-10.md rules 3, 7, 10). */
   .ui-sugg-board {
     @apply flex min-w-0 flex-col gap-6;
   }
+  .ui-sugg-top {
+    @apply flex min-w-0 items-center justify-between gap-3;
+  }
   .ui-sugg-momentum {
-    @apply grid grid-cols-3 gap-2;
-  }
-  .ui-sugg-momentum-cell {
-    @apply flex min-w-0 flex-col items-start gap-0.5 rounded-xl border border-border-subtle bg-surface-base px-4 py-3;
-  }
-  .ui-sugg-momentum-n {
-    @apply text-2xl font-semibold tabular-nums text-text-primary;
-  }
-  .ui-sugg-momentum-k {
-    @apply text-micro uppercase tracking-wider text-text-muted;
-  }
-  .ui-sugg-avenue {
-    @apply flex min-w-0 flex-col gap-3;
-  }
-  .ui-sugg-avenue-head {
-    @apply flex min-w-0 items-baseline justify-between gap-3;
-  }
-  .ui-sugg-avenue-title {
-    @apply text-sm font-semibold text-text-primary;
-  }
-  .ui-sugg-avenue-q {
-    @apply hidden min-w-0 truncate text-xs text-text-tertiary sm:inline;
-  }
-  .ui-sugg-avenue-source {
-    @apply shrink-0 text-xs text-text-tertiary transition-colors hover:text-text-primary;
-  }
-  .ui-sugg-list {
-    @apply grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2;
-  }
-  .ui-sugg-card {
-    @apply flex min-w-0 flex-col gap-3 rounded-xl border border-border-default bg-surface-raised px-4 py-3 transition-colors hover:border-border-strong;
-  }
-  .ui-sugg-card-top {
-    @apply flex min-w-0 items-start gap-3;
-  }
-  .ui-sugg-card-label {
-    @apply text-sm font-medium text-text-primary wrap-anywhere;
-  }
-  .ui-sugg-card-why {
-    @apply mt-0.5 text-xs text-text-secondary wrap-anywhere;
-  }
-  .ui-sugg-card-actions {
-    @apply mt-auto flex items-center gap-2;
+    @apply min-w-0 text-sm text-text-secondary;
   }
   .ui-sugg-undo {
-    @apply flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-base px-4 py-2 text-sm text-text-secondary;
+    @apply flex items-center justify-between gap-3 text-sm text-text-secondary;
   }
   .ui-sugg-quiet {
     @apply text-sm text-text-tertiary;
@@ -7407,9 +7376,6 @@
      tall on a phone (responsive audit, 2026-10-17). */
   .ui-sugg-link {
     @apply inline-flex min-h-11 items-center text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline;
-  }
-  .ui-sugg-empty {
-    @apply flex flex-col items-center gap-3 rounded-xl border border-border-subtle bg-surface-base px-4 py-8 text-center;
   }
 
   /* Needs-project picker. A grid, not a wrapped chip cloud: nine variable-width

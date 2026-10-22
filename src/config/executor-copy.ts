@@ -98,10 +98,11 @@ export const EXECUTOR_COPY = {
   },
 
   runnerBanner: {
-    offlineChip: (lastSeen: string | null) =>
+    /** Home's builder row: its one grey line under offlineTitle. */
+    offlineDetail: (lastSeen: string | null) =>
       lastSeen
-        ? `Builder offline · last seen ${lastSeen} — work stays queued`
-        : "Builder offline — work stays queued",
+        ? `Last seen ${lastSeen} — work waits until it is back`
+        : "Work waits until it is back",
     reconnect: "How to reconnect",
     neverSeenTitle: "Connect a builder to run agents",
     offlineTitle: "Builder offline",

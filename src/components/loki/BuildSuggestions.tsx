@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { NAV } from "@/config/navigation";
+import { List, ListRow } from "@/components/ui/list-row";
+import { SectionHeading } from "@/components/ui/section-heading";
 import type { BuildSuggestion, BuildSuggestionKind } from "@/lib/build-suggestions/rank";
 import { trackUsage } from "@/lib/usage/track";
 
@@ -91,7 +93,35 @@ export function BuildSuggestions({
   // Nothing to suggest is not an error worth a box; the question above stands.
   if (!loading && suggestions.length === 0) return null;
   const canRotate = (data?.total ?? 0) > suggestions.length;
-  const cards = variant === "cards";
+  // Home's variant: a section of rows (design reset, 2026-10) — it was a grid
+  // of bordered cards, the same shape as everything else on the page.
+  if (variant === "cards") {
+    return (
+      <section aria-label={title}>
+        <SectionHeading title={title} link={{ href: NAV.suggestions.href, label: "See all" }} />
+        <List aria-label={title}>
+          {suggestions.map((s) => (
+            <ListRow
+              key={s.id}
+              icon={BUILD_KIND_ICON[s.kind]}
+              title={s.label}
+              secondary={s.why}
+              href={s.href ?? undefined}
+              onClick={
+                s.href
+                  ? undefined
+                  : () => {
+                      tapped(s);
+                      if (s.prompt) onSend(s.prompt, s.project);
+                    }
+              }
+              chevron
+            />
+          ))}
+        </List>
+      </section>
+    );
+  }
 
   return (
     <section aria-label="Build next" className="ui-loki-build">
@@ -124,26 +154,18 @@ export function BuildSuggestions({
           </Link>
         </span>
       </div>
-      <ul className={cards ? "ui-loki-build-cards" : "ui-loki-build-row"} aria-busy={loading}>
+      <ul className="ui-loki-build-row" aria-busy={loading}>
         {suggestions.map((s) => {
           const Icon = BUILD_KIND_ICON[s.kind];
-          const body = cards ? (
-            <>
-              <Icon className="ui-loki-build-icon mt-0.5" aria-hidden />
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="ui-loki-build-card-label">{s.label}</span>
-                <span className="ui-loki-build-card-why">{s.why}</span>
-              </span>
-            </>
-          ) : (
+          const body = (
             <>
               <Icon className="ui-loki-build-icon" aria-hidden />
               <span className="ui-loki-build-label">{s.label}</span>
             </>
           );
-          const cls = cards ? "ui-loki-build-card" : "ui-loki-build-chip";
+          const cls = "ui-loki-build-chip";
           return (
-            <li key={s.id} className={cards ? "min-w-0" : "shrink-0"}>
+            <li key={s.id} className="shrink-0">
               {s.href ? (
                 <Link href={s.href} className={cls} title={s.why} onClick={() => tapped(s)}>
                   {body}

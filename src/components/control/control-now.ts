@@ -19,6 +19,10 @@ import { intentTitle } from "@/lib/task-title";
 import type { ProjectState } from "@/lib/control-types";
 import type { ProjectOperationsSnapshot } from "./control-presenter";
 
+/** A run sent this long ago that never reported a step has not been picked
+ *  up: it is waiting on a builder, not being built. */
+export const NOT_PICKED_UP_MS = 30 * 60_000;
+
 /** A finished run stays in "Done" this long. */
 export const DONE_WINDOW_MS = 24 * 60 * 60_000;
 export const DONE_MAX = 6;
@@ -116,8 +120,17 @@ export function buildNowJobs(
     } else if (category === "working") {
       status = step && (fresh || !openRun?.lastProgressAt) ? step : "Working on it";
     } else if (openRun && openRun.lastProgressAt && !fresh) {
+      // Say what it is waiting on, with when it was last heard from: "No
+      // update for a while" under three rows told the owner nothing, and it
+      // sat under "Being built" though nothing was (2026-10-22). Home lists
+      // these under "Gone quiet".
       tone = "quiet";
-      status = "No update for a while";
+      const heard = elapsedLabel(parseMs(openRun.lastProgressAt), nowMs);
+      status = heard ? `No word from the agent for ${heard}` : "No word from the agent";
+    } else if (openRun && !step && since !== null && nowMs - since > NOT_PICKED_UP_MS) {
+      // Sent long ago and never reported a step: no builder took it.
+      tone = "quiet";
+      status = "Waiting for a builder to pick it up";
     } else if (openRun) {
       // Sent, and not yet reporting: picked up, or still on its way.
       status = step ?? "Starting";
@@ -199,10 +212,12 @@ export function elapsedLabel(since: number | null, nowMs: number): string | null
   if (since === null) return null;
   const mins = Math.max(0, Math.floor((nowMs - since) / 60_000));
   if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min`;
+  // Compact like every other time on Home ("21h ago", "3d ago"): "12m",
+  // "2h 5m", "1d" — not "1 d" beside "21h ago" on the next row.
+  if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return mins % 60 ? `${hours} h ${mins % 60} min` : `${hours} h`;
-  return `${Math.floor(hours / 24)} d`;
+  if (hours < 24) return mins % 60 ? `${hours}h ${mins % 60}m` : `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
 }
 
 function clip(text: string, max = 110): string {

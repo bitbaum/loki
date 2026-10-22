@@ -33,6 +33,7 @@ import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import type { WidgetCoverageItem } from "@/db/queries/widget-tokens";
 import { FAILURE_REMEDY, REMEDY_LABEL } from "@/lib/failure-remedy";
 import { NEEDS_YOU_LABELS } from "@/lib/needs-you";
+import { projectTitle } from "@/lib/project-display";
 
 /**
  * One inbox for every small thing that wants doing.
@@ -175,7 +176,7 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
                   openProjectId === s.projectId && "ui-inbox-project-active",
                 )}
               >
-                {s.projectName}
+                {projectTitle({ name: s.projectName })}
                 {/* The chip is listed because the project has an OPEN report
                     (the query filters to new+dispatched), but the number on it
                     is what awaits YOU. A project whose reports are all with an
@@ -368,7 +369,7 @@ function WidgetCoverage({
           return (
             <li key={p.projectId} className="ui-inbox-row">
               <div className="ui-inbox-row-main">
-                <p className="ui-inbox-row-title">{p.projectName}</p>
+                <p className="ui-inbox-row-title">{projectTitle({ name: p.projectName })}</p>
                 <p className="ui-inbox-row-meta">
                   {[reason, p.productionUrl || p.gitUrl].filter(Boolean).join(" · ")}
                 </p>

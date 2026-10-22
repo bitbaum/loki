@@ -1,8 +1,8 @@
 "use client";
 
-import { Calendar } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import { FetchErrorState } from "@/components/ui/fetch-error-state";
 import { useFetch } from "@/hooks/use-fetch";
 import { REFRESH_CADENCE } from "@/config/refresh";
@@ -30,52 +30,33 @@ export function CalendarCard() {
   // entirely — it only earns its place on a local install. Weather sits beside it.
   if (data?.runtimeOnly) return null;
 
+  // Today's events, as rows: what, where, and the time on the right (design
+  // reset, 2026-10). Loading draws nothing rather than a skeleton card.
+  if (loading && !data) return null;
+
   return (
-    <Card>
-      <CardHeader icon={Calendar} title="Calendar" />
-      {loading ? (
-        <div className="space-y-3 animate-pulse">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex gap-3 items-start">
-              <div className="h-3 w-12 rounded bg-border-default shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3 bg-border-default rounded w-3/4" />
-                {i === 0 && <div className="h-3 bg-border-subtle rounded w-1/2" />}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : error || (data?.error && events.length === 0) ? (
+    <Section title="Calendar">
+      {error || (data?.error && events.length === 0) ? (
         <FetchErrorState
           message="Couldn't load calendar"
           detail={error ?? data?.error}
           onRetry={refetch}
         />
       ) : events.length === 0 ? (
-        <EmptyState>No events today</EmptyState>
+        <EmptyState>Nothing in the calendar today.</EmptyState>
       ) : (
-        <div className="space-y-2">
+        <List aria-label="Today's events">
           {events.map((event, i) => (
-            <div
+            <ListRow
               key={`${event.start ?? event.startTime ?? i}-${event.summary ?? event.title ?? i}`}
-              className="flex gap-3 items-start"
-            >
-              <div className="text-xs text-text-tertiary font-mono w-12 shrink-0 pt-0.5">
-                {formatTime(event.start ?? event.startTime)}
-              </div>
-              <div>
-                <div className="text-sm font-medium">
-                  {event.summary ?? event.title ?? "Untitled"}
-                </div>
-                {event.location && (
-                  <div className="text-xs text-text-tertiary">{event.location}</div>
-                )}
-              </div>
-            </div>
+              title={event.summary ?? event.title ?? "Untitled"}
+              secondary={event.location}
+              trailing={formatTime(event.start ?? event.startTime)}
+            />
           ))}
-        </div>
+        </List>
       )}
-    </Card>
+    </Section>
   );
 }
 

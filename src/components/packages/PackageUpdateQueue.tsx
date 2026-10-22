@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, PackageCheck } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { CheckCircle2, ExternalLink } from "lucide-react";
+import { Section } from "@/components/ui/section-heading";
 import { UPDATE_DECISION_LABELS, type UpdateAction } from "@/config/package-updates";
 import { compactRelativeDate } from "@/lib/dates";
 import type { DecidedUpdate, UpdateCard } from "@/lib/packages/view";
@@ -41,35 +41,22 @@ export function PackageUpdateQueue({
   }
 
   return (
-    <div id="package-updates">
-      <Card>
-        <CardHeader
-          icon={PackageCheck}
-          title="Package updates"
-          right={
-            waiting.length > 0 ? (
-              <span className="text-xs font-medium text-status-warning">
-                {waiting.length} waiting
-              </span>
-            ) : (
-              <span className="text-xs font-medium text-status-positive">All answered</span>
-            )
-          }
-        />
-        {waiting.length > 0 && (
-          <p className="mb-3 text-sm text-text-secondary">
-            Held for you by each project&apos;s update setting. Nothing here merges until you say
-            so.
-          </p>
-        )}
-
+    <div id="package-updates" className="scroll-mt-24">
+      <Section
+        title="Package updates"
+        right={
+          waiting.length > 0 ? (
+            <span className="ui-approvals-count">{waiting.length}</span>
+          ) : undefined
+        }
+      >
         {handled.length > 0 && (
-          <ul className="mb-3 space-y-2" aria-label="Just done">
+          <ul className="ui-approvals-list" aria-label="Just done">
             {handled.map((h) => (
               <li
                 key={h.update.id}
                 role="status"
-                className="ui-list-row flex items-start gap-3 px-4 py-3"
+                className="ui-approvals-item flex items-start gap-3"
               >
                 <CheckCircle2
                   className="mt-0.5 h-4 w-4 shrink-0 text-status-positive"
@@ -98,7 +85,7 @@ export function PackageUpdateQueue({
         )}
 
         {waiting.length > 0 && (
-          <div className="space-y-3">
+          <div className="ui-approvals-list">
             {waiting.map((u) => (
               <PackageUpdateCard key={u.id} update={u} onHandled={onHandled} />
             ))}
@@ -107,10 +94,10 @@ export function PackageUpdateQueue({
 
         {earlier.length > 0 && (
           <div className="mt-4 space-y-2">
-            <p className="ui-micro-label">Answered recently</p>
-            <ul className="space-y-2">
+            <h3 className="ui-approvals-subhead">Answered recently</h3>
+            <ul className="ui-approvals-list">
               {earlier.map((r) => (
-                <li key={r.id} className="ui-list-row space-y-1 px-4 py-3 text-sm">
+                <li key={r.id} className="ui-approvals-item space-y-1 text-sm">
                   <p className="wrap-anywhere text-text-primary">
                     <span className="font-medium">{r.chose}</span> ·{" "}
                     <Link href={r.projectHref} className="hover:underline">
@@ -130,7 +117,7 @@ export function PackageUpdateQueue({
             </ul>
           </div>
         )}
-      </Card>
+      </Section>
     </div>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Play } from "lucide-react";
+import { ListChecks, Play } from "lucide-react";
+import { List, ListRow } from "@/components/ui/list-row";
 import { useFetch } from "@/hooks/use-fetch";
 import { postJson, throwApiError } from "@/lib/api/fetch";
 import { NAV } from "@/config/navigation";
@@ -121,6 +122,25 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
   // the phone it stood between the person and the question "What are we
   // working on?" (owner's walk-through, 2026-10-17).
   if (onlyWithWork && (!data || error || projects.length === 0)) return null;
+  // Nothing to say until it knows; then, with no main projects chosen, the
+  // whole block is ONE row (design reset rule 2, 2026-10-22). It was a
+  // heading, an explanation paragraph and a bordered button.
+  if (!data && !error) return null;
+  if (data && !error && projects.length === 0 && !editing && !failure) {
+    return (
+      <div data-start-my-day>
+        <List aria-label="Start my day">
+          <ListRow
+            icon={ListChecks}
+            title="Choose your main projects"
+            secondary="Loki picks up the next useful task in each"
+            onClick={editProjects}
+            chevron
+          />
+        </List>
+      </div>
+    );
+  }
 
   return (
     <section className="ui-away w-full" aria-label="Start my day" data-start-my-day>
