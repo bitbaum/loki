@@ -1,10 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Loader2, Trash2, Plus, GripVertical, Pencil, Check, X } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { postJson, deleteJson, patchJson } from "@/lib/api/fetch";
 import type { UserProject } from "@/db/schema";
-import { cn } from "@/lib/utils";
+import { projectTitle } from "@/lib/project-display";
+import { DetailSheet, SheetAction, SheetActions } from "@/components/ui/detail-sheet";
+import { List, ListRow } from "@/components/ui/list-row";
+import { RowActions } from "@/components/ui/row-actions";
+import { Section } from "@/components/ui/section-heading";
 
 type Props = {
   projects: UserProject[];
@@ -13,90 +18,84 @@ type Props = {
   projectLimit: number | null;
 };
 
+/** Where a project's code lives, in words — never the path or the address. */
+function whereItLives(p: UserProject): string {
+  if (p.gitUrl && p.dirPath) return "GitHub and your computer";
+  if (p.gitUrl) return "On GitHub";
+  if (p.dirPath) return "Your computer";
+  return "No code connected yet";
+}
+
+type Draft = { name: string; dirPath: string; gitUrl: string };
+const EMPTY: Draft = { name: "", dirPath: "", gitUrl: "" };
+
+/**
+ * Settings → Projects: every project as a row, its order and details one tap
+ * away. Reordering is "Move up / Move down" in the row's menu — the drag
+ * handle it replaced does not exist on a phone — and removing asks twice, in
+ * the sheet that edits the project, so the menu never holds a one-tap delete.
+ */
 export function ProjectsSettings({ projects: initial, teamProjects, projectLimit }: Props) {
   const [projects, setProjects] = useState(initial);
-  const dragIndex = useRef<number | null>(null);
-  const [dragOver, setDragOver] = useState<number | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-  const [dirPath, setDirPath] = useState("");
-  const [gitUrl, setGitUrl] = useState("");
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // null = closed, "new" = adding, otherwise the project being edited.
+  const [sheet, setSheet] = useState<UserProject | "new" | null>(null);
+  const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [sheetError, setSheetError] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDirPath, setEditDirPath] = useState("");
-  const [editGitUrl, setEditGitUrl] = useState("");
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState("");
+  const atLimit = projectLimit !== null && projects.length >= projectLimit;
 
-  const add = async () => {
-    if (!name.trim()) return;
+  const open = (target: UserProject | "new") => {
+    setSheet(target);
+    setSheetError("");
+    setConfirmRemove(false);
+    setDraft(
+      target === "new"
+        ? EMPTY
+        : { name: target.name, dirPath: target.dirPath ?? "", gitUrl: target.gitUrl ?? "" },
+    );
+  };
+  const close = () => setSheet(null);
+
+  const save = async () => {
+    if (!draft.name.trim() || sheet === null) return;
     setSaving(true);
-    setError("");
+    setSheetError("");
+    const fields = {
+      name: draft.name.trim(),
+      dirPath: draft.dirPath.trim() || undefined,
+      gitUrl: draft.gitUrl.trim() || undefined,
+    };
     try {
-      const res = await postJson("/api/user-projects", {
-        name: name.trim(),
-        dirPath: dirPath.trim() || undefined,
-        gitUrl: gitUrl.trim() || undefined,
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Failed to add project");
-      setProjects((p) => [...p, body]);
-      setName("");
-      setDirPath("");
-      setGitUrl("");
-      setAdding(false);
+      if (sheet === "new") {
+        const res = await postJson("/api/user-projects", fields);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error ?? "Could not add the project");
+        setProjects((p) => [...p, body]);
+      } else {
+        const res = await patchJson(`/api/user-projects/${sheet.id}`, fields);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error ?? "Could not save");
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === sheet.id
+              ? {
+                  ...p,
+                  name: fields.name,
+                  dirPath: fields.dirPath ?? null,
+                  gitUrl: fields.gitUrl ?? null,
+                }
+              : p,
+          ),
+        );
+      }
+      close();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setSheetError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const startEdit = (p: UserProject) => {
-    setEditingId(p.id);
-    setEditName(p.name);
-    setEditDirPath(p.dirPath ?? "");
-    setEditGitUrl(p.gitUrl ?? "");
-    setEditError("");
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditError("");
-  };
-
-  const saveEdit = async (id: string) => {
-    if (!editName.trim()) return;
-    setEditSaving(true);
-    setEditError("");
-    try {
-      const res = await patchJson(`/api/user-projects/${id}`, {
-        name: editName.trim(),
-        dirPath: editDirPath.trim() || undefined,
-        gitUrl: editGitUrl.trim() || undefined,
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Failed to save");
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === id
-            ? {
-                ...p,
-                name: editName.trim(),
-                dirPath: editDirPath.trim() || null,
-                gitUrl: editGitUrl.trim() || null,
-              }
-            : p,
-        ),
-      );
-      setEditingId(null);
-    } catch (e) {
-      setEditError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setEditSaving(false);
     }
   };
 
@@ -104,260 +103,183 @@ export function ProjectsSettings({ projects: initial, teamProjects, projectLimit
     const res = await deleteJson(`/api/user-projects/${id}`);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(body.error ?? "Failed to remove project");
+      setSheetError(body.error ?? "Could not remove the project");
       return;
     }
     setProjects((p) => p.filter((x) => x.id !== id));
+    close();
   };
 
-  const reorder = (from: number, to: number) => {
-    if (from === to) return;
-    setProjects((prev) => {
-      const original = prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      Promise.all(
-        next.map((p, i) => patchJson(`/api/user-projects/${p.id}`, { position: i })),
-      ).catch(() => {
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= projects.length) return;
+    const original = projects;
+    const next = [...projects];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setProjects(next);
+    Promise.all(next.map((p, i) => patchJson(`/api/user-projects/${p.id}`, { position: i }))).catch(
+      () => {
         setProjects(original);
-        setError("Failed to save order — please try again");
-      });
-      return next;
-    });
+        setError("Could not save the order — try again");
+      },
+    );
   };
-
-  const atLimit = projectLimit !== null && projects.length >= projectLimit;
 
   return (
     <section className="ui-settings-section">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-medium text-text-primary">Projects</h2>
-          {projectLimit !== null && (
-            <p className="text-xs text-text-tertiary mt-0.5">
-              {projects.length} / {projectLimit} projects
-              {atLimit && <span className="ml-1 text-status-warning">· limit reached</span>}
-            </p>
-          )}
-        </div>
-        <button
-          onClick={() => !atLimit && setAdding((v) => !v)}
-          disabled={atLimit}
-          title={
-            atLimit
-              ? `Your plan allows ${projectLimit} projects. See plans to raise the limit.`
-              : undefined
-          }
-          className="ui-btn-secondary py-1.5 text-xs gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Plus className="h-3.5 w-3.5" /> Add
-        </button>
-      </div>
-
-      {atLimit && (
-        <p className="text-sm text-text-secondary bg-surface-raised rounded-lg px-4 py-3">
-          You&apos;ve reached the {projectLimit}-project limit on your plan.{" "}
-          <a href="/settings#billing" className="ui-link">
-            See plans
-          </a>{" "}
-          for unlimited projects.
-        </p>
-      )}
-
-      {adding && (
-        <div className="ui-settings-subpanel">
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            placeholder="Project name"
-            className="ui-input"
-          />
-          <input
-            value={dirPath}
-            onChange={(e) => setDirPath(e.target.value)}
-            placeholder="Local path — optional"
-            className="ui-input"
-          />
-          <input
-            value={gitUrl}
-            onChange={(e) => setGitUrl(e.target.value)}
-            placeholder="GitHub URL — optional"
-            className="ui-input"
-          />
-          {error && <p className="ui-error">{error}</p>}
-          <div className="flex gap-2">
-            <button onClick={() => setAdding(false)} className="ui-btn-ghost">
-              Cancel
-            </button>
-            <button onClick={add} disabled={saving || !name.trim()} className="ui-btn-primary">
-              {saving && <Loader2 className="ui-spinner-sm" />}
-              Add project
-            </button>
-          </div>
-        </div>
-      )}
-
-      {error && !adding && <p className="ui-error">{error}</p>}
-
-      {projects.length === 0 ? (
-        <p className="text-sm text-text-secondary">No projects yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {projects.map((p, i) => (
-            <li
-              key={p.id}
-              draggable={editingId !== p.id}
-              onDragStart={() => {
-                dragIndex.current = i;
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(i);
-              }}
-              onDrop={() => {
-                if (dragIndex.current !== null && dragIndex.current !== i)
-                  reorder(dragIndex.current, i);
-                dragIndex.current = null;
-                setDragOver(null);
-              }}
-              onDragEnd={() => {
-                setDragOver(null);
-                dragIndex.current = null;
-              }}
-              className={cn("ui-list-item group", dragOver === i && "bg-accent-primary/5")}
-            >
-              <GripVertical
-                className={cn(
-                  "h-4 w-4 shrink-0 text-text-muted/50",
-                  editingId === p.id ? "invisible" : "cursor-grab active:cursor-grabbing",
-                )}
-              />
-
-              {editingId === p.id ? (
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <input
-                    autoFocus
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveEdit(p.id);
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                    placeholder="Project name"
-                    className="ui-input-tight"
-                  />
-                  <input
-                    value={editDirPath}
-                    onChange={(e) => setEditDirPath(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                    placeholder="Local path"
-                    className="ui-input-tight font-mono text-xs"
-                  />
-                  <input
-                    value={editGitUrl}
-                    onChange={(e) => setEditGitUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveEdit(p.id);
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                    placeholder="GitHub URL"
-                    className="ui-input-tight"
-                  />
-                  {editError && <p className="ui-error-xs">{editError}</p>}
-                  <div className="flex gap-1.5">
+      <Section
+        title="Your projects"
+        right={
+          <button
+            type="button"
+            onClick={() => open("new")}
+            disabled={atLimit}
+            title={atLimit ? `Your plan allows ${projectLimit} projects.` : undefined}
+            className="ui-btn-secondary min-h-9 gap-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add
+          </button>
+        }
+      >
+        {projectLimit !== null && (
+          <p className="ui-settings-lede">
+            {projects.length} of {projectLimit} projects.
+            {atLimit && (
+              <>
+                {" "}
+                That is the limit on your plan. <Link href="/settings#billing">See plans</Link> for
+                more room.
+              </>
+            )}
+          </p>
+        )}
+        {error && <p className="ui-error">{error}</p>}
+        {projects.length === 0 ? (
+          <p className="ui-settings-lede">No projects yet.</p>
+        ) : (
+          <List aria-label="Your projects">
+            {projects.map((p, i) => (
+              <ListRow
+                key={p.id}
+                avatar={projectTitle(p).charAt(0).toUpperCase()}
+                title={projectTitle(p)}
+                secondary={whereItLives(p)}
+                onClick={() => open(p)}
+                menu={
+                  <RowActions label={`More for ${projectTitle(p)}`}>
                     <button
-                      onClick={() => saveEdit(p.id)}
-                      disabled={editSaving || !editName.trim()}
-                      className="ui-btn-confirm-sm"
+                      type="button"
+                      onClick={() => open(p)}
+                      className="ui-menu-item"
+                      role="menuitem"
                     >
-                      {editSaving ? (
-                        <Loader2 className="ui-spinner-xs" />
-                      ) : (
-                        <Check className="h-3 w-3" />
-                      )}
-                      Save
+                      <Pencil className="h-4 w-4 shrink-0" />
+                      Edit
                     </button>
-                    <button onClick={cancelEdit} className="ui-link-muted text-xs">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-text-primary truncate" title={p.name}>
-                    {p.name}
-                  </div>
-                  {p.dirPath && (
-                    <div
-                      className="text-xs text-text-tertiary truncate font-mono"
-                      title={p.dirPath}
-                    >
-                      {p.dirPath}
-                    </div>
-                  )}
-                  {p.gitUrl && (
-                    <div className="text-xs text-text-tertiary truncate" title={p.gitUrl}>
-                      {p.gitUrl}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {editingId !== p.id && (
-                <div className="flex shrink-0 items-center gap-0.5">
-                  <button
-                    onClick={() => startEdit(p)}
-                    className="ui-hover-reveal ui-btn-row-action"
-                    title="Edit project"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => remove(p.id)}
-                    className="ui-hover-reveal ui-btn-ghost shrink-0 p-1.5 hover:text-status-negative"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-
-              {editingId === p.id && (
-                <button
-                  onClick={cancelEdit}
-                  className="shrink-0 ui-btn-row-action self-start mt-0.5"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => move(i, i - 1)}
+                        className="ui-menu-item"
+                        role="menuitem"
+                      >
+                        <ArrowUp className="h-4 w-4 shrink-0" />
+                        Move up
+                      </button>
+                    )}
+                    {i < projects.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => move(i, i + 1)}
+                        className="ui-menu-item"
+                        role="menuitem"
+                      >
+                        <ArrowDown className="h-4 w-4 shrink-0" />
+                        Move down
+                      </button>
+                    )}
+                  </RowActions>
+                }
+              />
+            ))}
+          </List>
+        )}
+      </Section>
 
       {teamProjects.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-border-subtle">
-          <p className="ui-kicker">Team projects</p>
-          <ul className="space-y-2">
+        <Section title="Team projects">
+          <List aria-label="Team projects">
             {teamProjects.map((p) => (
-              <li key={p.id} className="ui-list-item opacity-75">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-text-primary truncate">{p.name}</div>
-                  {p.dirPath && (
-                    <div className="text-xs text-text-tertiary truncate font-mono">{p.dirPath}</div>
-                  )}
-                  {p.gitUrl && (
-                    <div className="text-xs text-text-tertiary truncate">{p.gitUrl}</div>
-                  )}
-                </div>
-              </li>
+              <ListRow
+                key={p.id}
+                avatar={projectTitle(p).charAt(0).toUpperCase()}
+                title={projectTitle(p)}
+                secondary={whereItLives(p)}
+              />
             ))}
-          </ul>
-        </div>
+          </List>
+        </Section>
+      )}
+
+      {sheet !== null && (
+        <DetailSheet
+          title={sheet === "new" ? "Add a project" : projectTitle(sheet)}
+          subtitle={sheet === "new" ? undefined : whereItLives(sheet)}
+          onClose={close}
+        >
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="ui-settings-lede">Name</span>
+              <input
+                autoFocus
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && save()}
+                className="ui-input"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="ui-settings-lede">Folder on your computer (optional)</span>
+              <input
+                value={draft.dirPath}
+                onChange={(e) => setDraft({ ...draft, dirPath: e.target.value })}
+                className="ui-input font-mono text-xs"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="ui-settings-lede">GitHub address (optional)</span>
+              <input
+                value={draft.gitUrl}
+                onChange={(e) => setDraft({ ...draft, gitUrl: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && save()}
+                className="ui-input"
+              />
+            </label>
+            {sheetError && <p className="ui-error">{sheetError}</p>}
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || !draft.name.trim()}
+              className="ui-btn-primary w-full gap-2"
+            >
+              {saving && <Loader2 className="ui-spinner-sm" />}
+              {sheet === "new" ? "Add project" : "Save"}
+            </button>
+          </div>
+          {sheet !== "new" && (
+            <SheetActions>
+              {confirmRemove ? (
+                <SheetAction icon={Trash2} danger onClick={() => remove(sheet.id)}>
+                  Yes, remove {projectTitle(sheet)}
+                </SheetAction>
+              ) : (
+                <SheetAction icon={Trash2} danger onClick={() => setConfirmRemove(true)}>
+                  Remove from Loki
+                </SheetAction>
+              )}
+            </SheetActions>
+          )}
+        </DetailSheet>
       )}
     </section>
   );

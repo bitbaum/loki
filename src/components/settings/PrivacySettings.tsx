@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ShieldCheck, ShieldOff, Download, Loader2 } from "lucide-react";
+import { Brain, Download, KeyRound, Loader2, Lock, ShieldCheck, ShieldOff } from "lucide-react";
+import { DetailSheet } from "@/components/ui/detail-sheet";
+import { List, ListRow } from "@/components/ui/list-row";
+import { Section } from "@/components/ui/section-heading";
 import { useFetch } from "@/hooks/use-fetch";
 import { usePrivateZone } from "@/hooks/use-private-zone";
 import { postJson, deleteJson, patchJson } from "@/lib/api/fetch";
@@ -88,135 +91,81 @@ export function PrivacySettings() {
   const configured = data?.configured ?? false;
   const unlocked = data?.unlocked ?? false;
   const [mode, setMode] = useState<Mode>("view");
+  const done = () => {
+    setMode("view");
+    refetch();
+  };
 
   return (
     <div className="space-y-6">
-      <div className="ui-settings-section">
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary">Private zone</h2>
-          <p className="mt-1 text-sm text-text-tertiary">
-            Memory, People, Crew, Robots, Goals, Habits, Events, and Money sit behind a PIN gate.
-            Once you enter the right PIN, the zone stays unlocked for 30 minutes from that moment.
+      <section className="ui-settings-section">
+        <Section title="Private zone">
+          <p className="ui-settings-lede">
+            Memory, People, Crew, Goals, Habits, Events and Money sit behind a PIN. Once you enter
+            it, they stay open for 30 minutes.
           </p>
-        </div>
-
-        <div className="space-y-3">
-          <StatusRow
-            icon={configured ? ShieldCheck : ShieldOff}
-            label="PIN protection"
-            value={configured ? "Configured" : "Not set"}
-            tone={configured ? "positive" : "neutral"}
-          />
-          {configured && (
-            <StatusRow
-              icon={unlocked ? Lock : ShieldCheck}
-              label="Status right now"
-              value={unlocked ? "Unlocked" : "Locked"}
-              tone={unlocked ? "warning" : "positive"}
+          <List aria-label="Private zone">
+            <ListRow
+              icon={configured ? ShieldCheck : ShieldOff}
+              title="PIN"
+              secondary={
+                configured ? (unlocked ? "On · open right now" : "On · locked") : "Not set"
+              }
+              status={configured ? (unlocked ? "warning" : "positive") : undefined}
             />
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {!configured && (
-            <button type="button" onClick={() => setMode("set")} className="ui-btn-primary">
-              Set PIN
-            </button>
-          )}
-          {configured && (
-            <>
-              <button type="button" onClick={() => setMode("change")} className="ui-btn-secondary">
-                Change PIN
-              </button>
-              {unlocked ? (
-                <button
-                  type="button"
-                  onClick={lock}
-                  className="ui-btn-secondary inline-flex items-center gap-2"
-                >
-                  <Lock className="h-4 w-4" />
-                  Lock now
-                </button>
-              ) : null}
-              <button type="button" onClick={() => setMode("disable")} className="ui-btn-secondary">
-                Disable PIN
-              </button>
-            </>
-          )}
-        </div>
+            {!configured && (
+              <ListRow icon={KeyRound} title="Set a PIN" onClick={() => setMode("set")} chevron />
+            )}
+            {configured && (
+              <ListRow
+                icon={KeyRound}
+                title="Change PIN"
+                onClick={() => setMode("change")}
+                chevron
+              />
+            )}
+            {configured && unlocked && (
+              <ListRow icon={Lock} title="Lock now" onClick={lock} chevron />
+            )}
+            {configured && (
+              <ListRow
+                icon={ShieldOff}
+                title="Turn the PIN off"
+                onClick={() => setMode("disable")}
+                chevron
+              />
+            )}
+          </List>
+        </Section>
 
         {mode === "set" && (
-          <SetPinForm
-            onCancel={() => setMode("view")}
-            onSuccess={() => {
-              setMode("view");
-              refetch();
-            }}
-          />
+          <DetailSheet title="Set a PIN" onClose={() => setMode("view")}>
+            <SetPinForm onCancel={() => setMode("view")} onSuccess={done} />
+          </DetailSheet>
         )}
         {mode === "change" && (
-          <ChangePinForm
-            onCancel={() => setMode("view")}
-            onSuccess={() => {
-              setMode("view");
-              refetch();
-            }}
-          />
+          <DetailSheet title="Change PIN" onClose={() => setMode("view")}>
+            <ChangePinForm onCancel={() => setMode("view")} onSuccess={done} />
+          </DetailSheet>
         )}
         {mode === "disable" && (
-          <DisablePinForm
-            onCancel={() => setMode("view")}
-            onSuccess={() => {
-              setMode("view");
-              refetch();
-            }}
-          />
+          <DetailSheet title="Turn the PIN off" onClose={() => setMode("view")}>
+            <DisablePinForm onCancel={() => setMode("view")} onSuccess={done} />
+          </DetailSheet>
         )}
-      </div>
+      </section>
 
-      <div className="ui-settings-section">
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary">Data</h2>
-          <p className="mt-1 text-sm text-text-tertiary">
-            Your private data — contacts, goals, habits, events, money, and the derived knowledge
-            graph — lives on the same database as your account. It&apos;s yours: index it or not,
-            take it with you, delete it (memory on the Memory page, everything under Account →
-            Danger zone).
+      <section className="ui-settings-section">
+        <Section title="Your data">
+          <p className="ui-settings-lede">
+            Your private data lives in the same database as your account. It is yours: index it or
+            not, take it with you, delete it. Memory is deleted on the Memory page, everything under
+            Account → Danger zone.
           </p>
-        </div>
-
-        <MemoryConsentToggle />
-
-        <ExportDataButton />
-      </div>
-    </div>
-  );
-}
-
-function StatusRow({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  tone: "positive" | "warning" | "neutral";
-}) {
-  const toneClass =
-    tone === "positive"
-      ? "text-status-positive"
-      : tone === "warning"
-        ? "text-status-warning"
-        : "text-text-tertiary";
-  return (
-    <div className="ui-list-item">
-      <div className="flex items-center gap-3">
-        <Icon className={`h-4 w-4 shrink-0 ${toneClass}`} />
-        <span className="text-sm text-text-secondary">{label}</span>
-      </div>
-      <span className={`text-sm font-medium ${toneClass}`}>{value}</span>
+          <MemoryConsentToggle />
+          <ExportDataButton />
+        </Section>
+      </section>
     </div>
   );
 }
@@ -274,7 +223,7 @@ function SetPinForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: 
   }
 
   return (
-    <form onSubmit={submit} className="ui-settings-subpanel space-y-3">
+    <form onSubmit={submit} className="space-y-3">
       <PinInput label="New PIN" value={newPin} onChange={setNewPin} placeholder="••••" autoFocus />
       <PinInput label="Confirm PIN" value={confirm} onChange={setConfirm} placeholder="••••" />
       {err && <p className="ui-error-xs">{err}</p>}
@@ -300,7 +249,7 @@ function ChangePinForm({ onCancel, onSuccess }: { onCancel: () => void; onSucces
   }
 
   return (
-    <form onSubmit={submit} className="ui-settings-subpanel space-y-3">
+    <form onSubmit={submit} className="space-y-3">
       <PinInput
         label="Current PIN"
         value={currentPin}
@@ -331,7 +280,7 @@ function DisablePinForm({ onCancel, onSuccess }: { onCancel: () => void; onSucce
   }
 
   return (
-    <form onSubmit={submit} className="ui-settings-subpanel space-y-3">
+    <form onSubmit={submit} className="space-y-3">
       <p className="text-sm text-text-secondary">
         Disabling the PIN removes the gate. Your private data stays in place — it just becomes
         accessible without entering a PIN.
@@ -363,6 +312,7 @@ function MemoryConsentToggle() {
   const enabled = data?.memoryEnabled !== false;
 
   const toggle = async () => {
+    if (!data || saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -377,26 +327,28 @@ function MemoryConsentToggle() {
   };
 
   return (
-    <div className="mt-4 flex items-start justify-between gap-4">
-      <div>
-        <div className="text-sm font-medium text-text-primary">Build fleet memory from my data</div>
-        <p className="mt-0.5 text-xs text-text-tertiary">
-          Off = the fleet stops indexing your projects and notes into the knowledge index (RAG).
-          Existing memory stays until you delete it on the Memory page.
-        </p>
-        {error && <p className="mt-1 text-xs text-status-negative">{error}</p>}
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        aria-label="Build fleet memory from my data"
-        onClick={toggle}
-        disabled={saving || !data}
-        className={enabled ? "ui-switch ui-switch-on" : "ui-switch"}
-      >
-        <span className="ui-switch-knob" />
-      </button>
+    <div className="space-y-1">
+      <List aria-label="Memory">
+        <ListRow
+          icon={Brain}
+          title="Build memory from my data"
+          secondary={
+            enabled
+              ? "On: Loki indexes your projects and notes"
+              : "Off: Loki does not index your projects and notes"
+          }
+          onClick={toggle}
+          label={`Build memory from my data: ${enabled ? "on" : "off"}`}
+          trailing={
+            saving ? (
+              <Loader2 className="ui-spinner-sm" aria-hidden />
+            ) : (
+              <span className={enabled ? "ui-switch ui-switch-on" : "ui-switch"} aria-hidden />
+            )
+          }
+        />
+      </List>
+      {error && <p className="ui-error-xs">{error}</p>}
     </div>
   );
 }
@@ -429,12 +381,17 @@ function ExportDataButton() {
   };
 
   return (
-    <div className="mt-4">
-      <button type="button" onClick={exportData} disabled={exporting} className="ui-btn-secondary">
-        {exporting ? <Loader2 className="ui-spinner" /> : <Download className="w-4 h-4" />}
-        Export my data
-      </button>
-      {error && <p className="mt-1 text-xs text-status-negative">{error}</p>}
+    <div className="space-y-1">
+      <List aria-label="Your data">
+        <ListRow
+          icon={exporting ? Loader2 : Download}
+          title="Export my data"
+          secondary="Everything Loki stores about you, as one file"
+          onClick={exportData}
+          chevron
+        />
+      </List>
+      {error && <p className="ui-error-xs">{error}</p>}
     </div>
   );
 }
