@@ -308,3 +308,11 @@ export function looksLine(s: ReturnType<typeof summarizeDecisions>): string | nu
   if (!s.looks) return null;
   return `${s.looks} ${s.looks === 1 ? "is" : "are"} live and need${s.looks === 1 ? "s" : ""} your eyes — Loki could not tell from the page.`;
 }
+
+/** One decision's identity: the item, what Loki recommended, and the run it was about. */
+export function decisionKey(
+  f: { id: string; dispatchedRunId?: string | null },
+  rec: Pick<Recommendation, "kind">,
+): string {
+  return `${f.id}:${rec.kind}:${f.dispatchedRunId ?? ""}`;
+}

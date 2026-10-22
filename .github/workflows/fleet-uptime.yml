@@ -18,7 +18,7 @@ name: Fleet Uptime
 
 on:
   schedule:
-    - cron: "*/15 * * * *" # GitHub's minimum is 5 and it runs late under load
+    - cron: "13 * * * *" # hourly (was every 15 min; CI audit 2026-10-21)
   workflow_dispatch: {}
 
 permissions:

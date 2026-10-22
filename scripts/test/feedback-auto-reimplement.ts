@@ -27,11 +27,15 @@ const WORKSPACE =
 
 assert.deepEqual(decideAutoReimplement(CAPACITY, null), {
   retry: true,
-  because: "the agent hit its usage limit",
+  because: "the agent ran out of quota",
+  failover: true,
+  failoverWhy: "ran out of quota",
 });
 assert.deepEqual(decideAutoReimplement(NO_GEN, {}), {
   retry: true,
-  because: "the agent opened but never answered, so it runs on the next provider",
+  because: "the agent opened but never accepted the prompt, so it runs on the next provider",
+  failover: true,
+  failoverWhy: "never accepted the prompt",
 });
 assert.equal(decideAutoReimplement(AUTH, null).retry, false, "dead credentials need a person");
 assert.equal((decideAutoReimplement(AUTH, null) as { reason: string }).reason, "needs-auth");
@@ -59,9 +63,19 @@ assert.equal(
 );
 assert.equal((decideAutoReimplement("", null) as { reason: string }).reason, "no-error");
 assert.equal(
-  (decideAutoReimplement(CAPACITY, { priorRunId: "abc" }) as { reason: string }).reason,
+  decideAutoReimplement(CAPACITY, { priorRunId: "abc" }).retry,
+  true,
+  "a quota wall chains to the next provider even on a retry",
+);
+assert.equal(
+  decideAutoReimplement(NO_GEN, { priorRunId: "abc" }).retry,
+  true,
+  "a prompt the agent never accepted chains to the next provider too",
+);
+assert.equal(
+  (decideAutoReimplement("runner error", { priorRunId: "abc" }) as { reason: string }).reason,
   "already-retried",
-  "a retry is never retried",
+  "any other retry is never retried",
 );
 assert.equal(
   (

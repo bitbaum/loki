@@ -30,7 +30,7 @@ on:
     workflows: ["CI"]
     types: [completed]
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "41 * * * *" # hourly reconcile only; workflow_run on CI does the real-time merging (CI audit 2026-10-21)
   workflow_dispatch: {}
 
 # Declared on the CALLER as well as inside the reusable workflow: a called

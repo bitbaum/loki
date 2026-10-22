@@ -39,6 +39,7 @@ export function MessageTurn({
   onAnswerAnyway,
   onAnswerFree,
   onRetry,
+  onReply,
   onContinue,
   question = null,
 }: {
@@ -53,6 +54,7 @@ export function MessageTurn({
   /** Only passed for the last assistant turn — retrying an older one would
    *  fork the thread, which this transcript has no way to represent. */
   onRetry?: () => void;
+  onReply?: (text: string) => void;
   /** Under a finished dispatch: one of its next steps, sent on its project. */
   onContinue?: (text: string, project: string) => void;
 }) {
@@ -101,7 +103,11 @@ export function MessageTurn({
         <ProgressUpdateCard update={update} />
       ) : (
         <div className="ui-loki-answer">
-          <AnswerMarkdown text={message.content} citations={citationsFrom(message.meta)} />
+          <AnswerMarkdown
+            text={message.content}
+            citations={citationsFrom(message.meta)}
+            onReply={onReply}
+          />
         </div>
       )}
 

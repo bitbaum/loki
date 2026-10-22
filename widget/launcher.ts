@@ -23,13 +23,20 @@
  * report problems must never be.
  */
 import { h, PENCIL_SVG, spiralMark } from "./dom";
-import { writeVisitorPlacement } from "./visitor-placement";
+import {
+  dragTop,
+  readDragPosition,
+  snapToEdge,
+  SNAP_MARGIN,
+  writeDragPosition,
+  writeVisitorPlacement,
+  type DragPosition,
+} from "./visitor-placement";
 import {
   chooseSlot,
   chooseTabTop,
   cornerColumn,
   cornerEdges,
-  CORNERS,
   slotOrder,
   withSide,
   type Placement,
@@ -89,7 +96,15 @@ export function createLauncher(opts: {
   fab.append(spiralMark(), fabLabel, fabIcon, badge);
   fab.setAttribute("aria-label", "Give feedback");
   fab.setAttribute("aria-haspopup", "dialog");
-  fab.addEventListener("click", () => {
+  fab.addEventListener("click", (e) => {
+    // The click that ends a drag is not a tap: the person moved it, they did
+    // not ask to open it.
+    if (suppressClick) {
+      suppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     bubble.style.display = "none";
     opts.onOpen();
   });
@@ -123,8 +138,6 @@ export function createLauncher(opts: {
   function setOwnerStatus(status: OwnerStatus | null) {
     const wasOwner = owner;
     owner = status !== null;
-    const previousLabel = fabLabel.textContent;
-    const previousBadge = badge.textContent;
     fab.classList.toggle("owner", status !== null);
     fab.classList.toggle("watching", !!status?.watching);
     fab.classList.toggle("paused", status !== null && !status.watching);
@@ -141,11 +154,11 @@ export function createLauncher(opts: {
         ? `Open Loki${status.watching ? " — watching" : ""}${unread ? `, ${unread} new` : ""}`
         : "Give feedback",
     );
-    // Measure after the label, badge and owner styles have changed, including
-    // a watch/pause transition that changes width without changing ownership.
-    if (owner !== wasOwner || previousLabel !== label || previousBadge !== badge.textContent) {
-      reposition();
-    }
+    // Re-measure only when the launcher changes KIND (visitor ↔ owner pill).
+    // Watching/Paused flips and unread-count ticks used to re-run the whole
+    // avoid pass, and each pass could move it — "it jumps around" (G,
+    // 2026-10-22). A label or badge change keeps the spot it already has.
+    if (owner !== wasOwner) reposition();
   }
 
   function say(text: string) {
@@ -189,20 +202,8 @@ export function createLauncher(opts: {
   menu.setAttribute("role", "menu");
   menu.style.display = "none";
 
-  const moveBtn = h("button", "fabmenu-item", "Move to other corner");
-  moveBtn.setAttribute("role", "menuitem");
-  moveBtn.addEventListener("click", () => {
-    const cur = effective();
-    // Cycle the corners rather than offering a picker: four taps returns you
-    // to where you started, which is its own undo.
-    const next = CORNERS[(CORNERS.indexOf(cur.corner) + 1) % CORNERS.length];
-    const moved = { ...cur, corner: next, offsetX: 16, offsetY: 16 };
-    opts.setVisitorOverride(moved);
-    writeVisitorPlacement(token, moved);
-    hideMenu();
-    reposition();
-  });
-
+  // Moving is a drag now (see "drag" below); the old "Move to other corner"
+  // item only mirrored the corner and was the only way to move it at all.
   const hideBtn = h("button", "fabmenu-item", "Hide on this site");
   hideBtn.setAttribute("role", "menuitem");
   hideBtn.addEventListener("click", () => {
@@ -215,11 +216,13 @@ export function createLauncher(opts: {
   resetBtn.addEventListener("click", () => {
     opts.setVisitorOverride(null);
     writeVisitorPlacement(token, null);
+    dragged = null;
+    writeDragPosition(token, null);
     hideMenu();
     reposition();
   });
 
-  menu.append(moveBtn, hideBtn, resetBtn);
+  menu.append(hideBtn, resetBtn);
   root.appendChild(menu);
 
   function showMenu() {
@@ -237,7 +240,7 @@ export function createLauncher(opts: {
       menu.style[y] = `${p.offsetY + 56}px`;
     }
     menu.style.display = "";
-    resetBtn.style.display = opts.getVisitorOverride() ? "" : "none";
+    resetBtn.style.display = opts.getVisitorOverride() || dragged ? "" : "none";
     document.addEventListener("click", onDocClick, true);
   }
   function hideMenu() {
@@ -266,27 +269,85 @@ export function createLauncher(opts: {
       pressTimer = 0;
     }
   };
+  // ---- drag: press, move past a small threshold, let go → snap to an edge ----
+  //
+  // Pointer events cover mouse, pen and touch in one path. Under the
+  // threshold it is still a tap (click opens Loki) or a long-press (menu);
+  // past it, it is a drag: the long-press is cancelled and the click that
+  // follows the drop is swallowed.
+  const DRAG_THRESHOLD = 6;
+  let dragged: DragPosition | null = readDragPosition(token);
+  let suppressClick = false;
+  let drag: { id: number; x: number; y: number; dx: number; dy: number; moving: boolean } | null =
+    null;
+  fab.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || tab) return;
+    const r = fab.getBoundingClientRect();
+    drag = {
+      id: e.pointerId,
+      x: e.clientX,
+      y: e.clientY,
+      dx: e.clientX - r.left,
+      dy: e.clientY - r.top,
+      moving: false,
+    };
+    // On the window, not the button: a fast first move leaves the button
+    // before the drag has begun.
+    window.addEventListener("pointermove", onDragMove, true);
+    window.addEventListener("pointerup", endDrag, true);
+    window.addEventListener("pointercancel", endDrag, true);
+  });
+  const onDragMove = (e: PointerEvent) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moving) {
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < DRAG_THRESHOLD) return;
+      drag.moving = true;
+      cancelPress();
+      hideMenu();
+      bubble.style.display = "none";
+      fab.classList.add("dragging");
+    }
+    const w = fab.offsetWidth;
+    const hgt = fab.offsetHeight;
+    const left = Math.min(window.innerWidth - w, Math.max(0, e.clientX - drag.dx));
+    const top = Math.min(window.innerHeight - hgt, Math.max(0, e.clientY - drag.dy));
+    fab.style.right = fab.style.bottom = "auto";
+    fab.style.left = `${left}px`;
+    fab.style.top = `${top}px`;
+  };
+  const endDrag = (e: PointerEvent) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    window.removeEventListener("pointermove", onDragMove, true);
+    window.removeEventListener("pointerup", endDrag, true);
+    window.removeEventListener("pointercancel", endDrag, true);
+    const wasMoving = drag.moving;
+    drag = null;
+    if (!wasMoving) return;
+    suppressClick = true;
+    // A click may never come (touch drags often end without one).
+    window.setTimeout(() => (suppressClick = false), 400);
+    const r = fab.getBoundingClientRect();
+    dragged = snapToEdge(
+      { left: r.left, top: r.top, width: r.width, height: r.height },
+      { width: window.innerWidth, height: window.innerHeight },
+    );
+    writeDragPosition(token, dragged);
+    fab.classList.remove("dragging");
+    placeDragged(dragged);
+  };
+
   fab.addEventListener("touchstart", startPress, { passive: true });
   fab.addEventListener("touchend", cancelPress);
   fab.addEventListener("touchmove", cancelPress, { passive: true });
   fab.addEventListener("touchcancel", cancelPress);
 
-  // Scroll-fade companion to the narrow-viewport CSS above: the class is
-  // toggled on every viewport, but only the ≤480px media query styles it.
-  let scrollSettle = 0;
-  // Captured on the document, not the window: a bottom sheet or chat log
-  // scrolls on its own and never fires a window scroll, yet it moves what sits
-  // under the launcher just the same.
+  // Scrolling only tucks away a remark preview. The launcher itself stays
+  // exactly where it is: re-placing it whenever scrolling settled made it
+  // climb, switch sides or turn into the tab mid-read (G, 2026-10-22).
   document.addEventListener(
     "scroll",
     () => {
       bubble.style.display = "none";
-      fab.classList.add("scrolling");
-      clearTimeout(scrollSettle);
-      scrollSettle = window.setTimeout(() => {
-        fab.classList.remove("scrolling");
-        reposition();
-      }, 350);
     },
     { passive: true, capture: true },
   );
@@ -318,6 +379,27 @@ export function createLauncher(opts: {
     fab.style[x] = `${slot.offsetX}px`;
     fab.style[y] = `${slot.offsetY}px`;
     fab.classList.toggle("on-left", x === "left");
+  };
+
+  /** The person's own spot: snapped to a side edge, at their height. Anchored
+   *  by left/top so the snap from where they let go animates. */
+  const placeDragged = (pos: DragPosition) => {
+    setTab(false);
+    const w = fab.offsetWidth;
+    const hgt = fab.offsetHeight;
+    const top = dragTop(pos, hgt, window.innerHeight);
+    const left = pos.side === "left" ? SNAP_MARGIN : window.innerWidth - w - SNAP_MARGIN;
+    fab.style.right = fab.style.bottom = "auto";
+    fab.style.left = `${left}px`;
+    fab.style.top = `${top}px`;
+    fab.classList.toggle("on-left", pos.side === "left");
+    current = {
+      corner: pos.side === "left" ? "bottom-left" : "bottom-right",
+      offsetX: SNAP_MARGIN,
+      offsetY: Math.max(0, window.innerHeight - top - hgt),
+    };
+    show(true);
+    if (bubble.style.display !== "none") positionBubble();
   };
 
   function setTab(on: boolean) {
@@ -375,6 +457,15 @@ export function createLauncher(opts: {
     // A previous region may have hidden the button; restore visibility before
     // measuring.
     show(true);
+    // Where the person dragged it wins over every heuristic and over the
+    // host's side/tab hints (only "hidden" above outranks it).
+    if (dragged) {
+      placeDragged(dragged);
+      return;
+    }
+    // A position the person chose is theirs: heuristics never move it. If it
+    // covers something, that was their call.
+    const chosen = opts.getVisitorOverride() !== null;
     const base: Slot = {
       corner: side ? withSide(p.corner, side) : p.corner,
       offsetX: p.offsetX,
@@ -382,7 +473,7 @@ export function createLauncher(opts: {
     };
     place(base);
     current = base;
-    if (!p.autoAvoid) {
+    if (!p.autoAvoid || chosen) {
       show(true);
       return;
     }
@@ -469,26 +560,28 @@ export function createLauncher(opts: {
   window.setInterval(() => {
     if (location.href === lastHref) return;
     lastHref = location.href;
+    lastDirective = readPlaceDirective();
     window.setTimeout(reposition, 300);
     window.setTimeout(reposition, 1500);
   }, 1000);
 
-  // Bottom sheets open, composers mount, cookie bars arrive — none of which
-  // resizes or navigates. Watch the host DOM, throttled to one pass a second:
-  // an animated page mutates constantly and must not keep us measuring.
-  // Mutations inside our own shadow root are invisible to this observer, so
-  // repositioning never feeds itself.
-  const MUTATION_MIN_INTERVAL = 1000;
-  let lastMutationRun = 0;
-  let mutationTimer = 0;
+  // The avoid pass runs on load, resize and route change ONLY. It used to
+  // re-run on every DOM mutation (≤1/s) and every scroll settle, and each run
+  // could move the launcher — the "jumping" (G, 2026-10-22). What still
+  // reacts to the DOM is the host's explicit contract: a region that says
+  // data-fc-place="hidden" / "tab" / "left" / "right" appearing or going away.
+  // That is the host's decision, not a measurement, so it is honoured live.
+  let lastDirective = readPlaceDirective();
+  let directiveTimer = 0;
   new MutationObserver(() => {
-    if (mutationTimer) return;
-    const wait = Math.max(200, MUTATION_MIN_INTERVAL - (Date.now() - lastMutationRun));
-    mutationTimer = window.setTimeout(() => {
-      mutationTimer = 0;
-      lastMutationRun = Date.now();
+    if (directiveTimer) return;
+    directiveTimer = window.setTimeout(() => {
+      directiveTimer = 0;
+      const now = readPlaceDirective();
+      if (now === lastDirective) return;
+      lastDirective = now;
       reposition();
-    }, wait);
+    }, 200);
   }).observe(document.documentElement, {
     subtree: true,
     childList: true,

@@ -44,6 +44,7 @@ import {
   injectPty,
   isPtyBusy,
   waitForPtyOutput,
+  waitForAgentComposer,
   explainPtyDispatchFailure,
   detectPtyCapacityFailure,
   startPtyOutputCapture,
@@ -639,11 +640,17 @@ async function handleCommand(
             // A live PTY already is the current session: inject in place.
             // Resume is only for a fresh PTY, so runner restarts never kill a
             // session merely because process-local bookkeeping was lost.
-            await launchAgentPty(tab, effDir, agent as AgentOption, model, sessionId)
+            await launchAgentPty(tab, effDir, agent as AgentOption, model, sessionId, false, {
+              // Resuming a conversation keeps its branch; a new run starts fresh.
+              runId: sessionId ? undefined : runId,
+            })
             clearHandoffSentinel(tab)
             launched = true
             // Wait for the agent to show life, then settle before pasting.
             if (await waitForPtyReady(tab, 15000)) await asleep(1800)
+            // Gemini CLI probes the terminal and loads for several seconds
+            // before its composer accepts input; a paste before that is lost.
+            await waitForAgentComposer(tab, agent as AgentOption, 30000)
             // A fresh Claude can open on a dialog too ("Teach auto mode about
             // your environment?", 2026-09-26) — the live-session path above
             // closed those, the launch path did not, so the prompt answered
@@ -656,7 +663,7 @@ async function handleCommand(
             // Non-Claude CLIs do not expose Claude's session-status files.
             // Subscribe BEFORE writing so short output bursts cannot happen
             // between injection and verification setup.
-            let outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 8000)
+            let outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 8000, { agent: agent as AgentOption, prompt: effPrompt })
             // Everything the CLI says from here on — the only place a quota
             // wall can be, since the wall is its answer to this prompt.
             const saidSinceInject = startPtyOutputCapture(tab)
@@ -683,7 +690,7 @@ async function handleCommand(
               // unsubmitted (paste landed, Enter got swallowed). A bare Enter
               // submits it without duplicating the text; verifiably-idle means
               // it can't interrupt a turn.
-              outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 6000)
+              outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 6000, { agent: agent as AgentOption, prompt: effPrompt })
               writeRawKey(tab, '\r')
               verified = outputAfterInject
                 ? await outputAfterInject
@@ -692,7 +699,7 @@ async function handleCommand(
             if (!verified) {
               // Composer was actually empty (boot dialog ate the paste) —
               // re-inject the full prompt once.
-              outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 8000)
+              outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 8000, { agent: agent as AgentOption, prompt: effPrompt })
               injectPty(tab, effPrompt)
               verified = outputAfterInject
                 ? await outputAfterInject

@@ -6,6 +6,9 @@ import { useFetch } from "@/hooks/use-fetch";
 import { AgentSwitcherPopover } from "@/components/control/agent-switcher-popover";
 import { PROVIDER_BLOCK_NOTE, type ProviderOption } from "@/lib/provider-switch";
 import { describeProviderEvidence } from "@/lib/provider-switch";
+import { providerLabel } from "@/config/quota-alternatives";
+
+const currentLabel = (id: string) => providerLabel(id);
 
 /**
  * "Try next provider" — the one control, wherever a run is blocked.
@@ -96,14 +99,28 @@ export function ProviderSwitch({
       </button>
       {menuOpen && (
         <AgentSwitcherPopover
-          agents={(data?.options ?? []).map((o) => ({
-            id: o.id,
-            label: o.label,
-            available: o.usable,
-            ...(o.reason ? { availabilityReason: o.reason } : {}),
-            ...(o.block ? { unavailableNote: PROVIDER_BLOCK_NOTE[o.block] } : {}),
-          }))}
-          activeAgentId={data?.current ?? ""}
+          // The current agent is listed too, first and selectable: picking it
+          // runs this again on the same agent (e.g. after a fix shipped).
+          // Hiding it read as "not installed" (Antigravity, 21 Oct).
+          agents={[
+            ...(data?.current && !(data.options ?? []).some((o) => o.id === data.current)
+              ? [
+                  {
+                    id: data.current,
+                    label: `${currentLabel(data.current)} (current)`,
+                    available: true,
+                  },
+                ]
+              : []),
+            ...(data?.options ?? []).map((o) => ({
+              id: o.id,
+              label: o.label,
+              available: o.usable,
+              ...(o.reason ? { availabilityReason: o.reason } : {}),
+              ...(o.block ? { unavailableNote: PROVIDER_BLOCK_NOTE[o.block] } : {}),
+            })),
+          ]}
+          activeAgentId=""
           title="Try another provider"
           // The chooser disables rows on one builder's capability report, so
           // it says which machine answered and when — and when none has, that

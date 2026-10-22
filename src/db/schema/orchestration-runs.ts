@@ -63,6 +63,8 @@ export type OrchestrationRunPayload = {
   priorRunId?: string;
   /** Why the first attempt failed, in the words the row shows. */
   autoRetriedBecause?: string;
+  /** Adapter ids a quota failover chain has tried, this run included, in order. */
+  providersTried?: string[];
   /** ISO time the runner ack'd the prompt as actually typed into the session
    *  (stampRunDelivered). The close paths use it as the handoff-freshness
    *  floor so a handoff from before delivery can never close this run. */

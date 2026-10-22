@@ -9,7 +9,8 @@
  * point at.
  */
 import { spawn, type IPty } from "node-pty";
-import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -157,6 +158,75 @@ export function buildDockerRunArgs(
   ];
 }
 
+/**
+ * Agent sign-in that lives in the runner's environment (the unit's env file).
+ * A sealed build sees none of the runner's env unless named here, so Gemini
+ * inside runsc exited with "When using Gemini API, you must specify the
+ * GEMINI_API_KEY environment variable" six seconds after launch and every
+ * Antigravity run failed as "never accepted the prompt" (Substrata,
+ * 2026-10-21). Passed as `--env NAME` (value inherited from podman's own
+ * environment), so no key ever appears on a command line.
+ */
+export const AGENT_CREDENTIAL_ENV = [
+  "GEMINI_API_KEY",
+  "GOOGLE_API_KEY",
+  "GOOGLE_GENAI_USE_VERTEXAI",
+  "ANTHROPIC_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "OPENAI_API_KEY",
+  "CURSOR_API_KEY",
+  "XAI_API_KEY",
+  "GROK_API_KEY",
+  "OPENROUTER_API_KEY",
+] as const;
+
+export function agentCredentialEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of AGENT_CREDENTIAL_ENV) {
+    const value = env[name];
+    if (value) out[name] = value;
+  }
+  return out;
+}
+
+/**
+ * Git inside a sealed build. The container has its own /etc and no host
+ * gitconfig, so the agent's `git commit` died with "unable to auto-detect
+ * email address (ubuntu@bitbaum.(none))" and nothing could be pushed
+ * (Substrata on Antigravity, 2026-10-21). Identity comes from the host's git
+ * config when it has one; pushes to GitHub use the run's GH_TOKEN through an
+ * env-only credential helper, so no token is written to disk or argv.
+ */
+export function sealedGitEnv(
+  readHostConfig: (key: string) => string | null = hostGitConfig,
+): Record<string, string> {
+  const name = readHostConfig("user.name") || "Loki builder";
+  const email = readHostConfig("user.email") || "loki-builder@users.noreply.github.com";
+  return {
+    GIT_AUTHOR_NAME: name,
+    GIT_AUTHOR_EMAIL: email,
+    GIT_COMMITTER_NAME: name,
+    GIT_COMMITTER_EMAIL: email,
+    GIT_CONFIG_COUNT: "2",
+    GIT_CONFIG_KEY_0: "credential.https://github.com.helper",
+    GIT_CONFIG_VALUE_0:
+      '!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=${GH_TOKEN:-$GITHUB_TOKEN}"; }; f',
+    GIT_CONFIG_KEY_1: "safe.directory",
+    GIT_CONFIG_VALUE_1: "*",
+  };
+}
+
+function hostGitConfig(key: string): string | null {
+  try {
+    return (
+      execFileSync("git", ["config", "--get", key], { encoding: "utf8", timeout: 2000 }).trim() ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 /** A private builder's sealed build (see SandboxRuntime). */
 function buildPodmanRunArgs(
   spec: WorkspaceSpec,
@@ -168,24 +238,52 @@ function buildPodmanRunArgs(
     "--env",
     `${key}=${value}`,
   ]);
+  const gitArgs = Object.entries(sealedGitEnv())
+    .filter(([name]) => !(spec.env && name in spec.env))
+    .flatMap(([name, value]) => ["--env", `${name}=${value}`]);
+  const credentialArgs = Object.keys(agentCredentialEnv())
+    .filter((name) => !(spec.env && name in spec.env))
+    .flatMap((name) => ["--env", name]);
   return [
     "run",
     "--rm",
+    // -t as well as -i: the runner drives an interactive TUI through node-pty.
+    // With -i alone the agent's stdin is a pipe, so Gemini CLI skips its
+    // composer and exits ("No input provided via stdin") — measured in the
+    // sealed container 2026-10-21; with -it the same image answers a prompt.
     "-i",
+    "-t",
+    // The name is per tab, and a container that died without podman's own
+    // cleanup (killed with its PTY, a stop from outside) keeps it: every later
+    // launch on that tab then failed before the container existed — "image
+    // pull", no "create", and gemini → grok → cursor all "never accepted"
+    // (Substrata, 2026-10-21 22:22). --replace takes the name back.
+    "--replace",
     "--name",
     containerName,
+    // Same hostname as the host: CLIs that seal their stored sign-in to the
+    // machine (Gemini's file keychain) read it as corrupted under a random one.
+    "--hostname",
+    os.hostname(),
     // The tenant inside is the tenant outside: files it writes are its own.
     "--userns=keep-id",
     // Stay in the unit's cgroup (rootless, no delegation needed), so the
     // deploy's drain sees these processes and MemoryMax still bounds them.
-    "--cgroups=disabled",
+    // gVisor refuses NoCgroups (measured on the box 2026-10-21: "runsc is not
+    // compatible with NoCgroups"), so under runsc podman keeps its default and
+    // runsc is told to leave cgroups alone; crun/runc stay in the unit's cgroup.
+    ...(config.ociRuntime === "runsc"
+      ? ["--runtime-flag", "ignore-cgroups"]
+      : ["--cgroups=disabled"]),
     ...(config.ociRuntime ? ["--runtime", config.ociRuntime] : []),
     "--workdir",
     cwd,
     "--mount",
     `type=bind,src=${config.home},dst=${config.home}`,
+    // Rootless "bridge" goes through pasta, which could not open its netns
+    // under the runner unit on the box (2026-10-21); slirp4netns works.
     "--network",
-    config.network,
+    config.network === "bridge" ? "slirp4netns" : config.network,
     "--pids-limit",
     config.pidsLimit,
     "--security-opt",
@@ -198,6 +296,8 @@ function buildPodmanRunArgs(
     `HOME=${config.home}`,
     "--env",
     `PATH=${config.home}/.local/bin:${config.home}/.npm-global/bin:/usr/local/bin:/usr/bin:/bin`,
+    ...gitArgs,
+    ...credentialArgs,
     ...envArgs,
     ...config.extraRunArgs,
     config.image,
@@ -214,14 +314,31 @@ export class SandboxExecutor extends PtyExecutor<SandboxMeta> {
   protected async launch(spec: WorkspaceSpec): Promise<{ pty: IPty; meta: SandboxMeta }> {
     if (!fs.existsSync(spec.cwd)) throw new Error(`Sandbox cwd does not exist: ${spec.cwd}`);
 
-    const containerName = sandboxContainerName(spec.id);
+    // podman: a fresh name per launch. A sealed container killed with its PTY
+    // can be left Exited and UNREMOVABLE (runsc delete fails on its gVisor
+    // filestore), so a per-tab name stayed taken and every later launch on
+    // that tab died with exit 125 before the agent existed (Substrata,
+    // 2026-10-21: fc-ws-ede9… held "runner:substrata" for two hours; --replace
+    // cannot take it back either). The tab hash stays the prefix, so drains
+    // and cleanups still recognise it.
+    const containerName =
+      this.config.runtime === "podman"
+        ? `${sandboxContainerName(spec.id)}-${randomBytes(3).toString("hex")}`
+        : sandboxContainerName(spec.id);
     const args = buildDockerRunArgs(spec, this.config, containerName);
     const pty = spawn(this.config.runtime, args, {
       name: "xterm-color",
       cwd: this.config.workspaceRoot,
       cols: spec.cols ?? 120,
       rows: spec.rows ?? 32,
-      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? os.homedir() },
+      env: {
+        PATH: process.env.PATH ?? "",
+        HOME: process.env.HOME ?? os.homedir(),
+        // podman reads XDG_RUNTIME_DIR for its rootless state; the sealed
+        // drop-in sets it on the unit.
+        ...(process.env.XDG_RUNTIME_DIR ? { XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR } : {}),
+        ...(this.config.runtime === "podman" ? agentCredentialEnv() : {}),
+      },
     });
 
     return { pty, meta: { containerName } };
