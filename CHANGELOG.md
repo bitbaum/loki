@@ -20,6 +20,12 @@ The owner's launcher and its microphone are now one thing.
   microphone appear together or not at all; talking from there is one tap on
   the spiral, then **Talk**.
 
+- **The first look is whole.** {#panel-first-look} A visitor's panel opened
+  scrolled to its bottom with the greeting half cut under the header, and on a
+  short phone the "Talk to Loki" card was sliced in two and the owner's way in
+  was gone. It now opens at the top, the card and the sign-in line are shorter,
+  and on short screens the sheet is taller and the suggestion chips step aside.
+
 ## 2026-10-22 — Every page, calm
 
 Every page was rebuilt to one bar, written down in

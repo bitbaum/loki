@@ -391,7 +391,11 @@ export function createConversation(opts: {
     renderStarters();
     if (reviewingNote) starters.style.display = "none";
     syncButtons();
-    log.scrollTop = follow || atBottom ? log.scrollHeight : keep;
+    // Before anyone has said anything the thread is the greeting and what
+    // hangs under it: open at its top, never scrolled to the bottom with the
+    // greeting's first line cut off under the header.
+    const nothingSaid = !thread.some(saidSomething) && !card;
+    log.scrollTop = nothingSaid ? 0 : follow || atBottom ? log.scrollHeight : keep;
     if (cardDrawn && card && reviewingNote)
       log.scrollTop += card.el.getBoundingClientRect().top - log.getBoundingClientRect().top - 8;
   }
