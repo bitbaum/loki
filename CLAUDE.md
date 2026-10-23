@@ -485,8 +485,12 @@ See `docs/development/responsive-design.md` — SSOT for mobile chrome tokens, s
 
 That rule now has a check behind it. `pnpm run audit:responsive` drives the
 AUTHENTICATED pages through real viewports (320/390/768/1440) in headless
-Chromium, fails on horizontal overflow, reports touch targets under 44px, and
-writes a screenshot per page/viewport to `.tmp/responsive-audit/`. It needs a
+Chromium, fails on horizontal overflow and on any word drawn across two lines
+(chatkit's `findBrokenWords`, `@bitbaum/chatkit/audit` — "Di / re / ct / or /
+y" is five syllables nobody wrote, and reading the CSS never finds it; the
+widget test runs the same measure on the panel at 390), reports touch targets
+under 44px, and writes a screenshot per page/viewport to
+`.tmp/responsive-audit/`. It needs a
 session: set `LOKI_SESSION_TOKEN`, or `AUDIT_DATABASE_URL` + `AUTH_SECRET`
 — and since prod Postgres is firewalled to the box, `eval "$(bash
 scripts/db-tunnel.sh)"` opens an SSH tunnel and exports the right URL. Not part
