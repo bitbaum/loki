@@ -49,13 +49,16 @@ ok(
 const vars = chatkitVars(PALETTE.widget);
 const read = new Set([...real.matchAll(/var\((--ck-[a-z0-9-]+)/g)].map((m) => m[1]));
 const declaredByKit = new Set([...real.matchAll(/(--ck-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+// A variable read with its fallback beside it (`var(--ck-n, 1)`, which chatkit
+// sets inline per element) has its default at the point of use.
+const fallbackByKit = new Set([...real.matchAll(/var\((--ck-[a-z0-9-]+)\s*,/g)].map((m) => m[1]));
 const colours = [...read].filter((v) =>
   /bg|raised|overlay|fg|muted|line|accent|danger|warning/.test(v),
 );
 const unset = colours.filter((v) => !vars.includes(`${v}:`));
 ok(unset.length === 0, `every colour chatkit reads comes from the widget theme (${unset})`);
 ok(
-  [...read].every((v) => vars.includes(`${v}:`) || declaredByKit.has(v)),
+  [...read].every((v) => vars.includes(`${v}:`) || declaredByKit.has(v) || fallbackByKit.has(v)),
   "every other variable has chatkit's own default",
 );
 ok(vars.startsWith(":host {") && !vars.includes("undefined"), "the theme sets them on the host");
