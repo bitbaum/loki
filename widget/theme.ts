@@ -225,8 +225,10 @@ ${spiralCSS(theme)}
 .fab.owner::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none; background: ${theme.textMuted}; }
 .fab.watching::before { background: ${theme.success}; animation: fcpulse 1.6s ease-in-out infinite; }
 .fab.watching .fab-label { color: ${theme.text}; } .fab.paused .fab-label { color: ${theme.textSecondary}; }
-/* Talk without opening Loki (quick-talk.ts): the mic beside the owner's launcher. */
-.fab-talk { position: fixed; z-index: 2147483000; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid ${theme.borderDark}; background: ${theme.surface}; color: ${theme.text}; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); } .fab-talk svg { width: 20px; height: 20px; display: block; }
+/* The microphone INSIDE the owner's pill (quick-talk.ts): the pill widens to hold it, the button is drawn over that room — 44px to hit, a 36px circle to see. */
+.fab.owner.with-talk { padding-right: 52px; }
+.fab-talk { position: fixed; z-index: 2147483001; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 4px solid transparent; background: ${theme.surfaceRaised}; background-clip: padding-box; color: ${theme.text}; cursor: pointer; touch-action: none; user-select: none; }
+.fab-talk:hover, .fab-talk:focus-visible { background: ${theme.border}; } .fab-talk svg { width: 18px; height: 18px; display: block; }
 .fab-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: ${theme.accent}; color: ${ink};

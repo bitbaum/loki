@@ -9,9 +9,10 @@ where the launcher goes, and how to hide it.
 ## Voice notes while browsing
 
 Open Loki and tap **Talk** in the composer — the panel's one microphone. The
-owner need not open Loki at all: a microphone sits beside their launcher
-(`widget/quick-talk.ts`; it follows the launcher, never on the edge tab, never
-for a visitor), and one tap on it starts recording. The
+owner need not open Loki at all: a microphone sits INSIDE their launcher pill
+(`widget/quick-talk.ts`; one outline, one footprint, grabbed and dragged like the
+pill; never on the edge tab, never when the host draws the launcher, never for a
+visitor — never alone), and one tap on it starts recording. The
 panel closes; one dock — *● Recording 0:12 · Mark · Done · ✕* — and a red edge
 round the whole screen say Loki is listening, and the site stays usable (the
 edge takes no taps). Scroll and tap and talk. Loki notes which part of the page is in view (its nearest

@@ -67,6 +67,10 @@ export type Launcher = {
   setOwnerStatus(status: OwnerStatus | null): void;
   /** Show a remark beside the launcher for a while; tapping it opens Loki. */
   say(text: string): void;
+  /** Give another part of the launcher the same drag / long-press / menu. */
+  grip(el: HTMLElement): void;
+  /** True once for the click that ends a drag — such a click is not a tap. */
+  swallowClick(): boolean;
   /** On screen right now, ours or the host's (`data-fc-place="host"`) — the
    *  watch bar only appears when it is not. */
   isShown(): boolean;
@@ -102,8 +106,7 @@ export function createLauncher(opts: {
   fab.addEventListener("click", (e) => {
     // The click that ends a drag is not a tap: the person moved it, they did
     // not ask to open it.
-    if (suppressClick) {
-      suppressClick = false;
+    if (swallowClick()) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -207,7 +210,7 @@ export function createLauncher(opts: {
 
   // Moving is a drag now (see "drag" below); the old "Move to other corner"
   // item only mirrored the corner and was the only way to move it at all.
-  // Minimize folds the pill (and the microphone and remark bubbles beside it)
+  // Minimize folds the pill (its microphone, and the remark bubble beside it)
   // into the slim edge tab: the same button in its smallest shape, still one
   // tap from Loki, still showing the live dot and the unread count. It is the
   // gentler answer to "it is in my way" than hiding it, and it is remembered
@@ -274,10 +277,10 @@ export function createLauncher(opts: {
     if (!host.contains(e.target as Node)) hideMenu();
   }
 
-  fab.addEventListener("contextmenu", (e) => {
+  const onContextMenu = (e: Event) => {
     e.preventDefault();
     showMenu();
-  });
+  };
 
   let pressTimer = 0;
   const startPress = () => {
@@ -303,7 +306,7 @@ export function createLauncher(opts: {
   let suppressClick = false;
   let drag: { id: number; x: number; y: number; dx: number; dy: number; moving: boolean } | null =
     null;
-  fab.addEventListener("pointerdown", (e) => {
+  const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0 || tab) return;
     const r = fab.getBoundingClientRect();
     drag = {
@@ -319,7 +322,7 @@ export function createLauncher(opts: {
     window.addEventListener("pointermove", onDragMove, true);
     window.addEventListener("pointerup", endDrag, true);
     window.addEventListener("pointercancel", endDrag, true);
-  });
+  };
   const onDragMove = (e: PointerEvent) => {
     if (!drag || e.pointerId !== drag.id) return;
     if (!drag.moving) {
@@ -359,10 +362,24 @@ export function createLauncher(opts: {
     placeDragged(dragged);
   };
 
-  fab.addEventListener("touchstart", startPress, { passive: true });
-  fab.addEventListener("touchend", cancelPress);
-  fab.addEventListener("touchmove", cancelPress, { passive: true });
-  fab.addEventListener("touchcancel", cancelPress);
+  /** The launcher's one gesture set — drag to move, long-press or right-click
+   *  for the menu — for every part of it. The pill and the microphone inside it
+   *  (quick-talk.ts) are one thing to the person, so both are grabbed the same. */
+  const grip = (el: HTMLElement) => {
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("contextmenu", onContextMenu);
+    el.addEventListener("touchstart", startPress, { passive: true });
+    el.addEventListener("touchend", cancelPress);
+    el.addEventListener("touchmove", cancelPress, { passive: true });
+    el.addEventListener("touchcancel", cancelPress);
+  };
+  /** True once for the click that ends a drag (it was a move, not a tap). */
+  function swallowClick(): boolean {
+    const was = suppressClick;
+    suppressClick = false;
+    return was;
+  }
+  grip(fab);
 
   // Scrolling only tucks away a remark preview. The launcher itself stays
   // exactly where it is: re-placing it whenever scrolling settled made it
@@ -639,6 +656,8 @@ export function createLauncher(opts: {
     reposition,
     setOwnerStatus,
     say,
+    grip,
+    swallowClick,
     // A host-drawn launcher is on screen as far as the owner is concerned:
     // the host shows the same state (Loki.status), so watch mode must not
     // add its own bar on top of it.

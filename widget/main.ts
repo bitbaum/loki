@@ -639,6 +639,7 @@ interface LokiApi {
       quickTalk = createQuickTalk({
         root,
         fab,
+        launcher,
         wanted: () => !!ownerPass && !panel.isConnected && !browseVoice?.active(),
         onTalk: startTalk,
       });

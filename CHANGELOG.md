@@ -6,6 +6,20 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-23 — One widget, not two pieces
+
+The owner's launcher and its microphone are now one thing.
+
+- **The microphone lives inside the launcher.** {#mic-in-pill} "● Watching 🎤"
+  is one pill: one outline, one place on the screen, moved by the same drag,
+  long-press and menu, and folded away by Minimize together. It used to be a
+  second round button drawn beside the launcher.
+- **It is never alone.** {#mic-never-alone} On Loki's own pages the launcher
+  is the spiral in the top bar, and the microphone used to stay behind as a
+  loose circle over the tab bar that could not be moved. Now the pill and the
+  microphone appear together or not at all; talking from there is one tap on
+  the spiral, then **Talk**.
+
 ## 2026-10-22 — Every page, calm
 
 Every page was rebuilt to one bar, written down in
