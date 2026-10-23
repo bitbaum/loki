@@ -16,7 +16,9 @@
 import { readFileSync } from "fs";
 import { build } from "esbuild";
 import { chromium, type Browser, type Page } from "playwright";
+import { BROKEN_WORDS_SOURCE } from "@bitbaum/chatkit/audit";
 import { PALETTE } from "../../src/lib/palette";
+import { buildWidgetChat } from "../build-widget-chat";
 
 let pass = 0;
 let fail = 0;
@@ -42,11 +44,18 @@ async function widgetBundle(): Promise<string> {
   return out.outputFiles[0].text;
 }
 
-const page = (body: string, htmlAttrs = "") => `<!doctype html>
+/** The chat chunk (public/widget-chat.js), built as `build:widget` builds it. */
+async function chatBundle(): Promise<string> {
+  const out = await buildWidgetChat({ write: false });
+  return out.outputFiles[0].text;
+}
+let chatJs = "";
+
+const page = (body: string, htmlAttrs = "", scriptAttrs = "") => `<!doctype html>
 <html ${htmlAttrs}><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>html,body{margin:0;font:16px/1.4 sans-serif} p{margin:0 0 12px}</style></head>
 <body>${body}
-<script src="${ORIGIN}/widget.js" data-fc-project="fcw_fixture" async></script>
+<script src="${ORIGIN}/widget.js" data-fc-project="fcw_fixture" ${scriptAttrs} async></script>
 </body></html>`;
 
 const filler = Array.from({ length: 40 }, (_, i) => `<p>Row ${i} of body text.</p>`).join("");
@@ -65,6 +74,9 @@ async function open(browser: Browser, html: string, width: number, height: numbe
     const url = new URL(route.request().url());
     if (url.pathname === "/widget.js") {
       return route.fulfill({ body: js, contentType: "text/javascript" });
+    }
+    if (url.pathname === "/widget-chat.js") {
+      return route.fulfill({ body: chatJs, contentType: "text/javascript" });
     }
     if (url.pathname === "/api/widget-boot") {
       return route.fulfill({
@@ -138,6 +150,7 @@ async function main() {
     process.exit(0);
   }
   const js = await widgetBundle();
+  chatJs = await chatBundle();
 
   try {
     // 1. Nothing in the corner: the launcher stays exactly where configured.
@@ -641,6 +654,48 @@ async function main() {
           () => (window as unknown as { Loki: { hidden: boolean } }).Loki.hidden === false,
         ),
         "Loki.show(): hidden is false",
+      );
+      await close();
+    }
+
+    // 12. The panel's words at 390, drawn by the shared chat (data-fc-chat="kit",
+    //     widget/chat/): no word cut across two lines. A word may wrap; "Di /
+    //     re / ct / or / y" is five syllables nobody wrote (Substrata's answer
+    //     table, 2026-10-22). The measure is chatkit's own
+    //     (`@bitbaum/chatkit/audit`), the same one `audit:responsive` runs on
+    //     every page — one definition of "cut" for the app and the widget.
+    //     The chunk is served from the same mocked origin, built as
+    //     `build:widget` builds it, so this proves the panel a visitor opens.
+    //     Mutation-proven: `word-break: break-all` on the panel's children
+    //     fails it with the greeting, the starters and the mode labels listed.
+    {
+      const { p, close } = await open(
+        browser,
+        page(filler, "", 'data-fc-chat="kit"'),
+        390,
+        844,
+        js,
+      );
+      await p.evaluate(() => (window as unknown as { Loki: { report(): void } }).Loki.report());
+      const kitMounted = await p
+        .waitForFunction(
+          () =>
+            Boolean(
+              document.getElementById("loki-feedback-host")?.shadowRoot?.querySelector(".fc-kit"),
+            ),
+          undefined,
+          { timeout: 10_000 },
+        )
+        .then(() => true)
+        .catch(() => false);
+      ok(kitMounted, "kit chat at 390: the panel draws its conversation with chatkit");
+      await settle(p);
+      const cut = (await p.evaluate(
+        `(${BROKEN_WORDS_SOURCE})(document.getElementById("loki-feedback-host").shadowRoot.querySelector(".panel"))`,
+      )) as string[];
+      ok(
+        cut.length === 0,
+        `kit chat at 390: no word cut across two lines — ${[...new Set(cut)].map((w) => `"${w}"`).join(", ")}`,
       );
       await close();
     }

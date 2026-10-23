@@ -24,7 +24,14 @@
  *      hour of bisecting; the offender's tag + classes costs nothing to report.
  *   3. Touch targets >= 44px on coarse-pointer widths. Also a stated rule, and
  *      invisible in a screenshot.
- *   4. A screenshot per page/viewport under .tmp/responsive-audit/ for eyeballs.
+ *   4. No word drawn across two lines. A word may wrap; it may never be cut
+ *      ("Te / rm", "Di / re / ct / or / y" — Substrata's answer table at 390,
+ *      2026-10-22). `word-break: break-all` or `overflow-wrap: anywhere` on a
+ *      wide ancestor does this, and reading the CSS finds none of it; only
+ *      laying the words out does. The measure is chatkit's
+ *      (`@bitbaum/chatkit/audit`), the one its own browser test and the widget
+ *      test (widget-host-avoid-browser.ts) run, so "cut" has one definition.
+ *   5. A screenshot per page/viewport under .tmp/responsive-audit/ for eyeballs.
  *
  * AUTH
  *
@@ -36,6 +43,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 import { config } from "dotenv";
+import { BROKEN_WORDS_SOURCE } from "@bitbaum/chatkit/audit";
 import { mintSessionToken, sessionCookies } from "./lib/session-cookie.mjs";
 
 config({ path: ".env.local", quiet: true });
@@ -625,6 +633,21 @@ function measurePage(minTouch) {
   };
 }
 
+/**
+ * Every word on the page drawn across two lines — chatkit's `findBrokenWords`,
+ * handed to the page as source (it is self-contained for exactly this). Words
+ * beside - / . @ : _ and anything over 24 characters are exempt there: a URL
+ * or an identifier has to break somewhere.
+ */
+const BROKEN_WORDS = `(${BROKEN_WORDS_SOURCE})(document.body)`;
+
+/** Both measures of one page, in one place, so the retry below takes both. */
+async function measure(page) {
+  const r = await page.evaluate(measurePage, MIN_TOUCH_PX);
+  const brokenWords = await page.evaluate(BROKEN_WORDS);
+  return { ...r, brokenWords };
+}
+
 async function main() {
   const only = process.argv.slice(2).filter((a) => a.startsWith("/"));
   const pages = only.length > 0 ? only : [...PUBLIC_PAGES, ...PAGES];
@@ -731,13 +754,13 @@ async function main() {
         // someone learns to ignore.
         let r;
         try {
-          r = await page.evaluate(measurePage, MIN_TOUCH_PX);
+          r = await measure(page);
         } catch (err) {
           if (!/Execution context was destroyed/.test(String(err?.message))) throw err;
           await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
           await page.waitForTimeout(1200);
           if (EXTRA_CSS) await page.addStyleTag({ content: EXTRA_CSS });
-          r = await page.evaluate(measurePage, MIN_TOUCH_PX);
+          r = await measure(page);
         }
         checks++;
         // A route that lands somewhere else is measuring a page it does not
@@ -774,6 +797,22 @@ async function main() {
           );
           console.log(
             `  ✗ ${route} @${vp.name}px — ${r.unreachable.length} clipped, unreachable text run(s): ${r.unreachable[0].shownPct}% of "${r.unreachable[0].text}…" shown`,
+          );
+        } else if (r.brokenWords.length > 0) {
+          // A word cut in two is unreadable, not merely tight: "Di / re / ct /
+          // or / y" is five syllables nobody wrote. Every word is listed,
+          // because the list names the cause — one word is a narrow cell,
+          // all of them is a `break-all` on an ancestor.
+          const words = [...new Set(r.brokenWords)];
+          failures.push(
+            `${route} @${vp.name}: ${words.length} word(s) cut across two lines — ` +
+              words.map((w) => `"${w}"`).join(", "),
+          );
+          console.log(
+            `  ✗ ${route} @${vp.name}px — ${words.length} word(s) cut across two lines: ${words
+              .slice(0, 6)
+              .map((w) => `"${w}"`)
+              .join(", ")}${words.length > 6 ? ", …" : ""}`,
           );
         } else if (httpFailures.length > 0) {
           failures.push(
@@ -855,7 +894,7 @@ async function main() {
     for (const f of failures) console.error(`  - ${f}`);
     process.exit(1);
   }
-  console.log("✓ no horizontal overflow at any tested width");
+  console.log("✓ no horizontal overflow and no cut word at any tested width");
 }
 
 main().catch((e) => {
