@@ -31,7 +31,7 @@ with Loki's read of it (`widget/walk-read.ts`, `/api/widget/understand`):
 a list of what was asked, one change or question per line with where it
 applies, and the asides left out, with the words as spoken one tap away. Each
 change is saved as its own note with only its moments. The owner can also
-start talking from the microphone beside their launcher without opening the
+start talking from the microphone inside their launcher pill without opening the
 panel (`widget/quick-talk.ts`). A question leads with **Ask Loki**, about the whole walk;
 a change is sent — a visitor as **Save feedback**, the owner or an editor as
 **Save** (held out of automatic work) or **Fix it now**. A site-wide finding

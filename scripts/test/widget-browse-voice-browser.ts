@@ -105,7 +105,7 @@ async function main() {
       await page.waitForFunction(
         () => (window as unknown as { Loki?: { ready: boolean } }).Loki?.ready,
       );
-      // Talk without opening Loki: the owner's launcher has a microphone beside
+      // Talk without opening Loki: the owner's launcher has a microphone inside
       // it, and one tap starts recording with the panel still closed.
       const quick = host.locator(".fab-talk");
       if (owner) {
@@ -117,8 +117,11 @@ async function main() {
         const [mic, fab] = [await quick.boundingBox(), await host.locator(".fab").boundingBox()];
         assert(mic && fab, "both on screen");
         assert(
-          mic.x + mic.width <= fab.x || mic.x >= fab.x + fab.width,
-          "beside the launcher, not on it",
+          mic.x >= fab.x - 0.5 &&
+            mic.x + mic.width <= fab.x + fab.width + 0.5 &&
+            mic.y >= fab.y - 0.5 &&
+            mic.y + mic.height <= fab.y + fab.height + 0.5,
+          "inside the launcher's own pill, never a second thing beside it",
         );
         assert(mic.width >= 44 && mic.height >= 44, "a thumb-sized target");
         await quick.click();
