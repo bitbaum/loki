@@ -302,7 +302,7 @@ ${spiralCSS(theme)}
   .backdrop { display: block; position: fixed; inset: 0; z-index: 2147483001; background: rgba(0,0,0,.18); }
   /* Two thirds of the screen at most until they drag it up (sheet.ts): the
      site they are talking about stays in view above it. */
-  .panel { max-height: 68vh; }
+  .panel { max-height: 68vh; } @media (max-height: 700px) { .panel { max-height: 82vh; } .convo > .starters, .talk-hero-sub, .door-sub { display: none; } } .talk-hero { gap: 12px; margin: 0 0 8px; padding: 10px 14px; } .talk-hero-mic { width: 40px; height: 40px; } .talk-hero-mic svg { width: 20px; height: 20px; } /* the sheet is two thirds of a phone: the greeting, the hero and the way in must fit above the box */
   .panel { right: 0; bottom: 0; left: 0; width: 100%; max-width: none; border-radius: 12px 12px 0 0; border-bottom: none;
            padding-bottom: calc(16px + env(safe-area-inset-bottom)); transition: transform .2s ease, height .2s ease; }
   /* The sheet's handle: the grip and the header both drag (sheet.ts). */

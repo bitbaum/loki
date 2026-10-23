@@ -41,7 +41,7 @@ export function ownerDoor(apiBase: string, token: string): HTMLElement {
     h(
       "span",
       "door-sub",
-      "For the owner and the Builders they invited: then what you ask for here is built right away, and you are brought back to this page. No account? You make one on the way.",
+      "Then what you ask for here gets built, and you come back to this page. No account? You make one on the way.",
     ),
   );
   return wrap;
