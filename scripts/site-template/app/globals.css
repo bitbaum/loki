@@ -1,5 +1,8 @@
 @import "@bitbaum/design-tokens/tokens.css";
 @import "tailwindcss";
+@import "@bitbaum/sitekit/styles.css";
+@import "@bitbaum/accountkit/styles.css";
+@import "bip-kit/styles.css";
 @config "../tailwind.config.mjs";
 
 /*
@@ -20,4 +23,40 @@ html {
    reader's system preference before the first paint. */
 html.dark {
   color-scheme: dark;
+}
+
+:root {
+  --sk-bg: hsl(var(--surface-page));
+  --sk-fg: hsl(var(--text-primary));
+  --sk-muted: hsl(var(--text-secondary));
+  --sk-raised: hsl(var(--surface-raised));
+  --sk-line: hsl(var(--border-subtle));
+  --sk-focus: var(--accent-primary);
+  --sk-font: var(--font-sans);
+  --sk-display: var(--font-display);
+  --sk-width: var(--shell-max);
+  --sk-radius: var(--radius-control);
+  --acct-panel: hsl(var(--surface-base));
+  --acct-trigger-bg: hsl(var(--surface-raised));
+  --acct-fg: hsl(var(--text-primary));
+  --acct-fg-2: hsl(var(--text-secondary));
+  --acct-fg-3: hsl(var(--text-tertiary));
+  --acct-line: hsl(var(--border-subtle));
+  --acct-line-2: hsl(var(--border-default));
+  --acct-action: hsl(var(--text-primary));
+  --acct-on-action: hsl(var(--surface-page));
+  --acct-focus: var(--accent-primary);
+}
+
+:root {
+  --bp-bg: hsl(var(--surface-page));
+  --bp-surface: hsl(var(--surface-base));
+  --bp-fg: hsl(var(--text-primary));
+  --bp-fg-muted: hsl(var(--text-secondary));
+  --bp-fg-faint: hsl(var(--text-secondary));
+  --bp-border: hsl(var(--border-subtle));
+  --bp-accent: hsl(var(--text-primary));
+  --bp-font-sans: var(--font-sans);
+  --bp-font-mono: var(--font-mono);
+  --bp-radius: var(--radius-surface);
 }

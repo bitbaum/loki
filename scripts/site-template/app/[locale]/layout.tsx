@@ -1,3 +1,4 @@
+import { SiteMasthead, SiteFooter } from "@bitbaum/sitekit/react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -6,7 +7,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { NavLink } from "@/components/NavLink";
-import { link, shell } from "@/components/ui";
+import { link } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { routing, toLocale } from "@/i18n/routing";
 import { getSession } from "@/lib/auth/session";
@@ -66,53 +67,46 @@ export default async function LocaleLayout({
       </head>
       <body className="flex min-h-screen flex-col bg-surface-page text-fg-primary">
         <NextIntlClientProvider>
-          <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface-raised focus:px-4 focus:py-2"
-          >
-            {nav("skip")}
-          </a>
-          <header className="border-b border-subtle">
-            <div className={`${shell} flex flex-wrap items-center justify-between gap-x-6 py-2`}>
-              <Link
-                href={ROUTES.home}
-                className="inline-flex min-h-11 items-center gap-2.5 text-lg font-semibold"
-              >
+          <SiteMasthead
+            appearance="application"
+            chrome={{ name: SITE.title, tagline: nav("beta"), footerNote: footer("note") }}
+            navItems={[]}
+            currentPath=""
+            mainId="main"
+            skipLabel={nav("skip")}
+            Link={Link}
+            brand={
+              <>
                 {SITE.title}
-                {/* Fleet AGENTS.md: nothing is "Live". Served and unfinished says so. */}
-                <span className="rounded-md border border-subtle px-1.5 py-0.5 font-mono text-[0.625rem] font-normal uppercase tracking-caps text-fg-secondary">
-                  {nav("beta")}
-                </span>
-              </Link>
-              <nav aria-label={nav("label")} className="flex items-center gap-x-4">
+                <span className="text-xs font-normal text-fg-secondary">{nav("beta")}</span>
+              </>
+            }
+            actions={
+              <>
                 <NavLink href={session ? ROUTES.account : ROUTES.signIn} className={link}>
                   {session ? nav("account") : nav("signIn")}
                 </NavLink>
                 <LocaleSwitcher label={nav("language")} />
-              </nav>
-            </div>
-          </header>
+              </>
+            }
+          />
 
           <main id="main" className="flex-1">
             {children}
           </main>
 
-          <footer className="mt-20 border-t border-subtle">
-            <nav
-              aria-label={footer("label")}
-              className={`${shell} flex flex-wrap gap-x-6 py-6 text-sm`}
-            >
-              <NavLink href={ROUTES.roadmap} className={link}>
-                {footer("roadmap")}
-              </NavLink>
-              <NavLink href={ROUTES.changelog} className={link}>
-                {footer("changelog")}
-              </NavLink>
-              <a href={SITE.repo} className={link}>
-                {footer("source")}
-              </a>
-            </nav>
-          </footer>
+          <SiteFooter
+            appearance="application"
+            chrome={{ name: SITE.title, tagline: nav("beta"), footerNote: footer("note") }}
+            Link={Link}
+            label={footer("label")}
+            links={[
+              { href: ROUTES.blog, label: footer("journal") },
+              { href: ROUTES.roadmap, label: footer("roadmap") },
+              { href: ROUTES.changelog, label: footer("changelog") },
+              { href: SITE.repo, label: footer("source") },
+            ]}
+          />
         </NextIntlClientProvider>
 
         {process.env.NEXT_PUBLIC_FC_WIDGET_TOKEN && (

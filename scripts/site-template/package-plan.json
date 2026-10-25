@@ -1,0 +1,47 @@
+{
+  "blocks": {
+    "shell": {
+      "package": "@bitbaum/sitekit",
+      "bindings": [
+        {
+          "file": "app/[locale]/layout.tsx",
+          "symbols": ["SiteMasthead", "SiteFooter"]
+        }
+      ]
+    },
+    "identity": {
+      "package": "@bitbaum/accountkit",
+      "bindings": [
+        {
+          "file": "lib/auth/server.ts",
+          "symbols": ["createAuthRuntime"]
+        },
+        {
+          "file": "components/auth/SignInForm.tsx",
+          "symbols": ["SharedSignInForm"]
+        }
+      ]
+    },
+    "publishing": {
+      "package": "bip-kit",
+      "bindings": [
+        {
+          "file": "components/DevelopmentRecords.tsx",
+          "symbols": ["DevelopmentPage"]
+        },
+        {
+          "file": "app/[locale]/blog/[slug]/page.tsx",
+          "symbols": ["ArticleBody", "ReadingProgress"]
+        }
+      ]
+    },
+    "design": {
+      "package": "@bitbaum/design-tokens",
+      "bindings": [
+        {
+          "file": "app/globals.css"
+        }
+      ]
+    }
+  }
+}

@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
   // The box's launch.sh starts the standalone server.js.
   output: "standalone",
   reactStrictMode: true,
+  outputFileTracingIncludes: { "/*": ["./content/blog/**/*"] },
   // Nothing to gain from telling the internet which framework this is.
   poweredByHeader: false,
   env: { BUILD_COMMIT: buildCommit() },

@@ -35,7 +35,9 @@
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6",
+    "@bitbaum/sitekit": "^0.4.0",
+    "@bitbaum/accountkit": "github:bitbaum/accountkit#4b99dfda73dbcd94869a56b6ac873ec7729971c6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

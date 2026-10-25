@@ -34,3 +34,9 @@ role:grant` changes it. People may be pseudonymous: never require a real name.
   ingests them and `/roadmap` and `/changelog` render the map. A user-facing
   change adds a changelog line in the same pull request.
 - Every secret the app reads is named in `.env.example`.
+
+Before implementing any feature, read Fleet `SHARED.md` and review this product's
+`package-plan.json`. Choose and wire the existing building blocks first; add
+product-specific code only for the domain behavior or a documented package gap.
+Keep shared fixes in their owning package. Shared package composition CI checks
+that adoption is real and that dependency updates remain enabled.
