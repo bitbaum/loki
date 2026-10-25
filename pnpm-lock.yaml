@@ -28,17 +28,17 @@ importers:
         specifier: ^1.11.3
         version: 1.11.3
       '@bitbaum/accountkit':
-        specifier: github:bitbaum/accountkit#v0.2.1
-        version: https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2(react@19.3.1)
+        specifier: github:bitbaum/accountkit#9c8d93ade6945615b5204d8eaad5c717078b7e17
+        version: https://codeload.github.com/bitbaum/accountkit/tar.gz/9c8d93ade6945615b5204d8eaad5c717078b7e17(@bitbaum/mail-kit@0.2.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       '@bitbaum/ai-kit':
-        specifier: ^1.21.0
-        version: 1.21.0(react@19.3.1)
+        specifier: ^1.21.4
+        version: 1.21.4(react@19.3.1)
       '@bitbaum/chatkit':
-        specifier: ^0.15.0
-        version: 0.15.0(react@19.3.1)
+        specifier: ^0.15.3
+        version: 0.15.3(react@19.3.1)
       '@bitbaum/mail-kit':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.2.0
+        version: 0.2.0
       '@bitbaum/searchkit':
         specifier: github:bitbaum/searchkit#v0.2.2
         version: git+https://github.com/bitbaum/searchkit.git#09532b1974c7cb92f38c98decaeed334f3ffea72(react@19.3.1)
@@ -55,7 +55,7 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@19.3.1)
       '@fleet/ai-forms':
-        specifier: npm:ai-forms@^0.1.2
+        specifier: npm:ai-forms@^0.1.3
         version: ai-forms@0.1.3(react@19.3.1)
       '@noble/hashes':
         specifier: ^2.4.0
@@ -106,8 +106,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0
       listkit:
-        specifier: github:bitbaum/listkit#v0.1.0
-        version: https://codeload.github.com/bitbaum/listkit/tar.gz/69cb4f4ef12d6a2a56b56db1bb4d4ac14aced525
+        specifier: github:bitbaum/listkit#cca70801aacbbf5310c976b0610ca469ba869e97
+        version: '@bitbaum/listkit@https://codeload.github.com/bitbaum/listkit/tar.gz/cca70801aacbbf5310c976b0610ca469ba869e97'
       lucide-react:
         specifier: ^1.58.0
         version: 1.58.0(@types/react@19.3.0)(react@19.3.1)
@@ -164,8 +164,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@bitbaum/design-tokens':
-        specifier: 1.1.0
-        version: 1.1.0
+        specifier: github:bitbaum/design-tokens#5c31f48743dabf9294bf9380a15862b4efbc68a0
+        version: https://codeload.github.com/bitbaum/design-tokens/tar.gz/5c31f48743dabf9294bf9380a15862b4efbc68a0
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
@@ -289,6 +289,9 @@ importers:
   packages/agent: {}
 
 packages:
+
+  '@acemir/cssom@0.9.32':
+    resolution: {integrity: sha512-OijrAUu7rrJhSIoHNg6LMPS5e344nwUHA+1EFYYjrh64D+GmytUsfBQjci45TjT+rd5Spsp8B5xsZDT+TgyXXQ==}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -443,15 +446,31 @@ packages:
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2':
-    resolution: {gitHosted: true, integrity: sha512-9gGrlnpu+3semE8KvaVl5AHWBUQ/5F11Ghns6ttkaFNE7j6JU1/fnH2r72nXgFHdR5Q05DcMGKfczndBAiGqiw==, tarball: https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2}
-    version: 0.2.1
+  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/9c8d93ade6945615b5204d8eaad5c717078b7e17':
+    resolution: {gitHosted: true, integrity: sha512-b76dnYb9nc4fuS5KX0UT4Lu5C3OZbQIFKouOPA74s7ZlY748EmTAz6JGHxnJ5Xh6Fw7UZxeFzYDvgKYi7pd8oQ==, tarball: https://codeload.github.com/bitbaum/accountkit/tar.gz/9c8d93ade6945615b5204d8eaad5c717078b7e17}
+    version: 0.6.2
     engines: {node: '>=20'}
     peerDependencies:
+      '@better-auth/passkey': ^1.7.7
+      '@bitbaum/mail-kit': ^0.2.0
+      better-auth: ^1.7.7
+      drizzle-orm: ^0.45.4
+      next: ^16.4.0
       react: '>=18'
+    peerDependenciesMeta:
+      '@better-auth/passkey':
+        optional: true
+      '@bitbaum/mail-kit':
+        optional: true
+      better-auth:
+        optional: true
+      drizzle-orm:
+        optional: true
+      next:
+        optional: true
 
-  '@bitbaum/ai-kit@1.21.0':
-    resolution: {integrity: sha512-eWOsNrv4nyURMOxA9AoUfAZpj2ajuCSG3IK0z94vpPgAbcbkPviNOXGQpV9e01PRfMBP3EBVIrTa0wLN9gT9pQ==}
+  '@bitbaum/ai-kit@1.21.4':
+    resolution: {integrity: sha512-aBK/yh5X74ZPTCURwEznXT5kKbe1GuCc0RUHy+e9v0uVivDERAq67E1LmUpasDZ3G81DB0OdOuIWMjJ+IF6ihA==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
@@ -459,19 +478,21 @@ packages:
       react:
         optional: true
 
-  '@bitbaum/chatkit@0.15.0':
-    resolution: {integrity: sha512-tIGAZXYpKcgkR+vB2hffrnpEklMGYRBFLQo5oCg3cmI1T8APhJ3EBWy+TtqHC8ln+TaDvSrdajOrqMQLpv9ewA==}
+  '@bitbaum/chatkit@0.15.3':
+    resolution: {integrity: sha512-kOj3xYT0VTNVfGppGuUYiFoAYaFsLdsNKdXWrkEvYnBa/UJqSH+3LSmpiI+C9aAyFh1kBlhyrJAxYETltP2/BA==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
       react: '>=18'
 
-  '@bitbaum/design-tokens@1.1.0':
-    resolution: {integrity: sha512-sDVplKP4jKe0WHCOnW7xk75RC46JsAYqUngcVlctyAs9f1TQqZqbYTfbmyYipYCOaCIHMflnzAneQTbqrQbtBw==}
+  '@bitbaum/design-tokens@https://codeload.github.com/bitbaum/design-tokens/tar.gz/5c31f48743dabf9294bf9380a15862b4efbc68a0':
+    resolution: {gitHosted: true, integrity: sha512-+mbpCQtD9yphGFDOIDP0HSRabf/w4loKc0OYd1bfFAr7GBSiVGk7IRzukbKOuxGuH3WVkYgsHM7m2RXiEfKhIA==, tarball: https://codeload.github.com/bitbaum/design-tokens/tar.gz/5c31f48743dabf9294bf9380a15862b4efbc68a0}
+    version: 1.2.0
     engines: {node: '>=20'}
 
-  '@bitbaum/mail-kit@0.1.1':
-    resolution: {integrity: sha512-3JfaeuwkI+8TVGeSDrr8/esaWkv2d7UAcNg1Xu5HHu6k3cBzuSaLGhuzHp0KlAJgGa2QEQIqtE7W1+PosKFOjw==}
+  '@bitbaum/listkit@https://codeload.github.com/bitbaum/listkit/tar.gz/cca70801aacbbf5310c976b0610ca469ba869e97':
+    resolution: {gitHosted: true, integrity: sha512-x8cGms0PaCql7Qd/nC5j1I5/DvgXNBQZnBZ0Gf5mkMBIv5F5zzKYJhq0GqX/4F0utbZN5xtmkxUrq9oXot3cJQ==, tarball: https://codeload.github.com/bitbaum/listkit/tar.gz/cca70801aacbbf5310c976b0610ca469ba869e97}
+    version: 0.2.1
     engines: {node: '>=20'}
 
   '@bitbaum/mail-kit@0.2.0':
@@ -1289,6 +1310,10 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@mozilla/readability@0.6.0':
+    resolution: {integrity: sha512-juG5VWh4qAivzTAeMzvY9xs9HY5rAcr2E4I7tiSSCokRFi7XIZCAu92ZkSTsIj1OPceCifL3cpfteP3pDT9/QQ==}
+    engines: {node: '>=14.0.0'}
 
   '@napi-rs/wasm-runtime@1.2.3':
     resolution: {integrity: sha512-UMduMbqO5s5zF2NkNacMT/yK5Y5QiKvWr2+50bzIIxFDwVJ2h49b+oyjaCGPhJxd2/gC2x39EHv/gHVuu36x2Q==}
@@ -2519,6 +2544,10 @@ packages:
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
     engines: {node: '>=18'}
 
+  boolbase@2.0.0:
+    resolution: {integrity: sha512-DkVaaQHymRhpYEYo9x1oo7Q7B0Y6KJUsjm3c9eTyFDby4MHLBTwZ6ZDWBel5zrYxj1WsZgC5oLpiz+93MluXeA==}
+    engines: {node: '>=20.19.0'}
+
   brace-expansion@1.1.21:
     resolution: {integrity: sha512-9zeA+KLZNNzglF2TPKRQEDyx6Yby7daAkuy8MiPzpXPsYDWi/DRM8jmwUDxokQjYqBpv5DgPiwD4h4ZZSy1Ujw==}
 
@@ -2683,6 +2712,14 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
+
+  css-select@7.0.0:
+    resolution: {integrity: sha512-snmjEVXy+1LnwXdxhYvTMj1d9tOh4HxkA1YmoayVBeeyR2C14Pum7fcxJIm4SswYspVy866eYNwlH6xC3/VH5g==}
+    engines: {node: '>=20.19.0'}
+
+  css-what@8.0.0:
+    resolution: {integrity: sha512-DH0Bqq3DNp5tdOReuNyAA+Ev4Y2GS5FMbZpeTLP6C4CDi0h5nL0BmUPChXw3o/qbHLDWHl49sbNqQVY7bMSDdw==}
+    engines: {node: '>=20.19.0'}
 
   cssesc@3.0.0:
     resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
@@ -2954,18 +2991,34 @@ packages:
   dom-serializer@2.0.0:
     resolution: {integrity: sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==}
 
+  dom-serializer@3.1.1:
+    resolution: {integrity: sha512-4MEa38/QexBob6gFNwu+EGdWvhJ1OKuNwdYY3Y3NyeWDQfnGeDYQUDfIRzWu5B5gsv03so2Uxd28YC6zrsx3Lw==}
+    engines: {node: '>=20.19.0'}
+
   domelementtype@2.3.0:
     resolution: {integrity: sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw==}
+
+  domelementtype@3.0.0:
+    resolution: {integrity: sha512-umCQid3jKbDmVjx8jGaW7uUykm4DEUeyV21hPxNMo2nV955DhUThwqyOIDtreepP31hl84X7G5U9ZfsWvIB3Pg==}
+    engines: {node: '>=20.19.0'}
 
   domhandler@5.0.3:
     resolution: {integrity: sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==}
     engines: {node: '>= 4'}
+
+  domhandler@6.0.1:
+    resolution: {integrity: sha512-gYzvtM72ZtxQO0T048kd6HWSbbGCNOUwcnfQ01cqIJ4X2IYKFFHZ5mKvrQETcFXxsRObZulDaKmy//R7TPtsBg==}
+    engines: {node: '>=20.19.0'}
 
   dompurify@3.4.16:
     resolution: {integrity: sha512-sqo+pNp3qRhCIpbgRi1y8Tgk27Bo2Ry7w0dC1NBeNTdZChWjz9Xb/KOoZbRP/R6pQZ80Qw8YhXw13hWWBbMRnQ==}
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
+
+  domutils@4.0.2:
+    resolution: {integrity: sha512-qI4JLRKnSzqFqr7hAlS5xQDusBCjKSEG4t4+7aNrIQMHBcsC2TGEhuyABJdYkgSewL57PNLYEiibY2iPKhKpaA==}
+    engines: {node: '>=20.19.0'}
 
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
@@ -3116,6 +3169,10 @@ packages:
   entities@7.0.1:
     resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
     engines: {node: '>=0.12'}
+
+  entities@8.1.0:
+    resolution: {integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==}
+    engines: {node: '>=20.19.0'}
 
   es-abstract@1.24.2:
     resolution: {integrity: sha512-2FpH9Q5i2RRwyEP1AylXe6nYLR5OhaJTZwmlcP0dL/+JCbgg7yyEo/sEK6HeGZRf3dFpWwThaRHVApXSkW3xeg==}
@@ -3578,6 +3635,9 @@ packages:
 
   hookified@2.2.0:
     resolution: {integrity: sha512-p/LgFzRN5FeoD3DLS6bkUapeye6E4SI6yJs6KetENd18S+FBthqYq2amJUWpt5z0EQwwHemidjY5OqJGEKm5uA==}
+
+  html-escaper@3.0.3:
+    resolution: {integrity: sha512-RuMffC89BOWQoY0WKGpIhn5gX3iI54O6nRA0yC124NYVtzjmFWBIiFd8M0x+ZdX0P9R4lADg1mgP8C7PxGOWuQ==}
 
   html-to-text@10.0.1:
     resolution: {integrity: sha512-GiVhRI1BatGARSCmlXWNCjDT0cWrwBWoeduLoV0WSKAgaV/wa+hUWy5LiQLUs4UwiUrE52ZCMfBGiKD87TDPrg==}
@@ -4049,13 +4109,17 @@ packages:
     resolution: {integrity: sha512-x05857iOBGf04eRBAXWTtRTrGhRdBfW9fZa8rfJDx3rQNRBVQpwK2z9aiMYNWhRp71QoIjvA0rl4ZiL4+6O8rA==}
     engines: {node: '>=20'}
 
+  linkedom@0.18.14:
+    resolution: {integrity: sha512-BRUnkOm4YR5vo+qI3j0EbungB0vZPSCue5AdnTQRaxAGSbsOZiBFRO0rh4zlo8qXUhli8pxvnpEXDklMnlq2Rg==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      canvas: '>= 2'
+    peerDependenciesMeta:
+      canvas:
+        optional: true
+
   linkify-it@5.0.2:
     resolution: {integrity: sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q==}
-
-  listkit@https://codeload.github.com/bitbaum/listkit/tar.gz/69cb4f4ef12d6a2a56b56db1bb4d4ac14aced525:
-    resolution: {gitHosted: true, integrity: sha512-7SPjMC6YEyKQ1pKE+hlaMtMjmwV8DMCheB3KaRUzSdQ065ZpIj5+BQFTUiv2gDu/d1xfuKDn+dwt4urcwwu9KA==, tarball: https://codeload.github.com/bitbaum/listkit/tar.gz/69cb4f4ef12d6a2a56b56db1bb4d4ac14aced525}
-    version: 0.1.0
-    engines: {node: '>=20'}
 
   loader-runner@4.3.2:
     resolution: {integrity: sha512-DFEqQ3ihfS9blba08cLfYf1NRAIEm+dDjic073DRDc3/JspI/8wYmtDsHwd3+4hwvdxSK7PGaElfTmm0awWJ4w==}
@@ -4340,6 +4404,10 @@ packages:
   npm-run-path@6.0.0:
     resolution: {integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==}
     engines: {node: '>=18'}
+
+  nth-check@3.0.1:
+    resolution: {integrity: sha512-GX0gsdbGVCgnRgbeGaubfjpBXyYRWOOCVeYh08bSQvDZqxz5ndXs1OTfAt/h36G1xvI94YIspsI0sVFqAV9+RQ==}
+    engines: {node: '>=20.19.0'}
 
   oauth4webapi@3.8.6:
     resolution: {integrity: sha512-iwemM91xz8nryHti2yTmg5fhyEMVOkOXwHNqbvcATjyajb5oQxCQzrNOA6uElRHuMhQQTKUyFKV9y/CNyg25BQ==}
@@ -5108,6 +5176,9 @@ packages:
   uc.micro@2.1.0:
     resolution: {integrity: sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A==}
 
+  uhyphen@0.2.0:
+    resolution: {integrity: sha512-qz3o9CHXmJJPGBdqzab7qAYuW8kQGKNEuoHFYrBwV6hWIMcpAmxDLXojcHfFr9US1Pe6zUswEIJIbLI610fuqA==}
+
   unbox-primitive@1.1.0:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
@@ -5298,6 +5369,8 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  '@acemir/cssom@0.9.32': {}
 
   '@alloc/quick-lru@5.2.0': {}
 
@@ -5508,23 +5581,32 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2(react@19.3.1)':
+  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/9c8d93ade6945615b5204d8eaad5c717078b7e17(@bitbaum/mail-kit@0.2.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)':
     dependencies:
+      limitkit: 0.2.0
       react: 19.3.1
+    optionalDependencies:
+      '@bitbaum/mail-kit': 0.2.0
+      drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9)
+      next: 16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
-  '@bitbaum/ai-kit@1.21.0(react@19.3.1)':
+  '@bitbaum/ai-kit@1.21.4(react@19.3.1)':
     dependencies:
+      '@mozilla/readability': 0.6.0
       ai-forms: 0.1.3(react@19.3.1)
+      linkedom: 0.18.14
     optionalDependencies:
       react: 19.3.1
+    transitivePeerDependencies:
+      - canvas
 
-  '@bitbaum/chatkit@0.15.0(react@19.3.1)':
+  '@bitbaum/chatkit@0.15.3(react@19.3.1)':
     dependencies:
       react: 19.3.1
 
-  '@bitbaum/design-tokens@1.1.0': {}
+  '@bitbaum/design-tokens@https://codeload.github.com/bitbaum/design-tokens/tar.gz/5c31f48743dabf9294bf9380a15862b4efbc68a0': {}
 
-  '@bitbaum/mail-kit@0.1.1': {}
+  '@bitbaum/listkit@https://codeload.github.com/bitbaum/listkit/tar.gz/cca70801aacbbf5310c976b0610ca469ba869e97': {}
 
   '@bitbaum/mail-kit@0.2.0': {}
 
@@ -6085,6 +6167,8 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@4.6.7)
     transitivePeerDependencies:
       - supports-color
+
+  '@mozilla/readability@0.6.0': {}
 
   '@napi-rs/wasm-runtime@1.2.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
@@ -7335,6 +7419,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  boolbase@2.0.0: {}
+
   brace-expansion@1.1.21:
     dependencies:
       balanced-match: 1.0.2
@@ -7476,6 +7562,16 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+
+  css-select@7.0.0:
+    dependencies:
+      boolbase: 2.0.0
+      css-what: 8.0.0
+      domhandler: 6.0.1
+      domutils: 4.0.2
+      nth-check: 3.0.1
+
+  css-what@8.0.0: {}
 
   cssesc@3.0.0: {}
 
@@ -7756,11 +7852,23 @@ snapshots:
       domhandler: 5.0.3
       entities: 4.5.0
 
+  dom-serializer@3.1.1:
+    dependencies:
+      domelementtype: 3.0.0
+      domhandler: 6.0.1
+      entities: 8.1.0
+
   domelementtype@2.3.0: {}
+
+  domelementtype@3.0.0: {}
 
   domhandler@5.0.3:
     dependencies:
       domelementtype: 2.3.0
+
+  domhandler@6.0.1:
+    dependencies:
+      domelementtype: 3.0.0
 
   dompurify@3.4.16:
     optionalDependencies:
@@ -7771,6 +7879,12 @@ snapshots:
       dom-serializer: 2.0.0
       domelementtype: 2.3.0
       domhandler: 5.0.3
+
+  domutils@4.0.2:
+    dependencies:
+      dom-serializer: 3.1.1
+      domelementtype: 3.0.0
+      domhandler: 6.0.1
 
   dotenv@16.6.1: {}
 
@@ -7829,6 +7943,8 @@ snapshots:
   entities@4.5.0: {}
 
   entities@7.0.1: {}
+
+  entities@8.1.0: {}
 
   es-abstract@1.24.2:
     dependencies:
@@ -8561,6 +8677,8 @@ snapshots:
 
   hookified@2.2.0: {}
 
+  html-escaper@3.0.3: {}
+
   html-to-text@10.0.1:
     dependencies:
       '@selderee/plugin-htmlparser2': 0.12.0(selderee@0.12.0)
@@ -8985,11 +9103,17 @@ snapshots:
 
   limitkit@0.2.0: {}
 
+  linkedom@0.18.14:
+    dependencies:
+      '@acemir/cssom': 0.9.32
+      css-select: 7.0.0
+      html-escaper: 3.0.3
+      htmlparser2: 10.1.0
+      uhyphen: 0.2.0
+
   linkify-it@5.0.2:
     dependencies:
       uc.micro: 2.1.0
-
-  listkit@https://codeload.github.com/bitbaum/listkit/tar.gz/69cb4f4ef12d6a2a56b56db1bb4d4ac14aced525: {}
 
   loader-runner@4.3.2: {}
 
@@ -9239,6 +9363,10 @@ snapshots:
     dependencies:
       path-key: 4.0.0
       unicorn-magic: 0.3.0
+
+  nth-check@3.0.1:
+    dependencies:
+      boolbase: 2.0.0
 
   oauth4webapi@3.8.6: {}
 
@@ -10157,6 +10285,8 @@ snapshots:
   typescript@6.0.3: {}
 
   uc.micro@2.1.0: {}
+
+  uhyphen@0.2.0: {}
 
   unbox-primitive@1.1.0:
     dependencies:

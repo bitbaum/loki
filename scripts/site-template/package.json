@@ -23,9 +23,9 @@
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.7",
-    "@bitbaum/ai-kit": "^1.20.1",
-    "@bitbaum/design-tokens": "^1.1.0",
-    "@bitbaum/mail-kit": "^0.1.1",
+    "@bitbaum/ai-kit": "^1.21.4",
+    "@bitbaum/design-tokens": "github:bitbaum/design-tokens#5c31f48743dabf9294bf9380a15862b4efbc68a0",
+    "@bitbaum/mail-kit": "^0.2.0",
     "better-auth": "^1.7.7",
     "bip-kit": "^0.6.0",
     "drizzle-orm": "^0.45.4",
