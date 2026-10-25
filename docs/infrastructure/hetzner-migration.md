@@ -216,3 +216,5 @@ until the live receipt matches its expected source and locks.
 caller inputs, captured before runtime app environment is loaded. Local/manual
 deploys without established public scope publish no receipt. Validation uses
 `test-stage-release-receipt.sh` in the existing `test:ops` bundle.
+
+CI downloads runtime environment files into the runner temporary directory and exports their paths through `SELFHOST_ENV_FILE` / `FLEET_ENV_FILE`. `load-build-env.sh` sources shared values first, then application values, and retains the local generated-file fallback. Runtime configuration therefore does not create untracked source files that would invalidate an artifact receipt. Environment contents remain off logs and public receipts.
