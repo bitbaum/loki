@@ -30,12 +30,8 @@ cd "$SRC"
 
 # Build with the runtime env: NEXT_PUBLIC_* is baked at build time, and SSG
 # pages may query the DB — tunnel build-time DB access to the box's Postgres.
-[ -f "$SRC/.env.selfhost.local" ] || { echo "ERROR: $SRC/.env.selfhost.local missing — run gen-env.sh $NAME"; exit 1; }
-# The fleet's shared keys first, then the app's own (which wins), exactly as
-# launch.sh.tmpl reads them at runtime. .env.fleet is pulled from
-# /opt/fleet/env by selfhost-deploy.yml; it is only read here, never uploaded.
-if [ -f "$SRC/.env.fleet" ]; then set -a; source "$SRC/.env.fleet"; set +a; fi
-set -a; source "$SRC/.env.selfhost.local"; set +a
+# CI supplies external runtime paths; local deployments keep generated files.
+source "$HERE/load-build-env.sh" || exit 1
 STAGE=""
 TUNNEL_SOCK=$(mktemp -u /tmp/deploy-tunnel.XXXXXX)
 ssh -o BatchMode=yes -f -N -M -S "$TUNNEL_SOCK" -L 15432:localhost:5432 "$BOX"
@@ -127,8 +123,8 @@ box "set -e
   fi"
 
 if [ "$FORCE_ENV" = "--env" ] || ! box "test -f /opt/$NAME/shared/.env"; then
-  [ -f "$SRC/.env.selfhost.local" ] || { echo "ERROR: $SRC/.env.selfhost.local missing"; exit 1; }
-  scp -o BatchMode=yes "$SRC/.env.selfhost.local" "$BOX:/opt/$NAME/shared/.env"
+  [ -f "$SELFHOST_RUNTIME_ENV_PATH" ] || { echo "ERROR: runtime environment file missing"; exit 1; }
+  scp -o BatchMode=yes "$SELFHOST_RUNTIME_ENV_PATH" "$BOX:/opt/$NAME/shared/.env"
   # Ownership, not just mode. The app sources this file as its unit's User=;
   # a .env it cannot read is a total outage (twice on 2026-08-28), and the
   # correct owner is never in doubt. Assert it here as well as in

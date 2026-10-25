@@ -161,20 +161,25 @@ jobs:
             echo "::error::no runtime .env found on the box for $NAME (looked in shared/ and app/)"
             exit 1
           fi
-          dest="$GITHUB_WORKSPACE/$APP_DIR/.env.selfhost.local"
+          runtime_dir="$RUNNER_TEMP/selfhost-runtime"
+          mkdir -p "$runtime_dir"
+          chmod 700 "$runtime_dir"
+          dest="$runtime_dir/app.env"
+          echo "SELFHOST_ENV_FILE=$dest" >> "$GITHUB_ENV"
           scp -q -o BatchMode=yes "ubuntu@$IP:$src" "$dest"
           chmod 600 "$dest"
           # Count, never a bare "ok": an empty file would otherwise sail through
           # and produce a build with every env var silently undefined.
           vars=$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$dest" || true)
           [ "${vars:-0}" -gt 0 ] || { echo "::error::$src has no variables"; exit 1; }
-          echo "pulled $src → $APP_DIR/.env.selfhost.local ($vars variables)"
+          echo "pulled runtime environment outside source checkout ($vars variables)"
           # The fleet's shared keys (scripts/hetzner/fleet-env.sh), for the
           # build to read before the app's own env, as the runtime does.
           if ssh -o BatchMode=yes "ubuntu@$IP" "test -f /opt/fleet/env"; then
-            scp -q -o BatchMode=yes "ubuntu@$IP:/opt/fleet/env" "$GITHUB_WORKSPACE/$APP_DIR/.env.fleet"
-            chmod 600 "$GITHUB_WORKSPACE/$APP_DIR/.env.fleet"
-            echo "pulled /opt/fleet/env → $APP_DIR/.env.fleet ($(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$GITHUB_WORKSPACE/$APP_DIR/.env.fleet" || true) shared keys)"
+            scp -q -o BatchMode=yes "ubuntu@$IP:/opt/fleet/env" "$runtime_dir/shared.env"
+            chmod 600 "$runtime_dir/shared.env"
+            echo "FLEET_ENV_FILE=$runtime_dir/shared.env" >> "$GITHUB_ENV"
+            echo "pulled shared environment outside source checkout ($(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$runtime_dir/shared.env" || true) shared keys)"
           fi
 
       # The fleet is mixed: eight apps are npm, four are pnpm. Detect from the
