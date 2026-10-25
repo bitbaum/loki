@@ -34,8 +34,8 @@ importers:
         specifier: ^1.21.0
         version: 1.21.0(react@19.3.1)
       '@bitbaum/chatkit':
-        specifier: ^0.15.0
-        version: 0.15.0(react@19.3.1)
+        specifier: ^0.15.2
+        version: 0.15.2(react@19.3.1)
       '@bitbaum/mail-kit':
         specifier: ^0.1.1
         version: 0.1.1
@@ -459,8 +459,8 @@ packages:
       react:
         optional: true
 
-  '@bitbaum/chatkit@0.15.0':
-    resolution: {integrity: sha512-tIGAZXYpKcgkR+vB2hffrnpEklMGYRBFLQo5oCg3cmI1T8APhJ3EBWy+TtqHC8ln+TaDvSrdajOrqMQLpv9ewA==}
+  '@bitbaum/chatkit@0.15.2':
+    resolution: {integrity: sha512-40H3i+Ny6Ze6P2ksU7DG3DQCjR1MGSK0x6iNwyFTM/D2JZWTeRm7GmnKIJm5yOt0r9J2XMZRg0sf8Ks1LbrXyw==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -5518,7 +5518,7 @@ snapshots:
     optionalDependencies:
       react: 19.3.1
 
-  '@bitbaum/chatkit@0.15.0(react@19.3.1)':
+  '@bitbaum/chatkit@0.15.2(react@19.3.1)':
     dependencies:
       react: 19.3.1
 
