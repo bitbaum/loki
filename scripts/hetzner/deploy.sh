@@ -15,6 +15,10 @@ source "$HERE/lib.sh"
 
 app_lookup "${1:?usage: deploy.sh <app> [--env]}"
 FORCE_ENV="${2:-}"
+# Receipt scope comes from the deployment caller, before app runtime env is read.
+readonly receipt_public_scope="${FLEET_RECEIPT_PUBLIC:-}"
+readonly receipt_producer_root="${FLEET_RECEIPT_ROOT:-}"
+readonly receipt_repository="${FLEET_RECEIPT_REPO:-}"
 # apps.conf records the LAPTOP checkout path. A CI runner has the same repo at a
 # different path, so REPO_OVERRIDE re-points just that field — name/port/domains/
 # app_dir/db still come from the manifest, which stays the single source of truth.
@@ -87,6 +91,12 @@ cp -r "$ST"/. "$STAGE/"
 NEST=$(cd "$STAGE" && find . -maxdepth 4 -name server.js -not -path '*node_modules*' | head -1 | xargs dirname)
 cp -r "$SRC/.next/static" "$STAGE/$NEST/.next/static"
 [ -d "$SRC/public" ] && cp -r "$SRC/public" "$STAGE/$NEST/public"
+
+# Fleet owns artifact parsing. Stamp the exact staged output, including nested
+# standalone servers, before rsync and the atomic release swap.
+FLEET_RECEIPT_PUBLIC="$receipt_public_scope" FLEET_RECEIPT_ROOT="$receipt_producer_root" \
+  FLEET_RECEIPT_REPO="$receipt_repository" \
+  bash "$HERE/stage-release-receipt.sh" "$REPO" "$SRC" "$STAGE/$NEST"
 
 # ── Releases layout (rollback-able deploys) ─────────────────────────────────
 # /opt/<name>/shared/{.env,launch.sh}        persistent box-side files

@@ -192,3 +192,27 @@ manifest repos + loki) backgrounds the standalone build + rsync +
 restart; logs in /tmp/push-deploy-<app>.log. The deploy builds the working
 tree being pushed from. Husky repos get the block in .husky/pre-push,
 plain repos in .git/hooks/pre-push.
+
+
+## Shared package release receipts
+
+The shared self-host workflow establishes repository visibility and fetches
+Fleet's receipt producer. `scripts/hetzner/deploy.sh` then calls
+`scripts/hetzner/stage-release-receipt.sh` after assembling standalone/static/public
+output and before rsync. The receipt lives beside the actual staged server at
+`public/.well-known/fleet-release.json`, including nested standalone projects.
+
+Fleet owns artifact parsing and the receipt contract:
+[release-receipt.mjs](https://github.com/bitbaum/fleet/blob/main/scripts/ci/release-receipt.mjs).
+The producer checks the clean checkout, exact commit, locked artifacts and
+installed versions. Public receipts contain only first-party package metadata;
+private or unknown repository visibility omits the public file. Missing or
+failed generation removes stale staged receipts and reports that promotion has
+no proof. Existing application health/rollback behavior remains authoritative for
+shipping; a configured Fleet receipt gate separately holds package promotion
+until the live receipt matches its expected source and locks.
+
+`FLEET_RECEIPT_PUBLIC`, `FLEET_RECEIPT_ROOT` and `FLEET_RECEIPT_REPO` are deployment
+caller inputs, captured before runtime app environment is loaded. Local/manual
+deploys without established public scope publish no receipt. Validation uses
+`test-stage-release-receipt.sh` in the existing `test:ops` bundle.
