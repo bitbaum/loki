@@ -17,8 +17,12 @@ if [ ! -f "$receipt_producer" ] || [ -z "${FLEET_RECEIPT_REPO:-}" ]; then
   echo "::warning::Release receipt producer unavailable; deployment has no artifact receipt."
   exit 0
 fi
-if ! node "$receipt_producer" --public --root "$receipt_repo_root" \
-  --dir "$receipt_project_root" --repo "$FLEET_RECEIPT_REPO" --output "$receipt_target"; then
+receipt_args=(--public --root "$receipt_repo_root" --dir "$receipt_project_root" \
+  --repo "$FLEET_RECEIPT_REPO" --output "$receipt_target")
+if [ -n "${FLEET_RECEIPT_PROJECTS:-}" ]; then
+  receipt_args+=(--projects "$FLEET_RECEIPT_PROJECTS")
+fi
+if ! node "$receipt_producer" "${receipt_args[@]}"; then
   rm -f "$receipt_target"
   echo "::warning::Release receipt could not be established; package promotion must remain held."
 fi

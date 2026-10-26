@@ -9,8 +9,8 @@ receipt="$fixture/stage/apps/web/public/.well-known/fleet-release.json"
 cat > "$fixture/producer/scripts/ci/release-receipt.mjs" <<'JS'
 import { writeFileSync } from 'node:fs';
 const args = process.argv.slice(2);
-const option = key => args[args.indexOf(key) + 1];
-writeFileSync(option('--output'), JSON.stringify({ root: option('--root'), project: option('--dir'), repo: option('--repo'), public: args.includes('--public') }));
+const option = key => args.includes(key) ? args[args.indexOf(key) + 1] : null;
+writeFileSync(option('--output'), JSON.stringify({ root: option('--root'), project: option('--dir'), repo: option('--repo'), projects: option('--projects') ?? null, public: args.includes('--public') }));
 JS
 run() { bash "$here/stage-release-receipt.sh" "$fixture/source checkout" "$fixture/source checkout/apps/web" "$fixture/stage/apps/web"; }
 export FLEET_RECEIPT_PUBLIC=true
@@ -23,7 +23,16 @@ assert.equal(result.root, process.argv[3]);
 assert.equal(result.project, process.argv[3] + '/apps/web');
 assert.equal(result.repo, 'bitbaum/example');
 assert.equal(result.public, true);
+assert.equal(result.projects, null);
 JS
+export FLEET_RECEIPT_PROJECTS='apps/web,packages/ai'
+run
+node - "$receipt" <<'JS'
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+assert.equal(JSON.parse(fs.readFileSync(process.argv[2])).projects, 'apps/web,packages/ai');
+JS
+unset FLEET_RECEIPT_PROJECTS
 for visibility in false unknown ''; do
   printf '{"old":"must not remain"}\n' > "$receipt"
   export FLEET_RECEIPT_PUBLIC="$visibility"
