@@ -53,6 +53,11 @@ on:
         required: false
         type: string
         default: ""
+      receipt-visibility:
+        description: "Whether this app's deployed release receipt is public: auto, public, or private"
+        required: false
+        type: string
+        default: auto
     secrets:
       HETZNER_SSH_PRIVATE_KEY:
         required: true
@@ -383,15 +388,9 @@ jobs:
         id: receipt
         env:
           GH_TOKEN: ${{ github.token }}
+          TOOLING: ${{ steps.app.outputs.tooling }}
         run: |
-          set -euo pipefail
-          visibility=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private' 2>/dev/null || true)
-          if [ "$visibility" != "false" ]; then
-            echo "public=false" >> "$GITHUB_OUTPUT"
-            echo "Public receipt omitted: repository visibility is private or unavailable."
-            exit 0
-          fi
-          echo "public=true" >> "$GITHUB_OUTPUT"
+          bash "$TOOLING/receipt-visibility.sh" "${{ inputs.receipt-visibility }}" "$GITHUB_REPOSITORY"
           producer="$RUNNER_TEMP/fleet-release-receipt"
           if git clone --quiet --depth 1 https://github.com/bitbaum/fleet.git "$producer" && [ -f "$producer/scripts/ci/release-receipt.mjs" ]; then
             echo "root=$producer" >> "$GITHUB_OUTPUT"
