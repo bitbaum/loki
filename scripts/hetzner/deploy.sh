@@ -19,6 +19,7 @@ FORCE_ENV="${2:-}"
 readonly receipt_public_scope="${FLEET_RECEIPT_PUBLIC:-}"
 readonly receipt_producer_root="${FLEET_RECEIPT_ROOT:-}"
 readonly receipt_repository="${FLEET_RECEIPT_REPO:-}"
+readonly receipt_projects="${FLEET_RECEIPT_PROJECTS:-}"
 # apps.conf records the LAPTOP checkout path. A CI runner has the same repo at a
 # different path, so REPO_OVERRIDE re-points just that field — name/port/domains/
 # app_dir/db still come from the manifest, which stays the single source of truth.
@@ -92,6 +93,7 @@ cp -r "$SRC/.next/static" "$STAGE/$NEST/.next/static"
 # standalone servers, before rsync and the atomic release swap.
 FLEET_RECEIPT_PUBLIC="$receipt_public_scope" FLEET_RECEIPT_ROOT="$receipt_producer_root" \
   FLEET_RECEIPT_REPO="$receipt_repository" \
+  FLEET_RECEIPT_PROJECTS="$receipt_projects" \
   bash "$HERE/stage-release-receipt.sh" "$REPO" "$SRC" "$STAGE/$NEST"
 
 # ── Releases layout (rollback-able deploys) ─────────────────────────────────

@@ -48,6 +48,11 @@ on:
         required: false
         type: string
         default: ""
+      receipt-projects:
+        description: "Comma-separated workspace importers included in the public package receipt"
+        required: false
+        type: string
+        default: ""
     secrets:
       HETZNER_SSH_PRIVATE_KEY:
         required: true
@@ -400,6 +405,7 @@ jobs:
           FLEET_RECEIPT_PUBLIC: ${{ steps.receipt.outputs.public }}
           FLEET_RECEIPT_ROOT: ${{ steps.receipt.outputs.root }}
           FLEET_RECEIPT_REPO: ${{ github.repository }}
+          FLEET_RECEIPT_PROJECTS: ${{ inputs.receipt-projects }}
           REPO_OVERRIDE: ${{ github.workspace }}
           TOOLING: ${{ steps.app.outputs.tooling }}
         run: bash "$TOOLING/deploy.sh" "${{ inputs.app }}"
