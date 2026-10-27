@@ -31,6 +31,7 @@ import { startWatcher } from "../home/watcher";
 import { homedir } from "os";
 import { enableTabMemory, restoreTabs } from "../desktop/src/main/tab-memory";
 import { isPtyBacked, launchAgentPty } from "../desktop/src/main/pty-runtime";
+import { openShellPty } from "../desktop/src/main/shell-runtime";
 import { newestLog } from "../desktop/src/main/transcript-streamer";
 
 /**
@@ -120,7 +121,9 @@ function main(): void {
     isLive: isPtyBacked,
     // Codex finds its own newest conversation in the folder (resumeLatest).
     launch: (tab, dir, agent, sessionId) =>
-      launchAgentPty(tab, dir, agent, undefined, sessionId, agent === "codex"),
+      agent === "shell"
+        ? openShellPty(tab, { restored: true })
+        : launchAgentPty(tab, dir, agent, undefined, sessionId, agent === "codex"),
     sessionFor: async (dir) => {
       const log = await newestLog(dir);
       return log

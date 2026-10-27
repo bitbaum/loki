@@ -28,7 +28,7 @@ export class LocalPtyExecutor extends PtyExecutor {
       rows: spec.rows ?? 32,
       // On the box an allowlist (agent-env.ts); elsewhere the inheritance a
       // laptop expects.
-      env: agentEnvironment(process.env, spec.env),
+      env: agentEnvironment(process.env, spec.env, { plainShell: spec.plainShell }),
     });
     return { pty, meta: undefined };
   }

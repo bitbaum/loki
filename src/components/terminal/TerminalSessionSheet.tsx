@@ -50,6 +50,7 @@ export function TerminalSessionSheet({
   onSelectTab,
   onCloseTab,
   onNewSession,
+  onNewShell,
   agents,
   activeAgentId,
   onSwitchAgent,
@@ -67,6 +68,8 @@ export function TerminalSessionSheet({
   onCloseTab?: (id: string) => void;
   /** Opens the start-a-session sheet; omitted where nothing can start. */
   onNewSession?: () => void;
+  /** Opens a plain shell on this builder; omitted for anyone it is not for. */
+  onNewShell?: () => void;
   agents: AgentEntry[];
   activeAgentId: string | null;
   onSwitchAgent: (agentId: string) => void;
@@ -155,8 +158,20 @@ export function TerminalSessionSheet({
                   }}
                 />
               )}
+              {onNewShell && (
+                <ListRow
+                  icon={SquareTerminal}
+                  title="Plain shell"
+                  secondary="A command line on the server. No project, no agent."
+                  label="Open a plain shell"
+                  onClick={() => {
+                    onClose();
+                    onNewShell();
+                  }}
+                />
+              )}
             </List>
-            {tabs.length === 0 && !onNewSession && (
+            {tabs.length === 0 && !onNewSession && !onNewShell && (
               <p className="ui-sheet-empty">Nothing is open here yet.</p>
             )}
           </Section>

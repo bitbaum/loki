@@ -94,6 +94,14 @@ export type TabPayload = {
   channel?: RunnerChannel;
 };
 
+/** A plain shell (lib/shell-session.ts). The tab is minted by the server. */
+export type OpenShellPayload = {
+  tab: string;
+  channel: RunnerChannel;
+  cols?: number;
+  rows?: number;
+};
+
 export type LaunchAgentPayload = {
   tab: string;
   /** Optional runner target. When set, only that builder channel may claim it. */

@@ -28,6 +28,9 @@ export interface WorkspaceSpec {
   args?: string[];
   /** Extra environment for the agent process. */
   env?: Record<string, string>;
+  /** A plain shell (lib/shell-session.ts), not an agent: no engine keys in its
+   *  environment. */
+  plainShell?: boolean;
   /** Initial PTY size. */
   cols?: number;
   rows?: number;

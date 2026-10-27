@@ -1,5 +1,6 @@
 import type { TerminalContext } from "@/app/api/terminal/context/route";
 import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
+import { isShellTab } from "@/lib/shell-session";
 
 /** 2 for a project's first extra session, 3 for the next, in the order the
  *  runner reports them (oldest first), so a number does not jump when the
@@ -33,6 +34,9 @@ export function buildStripTabs(
   const projectOf = (tab: string) =>
     context?.tabs.find((t) => t.tab === tab)?.projectName ?? baseProjectKey(tab);
   const pinned = new Set(layout.pinned);
+  // A plain shell is not a project's session: it reads "Shell", numbered when
+  // there is more than one, in the order the builder reports them.
+  const shells = tabs.filter(isShellTab);
   return arrangeTabs(tabs, layout, projectOf).map((tab) => {
     const ctx = context?.tabs.find((t) => t.tab === tab);
     const badge = ctx?.liveAgents.length ? ctx.liveAgents.join("+") : undefined;
@@ -43,7 +47,8 @@ export function buildStripTabs(
     // anything. The full alias stays in the tooltip.
     const name = readableTabName(project);
     const derived = isDerivedRunTab(tab) ? `${name} ${laneNumber(tabs, tab)}` : name;
-    const label = aliases[tab] ?? derived;
+    const shellLabel = shells.length > 1 ? `Shell ${shells.indexOf(tab) + 1}` : "Shell";
+    const label = aliases[tab] ?? (isShellTab(tab) ? shellLabel : derived);
     return {
       id: tab,
       label,

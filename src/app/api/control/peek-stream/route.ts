@@ -19,7 +19,11 @@ import { enqueuePeekCommand } from "@/db/queries/pending-commands";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
 import { getExecutionAccess } from "@/lib/execution-access";
 import { SSE_KEEPALIVE_MS } from "@/lib/constants/time";
+import { NextResponse } from "next/server";
 import { z } from "@/lib/api/route-helpers";
+import { isShellTab, SHELL_IDLE_MS } from "@/lib/shell-session";
+import { requireShellAccess, refusalResponse } from "@/lib/shell-access";
+import { lastShellActivity } from "@/lib/shell-activity";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +52,16 @@ export async function GET(req: NextRequest) {
   const runnerChannel: RunnerChannel | undefined = channelParam.success
     ? channelParam.data
     : undefined;
-  if (runnerChannel === "cloud") {
+  // A plain shell's screen is the operator's, unlocked, and nobody else's —
+  // checked on the session, not on a bearer token an agent could hold.
+  const shell = isShellTab(tab);
+  if (shell) {
+    if (!runnerChannel) return refusalResponse("no-channel", 400);
+    const caller = await requireShellAccess(req, { needUnlock: true, channel: runnerChannel, tab });
+    if (caller instanceof NextResponse) return caller;
+  }
+  const openedAt = Date.now();
+  if (runnerChannel === "cloud" && !shell) {
     const access = await getExecutionAccess(userId);
     if (!access.cloudBuilderAllowed) {
       return new Response(JSON.stringify({ error: "Cloud builder is private for this account." }), {
@@ -89,10 +102,10 @@ export async function GET(req: NextRequest) {
       const onFrame = (payload: PeekFrame) => send(sseEvent("frame", payload));
       sseBus.on(channel, onFrame);
 
-      const keepalive = setInterval(() => send(": keepalive\n\n"), SSE_KEEPALIVE_MS);
-
-      // Cleanup on disconnect — last viewer stops the runner's loop.
-      req.signal.addEventListener("abort", () => {
+      let ended = false;
+      const end = () => {
+        if (ended) return;
+        ended = true;
         clearInterval(keepalive);
         sseBus.off(channel, onFrame);
         if (removePeekViewer(userId, tab, runnerChannel)) {
@@ -106,7 +119,20 @@ export async function GET(req: NextRequest) {
         } catch {
           /* already closed */
         }
-      });
+      };
+      const keepalive = setInterval(() => {
+        // A shell nobody has typed into for SHELL_IDLE_MS stops showing itself:
+        // the stream ends and the screen asks for the PIN again.
+        if (shell && Date.now() - (lastShellActivity(userId) ?? openedAt) > SHELL_IDLE_MS) {
+          send(sseEvent("locked", { tab }));
+          end();
+          return;
+        }
+        send(": keepalive\n\n");
+      }, SSE_KEEPALIVE_MS);
+
+      // Cleanup on disconnect — last viewer stops the runner's loop.
+      req.signal.addEventListener("abort", end);
     },
   });
 

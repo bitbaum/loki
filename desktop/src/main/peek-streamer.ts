@@ -17,6 +17,7 @@
 // gets one informational frame and no polling loop.
 
 import { executor } from '@/lib/agent-execution'
+import { isShellTab } from '@/lib/shell-session'
 import { isPtyBacked, peekPtyBuffer, runnerWorkspaceId } from './pty-runtime'
 import { startTranscript, stopAllTranscripts, stopTranscript } from './transcript-streamer'
 
@@ -50,7 +51,8 @@ async function postFrame(
 export function startPeek(base: string, token: string, tab: string): void {
   // The conversation view rides the same viewer lifecycle as the terminal:
   // every peek_start re-sends its snapshot, peek_stop ends both.
-  startTranscript(base, token, tab)
+  // A shell has no conversation to read.
+  if (!isShellTab(tab)) startTranscript(base, token, tab)
   if (streams.has(key(tab))) {
     // A new SSE viewer joined an already-streamed tab. The cloud fanout does
     // not retain frames, so replay the current screen for this viewer instead

@@ -40,10 +40,17 @@ export interface TerminalTransport {
   sendResize: (cols: number, rows: number) => void;
 }
 
+/** A write the server refused; `status` 403 on a shell means it locked. */
+export class SessionInputError extends Error {
+  constructor(readonly status: number) {
+    super(`Session input failed (HTTP ${status})`);
+  }
+}
+
 /** Input callers must know when a message did not reach the session. */
 const post = async (url: string, body: unknown): Promise<void> => {
   const response = await postJson(url, body);
-  if (!response.ok) throw new Error(`Session input failed (HTTP ${response.status})`);
+  if (!response.ok) throw new SessionInputError(response.status);
 };
 
 /**
@@ -84,8 +91,23 @@ export function workspaceTransport(id: string): TerminalTransport {
  * (reset+repaint frames). Input/resize ride the rawkey fast
  * lane (/api/control/tab-inject-raw → bridge → runner PTY).
  */
-export function runnerTransport(tab: string, channel?: BuilderChannel): TerminalTransport {
+export function runnerTransport(
+  tab: string,
+  channel?: BuilderChannel,
+  /** A plain shell passes this: the server said the shell is locked (the stream
+   *  ended on idle, a keystroke was refused, the stream could not open). The
+   *  screen re-asks the server and shows the PIN form if so. */
+  onLocked?: () => void,
+): TerminalTransport {
   const ch = channel ?? undefined;
+  const guarded = async (send: () => Promise<void>) => {
+    try {
+      await send();
+    } catch (e) {
+      if (onLocked && e instanceof SessionInputError && e.status === 403) onLocked();
+      throw e;
+    }
+  };
   return {
     key: `runner:${channel ?? "any"}:${tab}`,
     convertEol: true,
@@ -108,16 +130,26 @@ export function runnerTransport(tab: string, channel?: BuilderChannel): Terminal
           /* ignore malformed frame */
         }
       });
-      es.onerror = () => h.onConnected(false);
+      es.addEventListener("locked", () => {
+        h.onConnected(false);
+        es.close();
+        onLocked?.();
+      });
+      es.onerror = () => {
+        h.onConnected(false);
+        onLocked?.();
+      };
       return () => es.close();
     },
     sendKey: (data) =>
-      post("/api/control/tab-inject-raw", {
-        kind: "key",
-        tab,
-        data,
-        ...(ch ? { channel: ch } : {}),
-      }),
+      guarded(() =>
+        post("/api/control/tab-inject-raw", {
+          kind: "key",
+          tab,
+          data,
+          ...(ch ? { channel: ch } : {}),
+        }),
+      ),
     sendResize: (cols, rows) =>
       void post("/api/control/tab-inject-raw", {
         kind: "resize",

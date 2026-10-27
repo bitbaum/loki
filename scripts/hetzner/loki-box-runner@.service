@@ -41,6 +41,8 @@ Environment=PATH=/home/lk-%i/.local/bin:/home/lk-%i/.npm-global/bin:/usr/local/b
 Environment=NODE_ENV=production
 Environment=LOKI_BOX_PREPARE=true
 Environment=LOKI_AGENT_ENV=allowlist
+# A tenant never gets a plain shell (src/lib/shell-session.ts runnerOffersShell).
+Environment=LOKI_SHELL=off
 Environment=LOKI_BOX_DEV_ROOT=/home/lk-%i/dev
 Environment=LOKI_RUNNER_PRESENCE_CHANNEL=cloud
 Environment=LOKI_WEB_URL=https://loki.orangecat.ch

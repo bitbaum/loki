@@ -40,11 +40,20 @@ import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMoreSheet } from "./TerminalMoreSheet";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { TerminalMobileDock } from "./TerminalMobileDock";
-import { TerminalLokiRail } from "./TerminalLokiRail";
+import { TerminalLokiRailSlot } from "./TerminalLokiRailSlot";
 import { buildStripTabs, agentName } from "./terminal-strip-tabs";
 import { SESSION_STATUS_WORDS } from "@/lib/terminal-session-status";
 import { TerminalAgentTabs } from "./TerminalAgentTabs";
 import { runnerTransport } from "./terminal-transport";
+import { usePlainShell } from "./use-plain-shell";
+import {
+  ShellBanner,
+  ShellEntryRows,
+  ShellKeys,
+  ShellLockedPanel,
+  ShellPinSheet,
+} from "./PlainShell";
+import { isShellTab } from "@/lib/shell-session";
 import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalOfflineActions } from "./TerminalOfflineActions";
 import { cloudBuilderState } from "@/lib/builder-way-forward";
@@ -54,11 +63,10 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { ChoiceMenu } from "@/components/ui/choice-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { projectTitle } from "@/lib/project-display";
-import { useTerminalView } from "./use-terminal-view";
 import { useScreenSuggestions } from "./use-screen-suggestions";
 import { TerminalActions } from "./TerminalActions";
 import { useTerminalTabs } from "./use-terminal-tabs";
-import { activeAgentFor } from "./terminal-agent";
+import { useSessionAgent } from "./use-session-agent";
 import { useTerminalTabActions } from "./use-terminal-tab-actions";
 
 /** Per-source copy. Cloud and machine differ only in wording, so the strings
@@ -367,6 +375,7 @@ export function TerminalSurface({
   // needing an effect that triggers cascading renders.
   const [userSelection, setUserSelection] = useState<string | null>(null);
   const selected = userSelection ?? resolvedInitialTab;
+  const plainShell = usePlainShell(channel, tabs, setUserSelection);
   // A ?tab= deep link that matched nothing must not quietly attach to whatever
   // else is running — see resolveTabAttachment for the incident this encodes.
   // But only show the miss UI after we've checked both sources (auto-switch above).
@@ -387,17 +396,21 @@ export function TerminalSurface({
   // The terminal is one of the four project surfaces, so the tab you are
   // watching IS the fleet's active project — Control, Loki and the project
   // profile follow you here instead of resetting.
+  const isShell = isShellTab(activeTab);
   useEffect(() => {
-    if (activeTab) rememberFleetProject(activeTab);
-  }, [activeTab]);
+    if (activeTab && !isShell) rememberFleetProject(activeTab);
+  }, [activeTab, isShell]);
 
   // One transport per attached session, shared by the view that renders it and
   // the key deck that writes into it. Both need the same PTY; making it here
   // rather than inline at the view keeps "which session am I typing into"
   // impossible to get wrong.
   const transport = useMemo(
-    () => (activeTab ? runnerTransport(activeTab, channel) : null),
-    [activeTab, channel],
+    () =>
+      activeTab
+        ? runnerTransport(activeTab, channel, isShell ? plainShell.recheck : undefined)
+        : null,
+    [activeTab, channel, isShell, plainShell.recheck],
   );
   // Awaited chunk-by-chunk: /api/control/tab-inject-raw caps one write at 4000
   // bytes, and the composer will happily hand over a pasted paragraph. Sending
@@ -447,39 +460,27 @@ export function TerminalSurface({
     initialPrompt ? { text: initialPrompt, nonce: 1 } : null,
   );
   const [keysOpen, setKeysOpen] = useState(false);
+  const canOpenShell = Boolean(plainShell.status?.allowed) && !gatedMessage && !offline;
+  const shellLocked = isShell && plainShell.status !== null && !plainShell.status.unlocked;
   // The attached session's rendered screen, for the rail's AI summary.
   const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
 
   const honesty = terminalHonesty({ source, gatedMessage, presence, tabs, local });
 
-  // Agent roster derived from context (already fetched above for tab resolution)
-  const agents = useMemo(
-    () => (context?.agents.agents ?? []).filter((a) => a.switchable),
-    [context],
-  );
-  const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
-  // The agent RUNNING in the tab, not the one the project prefers: see
-  // terminal-agent.ts. The switcher label, the Claude | Terminal toggle and the
-  // chat view all hang off this.
-  const activeAgentId = activeAgentFor({
-    liveAgents: tabContext?.liveAgents ?? [],
-    rosterIds: (context?.agents.agents ?? []).map((a) => a.id),
-    pref: tabContext?.agentPref,
-    fallback: context?.agents.defaultAgent,
-  });
-  const termView = useTerminalView(activeAgentId);
+  const { agents, tabContext, activeAgentId, termView } = useSessionAgent(context, activeTab);
   // Sessions whose builder never sends the conversation: shown as the terminal
   // and offered no conversation toggle, without touching the saved preference
   // (the next session, on a newer runner, still opens as a conversation).
   const [noTranscript, setNoTranscript] = useState<ReadonlySet<string>>(() => new Set());
   const transcriptMissing = activeTab !== null && noTranscript.has(activeTab);
-  const chatAvailable = termView.chatAvailable && !transcriptMissing;
-  const view = transcriptMissing ? "terminal" : termView.view;
-  const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
+  const chatAvailable = termView.chatAvailable && !transcriptMissing && !isShell;
+  const view = transcriptMissing || isShell ? "terminal" : termView.view;
+  // A shell has no project: no Loki rail, no fleet context, no screen read by a model.
+  const projectKey = isShell ? null : (tabContext?.projectName ?? activeTab ?? initialTab ?? null);
   const screenNext = useScreenSuggestions(
     readScreenRef,
-    Boolean(activeTab) && view === "terminal",
+    Boolean(activeTab) && view === "terminal" && !isShell,
     projectKey,
     false,
     activeAgentId,
@@ -526,7 +527,7 @@ export function TerminalSurface({
     source === "shell"
       ? "Shell"
       : (activeStrip?.label ?? (activeTab ? projectTitle({ name: activeTab }) : "Sessions"));
-  const agentShown = source === "shell" || !activeTab ? null : activeAgentId;
+  const agentShown = source === "shell" || !activeTab || isShell ? null : activeAgentId;
   const headerAgent =
     agentShown && agentName(activeStrip?.badge, context?.agents.agents, agentShown);
   const headerState: TerminalLiveState = !activeTab && source !== "shell" ? "idle" : liveState;
@@ -557,25 +558,19 @@ export function TerminalSurface({
   // New element per call — never reuse one descriptor in the split AND the sheet.
   const renderLokiRail = (presentation: "rail" | "sheet") =>
     projectKey ? (
-      <TerminalLokiRail
+      <TerminalLokiRailSlot
         presentation={presentation}
-        key={`${projectKey}:${initialRunId ?? "latest"}:${channel}`}
         project={projectKey}
-        tab={activeTab}
+        channel={channel}
         runId={initialRunId}
+        tab={activeTab}
         ptyState={liveState}
         projectId={tabContext?.projectId ?? null}
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void ta.switchAgent(id)}
         readScreenRef={readScreenRef}
-        // Loki's panel only ASKS: the session box under the terminal is where
-        // words for the agent go, in both views. A summary's step lands there.
-        askOnly
-        explain={explainer}
-        onStep={(text) => {
-          setSessionDraft({ text, nonce: Date.now() });
-          explainer.setSheetOpen(false);
-        }}
+        explainer={explainer}
+        setDraft={setSessionDraft}
         agent={activeAgentId}
         onKey={activeTab ? sendKey : undefined}
       />
@@ -618,7 +613,8 @@ export function TerminalSurface({
           ? () => setNewSessionOpen(true)
           : undefined
       }
-      agents={agents}
+      onNewShell={source !== "shell" && canOpenShell ? plainShell.start : undefined}
+      agents={isShell ? [] : agents}
       activeAgentId={activeAgentId}
       onSwitchAgent={(id) => void ta.switchAgent(id)}
       switchingAgent={ta.switchingAgent}
@@ -632,8 +628,9 @@ export function TerminalSurface({
       onToggleImmersive={onToggleImmersive}
       font={font}
       columns={geometry?.cols ?? null}
-      liveKeys={deck.liveKeys}
+      liveKeys={isShell || deck.liveKeys}
       onLiveKeysChange={deck.setLiveKeys}
+      liveKeysFixed={isShell}
     />
   ) : null;
 
@@ -735,6 +732,7 @@ export function TerminalSurface({
               activeProject={emptyStateProject}
               onAllProjects={launchProps ? () => setNewSessionOpen(true) : undefined}
             />
+            <ShellEntryRows shell={plainShell} heading="No project needed" />
           </div>
         );
       }
@@ -762,6 +760,7 @@ export function TerminalSurface({
         </div>
       );
     }
+    if (shellLocked) return <ShellLockedPanel shell={plainShell} />;
     if (view === "chat") {
       return (
         <ClaudeChatView
@@ -788,8 +787,10 @@ export function TerminalSurface({
         // Live keystrokes (on by default on a computer, off on a phone, where
         // a soft keyboard fights a terminal canvas): pressing the screen gives
         // it the keyboard. Off, pressing it puts the cursor in the session box.
-        interactive={deck.liveKeys}
-        onActivate={deck.liveKeys ? undefined : writeToSession}
+        interactive={isShell || deck.liveKeys}
+        // A shell wants raw input: the keyboard comes up with the screen.
+        autoFocus={isShell}
+        onActivate={isShell || deck.liveKeys ? undefined : writeToSession}
         compactChrome={immersive}
         stalledHint={copy.stalledHint}
         font={font}
@@ -820,12 +821,13 @@ export function TerminalSurface({
         }
         onClose={(id) => void ta.closeTab(id)}
         launch={launchProps}
+        shellEntry={canOpenShell ? <ShellEntryRows shell={plainShell} /> : undefined}
         launchOpen={ta.launchOpen}
         setLaunchOpen={ta.setLaunchOpen}
         error={ta.actionError}
       />
       <TerminalSessionNotice news={news} tabs={stripTabs} onOpen={setUserSelection} />
-      {activeTab && (
+      {activeTab && !isShell && (
         <div className="hidden md:block">
           <TerminalSessionBar
             agents={agents}
@@ -838,6 +840,7 @@ export function TerminalSurface({
           />
         </div>
       )}
+      {isShell && <ShellBanner channel={channel} onLock={() => void plainShell.lock()} />}
       <div className="ui-term-split">
         <div className="ui-term-split-pty">{body()}</div>
         {/* Expanded means the session gets the whole screen — the rail is
@@ -849,15 +852,18 @@ export function TerminalSurface({
         )}
       </div>
 
-      {activeTab && view === "terminal" && (
+      {activeTab && view === "terminal" && !isShell && (
         <TerminalActions readScreenRef={readScreenRef} agent={activeAgentId} onKey={sendKey} />
       )}
 
+      {isShell && !shellLocked && (
+        <ShellKeys onKey={sendKey} open={keysOpen} onOpenChange={setKeysOpen} />
+      )}
       {/* ONE box for the agent, at every width — the same SessionComposer the
           conversation view shows. Microphone, screenshots and the prompt
           library are in it; "What's going on?" is the first chip above it;
           the keys a phone lacks are one button in its tool row. */}
-      {activeTab && view === "terminal" && (
+      {activeTab && view === "terminal" && !isShell && (
         <TerminalMobileDock
           onKey={sendKey}
           keysOpen={keysOpen}
@@ -891,6 +897,7 @@ export function TerminalSurface({
       )}
 
       {sheet}
+      <ShellPinSheet shell={plainShell} />
       {newSessionOpen && launchProps && (
         <TerminalNewSessionSheet {...launchProps} onClose={() => setNewSessionOpen(false)} />
       )}

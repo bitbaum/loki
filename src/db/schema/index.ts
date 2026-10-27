@@ -76,3 +76,4 @@ export * from "./site-reviews";
 export * from "./build-requests";
 
 export * from "./chat-feedback";
+export * from "./shell-audit-events";

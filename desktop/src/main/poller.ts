@@ -71,8 +71,9 @@ import { materializeImages } from '@/lib/agent-attachments-fs'
 
 /** Commands that change the open-tab / agent set → trigger an immediate
  *  runtime-state push so the UI reflects them in ~1s, not at the next heartbeat. */
-const PUSH_AFTER = new Set(['launch_agent', 'dispatch', 'switch_agent', 'close_tab'])
+const PUSH_AFTER = new Set(['launch_agent', 'dispatch', 'switch_agent', 'close_tab', 'open_shell'])
 import { validateCommand } from './command-validator'
+import { openShellPty } from './shell-runtime'
 import { loadToken, clearToken, isDevBaseOverride } from './token-store'
 import { fetchWorkspaceSource } from './workspace-source'
 import { fleetSessionsDir } from '@/lib/session-paths'
@@ -515,6 +516,12 @@ async function handleCommand(
           try { pruneWorktrees(tab, wt.primaryDir) } catch { /* best-effort */ }
           worktreeByTab.delete(tab)
         }
+        ok = true
+        break
+      }
+      case 'open_shell': {
+        const { tab, cols, rows } = validation.command.payload
+        await openShellPty(tab, { cols, rows })
         ok = true
         break
       }

@@ -138,6 +138,7 @@ Priority stack: `docs/architecture/priority-plan-2026-H2.md`.
 | Auto-continue pause from web (cloud) | Queued `auto_continue` command → runner writes `/tmp` sentinel |
 | Push notifications (agent ready) | Browser subscribe + VAPID on server; `/api/push/notify` |
 | **Terminal session view** | `/terminal` streams the selected builder-owned PTY and accepts live input. |
+| **Plain shell** | A connected builder (cloud, or Fleet Runner), the operator account, a PIN set in Settings → Privacy. |
 
 ### Terminal page (`/terminal`)
 
@@ -151,6 +152,17 @@ Two session sources behind one view (toggle **Cloud builder** | **Your computer*
 Loki and Control do **not** connect to Terminal directly. They enqueue commands; the configured builder starts/injects into the agent CLI; Terminal is the watch surface (`source=cloud` or `source=machine`).
 
 **Your computer** lists the owned PTYs Fleet Runner reported through runtime state and streams the selected session. **Cloud builder** lists sessions owned by the hosted runner.
+
+### Plain shell (Terminal → Plain shell)
+
+A real bash login shell on a builder with **no project and no agent**, for the
+operator's own commands. It is another kind of session on the same transport
+(queue to open, peek-stream to read, the bridge's rawkey lane to type), spawned
+by the builder — never by the web app. Operator-only, behind the PIN with a
+10-minute idle lock, audited (no content), rate-limited, and never offered by a
+tenant's or sealed builder. On the cloud builder it runs in the runner's own
+sandbox (no `sudo`, other apps' directories hidden, no secrets in its
+environment). Threat model and what it does not do: `docs/architecture/plain-shell.md`.
 
 ### Environment-gated (optional features)
 

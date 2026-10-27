@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.59",
+    tag: "fleet-runner-v0.8.59",
+    date: "2026-10-27T18:30:00Z",
+    highlights: [
+      "Sessions can open a plain shell on this builder: a real bash command line with no project and no agent, for the account's owner, behind the PIN.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.58",
     tag: "fleet-runner-v0.8.58",
     date: "2026-10-21T23:35:00Z",

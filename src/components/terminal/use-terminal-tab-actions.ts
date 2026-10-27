@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postJson } from "@/lib/api/fetch";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
+import { isShellTab } from "@/lib/shell-session";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import { parseTabAliases, withTabAlias, type TabAliases } from "./terminal-agent";
 import { EMPTY_LAYOUT, parseTabLayout, type TabLayout } from "./terminal-tab-order";
@@ -72,7 +73,11 @@ export function useTerminalTabActions(
     async (tab: string) => {
       setActionError(null);
       try {
-        await postJson("/api/control/close-tab", { tab, channel });
+        // A plain shell ends through its own audited, operator-only route.
+        await postJson(isShellTab(tab) ? "/api/shell/close" : "/api/control/close-tab", {
+          tab,
+          channel,
+        });
       } catch (e) {
         setActionError(e instanceof Error ? e.message : `Could not close “${tab}”`);
       }

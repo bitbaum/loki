@@ -8,6 +8,7 @@ import {
   type AutoContinuePayload,
   type TabPayload,
   type LaunchAgentPayload,
+  type OpenShellPayload,
   type RunnerChannel,
 } from "@/db/schema/pending-commands";
 import { eq, gte, isNull, isNotNull, and, inArray, notInArray, desc, sql } from "drizzle-orm";
@@ -16,6 +17,7 @@ import { closeRunSuperseded, olderOpenRunSql } from "./orchestration-runs";
 import { dispatchSupersededReason } from "@/lib/dispatch-superseded";
 import { requireNotDemo } from "@/lib/demo-guard";
 import type { BrowserTaskPayload } from "@/config/browser-tasks";
+import { shellCommandRefusal } from "@/lib/shell-session";
 
 export async function getCommandById(id: string) {
   const [row] = await db.select().from(pendingCommands).where(eq(pendingCommands.id, id)).limit(1);
@@ -290,6 +292,15 @@ export async function enqueuePendingCommand(
   // mistake; this cannot be bypassed without deleting this line.
   await requireNotDemo(command.userId, command.type === "inject" ? "terminal" : "dispatch");
 
+  // A plain shell is typed into only through the bridge's keystroke lane, which
+  // /api/control/tab-inject-raw gates on the shell unlock. A QUEUED command
+  // that names a shell tab — an inject, a dispatch, an agent switch — would
+  // type text a stranger wrote into a root prompt, so none may. Here, at the
+  // one place every row is made, so no future route can forget (the runner
+  // refuses them again).
+  const refusal = shellCommandRefusal(command.type, command.payload);
+  if (refusal) throw new Error(refusal);
+
   const [row] = await db
     .insert(pendingCommands)
     .values(command)
@@ -476,6 +487,15 @@ export async function enqueueLaunchAgentCommand(
   payload: LaunchAgentPayload,
 ): Promise<string> {
   return enqueuePendingCommand({ userId, type: "launch_agent", payload });
+}
+
+/** Open a plain shell on a builder. Called by /api/shell/open only, after the
+ *  operator, PIN and rate-limit gates. */
+export async function enqueueOpenShellCommand(
+  userId: string,
+  payload: OpenShellPayload,
+): Promise<string> {
+  return enqueuePendingCommand({ userId, type: "open_shell", payload });
 }
 
 /** Live terminal: tell the runner to start/stop streaming a tab's screen.

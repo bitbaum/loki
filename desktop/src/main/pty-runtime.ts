@@ -14,6 +14,7 @@
  * cold start instead. There is no zellij path to fall back to.
  */
 import { executor } from "@/lib/agent-execution";
+import { isShellTab } from "@/lib/shell-session";
 import { provisionAgentWorkspace } from "@/lib/agent-execution/launch";
 import type { AgentOption } from "@/lib/agent-registry";
 import { missingAgentReason } from "@/lib/agents/launch-check";
@@ -196,6 +197,9 @@ export function shouldReplacePtyAgent(
  * empty prompt).
  */
 export function injectPty(tab: string, text: string): void {
+  // Last line of defence: prompts are for agents. Nothing types an agent's
+  // prompt into a plain shell, whatever queued it.
+  if (isShellTab(tab)) throw new Error('refusing to inject a prompt into a shell')
   const id = runnerWorkspaceId(tab);
   const body = text.replace(/[\r\n]+$/, "");
   // Explicit bracketed paste (ESC[200~ … ESC[201~): the TUI ingests the whole
