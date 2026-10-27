@@ -90,7 +90,7 @@ So it is a least-privilege operator shell: git, node, pnpm, curl, the repo
 clones under `~/dev`, and the runner's own tree. It is **not** a root shell.
 
 **What is left, and why it is not in this change:** operator jobs that need
-root — installing systemd timers, `scripts/provision-service.py`, `psql` into
+root — installing systemd timers, the substrata repo's `scripts/provision-service.py` (not in this repo), `psql` into
 the Supabase container, anything under `/opt/*` — still need SSH
 (`ssh root@167.233.22.31`) until a *privileged shell host* exists. That is a
 second systemd unit without `NoNewPrivileges`/`InaccessiblePaths`, claiming
