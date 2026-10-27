@@ -139,6 +139,23 @@ jobs:
           pnpm run build
           pnpm -C bridge run build
 
+      - name: Stage verified public package receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Public scope is observed from GitHub, never inferred from a hostname.
+          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = false
+          producer="$RUNNER_TEMP/fleet-receipt-producer"
+          git init --quiet "$producer"
+          git -C "$producer" remote add origin https://github.com/bitbaum/fleet.git
+          git -C "$producer" fetch --quiet --depth 1 origin 926c841a026c9fceaa7fccfb4c73d16974d0d186
+          git -C "$producer" checkout --quiet --detach FETCH_HEAD
+          FLEET_RECEIPT_PUBLIC=true FLEET_RECEIPT_ROOT="$producer" \
+            FLEET_RECEIPT_REPO="$GITHUB_REPOSITORY" \
+            bash scripts/hetzner/stage-release-receipt.sh "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.next/standalone"
+          test -s .next/standalone/public/.well-known/fleet-release.json
+
       - name: SSH setup
         run: |
           mkdir -p ~/.ssh
@@ -149,3 +166,20 @@ jobs:
 
       - name: Ship to box (reuses deploy-hetzner.sh — flock, rollback, verify)
         run: bash scripts/deploy-hetzner.sh --no-build
+
+      - name: Verify the served package receipt
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import assert from 'node:assert/strict';
+          const expected = JSON.parse(readFileSync('.next/standalone/public/.well-known/fleet-release.json', 'utf8'));
+          const url = new URL('https://loki.orangecat.ch/.well-known/fleet-release.json');
+          url.searchParams.set('commit', expected.commit);
+          const response = await fetch(url, { signal: AbortSignal.timeout(20000), cache: 'no-store' });
+          assert.ok(response.ok, `Live receipt returned HTTP ${response.status}`);
+          const actual = await response.json();
+          for (const field of ['repo', 'commit', 'project', 'lockSha256', 'artifacts']) {
+            assert.deepEqual(actual[field], expected[field], `Served receipt mismatch: ${field}`);
+          }
+          console.log(`Verified served package receipt for ${actual.commit}`);
+          NODE
