@@ -73,6 +73,7 @@ for (const p of [
   // The MCP server authenticates itself; its 401 challenge is how a connector
   // finds OrangeCat, so the middleware must not answer first.
   "/api/mcp",
+  "/.well-known/fleet-release.json",
   "/.well-known/oauth-protected-resource",
   "/.well-known/oauth-protected-resource/api/mcp",
   // A prospect preview: the route checks the access code itself.
@@ -97,6 +98,9 @@ for (const p of [
   // The MCP exemption is for that endpoint, not for its neighbours.
   "/api/me",
   "/api/memory",
+  "/.well-known/fleet-release.json/private",
+  "/.well-known/fleet-release.json-extra",
+  "/.well-known/private.json",
 ]) {
   check(`${p} still requires a session`, isProtected(p));
 }

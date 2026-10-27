@@ -149,7 +149,7 @@ jobs:
           producer="$RUNNER_TEMP/fleet-receipt-producer"
           git init --quiet "$producer"
           git -C "$producer" remote add origin https://github.com/bitbaum/fleet.git
-          git -C "$producer" fetch --quiet --depth 1 origin 926c841a026c9fceaa7fccfb4c73d16974d0d186
+          git -C "$producer" fetch --quiet --depth 1 origin 5da9886a5211dc74dc6b7c8f5eade60c460cea6c
           git -C "$producer" checkout --quiet --detach FETCH_HEAD
           FLEET_RECEIPT_PUBLIC=true FLEET_RECEIPT_ROOT="$producer" \
             FLEET_RECEIPT_REPO="$GITHUB_REPOSITORY" \
@@ -169,17 +169,6 @@ jobs:
 
       - name: Verify the served package receipt
         run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync } from 'node:fs';
-          import assert from 'node:assert/strict';
-          const expected = JSON.parse(readFileSync('.next/standalone/public/.well-known/fleet-release.json', 'utf8'));
-          const url = new URL('https://loki.orangecat.ch/.well-known/fleet-release.json');
-          url.searchParams.set('commit', expected.commit);
-          const response = await fetch(url, { signal: AbortSignal.timeout(20000), cache: 'no-store' });
-          assert.ok(response.ok, `Live receipt returned HTTP ${response.status}`);
-          const actual = await response.json();
-          for (const field of ['repo', 'commit', 'project', 'lockSha256', 'artifacts']) {
-            assert.deepEqual(actual[field], expected[field], `Served receipt mismatch: ${field}`);
-          }
-          console.log(`Verified served package receipt for ${actual.commit}`);
-          NODE
+          node "$RUNNER_TEMP/fleet-receipt-producer/scripts/ci/verify-live-release-receipt.mjs" \
+            --url https://loki.orangecat.ch/.well-known/fleet-release.json \
+            --expected .next/standalone/public/.well-known/fleet-release.json
