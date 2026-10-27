@@ -65,6 +65,8 @@ const GUARDS = [
   // way to answer "who is calling" — each one wraps a mechanism already listed
   // above. They are here because the rule is that a route must NAME its
   // mechanism, and a route that delegates names the delegate.
+  "requireShellAccess", // session + operator account + PIN unlock (src/lib/shell-access.ts)
+  "loadShellCaller", // session + operator account, for the calls that must work while locked
   "entityAttrHandlers", // → requirePrivateApiAccess, in src/lib/api/entity-attrs.ts
   "ownerRequest", // → getWidgetTokenByToken + origin allowlist + owner pass, in src/lib/widget/owner-request.ts
   "studioOwnerCheck", // → getApiUserId + the studio owner only, in src/lib/register/studio-owner.ts

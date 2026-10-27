@@ -1,4 +1,3 @@
-import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shellAuditEvents } from "@/db/schema/shell-audit-events";
 import type { ShellAuditEvent } from "@/lib/shell-session";
@@ -32,13 +31,4 @@ export async function recordShellAudit(input: ShellAuditInput): Promise<void> {
   } catch (e) {
     console.error("[shell-audit] could not write the row:", e instanceof Error ? e.message : e);
   }
-}
-
-export async function recentShellAudit(userId: string, limit = 50) {
-  return db
-    .select()
-    .from(shellAuditEvents)
-    .where(eq(shellAuditEvents.userId, userId))
-    .orderBy(desc(shellAuditEvents.createdAt))
-    .limit(limit);
 }

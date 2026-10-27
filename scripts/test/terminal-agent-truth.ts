@@ -116,7 +116,10 @@ ok(
 // Wiring: the surface uses the live agent and does not swallow a failed switch.
 const surface = read("TerminalSurface.tsx");
 const actions = read("use-terminal-tab-actions.ts");
-ok(/activeAgentFor\(/.test(surface), "TerminalSurface derives the agent from the live CLI");
+ok(
+  /activeAgentFor\(/.test(read("use-session-agent.ts")) && /useSessionAgent\(/.test(surface),
+  "TerminalSurface derives the agent from the live CLI",
+);
 ok(
   !/tabContext\?\.agentPref \?\? context\?\.agents\.defaultAgent/.test(surface),
   "the pref-first derivation is gone",

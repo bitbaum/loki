@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(
   readFileSync("src/lib/agent-execution/local-pty.ts", "utf8"),
-  /env: agentEnvironment\(process\.env, spec\.env\)/,
+  /env: agentEnvironment\(process\.env, spec\.env, \{ plainShell: spec\.plainShell \}\)/,
   "the one place a PTY is born reads it",
 );
 
