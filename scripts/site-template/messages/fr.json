@@ -14,7 +14,9 @@
     "label": "À propos de ce site",
     "roadmap": "Feuille de route",
     "changelog": "Nouveautés",
-    "source": "Code source"
+    "source": "Code source",
+    "note": "Développé en public. Consultez le travail et suivez son avancement.",
+    "journal": "Journal"
   },
   "Home": {
     "waiting": "attend sa première page.",
@@ -180,5 +182,11 @@
       "action": "Choisir un nouveau mot de passe"
     },
     "ignore": "Si ce n’était pas vous, ignorez cet e-mail — rien ne change."
+  },
+  "Journal": {
+    "title": "Journal",
+    "lead": "Notes, décisions et nouvelles des personnes qui développent ce produit.",
+    "empty": "Aucun article publié pour le moment.",
+    "back": "Retour au journal"
   }
 }

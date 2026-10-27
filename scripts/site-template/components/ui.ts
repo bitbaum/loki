@@ -6,7 +6,7 @@
 export const shell = "mx-auto w-full max-w-3xl px-4 sm:px-6";
 
 export const button =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-base font-medium text-on-accent transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-fg-primary px-5 text-base font-medium text-surface-page transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60";
 
 export const buttonQuiet =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-default px-5 text-base text-fg-primary transition-colors hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60";
