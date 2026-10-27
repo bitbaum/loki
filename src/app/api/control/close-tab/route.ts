@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { enqueueTabCommand } from "@/db/queries/pending-commands";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getApiUserId } from "@/lib/session";
+import { isShellTab } from "@/lib/shell-session";
 import { forgetScreen } from "@/lib/sse-bus";
 import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/execution-access";
 
@@ -25,6 +26,11 @@ export async function POST(req: NextRequest) {
   });
   if (!execution.ok) {
     return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
+  }
+  // A shell is ended through /api/shell/close, which is operator-only and
+  // audited; this route serves agent sessions.
+  if (isShellTab(dataOrResp.tab)) {
+    return NextResponse.json({ error: "Close a shell from the shell menu." }, { status: 400 });
   }
   forgetScreen(userId, dataOrResp.tab);
   const commandId = await enqueueTabCommand(userId, "close_tab", {

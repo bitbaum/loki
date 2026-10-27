@@ -48,6 +48,9 @@ export function agentEnvAllowlisted(processEnv: NodeJS.ProcessEnv): boolean {
 export function agentEnvironment(
   processEnv: NodeJS.ProcessEnv,
   specEnv: Record<string, string> | undefined,
+  /** A plain shell is a person at a prompt, not an agent: on the box it gets
+   *  a shell's environment and NOT the engine keys the unit holds for agents. */
+  opts: { plainShell?: boolean } = {},
 ): Record<string, string> {
   if (!agentEnvAllowlisted(processEnv)) {
     return { ...processEnv, ...(specEnv ?? {}) } as Record<string, string>;
@@ -56,7 +59,11 @@ export function agentEnvironment(
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const keep = new Set<string>([...SHELL_NAMES, ...ENGINE_KEY_NAMES, ...extra]);
+  const keep = new Set<string>([
+    ...SHELL_NAMES,
+    ...(opts.plainShell ? [] : ENGINE_KEY_NAMES),
+    ...extra,
+  ]);
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(processEnv)) {
     if (value === undefined) continue;

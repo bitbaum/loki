@@ -99,7 +99,10 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
   ])
     ok(!/inputMode|TerminalInputSwitch|TabVoiceMic/.test(read(f)), `${f}: no input-mode switch`);
   ok(!surface.includes("<TerminalComposer"), "no second box for the agent under the terminal");
-  ok(/askOnly\b/.test(surface), "Loki's panel only asks; words for the agent go in the box");
+  ok(
+    /askOnly\b/.test(read("TerminalLokiRailSlot.tsx")) && surface.includes("<TerminalLokiRailSlot"),
+    "Loki's panel only asks; words for the agent go in the box",
+  );
   ok(
     surface.includes("suggestions={keysOpen ? [] : screenNext.steps.slice(0, 2)}"),
     "keys open: the next-step row steps aside so the terminal keeps its lines",

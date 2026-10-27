@@ -24,7 +24,10 @@ import fs from "node:fs";
 import path from "node:path";
 import type { AgentOption } from "@/lib/agent-registry";
 
-export type RememberedTab = { tab: string; dir: string; agent: AgentOption };
+/** `shell` is a plain shell (lib/shell-session.ts): it comes back as a fresh
+ *  login shell in the same folder, never as a conversation. */
+export type RememberedAgent = AgentOption | 'shell';
+export type RememberedTab = { tab: string; dir: string; agent: RememberedAgent };
 
 /** How long an exit must stand before it counts as the session ending. A
  *  restart signals the agents and the builder at once; the builder is gone
@@ -98,7 +101,7 @@ export function forgetTab(tab: string, gen?: number): void {
  */
 export async function restoreTabs(opts: {
   isLive: (tab: string) => boolean;
-  launch: (tab: string, dir: string, agent: AgentOption, sessionId?: string) => Promise<void>;
+  launch: (tab: string, dir: string, agent: RememberedAgent, sessionId?: string) => Promise<void>;
   sessionFor: (dir: string) => Promise<string | null>;
   log?: (line: string) => void;
 }): Promise<string[]> {

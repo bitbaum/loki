@@ -21,6 +21,7 @@
  * list is shared through src/lib/pending-command-contract.ts.
  */
 
+import { isShellCommandType, isShellTab } from '@/lib/shell-session'
 import { isFleetRunnerCommandType } from '@/lib/pending-command-contract'
 import { parseAgentImages, type AgentImage } from '@/lib/agent-attachments'
 import { resolveBrowserTask, type BrowserTask } from '@/config/browser-tasks'
@@ -64,6 +65,11 @@ export interface LaunchAgentCommand {
     /** Continue the project's last Claude conversation instead of a new one. */
     resume?: boolean
   }
+}
+
+export interface OpenShellCommand {
+  type: 'open_shell'
+  payload: { tab: string; cols?: number; rows?: number }
 }
 
 export interface DispatchCommand {
@@ -138,6 +144,7 @@ export type ValidatedCommand =
   | DispatchCommand
   | TabCommand
   | LaunchAgentCommand
+  | OpenShellCommand
   | SwitchAgentCommand
   | AutoContinueCommand
   | InstallCliCommand
@@ -174,6 +181,12 @@ export function validateCommand(raw: unknown): ValidationResult {
     }
   }
 
+  // A shell tab takes only open / close / peek. An inject, dispatch or agent
+  // switch aimed at one would type words someone else wrote into a shell.
+  if (typeof payload.tab === 'string' && isShellTab(payload.tab) && !isShellCommandType(type)) {
+    return { ok: false, error: `'${type}' cannot target a shell tab` }
+  }
+
   switch (type) {
     case 'inject':
       return validateInject(payload)
@@ -183,6 +196,8 @@ export function validateCommand(raw: unknown): ValidationResult {
       return validateTab(type, payload)
     case 'launch_agent':
       return validateLaunchAgent(payload)
+    case 'open_shell':
+      return validateOpenShell(payload)
     case 'switch_agent':
       return validateSwitchAgent(payload)
     case 'auto_continue':
@@ -314,6 +329,15 @@ function validateTab(type: 'close_tab', payload: Record<string, unknown>): Valid
     return { ok: false, error: `${type} payload missing required string 'tab'` }
   }
   return { ok: true, command: { type, payload: { tab } } }
+}
+
+function validateOpenShell(payload: Record<string, unknown>): ValidationResult {
+  const tab = payload.tab
+  if (typeof tab !== 'string' || !isShellTab(tab)) {
+    return { ok: false, error: "open_shell payload needs a shell tab name ('loki-shell-' and 8 hex digits)" }
+  }
+  const size = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 1000 ? v : undefined)
+  return { ok: true, command: { type: 'open_shell', payload: { tab, cols: size(payload.cols), rows: size(payload.rows) } } }
 }
 
 function validateLaunchAgent(payload: Record<string, unknown>): ValidationResult {

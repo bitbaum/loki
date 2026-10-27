@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { TerminalLaunchPanel } from "./TerminalLaunchPanel";
 import { TerminalTabStrip, type TerminalTab } from "./TerminalTabStrip";
@@ -23,6 +23,7 @@ export function TerminalAgentTabs({
   onRename,
   onClose,
   launch,
+  shellEntry,
   launchOpen,
   setLaunchOpen,
   error,
@@ -37,6 +38,8 @@ export function TerminalAgentTabs({
   onClose: (id: string) => void;
   /** Null until the launchable projects are known. */
   launch: LaunchProps | null;
+  /** The plain-shell row, offered beside the agent launcher in the "+" panel. */
+  shellEntry?: ReactNode;
   launchOpen: boolean;
   setLaunchOpen: (update: boolean | ((open: boolean) => boolean)) => void;
   error: string | null;
@@ -73,6 +76,9 @@ export function TerminalAgentTabs({
       </div>
       {launchOpen && launch && (
         <TerminalLaunchPanel {...launch} onCancel={() => setLaunchOpen(false)} />
+      )}
+      {launchOpen && shellEntry && (
+        <div className="hidden w-full max-w-xl md:block">{shellEntry}</div>
       )}
       {error && (
         <p className="ui-error" role="alert">

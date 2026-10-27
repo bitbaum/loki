@@ -21,6 +21,9 @@ export const PENDING_COMMAND_TYPES = [
   // A form Loki fills in the operator's own browser and hands back one click
   // short of done (config/browser-tasks.ts). Always channel "local".
   "browser_task",
+  // A plain shell on a builder (lib/shell-session.ts): a bash login shell in a
+  // PTY the builder owns, no project, no agent. Queued only by /api/shell/open.
+  "open_shell",
 ] as const;
 
 export type PendingCommandType = (typeof PENDING_COMMAND_TYPES)[number];
@@ -37,6 +40,7 @@ export const FLEET_RUNNER_COMMAND_TYPES = [
   "peek_start",
   "peek_stop",
   "browser_task",
+  "open_shell",
 ] as const satisfies readonly PendingCommandType[];
 
 export type FleetRunnerCommandType = (typeof FLEET_RUNNER_COMMAND_TYPES)[number];

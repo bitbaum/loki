@@ -3179,6 +3179,18 @@
   .ui-term-resume-go {
     @apply inline-flex h-9 shrink-0 items-center rounded-full border border-border-default px-4 text-sm font-medium text-text-primary;
   }
+  /* A plain shell says what it is, always: a real shell on a named machine. One
+     line above the screen — the thing the person must not mistake for a project. */
+  .ui-term-shellbar {
+    @apply flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-border-default bg-surface-raised px-3 text-sm text-text-secondary;
+  }
+  .ui-term-shellbar strong {
+    @apply font-medium text-text-primary;
+  }
+  /* The PIN asked for again: the screen is not drawn until it is entered. */
+  .ui-term-shell-locked {
+    @apply mx-auto flex h-full min-h-0 w-full max-w-sm flex-col justify-center gap-4 p-4;
+  }
   .ui-term-resume-opening {
     @apply flex items-center gap-2 py-3 text-sm text-text-secondary;
   }

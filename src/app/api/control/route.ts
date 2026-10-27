@@ -95,6 +95,7 @@ import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
 import { isVerifiedRunActive } from "@/lib/control-run-truth";
 import { normalizeRunShipping } from "@/lib/control-run-shipping";
+import { isShellTab } from "@/lib/shell-session";
 
 export type {
   ProjectProfile,
@@ -176,7 +177,10 @@ async function buildSlowData(
   // "app dev build" for a laptop that has been shut for a week.
   const localSnapshot = freshSnapshots.find((s) => s.channel === "local") ?? null;
   const cloudSnapshot = freshSnapshots.find((s) => s.channel === "cloud") ?? null;
-  const unionTabs = [...new Set(freshSnapshots.flatMap((s) => s.openTabs ?? []))];
+  // A plain shell is not a project's session; Control never lists it.
+  const unionTabs = [...new Set(freshSnapshots.flatMap((s) => s.openTabs ?? []))].filter(
+    (tab) => !isShellTab(tab),
+  );
   // Locally: the owned PTYs. On cloud: union of fresh runner-pushed tab
   // lists, falling back to per-project tabOpen flags from project_states —
   // gated on observation freshness so a dead runner's frozen rows can't

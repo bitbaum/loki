@@ -105,6 +105,8 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   ["/api/studio-review", "content"],
   // — reaches the box ————————————————————————————————————————————————
   ["/api/control", "dispatch"],
+  // A real shell on the builder: it IS the box. The demo account never gets one.
+  ["/api/shell", "dispatch"],
   ["/api/agents", "dispatch"],
   // Queues a form for Fleet Runner's browser window on the owner's machine.
   ["/api/browser-task", "dispatch"],

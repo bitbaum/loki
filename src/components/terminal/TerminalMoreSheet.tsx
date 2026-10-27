@@ -26,6 +26,7 @@ export function TerminalMoreSheet({
   columns,
   liveKeys,
   onLiveKeysChange,
+  liveKeysFixed = false,
 }: {
   onClose: () => void;
   /** Loki explains the session; omitted without a project. */
@@ -37,6 +38,8 @@ export function TerminalMoreSheet({
   /** Hand keystrokes to xterm itself instead of the session box. */
   liveKeys: boolean;
   onLiveKeysChange: (value: boolean) => void;
+  /** A plain shell always takes the keys itself; there is no box to choose. */
+  liveKeysFixed?: boolean;
 }) {
   const act = (fn: () => void) => () => {
     onClose();
@@ -115,9 +118,13 @@ export function TerminalMoreSheet({
             icon={Keyboard}
             title="Live keystrokes"
             secondary={
-              liveKeys ? "On: keys go straight to the session" : "Off: you type in the box"
+              liveKeysFixed
+                ? "Always on in a shell: keys go straight to it"
+                : liveKeys
+                  ? "On: keys go straight to the session"
+                  : "Off: you type in the box"
             }
-            onClick={() => onLiveKeysChange(!liveKeys)}
+            onClick={liveKeysFixed ? undefined : () => onLiveKeysChange(!liveKeys)}
             label={`Live keystrokes: ${liveKeys ? "on" : "off"}`}
             trailing={
               <span className={liveKeys ? "ui-switch ui-switch-on" : "ui-switch"} aria-hidden />
