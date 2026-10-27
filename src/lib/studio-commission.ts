@@ -13,6 +13,22 @@ export const StudioContract = z.object({
     shape: z.string().min(1).max(200),
     what: z.string().min(1).max(1500),
   }),
+  /** Every published engagement (hire.json's rate cards), so the studio
+   *  intake can say which one a request resembles. Optional: an older
+   *  commission.json carries only `offer`. */
+  offers: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(80),
+        name: z.string().min(1).max(100),
+        price: z.string().min(1).max(100),
+        unit: z.string().max(60).optional(),
+        shape: z.string().min(1).max(200),
+        what: z.string().min(1).max(1500),
+      }),
+    )
+    .max(8)
+    .optional(),
   course: z
     .object({
       version: z.string().min(1).max(80),

@@ -28,6 +28,19 @@ import {
 } from "@/lib/widget-chat/concierge";
 import { formatConciergeAnswer, visualAnswerInstruction } from "@/lib/widget-chat/answer-format";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
+import { analyzeImages } from "@/lib/vision";
+import {
+  IntakeImages,
+  VISITOR_VISION_SYSTEM,
+  decideReady,
+  fallbackIntakeReply,
+  intakePrompt,
+  intakeReplyProblem,
+  intakeSystemPrompt,
+  parseIntakeAnswer,
+  pictureNote,
+  splitDataUrl,
+} from "@/lib/widget-chat/intake";
 
 /**
  * The widget's Chat mode (widget/surface-modes.ts): a plain chat in which the
@@ -85,7 +98,40 @@ const ChatBody = z.object({
     .optional(),
   url: z.string().max(1000).optional(),
   pageTitle: z.string().max(300).optional(),
+  /** "intake": the studio's door on bitbaum.orangecat.ch (lib/widget-chat/intake.ts).
+   *  Absent: the front desk that routes to a project. */
+  mode: z.enum(["intake"]).optional(),
+  purpose: z.enum(["studio", "partner"]).optional(),
+  /** Pictures for this turn, as data URLs (jpeg/png/webp, ≤3, ≤600k chars each). */
+  images: IntakeImages.optional(),
 });
+
+/**
+ * What the visitor's pictures show, as text, or null when no vision model
+ * could read them. Never throws: a picture that cannot be read is said so in
+ * the answer, never silently dropped.
+ */
+async function readPictures(images: string[], question: string): Promise<string | null> {
+  const parts = images.map(splitDataUrl).filter((p): p is NonNullable<typeof p> => p !== null);
+  if (!parts.length) return null;
+  try {
+    const { text } = await analyzeImages({
+      systemPrompt: VISITOR_VISION_SYSTEM,
+      prompt: question.slice(0, 500) || "Describe what this picture shows.",
+      images: parts,
+      maxTokens: 400,
+      timeoutMs: 30_000,
+    });
+    return text.trim() || null;
+  } catch (e) {
+    console.warn("[widget-chat] pictures unread:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/** Said under an answer whose pictures no model could read — in code, so it is never left to chance. */
+const PICTURES_UNREAD =
+  "I could not read the picture here. Tell me in words what it shows, or paste its text.";
 
 /**
  * The map is a handful of queries plus a read of apps.conf; a conversation
@@ -177,6 +223,8 @@ export async function POST(req: NextRequest) {
     return corsError("This site's assistant is busy — try again later", 429);
   }
 
+  if (data.mode === "intake") return intakeTurn(data);
+
   const map = await fleetMap();
   if (!map) return corsError("The catalogue is unavailable right now", 503);
   const base = appUrl();
@@ -187,28 +235,38 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const images = data.images ?? [];
+  const pictures = images.length ? await readPictures(images, data.message) : null;
   try {
-    const answered = await callTextDetailed(conciergePrompt(data.history ?? [], data.message), {
-      feature: "widget-chat",
-      systemPrompt:
-        conciergeSystemPrompt(renderConciergeFacts(map, await studioContract()), {
-          url: data.url,
-          title: data.pageTitle,
-        }) + visualAnswerInstruction(data.visualAnswers === true),
-      // Reasoning models spend hidden tokens from this budget before the first
-      // visible word; 700 cut real answers mid-sentence in production.
-      maxTokens: 1600,
-      temperature: 0.3,
-      timeoutMs: HTTP_TIMEOUT_LONG_MS,
-    });
+    const answered = await callTextDetailed(
+      conciergePrompt(data.history ?? [], data.message + pictureNote(pictures, images.length)),
+      {
+        feature: "widget-chat",
+        systemPrompt:
+          conciergeSystemPrompt(renderConciergeFacts(map, await studioContract()), {
+            url: data.url,
+            title: data.pageTitle,
+          }) + visualAnswerInstruction(data.visualAnswers === true),
+        // Reasoning models spend hidden tokens from this budget before the first
+        // visible word; 700 cut real answers mid-sentence in production.
+        maxTokens: 1600,
+        temperature: 0.3,
+        timeoutMs: HTTP_TIMEOUT_LONG_MS,
+      },
+    );
     recordVisitorSpend(answered.tokens);
     const reply = formatConciergeAnswer(stripReasoning(answered.text), data.visualAnswers === true);
     if (!reply) throw new Error("empty answer");
+    const unread = images.length > 0 && !pictures;
     return NextResponse.json(
       {
         ok: true,
         reply,
-        messages: splitSpeakers(reply),
+        messages: [
+          ...splitSpeakers(reply),
+          ...(unread ? [{ speaker: null, text: PICTURES_UNREAD }] : []),
+        ],
+        ...(images.length ? { pictures: pictures ? "read" : "unread" } : {}),
         links: await reachableLinks(linksForReply(reply, map, base), map, base),
       },
       { headers: CORS_HEADERS },
@@ -221,5 +279,90 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(await keywordAnswer(data.message, map, base, "model"), {
       headers: CORS_HEADERS,
     });
+  }
+}
+
+type ChatInput = z.infer<typeof ChatBody>;
+
+/**
+ * One turn of the studio intake. Never a refusal: budget spent, every model
+ * down, or an answer that broke a rule (a price not published, a date, a
+ * booking, past work) — the visitor still gets an honest question that moves
+ * the brief, and `ready` is decided here, in code.
+ */
+async function intakeTurn(data: ChatInput): Promise<NextResponse> {
+  const purpose = data.purpose ?? "studio";
+  const history = data.history ?? [];
+  const visitorTurns = history.filter((t) => t.role === "user").length + 1;
+  const images = data.images ?? [];
+  const reply = (body: {
+    text: string;
+    modelReady: boolean;
+    summary: string;
+    degraded?: string;
+    pictures?: string | null;
+  }) => {
+    const unread = images.length > 0 && !body.pictures;
+    return NextResponse.json(
+      {
+        ok: true,
+        reply: body.text,
+        messages: [
+          { speaker: "loki", text: body.text },
+          ...(unread ? [{ speaker: "loki", text: PICTURES_UNREAD }] : []),
+        ],
+        ready: decideReady({
+          modelReady: body.modelReady,
+          visitorTurns,
+          message: data.message,
+          summary: body.summary,
+        }),
+        summary: body.summary,
+        ...(images.length ? { pictures: body.pictures ? "read" : "unread" } : {}),
+        ...(body.degraded ? { degraded: true, why: body.degraded } : {}),
+      },
+      { headers: CORS_HEADERS },
+    );
+  };
+  const fallback = (why: string, pictures: string | null = null) =>
+    reply({
+      text: fallbackIntakeReply(purpose, visitorTurns),
+      modelReady: false,
+      summary: "",
+      degraded: why,
+      pictures,
+    });
+
+  if (!visitorPoolAllows(await freeDayCapacityTokens())) return fallback("budget");
+  const pictures = images.length ? await readPictures(images, data.message) : null;
+  const studio = await studioContract();
+  try {
+    const answered = await callTextDetailed(
+      intakePrompt(history, data.message, pictureNote(pictures, images.length)),
+      {
+        feature: "widget-chat",
+        systemPrompt: intakeSystemPrompt(studio, purpose, { url: data.url, title: data.pageTitle }),
+        maxTokens: 1600,
+        temperature: 0.3,
+        timeoutMs: HTTP_TIMEOUT_LONG_MS,
+      },
+    );
+    recordVisitorSpend(answered.tokens);
+    const parsed = parseIntakeAnswer(stripReasoning(answered.text));
+    if (!parsed) return fallback("shape", pictures);
+    const problem = intakeReplyProblem(parsed.reply, studio);
+    if (problem) {
+      console.warn(`[widget-chat] intake answer withheld (${problem})`);
+      return fallback(problem, pictures);
+    }
+    return reply({
+      text: parsed.reply,
+      modelReady: parsed.ready,
+      summary: parsed.summary,
+      pictures,
+    });
+  } catch (e) {
+    console.warn("[widget-chat] intake model unavailable:", e instanceof Error ? e.message : e);
+    return fallback("model", pictures);
   }
 }
