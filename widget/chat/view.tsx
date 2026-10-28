@@ -13,7 +13,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ChatReplies, ChatThread, Composer } from "@bitbaum/chatkit/react";
 import type { Attachment } from "@bitbaum/chatkit";
-import chatkitCss from "@bitbaum/chatkit/styles.css";
+import chatkitCss from "@bitbaum/chatkit/styles/chat.css";
 import type { KitDeps, KitHandle, KitMessage, KitModule, KitState } from "./contract";
 
 /** A widget-built DOM node, mounted where chatkit leaves a slot. */

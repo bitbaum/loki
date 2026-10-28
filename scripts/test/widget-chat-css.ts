@@ -35,7 +35,7 @@ ok(
 );
 
 const require = createRequire(import.meta.url);
-const real = readFileSync(require.resolve("@bitbaum/chatkit/styles.css"), "utf8");
+const real = readFileSync(require.resolve("@bitbaum/chatkit/styles/chat.css"), "utf8");
 ok(/\drem\b/.test(real) && real.includes(":where(:root)"), "the real stylesheet has both to fix");
 const fixed = shadowChatkitCss(real);
 ok(!/\drem\b/.test(fixed), "no rem is left in the shipped chat CSS");

@@ -86,7 +86,7 @@ const CHUNK_DEPS = new Set([
   "react-dom/client",
   "@bitbaum/chatkit",
   "@bitbaum/chatkit/react",
-  "@bitbaum/chatkit/styles.css",
+  "@bitbaum/chatkit/styles/chat.css",
 ]);
 for (const file of chatFiles) {
   const name = `chat/${file.replace(/\.tsx?$/, "")}`;
