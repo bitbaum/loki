@@ -20,12 +20,12 @@ import { shadowChatkitCss } from "../widget/chat/shadow-css";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(join(root, "package.json"));
 
-/** `import css from "@bitbaum/chatkit/styles.css"` → the corrected CSS text. */
+/** `import css from "@bitbaum/chatkit/styles/chat.css"` → compact, corrected CSS. */
 const chatkitCss: Plugin = {
   name: "chatkit-css",
   setup(b) {
-    b.onResolve({ filter: /^@bitbaum\/chatkit\/styles\.css$/ }, () => ({
-      path: require.resolve("@bitbaum/chatkit/styles.css"),
+    b.onResolve({ filter: /^@bitbaum\/chatkit\/styles\/chat\.css$/ }, () => ({
+      path: require.resolve("@bitbaum/chatkit/styles/chat.css"),
       namespace: "chatkit-css",
     }));
     b.onLoad({ filter: /.*/, namespace: "chatkit-css" }, async (args) => {

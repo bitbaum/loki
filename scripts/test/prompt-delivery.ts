@@ -11,6 +11,13 @@ import { containerStartFailure, promptAcceptedEvidence } from "../../src/lib/pro
 import { decideAutoReimplement } from "../../src/lib/feedback/auto-reimplement-policy";
 import { runBranchName, startRunBranch } from "../../src/lib/agent-execution/box-workspace";
 
+// Hooks export Git repository/index settings. Without clearing them, git -C
+// below can write fixture commits into the caller's real working checkout.
+// The runtime helper is exercised in this same isolated process as well.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("GIT_")) delete process.env[key];
+}
+
 // 1. Reports are dropped; keys survive.
 assert.equal(stripTerminalReports("\x1b[?1;2c"), "", "DA1 answer (xterm.js reply to ESC[c)");
 assert.equal(stripTerminalReports("\x1b[?1;2c".repeat(40)), "", "every replaying viewer's answer");
