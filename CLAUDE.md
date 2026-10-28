@@ -1,7 +1,5 @@
 # Loki
 
-@~/.claude/CLAUDE.md
-
 ## Mission
 
 Read [bitbaum/fleet AGENTS.md](https://github.com/bitbaum/fleet/blob/main/AGENTS.md)
