@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { denyDemoInHandler } from "@/lib/demo-guard";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
+import { passwordSchema } from "@/lib/password-schema";
 
 // Shared budget for any password mutation (change OR initial-set) per client.
 // Both paths verify or establish the account credential, so they share one
@@ -15,11 +16,11 @@ const WINDOW = RATE_LIMIT_WINDOW_LONG_MS;
 
 const ChangeBody = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
-  newPassword: z.string().min(8, "New password must be at least 8 characters."),
+  newPassword: passwordSchema,
 });
 
 const SetBody = z.object({
-  newPassword: z.string().min(8, "New password must be at least 8 characters."),
+  newPassword: passwordSchema,
 });
 
 function rateLimited(req: NextRequest, userId: string): NextResponse | null {

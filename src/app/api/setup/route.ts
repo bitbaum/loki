@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { hashPassword } from "@/lib/password";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getUserCount, createInitialUser } from "@/db/queries/users";
+import { passwordSchema } from "@/lib/password-schema";
 
 const SetupBody = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  password: passwordSchema,
 });
 
 export async function POST(req: NextRequest) {

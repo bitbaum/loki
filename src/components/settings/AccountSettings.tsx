@@ -186,8 +186,7 @@ function SetInitialPasswordSection() {
   const [error, setError] = useState("");
 
   const mismatch = confirmPwd.length > 0 && newPwd !== confirmPwd;
-  const tooShort = newPwd.length > 0 && newPwd.length < 8;
-  const canSave = newPwd.length >= 8 && newPwd === confirmPwd;
+  const canSave = newPwd.length > 0 && newPwd === confirmPwd;
 
   const setInitialPassword = async () => {
     setSaving(true);
@@ -226,10 +225,8 @@ function SetInitialPasswordSection() {
               setError("");
             }}
             autoComplete="new-password"
-            className={`ui-input ${tooShort ? "border-status-negative/50" : ""}`}
-            placeholder="At least 8 characters"
+            className="ui-input"
           />
-          {tooShort && <p className="ui-error-xs">At least 8 characters required</p>}
         </div>
         <div className="space-y-1.5">
           <label className="ui-kicker">Confirm password</label>
@@ -297,8 +294,7 @@ export function AccountSettings({ user, orangecatEnabled }: Props) {
   };
 
   const pwdMismatch = confirmPwd.length > 0 && newPwd !== confirmPwd;
-  const pwdTooShort = newPwd.length > 0 && newPwd.length < 8;
-  const canSavePwd = !!currentPwd && newPwd.length >= 8 && newPwd === confirmPwd;
+  const canSavePwd = !!currentPwd && newPwd.length > 0 && newPwd === confirmPwd;
 
   const savePassword = async () => {
     setPwdSaving(true);
@@ -391,10 +387,8 @@ export function AccountSettings({ user, orangecatEnabled }: Props) {
                   setPwdError("");
                 }}
                 autoComplete="new-password"
-                className={`ui-input ${pwdTooShort ? "border-status-negative/50" : ""}`}
-                placeholder="At least 8 characters"
+                className="ui-input"
               />
-              {pwdTooShort && <p className="ui-error-xs">At least 8 characters required</p>}
             </div>
             <div className="space-y-1.5">
               <label className="ui-kicker">Confirm new password</label>

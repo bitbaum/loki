@@ -73,6 +73,7 @@ minimumReleaseAgeExclude:
   - mailparser@3.12.2
   - nodemailer@10.2.0
   - smtp-server@3.21.0
+  - "@bitbaum/accountkit@0.9.0"
 
 # braces GHSA-vfj7-8cjw-p6xm has NO patched release (<=3.0.3 = every version).
 # Reached only via shadcn's CLI (fast-glob > micromatch) at dev time, never at

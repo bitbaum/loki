@@ -6,11 +6,12 @@ import { hashPassword } from "@/lib/password";
 import { sendEmailFire, verifyEmailTemplate, welcomeEmailTemplate, appUrl } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
+import { passwordSchema } from "@/lib/password-schema";
 
 const Body = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
   email: z.string().trim().email("Invalid email address.").toLowerCase(),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  password: passwordSchema,
 });
 
 const LIMIT = 10; // max registrations
