@@ -4,10 +4,11 @@ import { getPasswordReset, consumePasswordReset } from "@/db/queries/passwordRes
 import { hashPassword } from "@/lib/password";
 import { updateUserPasswordHash } from "@/db/queries/users";
 import { isDemoUserId } from "@/lib/demo-guard";
+import { passwordSchema } from "@/lib/password-schema";
 
 const Body = z.object({
   token: z.string().min(1),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  password: passwordSchema,
 });
 
 export async function POST(req: NextRequest) {

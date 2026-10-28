@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { acceptInvitation } from "@/db/queries/invitations";
 import { hashPassword } from "@/lib/password";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
+import { passwordSchema } from "@/lib/password-schema";
 
 const AcceptBody = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  password: passwordSchema,
   email: z.string().email().optional(),
 });
 

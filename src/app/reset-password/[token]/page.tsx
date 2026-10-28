@@ -62,7 +62,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
 
   return (
     <AuthShell>
-      <AuthHeading title={AUTH_COPY.reset.title} description={AUTH_COPY.reset.description} />
+      <AuthHeading title={AUTH_COPY.reset.title} />
 
       <AuthCard>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,7 +71,6 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
               autoComplete="new-password"
               required
               autoFocus

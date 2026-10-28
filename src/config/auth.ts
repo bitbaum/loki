@@ -72,7 +72,6 @@ export const AUTH_COPY = {
   },
   reset: {
     title: "Choose a new password",
-    description: "Use at least 8 characters.",
     doneTitle: "Password updated",
     doneDescription: "Your password has been reset. Redirecting to sign in…",
   },

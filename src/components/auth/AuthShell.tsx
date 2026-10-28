@@ -290,7 +290,6 @@ export function CreateAccountFields({
           type="password"
           value={password}
           onChange={(e) => onPassword(e.target.value)}
-          placeholder="At least 8 characters"
           autoComplete="new-password"
           required
         />

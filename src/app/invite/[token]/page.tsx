@@ -50,10 +50,6 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       setError("Passwords don't match.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -165,7 +161,6 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
                 autoComplete="new-password"
                 required
               />
