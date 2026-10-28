@@ -14,7 +14,9 @@
     "label": "About this site",
     "roadmap": "Roadmap",
     "changelog": "Changelog",
-    "source": "Source code"
+    "source": "Source code",
+    "note": "Developed in public. Inspect the work and follow its progress.",
+    "journal": "Journal"
   },
   "Home": {
     "waiting": "is waiting for its first page.",
@@ -180,5 +182,11 @@
       "action": "Choose a new password"
     },
     "ignore": "If this was not you, ignore this email — nothing changes."
+  },
+  "Journal": {
+    "title": "Journal",
+    "lead": "Notes, decisions and updates from the people building this product.",
+    "empty": "No posts have been published yet.",
+    "back": "Back to the journal"
   }
 }

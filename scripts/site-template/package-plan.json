@@ -1,0 +1,64 @@
+{
+  "blocks": {
+    "shell": {
+      "package": "@bitbaum/sitekit",
+      "bindings": [
+        {
+          "file": "app/[locale]/layout.tsx",
+          "symbols": ["SiteMasthead", "SiteFooter"]
+        }
+      ]
+    },
+    "identity": {
+      "package": "@bitbaum/accountkit",
+      "bindings": [
+        {
+          "file": "lib/auth/server.ts",
+          "symbols": ["createAuthRuntime"]
+        },
+        {
+          "file": "components/auth/SignInForm.tsx",
+          "symbols": ["SharedSignInForm"]
+        }
+      ]
+    },
+    "publishing": {
+      "package": "bip-kit",
+      "surfaces": [
+        "app/[locale]/roadmap/page.tsx",
+        "app/[locale]/changelog/page.tsx",
+        "app/[locale]/blog/page.tsx"
+      ],
+      "bindings": [
+        {
+          "file": "components/DevelopmentRecords.tsx",
+          "symbols": ["DevelopmentPage"]
+        },
+        {
+          "file": "app/[locale]/blog/[slug]/page.tsx",
+          "symbols": ["ArticleBody", "ReadingProgress"]
+        }
+      ]
+    },
+    "design": {
+      "package": "@bitbaum/design-tokens",
+      "bindings": [
+        {
+          "file": "app/globals.css"
+        }
+      ]
+    },
+    "chat": {
+      "package": "@bitbaum/chatkit",
+      "bindings": [
+        {
+          "file": "app/globals.css"
+        },
+        {
+          "file": "components/chat/SharedChat.tsx",
+          "symbols": ["ChatThread", "ChatStarters", "Composer"]
+        }
+      ]
+    }
+  }
+}
