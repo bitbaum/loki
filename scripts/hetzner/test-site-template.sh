@@ -278,7 +278,10 @@ else
   else
     bad "globals.css does not import @bitbaum/design-tokens/tokens.css"
   fi
-  if grep -qE -- '--[a-z-]+:[[:space:]]*(#|oklch|rgb|hsl)' <<< "$css_decl"; then
+  # A token that POINTS at the palette (`hsl(var(--surface-page))`, how the
+  # kits' --sk-/--acct-/--ck- variables take the brand) is the point of the
+  # package; a literal colour (`#fff`, `hsl(210 20% 50%)`) is the drift.
+  if grep -qP -- '--[a-z0-9-]+:\s*(#[0-9a-fA-F]{3,8}\b|(oklch|rgba?|hsla?)\((?!\s*var\())' <<< "$css_decl"; then
     bad "globals.css redefines a colour token locally"
   else
     ok "no colour token is redefined locally"
