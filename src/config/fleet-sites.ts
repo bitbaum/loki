@@ -47,6 +47,11 @@ export const FLEET_SITES: readonly FleetSite[] = [
     blurb: "Schweizerdeutsch verstehen. Wir fangen mit Zürichdeutsch an.",
   },
   {
+    name: "Hirnli",
+    url: "https://revamp-info.orangecat.ch",
+    blurb: "Die richtigen Stiftungen finden. Mit Belegen überzeugen.",
+  },
+  {
     name: "kivvi",
     url: "https://kivvi.orangecat.ch",
     blurb: "Open-Source-ERP für Kreislaufbetriebe.",
@@ -55,11 +60,6 @@ export const FLEET_SITES: readonly FleetSite[] = [
     name: "Petvity",
     url: "https://petvity.orangecat.ch",
     blurb: "Track your pet's health, vets, sitters and essentials.",
-  },
-  {
-    name: "revamp.info",
-    url: "https://revamp-info.orangecat.ch",
-    blurb: "Transparentes Fundraising: Finanzen, Wirkung, Strategie.",
   },
   {
     name: "Solon",

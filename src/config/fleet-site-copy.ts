@@ -36,8 +36,8 @@ export const FLEET_SITE_COPY: Readonly<Record<string, { name: string; blurb: str
     blurb: "Werkstatt finden und den Reparaturbonus der Stadt nutzen.",
   },
   "revamp-info": {
-    name: "revamp.info",
-    blurb: "Transparentes Fundraising: Finanzen, Wirkung, Strategie.",
+    name: "Hirnli",
+    blurb: "Die richtigen Stiftungen finden. Mit Belegen überzeugen.",
   },
   "sbb-fundbuero": { name: "SBB Fundbüro", blurb: "Verlorene Gegenstände melden — Konzeptdemo." },
   solon: { name: "Solon", blurb: "Bitcoin-native governance for the digital age." },
