@@ -42,3 +42,12 @@ infrastructure). After each deploy, `live-check.yml` checks the live site from
 outside.
 
 Made from `bitbaum/fleet` `templates/app`. MIT licensed.
+
+### Shared building blocks
+
+Review `package-plan.json` before adding a feature. The root layout composes
+sitekit chrome, accountkit owns account behavior and screens, and bip-kit renders
+the journal plus roadmap/changelog. Publish real journal entries as reviewed
+Markdown in `content/blog`; drafts stay excluded by bip-kit. Empty records say
+they are empty. Shared package composition CI checks actual adoption and the
+release-to-dependency-update-to-deployment path.

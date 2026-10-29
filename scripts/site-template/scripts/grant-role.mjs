@@ -8,7 +8,7 @@
 // prints who changed and how, never anything else about them.
 import pg from "pg";
 
-const ROLES = ["customer", "helper", "professional", "staff", "admin"];
+import { ROLES } from "@bitbaum/accountkit/auth";
 const [who, role] = process.argv.slice(2);
 
 if (!who || !ROLES.includes(role ?? "")) {
