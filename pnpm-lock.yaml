@@ -31,8 +31,8 @@ importers:
         specifier: ^0.9.1
         version: 0.9.1(@bitbaum/mail-kit@0.2.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       '@bitbaum/ai-kit':
-        specifier: ^1.21.4
-        version: 1.21.4(react@19.3.1)
+        specifier: ^1.21.5
+        version: 1.21.5(react@19.3.1)
       '@bitbaum/chatkit':
         specifier: ^0.21.2
         version: 0.21.2(react@19.3.1)
@@ -468,8 +468,8 @@ packages:
       next:
         optional: true
 
-  '@bitbaum/ai-kit@1.21.4':
-    resolution: {integrity: sha512-aBK/yh5X74ZPTCURwEznXT5kKbe1GuCc0RUHy+e9v0uVivDERAq67E1LmUpasDZ3G81DB0OdOuIWMjJ+IF6ihA==}
+  '@bitbaum/ai-kit@1.21.5':
+    resolution: {integrity: sha512-TdiPrUdzSnQWDG7XE/iUA+BozJg2+xJMYHb/6ZRtbW4692n1so+jBfb5PGHyxjwiWApbnPg9TUHKv04p87vzvQ==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
@@ -5668,7 +5668,7 @@ snapshots:
       drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9)
       next: 16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
-  '@bitbaum/ai-kit@1.21.4(react@19.3.1)':
+  '@bitbaum/ai-kit@1.21.5(react@19.3.1)':
     dependencies:
       '@mozilla/readability': 0.6.0
       ai-forms: 0.1.3(react@19.3.1)

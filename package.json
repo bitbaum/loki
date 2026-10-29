@@ -123,7 +123,7 @@
     "@auth/core": "0.41.3",
     "@auth/drizzle-adapter": "^1.11.3",
     "@bitbaum/accountkit": "^0.9.1",
-    "@bitbaum/ai-kit": "^1.21.4",
+    "@bitbaum/ai-kit": "^1.21.5",
     "@bitbaum/chatkit": "^0.21.2",
     "@bitbaum/mail-kit": "^0.2.0",
     "@bitbaum/searchkit": "^0.2.3",
