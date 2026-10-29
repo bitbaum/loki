@@ -28,8 +28,8 @@ importers:
         specifier: ^1.11.3
         version: 1.11.3
       '@bitbaum/accountkit':
-        specifier: github:bitbaum/accountkit#c9fb1e59e124638ca7a1c36e00a76fef8aba20c7
-        version: https://codeload.github.com/bitbaum/accountkit/tar.gz/c9fb1e59e124638ca7a1c36e00a76fef8aba20c7(@bitbaum/mail-kit@0.2.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        specifier: ^0.10.0
+        version: 0.10.0(@bitbaum/mail-kit@0.2.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       '@bitbaum/ai-kit':
         specifier: ^1.21.5
         version: 1.21.5(react@19.3.1)
@@ -446,9 +446,8 @@ packages:
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/c9fb1e59e124638ca7a1c36e00a76fef8aba20c7':
-    resolution: {gitHosted: true, integrity: sha512-3alEPLbzqhOr2Z/yefgT4vtt7YG9FKt1JJUwV0Co9zAJmC4G9jjoJ4mzO+I551IF0FD9eojxQ+pKReGgCmtunQ==, tarball: https://codeload.github.com/bitbaum/accountkit/tar.gz/c9fb1e59e124638ca7a1c36e00a76fef8aba20c7}
-    version: 0.9.2
+  '@bitbaum/accountkit@0.10.0':
+    resolution: {integrity: sha512-AlaQWjowfoKJUNQRO4Z/xKNA6jIEYFC7LaATkPR1aYWLAm6LvJEDLksXPgq875NFXxgin5z/YwpRCDeAFtCY6A==}
     engines: {node: '>=20'}
     peerDependencies:
       '@better-auth/passkey': ^1.7.10
@@ -5656,10 +5655,11 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/c9fb1e59e124638ca7a1c36e00a76fef8aba20c7(@bitbaum/mail-kit@0.2.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)':
+  '@bitbaum/accountkit@0.10.0(@bitbaum/mail-kit@0.2.0)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)':
     dependencies:
       limitkit: 0.2.1
       react: 19.3.1
+      zod: 4.6.7
     optionalDependencies:
       '@bitbaum/mail-kit': 0.2.0
       drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(pg@8.23.1)(postgres@3.4.9)
