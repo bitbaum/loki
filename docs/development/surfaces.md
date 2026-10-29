@@ -93,7 +93,7 @@ src/
 │   │                 Models are FAMILIES by Claude Code's own aliases
 │   │                 (fable/opus/sonnet/haiku, config/agent-commands.ts),
 │   │                 never versions; the row settles on Claude Code's own
-│   │                 "Set model to Opus 5.5" (a `setting` transcript item)
+│   │                 "Set model to …" (a `setting` transcript item)
 │   │                 or shows its refusal in its words.
 │   │                 Modes are SSOT in config/terminal-modes.ts; never add a
 │   │                 second terminal shell — add a transport.
@@ -130,7 +130,7 @@ src/
 │   │                 answer and its steps, with no composer and no model
 │   │                 picker, `presentation="sheet"`), and /loki (Loki chat).
 │   │                 Two "models" exist and are named apart: the agent's
-│   │                 (SessionInfo chip, "Opus 5.5") and the one answering
+│   │                 (the SessionInfo chip, named by model family) and the one answering
 │   │                 Loki (loki/ModelPicker, "Loki answers with").
 │   │                 See docs/development/responsive-design.md.
 │   ├── activity/  → ActivityView (scope menus, the answer as a sentence, NeedsYouCard
