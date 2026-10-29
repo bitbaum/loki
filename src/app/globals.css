@@ -11,6 +11,8 @@
 /* Exclude documentation/config files — they contain example class names that
    confuse the Tailwind scanner and generate invalid CSS (e.g. var(--*)). */
 @source not "../../CLAUDE.md";
+@source not "../../AGENTS.md";
+@source not "../../docs/development/surfaces.md";
 @source not "../../.claude";
 @source not "../../content";
 

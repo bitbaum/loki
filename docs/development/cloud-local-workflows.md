@@ -193,7 +193,7 @@ environment). Threat model and what it does not do: `docs/architecture/plain-she
 
 ## Related docs
 
-- `CLAUDE.md` — engineering conventions
+- `AGENTS.md` — engineering conventions
 - `docs/infrastructure/postgres-portability.md` — vendor-neutral DB env vars, dump/restore, future Oracle/Hetzner migration
 - [The Database Kill Switch](/thoughts/the-database-kill-switch-neon-oracle-and-the-studio-stack) — postmortem, egress, Neon vs Oracle vs Hetzner
 - `home/README.md` — the local Bridge + Worker library embedded in Fleet Runner (the standalone Brain on `:3001` was retired)

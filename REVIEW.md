@@ -1,13 +1,13 @@
 # REVIEW.md — loki review bar
 
 Judge the DIFF against these gates, in order. Flag correctness and requirement
-gaps only — lint owns style. Global standards load via CLAUDE.md; this file is
+gaps only — lint owns style. Global standards load via AGENTS.md; this file is
 ONLY loki's scars.
 
 ## Fatal invariants (one violation = block)
 
 1. **API envelope is `{ok: true|false}`** — NOT the global `{success, data}`
-   convention. This repo deliberately overrides it (see CLAUDE.md).
+   convention. This repo deliberately overrides it (see AGENTS.md).
 2. **Dispatch/orchestration state has ONE owner** — no new `/tmp` signal files,
    no new `claude-*` compat paths, no second writer to dispatch status. The
    split-authority loop is the repo's #1 historical bug source (13 of 15 recent
@@ -30,7 +30,7 @@ ONLY loki's scars.
 ## Process gates
 
 - `npm run test:unit` green (auto-discovers `scripts/test/*.ts`); CI green on PR.
-- Diff updates CLAUDE.md/docs if it changes documented structure/behavior.
+- Diff updates AGENTS.md/docs if it changes documented structure/behavior.
 - Second fix of the same bug class ships the rule/test that ends the class.
 
 ## Definition of done for a page (a scar, 2026-09-28)

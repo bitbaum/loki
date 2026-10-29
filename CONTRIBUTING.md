@@ -8,7 +8,7 @@ trust. Changes should be small enough to review and strong enough to ship.
 Read:
 
 - `README.md`
-- `CLAUDE.md`
+- `AGENTS.md`
 - `docs/architecture-first-principles.md`
 - relevant domain files in `src/db/schema`, `src/db/queries`, and
   `src/components`
@@ -16,9 +16,9 @@ Read:
 ## Engineering Standards
 
 These are non-negotiable and apply to every change. The authoritative, detailed
-source is the **global engineering standards** imported at the top of `CLAUDE.md`
-(`@~/.claude/CLAUDE.md`), plus `docs/architecture-first-principles.md` and the
-four-layer design system documented in `CLAUDE.md`. This list is the quick
+source is `AGENTS.md` (and the bitbaum/fleet `AGENTS.md` it points at), plus
+`docs/architecture-first-principles.md` and the four-layer design system
+documented in `AGENTS.md`. This list is the quick
 checklist; read those for the "why". These are the bar — they should not need
 restating per task.
 
@@ -37,7 +37,7 @@ restating per task.
 - **Design discipline (no stray design).** All visual decisions flow through the
   four layers (globals.css tokens → `@theme` → `ui-*` classes → JSX). Never put raw
   hex/rgb, palette colors, or arbitrary sizes in JSX or `tailwind.config`. Run the
-  audit grep in `CLAUDE.md` before committing UI.
+  audit grep in `AGENTS.md` before committing UI.
 - **Config-driven over code-driven** for anything that changes.
 - **Validate inputs at the route boundary; preserve user/tenant scoping** in every query.
 - **Modern stack, used correctly** (Next 16 App Router, TS strict, Drizzle, Tailwind 4).
