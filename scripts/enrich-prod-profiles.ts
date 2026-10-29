@@ -4,7 +4,8 @@
 // shouldn't be emptier than the repos. This script runs the same extraction
 // pipeline as POST /api/projects/[id]/brief, but sourced from local docs and
 // pointed at the production (Hetzner) database. Sources per project, each
-// included when present: ~/dev/<project>/README.md, ~/dev/<project>/CLAUDE.md,
+// included when present: ~/dev/<project>/README.md, ~/dev/<project>/AGENTS.md,
+// ~/dev/<project>/CLAUDE.md (only when it is more than a pointer to AGENTS.md),
 // ~/dev/bitbaum/projects/<project>.md (operator notes), and the newest
 // gtm*.md under ~/dev/<project>/docs/ (recursive, case-insensitive).
 //
@@ -23,6 +24,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, basename } from "path";
 import { homedir } from "os";
 import { config } from "dotenv";
+import { agentNotes } from "../src/lib/agent-notes";
 
 config({ path: ".env.local" });
 config({ path: ".env.hetzner.local" });
@@ -119,6 +121,7 @@ function collectSources(name: string, dir: string | null): Array<{ label: string
   if (dir) {
     candidates.push(
       { label: "README.md", path: join(dir, "README.md") },
+      { label: "AGENTS.md", path: join(dir, "AGENTS.md") },
       { label: "CLAUDE.md", path: join(dir, "CLAUDE.md") },
     );
   }
@@ -129,7 +132,8 @@ function collectSources(name: string, dir: string | null): Array<{ label: string
 
   return candidates.flatMap(({ label, path }) => {
     if (!existsSync(path)) return [];
-    const text = readDoc(path);
+    const read = readDoc(path);
+    const text = label === "CLAUDE.md" ? agentNotes(read) : read;
     return text ? [{ label, text }] : [];
   });
 }
