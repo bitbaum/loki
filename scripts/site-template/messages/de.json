@@ -14,7 +14,9 @@
     "label": "Über diese Website",
     "roadmap": "Roadmap",
     "changelog": "Änderungen",
-    "source": "Quellcode"
+    "source": "Quellcode",
+    "note": "Öffentlich entwickelt. Arbeit und Fortschritt transparent verfolgen.",
+    "journal": "Journal"
   },
   "Home": {
     "waiting": "wartet auf seine erste Seite.",
@@ -180,5 +182,11 @@
       "action": "Neues Passwort wählen"
     },
     "ignore": "Wenn du das nicht warst, ignoriere diese E-Mail — es ändert sich nichts."
+  },
+  "Journal": {
+    "title": "Journal",
+    "lead": "Notizen, Entscheidungen und Neuigkeiten der Menschen, die dieses Produkt entwickeln.",
+    "empty": "Es wurden noch keine Beiträge veröffentlicht.",
+    "back": "Zurück zum Journal"
   }
 }

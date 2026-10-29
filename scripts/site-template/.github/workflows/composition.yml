@@ -1,0 +1,10 @@
+name: Shared package composition
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  composition:
+    uses: bitbaum/fleet/.github/workflows/package-composition.yml@main

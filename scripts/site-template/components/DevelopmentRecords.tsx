@@ -1,5 +1,4 @@
 import { DevelopmentPage } from "bip-kit/react";
-import "bip-kit/styles.css";
 import { getTranslations } from "next-intl/server";
 import { link, notice, shell } from "@/components/ui";
 import { getPathname } from "@/i18n/navigation";
