@@ -23,19 +23,22 @@
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.7",
-    "@bitbaum/ai-kit": "^1.20.1",
-    "@bitbaum/design-tokens": "^1.1.0",
-    "@bitbaum/mail-kit": "^0.1.1",
+    "@bitbaum/ai-kit": "^1.21.4",
+    "@bitbaum/design-tokens": "github:bitbaum/design-tokens#5c31f48743dabf9294bf9380a15862b4efbc68a0",
+    "@bitbaum/mail-kit": "^0.2.0",
     "better-auth": "^1.7.7",
-    "bip-kit": "^0.6.0",
+    "bip-kit": "^0.6.1",
     "drizzle-orm": "^0.45.4",
     "limitkit": "^0.2.0",
-    "next": "16.4.0",
+    "next": "16.4.1",
     "next-intl": "^4.14.9",
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6",
+    "@bitbaum/sitekit": "^0.4.2",
+    "@bitbaum/accountkit": "github:bitbaum/accountkit#d9c311e54fe97442f367874cfaa0ef451ba0f2bd",
+    "@bitbaum/chatkit": "^0.15.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

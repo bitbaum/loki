@@ -34,3 +34,21 @@ role:grant` changes it. People may be pseudonymous: never require a real name.
   ingests them and `/roadmap` and `/changelog` render the map. A user-facing
   change adds a changelog line in the same pull request.
 - Every secret the app reads is named in `.env.example`.
+
+Before implementing any feature, read Fleet `SHARED.md` and review this product's
+`package-plan.json`. Choose and wire the existing building blocks first; add
+product-specific code only for the domain behavior or a documented package gap.
+For shared authentication behavior, fix the source in `@bitbaum/accountkit`,
+test and release it there, then update consumers. Apps retain roles, tenant
+policy, identity migration and domain authorization. Shared chat behavior is
+fixed in `@bitbaum/chatkit`; shared model/provider behavior is fixed in
+`@bitbaum/ai-kit`. Do not copy a shared implementation into an app to work
+around a package defect.
+
+Keep shared fixes in their owning package. Shared package composition CI checks
+that adoption is real and that dependency updates remain enabled.
+
+Use Fleet's auto-merge sweep as the merge authority. Do not call the direct
+GitHub merge API, use built-in `--auto` merging, or manually merge a PR: those
+paths can bypass the docs, CI-freshness and shared-package rollout checks.
+Leave a PR open if a required workflow is missing or red.
