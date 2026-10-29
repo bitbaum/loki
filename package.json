@@ -122,7 +122,7 @@
   "dependencies": {
     "@auth/core": "0.41.3",
     "@auth/drizzle-adapter": "^1.11.3",
-    "@bitbaum/accountkit": "github:bitbaum/accountkit#247b84ff29d00298288cfa8af9deb0d8496ea87a",
+    "@bitbaum/accountkit": "^0.14.0",
     "@bitbaum/ai-kit": "^1.21.5",
     "@bitbaum/chatkit": "^0.21.2",
     "@bitbaum/mail-kit": "^0.2.0",
