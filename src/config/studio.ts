@@ -200,7 +200,7 @@ export const STUDIO_STATUS = {
     "The credential will show on your profile. The studio still decides the application on your work as a whole.",
   ],
   approved: [
-    "Partner approved",
+    "Builder approved",
     "Propose your public profile and availability. The studio reviews it before it appears in the directory.",
   ],
   declined: [

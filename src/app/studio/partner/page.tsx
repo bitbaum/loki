@@ -6,10 +6,10 @@ import { studioApplicationsForActor } from "@/db/queries/studio-requests";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
 import { continueWithOrangecat, reopenApplication } from "../actions";
 
-export const metadata = { title: "Your partner application" };
+export const metadata = { title: "Your builder application" };
 
 /**
- * The way back for an approved partner who lost their private link: sign in
+ * The way back for an approved builder who lost their private link: sign in
  * with the OrangeCat account they connected, and each application opens
  * again with a fresh link (the old one stops working).
  */
@@ -21,12 +21,12 @@ export default async function StudioPartnerPage() {
     : null;
   const orangecat = getEnabledAuthProviders().orangecat;
   return (
-    <PageLayout title="Your partner application" maxWidth="max-w-xl">
+    <PageLayout title="Your builder application" maxWidth="max-w-xl">
       <div className="ui-card space-y-4 p-5">
         {!applications ? (
           <>
             <p className="text-sm text-text-secondary">
-              Approved partners who connected their OrangeCat account can open their application
+              Approved builders who connected their OrangeCat account can open their application
               here without the private link.
             </p>
             {orangecat ? (
@@ -41,14 +41,14 @@ export default async function StudioPartnerPage() {
           </>
         ) : applications.length === 0 ? (
           <p className="text-sm text-text-secondary">
-            No partner application is connected to this OrangeCat account. Once the studio approves
+            No builder application is connected to this OrangeCat account. Once the studio approves
             you, connect it from your application. Lost the link before that? The portal sends a new
             one to the email you gave.
           </p>
         ) : (
           applications.map((a) => (
             <form key={a.id} action={reopenApplication.bind(null, a.id)} className="space-y-2">
-              <p className="font-medium text-text-primary">{a.name ?? "Partner application"}</p>
+              <p className="font-medium text-text-primary">{a.name ?? "Builder application"}</p>
               <p className="text-sm text-text-secondary">{a.status.title}</p>
               <button type="submit" className="ui-btn-primary">
                 Open my application

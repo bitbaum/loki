@@ -28,7 +28,7 @@ assert.equal(
 );
 assert.equal(
   byId.partner.href,
-  "https://bitbaum.orangecat.ch/partners/",
+  "https://bitbaum.orangecat.ch/builders/",
   "the partner directory is the one list, on bitbaum",
 );
 assert.equal(

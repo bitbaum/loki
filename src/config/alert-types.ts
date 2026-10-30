@@ -131,7 +131,7 @@ export const ALERT_TYPES = {
     producer: "src/lib/feedback/notify-new.ts",
   },
   studio_request: {
-    label: "A studio request or partner application needs a person",
+    label: "A studio request or builder application needs a person",
     audience: "operator",
     action: "Review",
     producer: "src/lib/studio/notify.ts",
