@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requestToken, x1Enabled } from "@/lib/x-oauth1";
 import { APP_URL } from "@/config/brand";
 import { logDebug } from "@/db/queries/debug-logs";
+import { getEnabledAuthProviders } from "@/lib/auth-providers";
 
 // Step 1 of "Sign in with X" (OAuth 1.0a): get a request token and hand the
 // user off to X's authenticate page. The token secret is stashed in a
@@ -9,7 +10,8 @@ import { logDebug } from "@/db/queries/debug-logs";
 export const runtime = "nodejs";
 
 export async function GET() {
-  if (!x1Enabled()) {
+  // Paused providers (lib/auth-providers.ts) stay closed even when typed in directly.
+  if (!x1Enabled() || !getEnabledAuthProviders().x) {
     return NextResponse.redirect(`${APP_URL}/sign-in?error=XLoginUnavailable`);
   }
   try {
