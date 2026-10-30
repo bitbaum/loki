@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.61",
+    tag: "fleet-runner-v0.8.61",
+    date: "2026-10-30T18:00:00Z",
+    highlights: [
+      "Security update: Fleet Runner now runs on Electron 43.8.4, which fixes several published Electron advisories.",
+      "The main window now loads the Loki page with Electron's renderer sandbox on, so the page has no Node access.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.60",
     tag: "fleet-runner-v0.8.60",
     date: "2026-10-30T12:00:00Z",

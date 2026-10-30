@@ -429,7 +429,13 @@ function createWindow(): void {
     ...(APP_ICON_PATH ? { icon: APP_ICON_PATH } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      // This window loads a remote page, so its renderer runs sandboxed. The
+      // preload needs nothing a sandboxed preload lacks: it imports only
+      // contextBridge and ipcRenderer from 'electron'. Every local capability
+      // goes through an ipcMain handler in this process.
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
