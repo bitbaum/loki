@@ -107,7 +107,7 @@ export function FeedbackItemRow({
       onClick={() => onDispatch(opts)}
       disabled={busy}
       className={primary ? "ui-btn-save" : "ui-btn-secondary"}
-      title="Queue an agent run for this on your builder"
+      title="Queue an agent run for this on your runner"
     >
       {busy && <Loader2 className="ui-spinner-xs" />}
       {label}
@@ -198,7 +198,7 @@ export function FeedbackItemRow({
           onClick={onRunInCloud}
           disabled={busy}
           className="ui-btn-save"
-          title="Move this to the cloud builder — it starts now, nothing is lost"
+          title="Move this to the cloud runner — it starts now, nothing is lost"
         >
           {busy && <Loader2 className="ui-spinner-xs" />}
           Run it in the cloud

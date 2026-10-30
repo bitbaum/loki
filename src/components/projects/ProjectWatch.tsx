@@ -452,7 +452,7 @@ function cardPhase(input: {
 function rerouteSentence(provider: NonNullable<WatchPayload["provider"]>): string {
   const from = provider.reroutedFromLabel ?? "the agent it was meant for";
   if (provider.reroutedWhy === "not-installed")
-    return `Sent to ${provider.currentLabel} — ${from} is not installed on the builder that runs this project.`;
+    return `Sent to ${provider.currentLabel} — ${from} is not installed on the runner this project uses.`;
   if (provider.reroutedWhy === "spent")
     return `Sent to ${provider.currentLabel} — ${from} was out of usage.`;
   // Older runs did not record why; the only claim on record is the switch.
@@ -461,5 +461,5 @@ function rerouteSentence(provider: NonNullable<WatchPayload["provider"]>): strin
 
 /** A one-word state ("Queued") as a headline a person can read. */
 function waitingHeadline(label: string): string {
-  return /^queued$/i.test(label.trim()) ? "Waiting for a builder to pick it up." : label;
+  return /^queued$/i.test(label.trim()) ? "Waiting for a runner to pick it up." : label;
 }

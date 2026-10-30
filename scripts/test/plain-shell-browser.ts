@@ -126,7 +126,7 @@ async function main() {
         continue;
       }
 
-      const row = page.getByRole("button", { name: "Open a plain shell on the cloud builder" });
+      const row = page.getByRole("button", { name: "Open a plain shell on the cloud runner" });
       await row.waitFor();
       const box = (await row.locator("xpath=ancestor::li").boundingBox())!;
       assert.ok(box.height >= 44, `the row is a 44px target (${box.height})`);
@@ -136,14 +136,14 @@ async function main() {
         true,
         "no sideways scroll at 390px",
       );
-      await page.getByText("A command line on the cloud builder, no project").waitFor();
+      await page.getByText("A command line on the cloud runner, no project").waitFor();
 
       // The shell's own chrome: it says what it is, in a 44px bar, within the phone.
       const bar = page.getByRole("note");
       await bar.getByText("Real shell").waitFor();
       assert.match(
         (await bar.textContent()) ?? "",
-        /Real shell on the cloud builder · no project, no agent/,
+        /Real shell on the cloud runner · no project, no agent/,
       );
       assert.ok((await bar.boundingBox())!.height >= 44, "the bar is a 44px target row");
       assert.equal(
@@ -167,7 +167,7 @@ async function main() {
       assert.deepEqual(
         calls,
         ['unlock {"pin":"4821"}', 'open {"channel":"cloud"}'],
-        "PIN, then a shell on the cloud builder",
+        "PIN, then a shell on the cloud runner",
       );
       assert.deepEqual(errors, [], "no page errors");
       fs.mkdirSync(".tmp/plain-shell", { recursive: true });

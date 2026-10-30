@@ -91,7 +91,7 @@ export async function autoRetryStuckFeedbackQueues(): Promise<{
       await closeRunUndelivered(
         run.id,
         userId,
-        "Auto-retry: no builder claimed the queued Implement",
+        "Auto-retry: no runner claimed the queued Implement",
       ).catch(() => null);
 
       const row = await getFeedbackWithProject(userId, item.id);

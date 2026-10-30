@@ -143,7 +143,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
         return {
           kind: RECOMMEND.CLOUD,
           label: "Run it in the cloud",
-          why: "It is waiting for this computer, which is off; the cloud builder is online and nothing is lost by moving it.",
+          why: "It is waiting for this computer, which is off; the cloud runner is online and nothing is lost by moving it.",
           runs: 1,
           priority: 50,
         };

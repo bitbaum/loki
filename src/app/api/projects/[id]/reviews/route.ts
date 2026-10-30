@@ -109,6 +109,6 @@ export async function POST(req: NextRequest, ctx: Context) {
   } catch (error) {
     await updateSiteReview(row, { status: "failed" });
     console.error("[site-review:start]", error instanceof Error ? error.message : error);
-    return jsonError("The review could not reach the builder. Try again.", 503);
+    return jsonError("The review could not reach the runner. Try again.", 503);
   }
 }

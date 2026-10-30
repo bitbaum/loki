@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
     const access = await getExecutionAccess(userId);
     if (!access.cloudBuilderAllowed) {
       return NextResponse.json(
-        { error: "Cloud builder is private for this account." },
+        { error: "Cloud runner is private for this account." },
         { status: 403 },
       );
     }

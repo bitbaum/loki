@@ -180,7 +180,7 @@ export function DispatchFooter({
         return;
       }
       if (!body.rerouted) {
-        setMoveError(body.skipped?.[0]?.reason ?? "A builder just picked it up.");
+        setMoveError(body.skipped?.[0]?.reason ?? "A runner just picked it up.");
         setMoved("idle");
         return;
       }

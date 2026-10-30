@@ -91,7 +91,7 @@ export function runnerVersionStatus(
       behindBy: 0,
       // Not an error: the box runs deploy-synced code, so it legitimately
       // reaches a version before that version is tagged and published.
-      detail: `Runner ${normalized} is ahead of the newest published release (${latest}) — expected for a deploy-synced builder.`,
+      detail: `Runner ${normalized} is ahead of the newest published release (${latest}) — expected for a deploy-synced runner.`,
     };
   }
   if (diff === 0) {

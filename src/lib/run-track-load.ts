@@ -44,7 +44,7 @@ import { RUN_BLOCKED } from "@/lib/run-progress";
 
 /** Which builder has it, in words. SSOT for the track's "picked it up" row. */
 const BUILDER_WORDS: Record<string, string> = {
-  cloud: "the cloud builder",
+  cloud: "the cloud runner",
   local: "this computer",
 };
 

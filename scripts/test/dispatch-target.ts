@@ -25,7 +25,7 @@ check("the three choices read as one sentence", () => {
   assert.equal(v.line, "Claude Code · opus · This computer");
 });
 
-check("a project that pinned no builder does not invent one", () => {
+check("a project that pinned no runner does not invent one", () => {
   const v = describeDispatchTarget({ agentLabel: "Claude Code", channel: null });
   assert.equal(v.line, "Claude Code");
   assert.ok(!/computer|Cloud/.test(v.line), "no machine claimed when none is pinned");
@@ -33,7 +33,7 @@ check("a project that pinned no builder does not invent one", () => {
 
 check("an agent with no model choice is not given an empty slot", () => {
   const v = describeDispatchTarget({ agentLabel: "Codex", model: "  ", channel: "cloud" });
-  assert.equal(v.line, "Codex · Cloud builder");
+  assert.equal(v.line, "Codex · Cloud runner");
 });
 
 // Cost is the PREVIOUS run's, measured. A forecast beside a button reads as a

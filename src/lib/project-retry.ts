@@ -113,7 +113,7 @@ export async function retryProjectRun(
         ok: false,
         status: 409,
         error: notInstalled
-          ? `${providerLabel(failedOn)} is not installed on the builder, and no other agent there can take it.`
+          ? `${providerLabel(failedOn)} is not installed on the runner, and no other agent there can take it.`
           : "No other provider can answer right now.",
       };
     }

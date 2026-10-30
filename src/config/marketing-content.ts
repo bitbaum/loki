@@ -52,7 +52,7 @@ export const WHERE_IT_RUNS = {
   lede: "Loki itself runs in your browser and on your phone. The agents need a computer to work on — you choose which one, per project.",
   options: [
     {
-      label: "Cloud builder",
+      label: "Cloud runner",
       title: "Nothing to install",
       body: "An always-on server does the work, even while your laptop is closed. During the beta it is open to invited accounts.",
       cta: {
@@ -87,7 +87,7 @@ export const PHILOSOPHY = {
     {
       name: "Choose where agents run.",
       description:
-        "Connect Fleet Runner for work on your computer. Eligible accounts can also use the shared cloud builder. Keep project context and control in one place.",
+        "Connect Fleet Runner for work on your computer. Eligible accounts can also use the shared cloud runner. Keep project context and control in one place.",
     },
     {
       name: "Humans in the loop, by default.",
@@ -144,12 +144,12 @@ export const INVESTORS = {
   whyNow: [
     "Agent capability has crossed the orchestration threshold. The bottleneck is no longer raw generation. It is human direction.",
     "People are already running several agents at once across several projects — and people who never wrote code want the same result. Both need one place to direct, check and ship the work.",
-    "The winning architecture combines remote command with a clear choice of execution location. Loki supports the shared cloud builder for eligible accounts and Fleet Runner on your computer.",
+    "The winning architecture combines remote command with a clear choice of execution location. Loki supports the shared cloud runner for eligible accounts and Fleet Runner on your computer.",
     "Open-weight models keep closing the gap on frontier capability. A layer that runs many vendors' agents is neutral to which model wins.",
     "The same control patterns transfer to physical robotics. The market has not yet appreciated this.",
   ],
   built:
-    "A web workspace runs AI coding agents (Claude Code, Codex, Cursor, Antigravity, Grok) across many projects: from a plain description to a repository, a deployed site and a feedback loop that turns notes on that site into the next change. Invited accounts run on the shared cloud builder; Fleet Runner runs agents on the operator's own computer (Linux, Windows, Apple-silicon macOS). Every site deploy is checked on a phone-sized screen and rolled back if it got worse. Beta, in daily use.",
+    "A web workspace runs AI coding agents (Claude Code, Codex, Cursor, Antigravity, Grok) across many projects: from a plain description to a repository, a deployed site and a feedback loop that turns notes on that site into the next change. Invited accounts run on the shared cloud runner; Fleet Runner runs agents on the operator's own computer (Linux, Windows, Apple-silicon macOS). Every site deploy is checked on a phone-sized screen and rolled back if it got worse. Beta, in daily use.",
   // Scannable bullets, not a prose wall — the page pairs these with the live
   // fleet snapshot (same real data source as the homepage hero).
   traction: [
@@ -158,7 +158,7 @@ export const INVESTORS = {
     "The homepage and this page show the same snapshot of projects whose owners chose to show them — real data, never fabricated numbers.",
     "The bet: the same workflow generalizes to anyone running many agents at once.",
   ],
-  ask: "We are raising to open the cloud builder to everyone who signs up, with each account isolated, to improve Fleet Runner, and to broaden open-model support.",
+  ask: "We are raising to open the cloud runner to everyone who signs up, with each account isolated, to improve Fleet Runner, and to broaden open-model support.",
 };
 
 export const INVESTOR_DETAILS = {
@@ -208,7 +208,7 @@ export const ROADMAP: {
     items: [
       {
         title: "The execution location is visible and chosen.",
-        body: "Projects run on their configured builder. Eligible accounts can use the cloud builder; Fleet Runner runs work on your computer when you choose it.",
+        body: "Projects run on their configured runner. Eligible accounts can use the cloud runner; Fleet Runner runs work on your computer when you choose it.",
       },
       {
         // The local path is a public https endpoint (a tunnel to Ollama or LM
@@ -272,7 +272,7 @@ export const DESKTOP_DOWNLOAD = {
         "Full fleet visibility across all projects",
         "Browse history, projects, and queues",
         "Dispatch commands from any browser or phone",
-        "Create projects, hand out work, and follow cloud builder sessions where your account has it",
+        "Create projects, hand out work, and follow cloud runner sessions where your account has it",
       ],
     },
     desktop: {
@@ -285,7 +285,7 @@ export const DESKTOP_DOWNLOAD = {
         "Keeps working after you close your browser",
       ],
     },
-    note: "You can start on the web today. If your account does not have the cloud builder, add Fleet Runner so agents have a computer to work on.",
+    note: "You can start on the web today. If your account does not have the cloud runner, add Fleet Runner so agents have a computer to work on.",
   },
 
   // Three steps that answer "what happens after I click download?"
@@ -406,14 +406,14 @@ export const DESKTOP_DOWNLOAD = {
   prerequisites: {
     title: "What Fleet Runner uses on your computer",
     description:
-      "Fleet Runner runs the agent you choose; install that agent and sign in with its provider. The current agent list appears in Loki and may vary by builder.",
+      "Fleet Runner runs the agent you choose; install that agent and sign in with its provider. The current agent list appears in Loki and may vary by runner.",
     items: [
       {
         title: "Choose an agent",
         role: "Claude Code · Codex · Cursor · Antigravity · Grok",
         required: true,
         whyYouNeedIt:
-          "Install and sign in to at least one supported agent CLI on the computer that will run it. Loki shows which agents are available for each builder.",
+          "Install and sign in to at least one supported agent CLI on the computer that will run it. Loki shows which agents are available for each runner.",
         command: "",
         href: "",
         installLabel: "",

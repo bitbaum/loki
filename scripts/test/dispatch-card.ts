@@ -23,14 +23,14 @@ const base = {
 const queued = {
   status: "queued" as const,
   label: "Queued",
-  detail: "waiting for a builder to pick it up",
+  detail: "waiting for a runner to pick it up",
   tone: "neutral" as const,
 };
 
 const waitingLocal = { ...base, live: queued, warn: true, channel: "local" as const };
 
 const reported = presentDispatchCard({ ...waitingLocal, cloud: "private" });
-check("names the builder it waits for", reported.headline === "Waiting for this computer");
+check("names the runner it waits for", reported.headline === "Waiting for this computer");
 check(
   "with a private cloud, the next step is connecting Fleet Runner",
   !isDispatchCardAction(reported.primary) && reported.primary?.href === "/download",
@@ -60,8 +60,8 @@ check(
   !isDispatchCardAction(cloudDown.primary) && cloudDown.primary?.href === "/control?focus=loki",
 );
 check(
-  "…and it names both builders as offline",
-  /cloud builder is offline too/.test(cloudDown.detail ?? ""),
+  "…and it names both runners as offline",
+  /cloud runner is offline too/.test(cloudDown.detail ?? ""),
 );
 check("…with no download at all", !cloudDown.secondary.some((l) => l.href === "/download"));
 

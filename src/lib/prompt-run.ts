@@ -55,7 +55,7 @@ export function sendResultLine(input: {
     case null:
     default:
       return input.waitingForBuilder
-        ? { text: `Sent. It starts in ${p} as soon as a builder is online.`, failed: false }
+        ? { text: `Sent. It starts in ${p} as soon as a runner is online.`, failed: false }
         : { text: `Sent to ${p}. An agent starts on it in a moment.`, failed: false };
   }
 }

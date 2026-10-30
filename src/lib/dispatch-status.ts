@@ -191,7 +191,7 @@ export function deriveDispatchLiveStatus(
       return {
         status: "queued",
         label: "Queued",
-        detail: "waiting for a builder to pick it up",
+        detail: "waiting for a runner to pick it up",
         tone: "neutral",
         terminal: false,
       };

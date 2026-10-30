@@ -139,7 +139,7 @@ export function buildCardProps(deps: Deps) {
   });
 }
 
-const BUILDER_WORDS = { cloud: "the cloud builder", local: "your computer" } as const;
+const BUILDER_WORDS = { cloud: "the cloud runner", local: "your computer" } as const;
 
 /**
  * Each project is offered the agents installed on the builder that will run

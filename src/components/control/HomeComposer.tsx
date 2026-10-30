@@ -63,7 +63,7 @@ export function HomeComposer({
       const result = await onSend(project, text, attachments);
       setSaid(
         result.mode === "queued" && result.runnerConnected === false
-          ? `Saved for ${shown}. It starts when the builder is back.`
+          ? `Saved for ${shown}. It starts when the runner is back.`
           : `Sent to ${shown}. It shows under "Being built" in a moment.`,
       );
       return true;

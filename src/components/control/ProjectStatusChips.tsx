@@ -296,7 +296,7 @@ export function ProjectStatusChips({
         <Link
           href={fleetSurfaceHref("terminal", project.tab)}
           onClick={(event) => event.stopPropagation()}
-          title="Open this project’s terminal. Running an agent requires an eligible cloud builder or your connected Fleet Runner."
+          title="Open this project’s terminal. Running an agent requires an eligible cloud runner or your connected Fleet Runner."
           className={
             compact
               ? "text-text-tertiary transition-colors hover:text-text-primary"

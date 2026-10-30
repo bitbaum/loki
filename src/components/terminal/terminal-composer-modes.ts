@@ -28,7 +28,7 @@ export function terminalComposerModes(
         id,
         label: "Inject",
         hint: tab
-          ? `A task into ${tab}, with the project's context — queued if the builder is offline.`
+          ? `A task into ${tab}, with the project's context — queued if the runner is offline.`
           : "Open a session to inject into it.",
       });
     }

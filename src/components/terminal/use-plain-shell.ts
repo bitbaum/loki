@@ -80,7 +80,7 @@ export function usePlainShell(
     const t = setTimeout(() => {
       setPending(null);
       setError(
-        "The builder did not open a shell. It may be updating or have shells switched off — try again in a minute.",
+        "The runner did not open a shell. It may be updating or have shells switched off — try again in a minute.",
       );
     }, OPEN_WAIT_MS);
     return () => clearTimeout(t);

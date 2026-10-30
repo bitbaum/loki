@@ -93,12 +93,12 @@ export default function QuickstartPage() {
           <h2 className="ui-public-prose-h2">2. Choose where agents run</h2>
           <p>
             Loki itself runs in your browser. The agents that write the code run on a{" "}
-            <em>builder</em>: a computer that is switched on and signed in to them. You choose the
-            builder per project:
+            <em>runner</em>: a computer that is switched on and signed in to them. You choose the
+            runner per project:
           </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
-              <strong>Cloud builder</strong> — Loki&apos;s own always-on server. Nothing to install.
+              <strong>Cloud runner</strong> — Loki&apos;s own always-on server. Nothing to install.
               It is open to some accounts for now; if yours has it, you can skip steps{" "}
               {computerSteps}.
             </li>
@@ -107,13 +107,13 @@ export default function QuickstartPage() {
               <Link href="/download" className="ui-public-link">
                 Fleet Runner
               </Link>{" "}
-              app. You need it when your account does not have the cloud builder, or when the work
+              app. You need it when your account does not have the cloud runner, or when the work
               should use files, tools or sign-ins that are on your computer.
             </li>
           </ul>
           <p>
-            If a project&apos;s builder is offline, its work waits in a queue you can see. Loki
-            never moves work to another machine on its own.
+            If a project&apos;s runner is offline, its work waits in a queue you can see. Loki never
+            moves work to another machine on its own.
           </p>
         </section>
 
@@ -150,8 +150,8 @@ export default function QuickstartPage() {
             Code, Codex, Cursor, Antigravity and Grok. One is enough to start.
           </p>
           <p>
-            Control and Terminal show which agents each builder can use, because that can differ
-            from one builder to the next.
+            Control and Terminal show which agents each runner can use, because that can differ from
+            one runner to the next.
           </p>
         </section>
 
@@ -211,12 +211,12 @@ export default function QuickstartPage() {
           <h2 className="ui-public-prose-h2">6. Give an existing project work</h2>
           <p>
             For a project that already has a repository, set <strong>Runs on</strong> in Control →
-            the project&apos;s profile: Cloud builder if your account has it, or This computer. Then
-            pick the project in Control, write what you want done, and send it. If that builder is
+            the project&apos;s profile: Cloud runner if your account has it, or This computer. Then
+            pick the project in Control, write what you want done, and send it. If that runner is
             offline, the request waits in the queue until it is back.
           </p>
           <p>
-            To work in a session yourself, open Sessions and choose Cloud builder or Your computer.
+            To work in a session yourself, open Sessions and choose Cloud runner or Your computer.
             That choice does not change where the project&apos;s own work runs.
           </p>
         </section>

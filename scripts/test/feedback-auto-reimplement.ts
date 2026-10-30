@@ -23,7 +23,7 @@ const NO_GEN =
 const AUTH =
   "claude is not authenticated (401 / login required) — the prompt was delivered but the agent can't run.";
 const WORKSPACE =
-  'workspace for "petvity" is not materializable on this builder: /home/g/dev/petvity does not exist here and the project has no cloneable GitHub gitUrl.';
+  'workspace for "petvity" is not materializable on this runner: /home/g/dev/petvity does not exist here and the project has no cloneable GitHub gitUrl.';
 
 assert.deepEqual(decideAutoReimplement(CAPACITY, null), {
   retry: true,
@@ -45,7 +45,7 @@ assert.equal(
 );
 assert.deepEqual(
   decideAutoReimplement("runner error", null),
-  { retry: true, because: "the first attempt was refused by the builder" },
+  { retry: true, because: "the first attempt was refused by the runner" },
   "an unclassified refusal earns exactly one more attempt",
 );
 assert.equal(

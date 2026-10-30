@@ -28,8 +28,8 @@ export function BuildEngineToggle({
         <p className="text-sm text-text-primary">Also for building</p>
         <p className="text-xs text-text-secondary">
           {on
-            ? `${agent} in your cloud builder runs on this key — your vendor bills every build. Reaches the builder within a minute.`
-            : `Lets ${agent} in your cloud builder run on this key instead of a sign-in. Your vendor bills the builds.`}
+            ? `${agent} in your cloud runner runs on this key — your vendor bills every build. Reaches the runner within a minute.`
+            : `Lets ${agent} in your cloud runner run on this key instead of a sign-in. Your vendor bills the builds.`}
         </p>
       </div>
       <button

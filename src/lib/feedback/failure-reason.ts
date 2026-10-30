@@ -34,9 +34,9 @@ export function explainRunFailure(
   ) {
     const tried = opts.tried ?? [];
     if (tried.length > 1)
-      return `Every agent Loki could reach is out of quota (tried ${tried.join(", ")}) — sign in another agent on your builder under Settings → Agent, or Retry once a quota resets.`;
+      return `Every agent Loki could reach is out of quota (tried ${tried.join(", ")}) — sign in another agent on your runner under Settings → Agent, or Retry once a quota resets.`;
     if (tried.length === 1)
-      return `${tried[0]} ran out of quota and no other agent on your builder can answer — sign one in under Settings → Agent, or Retry once it resets.`;
+      return `${tried[0]} ran out of quota and no other agent on your runner can answer — sign one in under Settings → Agent, or Retry once it resets.`;
     return "The agent ran out of quota — switch provider, or Retry once it resets.";
   }
   // Before the generic "never reached" line: the runner says the agent DID
@@ -53,7 +53,7 @@ export function explainRunFailure(
   )
     return "The agent opened but never answered — Retry runs it on the next provider.";
   if (has(text, "dispatch failed before the prompt reached the agent"))
-    return "It never reached an agent — Retry, or check the builder is online.";
+    return "It never reached an agent — Retry, or check the runner is online.";
   if (
     has(
       text,

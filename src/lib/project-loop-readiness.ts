@@ -78,6 +78,6 @@ export function deriveProjectLoopReadiness(
     tone: "positive",
     reason: "has_path",
     description:
-      "This project is connected, so an agent can work on it whenever a builder is online.",
+      "This project is connected, so an agent can work on it whenever a runner is online.",
   };
 }

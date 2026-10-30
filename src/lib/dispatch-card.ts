@@ -155,11 +155,11 @@ function presentWaiting(
   only: (...links: (DispatchCardLink | null)[]) => DispatchCardLink[],
 ): DispatchCardView {
   const local = input.channel === "local";
-  const headline = on ? `Waiting for ${on}` : "Waiting for a builder";
+  const headline = on ? `Waiting for ${on}` : "Waiting for a runner";
   if (!local) {
     return {
       headline,
-      detail: "No builder is online. The work stays queued and starts the moment one connects.",
+      detail: "No runner is online. The work stays queued and starts the moment one connects.",
       tone: "warning",
       primary: control,
       secondary: only(),
@@ -171,7 +171,7 @@ function presentWaiting(
       return {
         headline,
         detail:
-          "Fleet Runner isn't connected on that computer. The cloud builder is online and can take this now — nothing to install.",
+          "Fleet Runner isn't connected on that computer. The cloud runner is online and can take this now — nothing to install.",
         tone: "warning",
         primary: { label: "Run it in the cloud", action: "run-in-cloud" },
         secondary: only(control),
@@ -180,7 +180,7 @@ function presentWaiting(
       return {
         headline,
         detail:
-          "Fleet Runner isn't connected on that computer, and the cloud builder is offline too. The work stays queued; it starts the moment either is back.",
+          "Fleet Runner isn't connected on that computer, and the cloud runner is offline too. The work stays queued; it starts the moment either is back.",
         tone: "warning",
         primary: control,
         secondary: only(),
