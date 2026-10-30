@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { APP_NAME, APP_TAGLINE, APP_DESCRIPTION } from "@/config/brand";
-import { BRAND_MARK, spiralPathD } from "@/config/brand-mark";
+import { BRAND_MARK, MARK_TURNS, markPathD } from "@/config/brand-mark";
 import { PALETTE } from "@/lib/palette";
 
 // Next.js file-convention OG image: served at /opengraph-image and auto-picked
@@ -28,7 +28,7 @@ export default async function OGImage() {
         fontFamily: "sans-serif",
       }}
     >
-      {/* Brand mark — dense spiral coil from the SSOT (src/config/brand-mark.ts) */}
+      {/* Brand mark — rotorelief disc from the SSOT (src/config/brand-mark.ts) */}
       <svg
         width="120"
         height="120"
@@ -36,12 +36,9 @@ export default async function OGImage() {
         style={{ marginBottom: 48 }}
       >
         <path
-          d={spiralPathD()}
-          fill="none"
-          stroke={PALETTE.dark.textPrimary}
-          strokeWidth={BRAND_MARK.strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          d={markPathD({ turns: MARK_TURNS.hero })}
+          fill={PALETTE.dark.textPrimary}
+          fillRule="evenodd"
         />
       </svg>
 

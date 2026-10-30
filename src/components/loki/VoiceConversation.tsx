@@ -2,7 +2,8 @@
 
 import { X } from "lucide-react";
 import { Drawer } from "@/components/ui/modal";
-import { BRAND_MARK, spiralPathD } from "@/config/brand-mark";
+import { LokiMark } from "@/components/shell/LokiMark";
+import { BRAND_MARK } from "@/config/brand-mark";
 import type { useVoiceConversation, VoicePhase } from "@/hooks/use-voice-conversation";
 import { usePressVerb } from "@/hooks/use-press-verb";
 import type { PressVerb } from "@/lib/pointer-verb";
@@ -34,12 +35,13 @@ const ORB_CLASS: Record<VoicePhase, string> = {
 };
 
 /**
- * The hands-free conversation screen: Loki's spiral, one line of whose turn
+ * The hands-free conversation screen: Loki's disc, one line of whose turn
  * it is, the words in play, and one way out.
  *
- * The spiral IS the state — it swells with your voice while listening, spins
- * while it thinks, breathes while it speaks — so there is no microphone glyph
- * that reads "recording" while Loki is the one talking. While it speaks, the
+ * The disc IS the state. It turns clockwise, which reads as pouring inward,
+ * while it listens (your voice deepens the tunnel) and fast while it thinks;
+ * it reverses and flows out toward you while it speaks. So there is no
+ * microphone glyph that reads "recording" while Loki is the one talking. While it speaks, the
  * screen shows what it is saying (you can read along, or stop it); while it
  * thinks, what it heard. One exit at the bottom, where the thumb is: the
  * corner × duplicated it.
@@ -71,20 +73,18 @@ export function VoiceConversation({ voice }: { voice: ReturnType<typeof useVoice
             // hears you, without a waveform to read.
             style={{ transform: `scale(${phase === "listening" ? 1 + level * 0.25 : 1})` }}
           >
-            <svg
-              viewBox={`0 0 ${BRAND_MARK.viewBox} ${BRAND_MARK.viewBox}`}
-              fill="none"
+            <LokiMark
+              turns="hero"
               className="ui-voice-spiral"
-              aria-hidden
-            >
-              <path
-                d={spiralPathD()}
-                stroke="currentColor"
-                strokeWidth={BRAND_MARK.strokeWidth}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+              // Loudness sets how deep the tunnel goes: the drift grows with
+              // your voice, quantised so a level stream does not redraw the
+              // path on every sample.
+              depth={
+                phase === "listening"
+                  ? BRAND_MARK.depth * (0.6 + Math.round(level * 20) / 20)
+                  : undefined
+              }
+            />
           </button>
           {copy.label && (
             <p className="ui-voice-label" role="status" aria-live="polite">

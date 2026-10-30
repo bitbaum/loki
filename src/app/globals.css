@@ -2858,15 +2858,15 @@
   .ui-brand-mark-responsive {
     @apply h-9 w-9 sm:h-11 sm:w-11;
   }
-  /* The spiral glyph itself. Inline <svg> stroked with currentColor so it
-     inherits text color + theme. The animated variant slowly rotates and
-     carries a soft glow — the "trippy, fall-into-infinity" treatment for the
-     in-app mark only. Icons (favicon/tray/compact) stay static + crisp. */
+  /* The rotorelief disc itself. Inline <svg> filled with currentColor so it
+     inherits text color + theme. The animated variant turns clockwise — the
+     off-centre coil reads as a tunnel pouring inward — with a soft glow, for
+     the in-app mark only. Icons (favicon/tray/compact) stay static + crisp. */
   .ui-brand-spiral {
     color: var(--text-primary);
   }
   .ui-brand-spiral-animated {
-    animation: ui-brand-spiral-spin 28s linear infinite;
+    animation: ui-brand-spiral-spin 14s linear infinite;
     filter: drop-shadow(0 0 4px color-mix(in oklch, var(--text-primary) 30%, transparent));
     transform-origin: 50% 50%;
   }
@@ -7600,15 +7600,20 @@
   .ui-voice-orb-busy {
     @apply text-text-primary;
   }
+  /* The disc fills the orb. Clockwise reads as pouring inward (listening,
+     thinking); reversed it flows out toward you (speaking). */
   .ui-voice-spiral {
-    @apply h-14 w-14;
+    @apply h-32 w-32;
     transform-origin: 50% 50%;
   }
+  .ui-voice-orb-listening .ui-voice-spiral {
+    animation: ui-brand-spiral-spin 7s linear infinite;
+  }
   .ui-voice-orb-busy .ui-voice-spiral {
-    animation: ui-brand-spiral-spin 1.6s linear infinite;
+    animation: ui-brand-spiral-spin 2.2s linear infinite;
   }
   .ui-voice-orb-speaking .ui-voice-spiral {
-    animation: ui-brand-spiral-spin 9s linear infinite;
+    animation: ui-brand-spiral-spin 5s linear infinite reverse;
   }
   @keyframes ui-voice-breathe {
     50% {
@@ -7617,6 +7622,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .ui-voice-orb-speaking,
+    .ui-voice-orb-listening .ui-voice-spiral,
     .ui-voice-orb-busy .ui-voice-spiral,
     .ui-voice-orb-speaking .ui-voice-spiral {
       animation: none;
