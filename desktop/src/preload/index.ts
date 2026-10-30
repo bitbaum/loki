@@ -78,4 +78,15 @@ contextBridge.exposeInMainWorld('fleetRunner', {
     return () => ipcRenderer.removeListener('update-state', handler)
   },
   quitAndInstall: (): Promise<boolean> => ipcRenderer.invoke('quit-and-install'),
+
+  // Workbench windows — a pane of Loki's own, or the project's site, beside
+  // this window or on the other display. The web shell cannot window.open
+  // here (every new window is sent to the default browser), so this is the
+  // one way a second window exists; the main process places it from the
+  // real display list (main/workbench-windows.ts). v0.8.60+.
+  openWorkbenchWindow: (
+    url: string,
+    placement: 'beside' | 'other-screen'
+  ): Promise<{ ok: true; displays: number } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('open-workbench-window', url, placement),
 })

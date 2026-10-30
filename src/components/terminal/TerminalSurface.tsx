@@ -220,6 +220,7 @@ export function TerminalSurface({
   initialRunId = null,
   initialExplain = false,
   initialPrompt = null,
+  rail,
 }: {
   local: boolean;
   immersive?: boolean;
@@ -237,6 +238,11 @@ export function TerminalSurface({
   /** `?q=` — put these words in the rail's composer, for the person to check
    *  and send. The widget's "Continue in Loki → Terminal" carries the thread. */
   initialPrompt?: string | null;
+  /** Where the rail's open/closed choice is remembered, and what it is before
+   *  the person chooses. The Sessions page keeps the default; the workbench
+   *  (a half-width column beside Loki's own chat) remembers its own choice
+   *  and starts closed, so the session has the columns. */
+  rail?: { storageKey: string; defaultOpen: boolean };
 }) {
   // "shell" — a Loki-owned bash PTY — is only offered where one can
   // actually be provisioned. On the hosted control plane it is absent rather
@@ -440,8 +446,8 @@ export function TerminalSurface({
   // The rail beside the session (lg+). Closing it hands its columns to the
   // terminal; the choice is remembered, like the source.
   const [railOpen, setRailOpen] = useLocalStorageState<boolean>(
-    TERMINAL_RAIL_STORAGE_KEY,
-    true,
+    rail?.storageKey ?? TERMINAL_RAIL_STORAGE_KEY,
+    rail?.defaultOpen ?? true,
     serializeRail,
     deserializeRail,
   );

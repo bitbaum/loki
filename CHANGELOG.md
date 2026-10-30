@@ -6,6 +6,31 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-30 — The workbench
+
+One project side by side: the session and Loki as columns of one window, the
+site in a window of its own.
+
+- **A Workbench row on every project you can work on.** {#workbench} It opens
+  `/projects/[id]/workbench`: the agent's session and Loki's chat as two
+  columns, and "Open the site" — the live page with your pass, where pointing
+  and "Fix it now" already live — beside this window or on the other screen,
+  whichever you chose. Nothing in it is new: the columns are the Sessions
+  page and the Loki page, mounted as they are.
+- **Any pane in its own window.** {#workbench-pop-out} A pane pops out to a
+  window that is that pane alone (no sidebar, no top bar), on the other
+  screen if you asked. The window it left stops drawing it and takes it back
+  when that window closes. Full screen is the browser's own, on the
+  workbench.
+- **Fleet Runner places the windows.** {#workbench-desktop} Inside the desktop
+  app the workbench asks the app, which reads the real display list: the
+  other display whole, or this one tiled with the app on the left and the new
+  window on the right, and a window already open is brought forward rather
+  than opened twice (v0.8.60).
+- **The site is a window, not a pane, on purpose.** Every fleet site forbids
+  being framed and severs `window.opener`; the workbench says only what it
+  knows (`docs/architecture/workbench.md`).
+
 ## 2026-10-23 — One widget, not two pieces
 
 The owner's launcher and its microphone are now one thing.

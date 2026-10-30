@@ -1,4 +1,4 @@
-import { ExternalLink, Eye, Globe } from "lucide-react";
+import { ExternalLink, Eye, Globe, LayoutGrid } from "lucide-react";
 import { List, ListRow } from "@/components/ui/list-row";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ownerSiteUrl } from "../../../widget/owner-pass";
@@ -23,6 +23,7 @@ import { readAppsConf } from "@/lib/register/apps-conf";
 import { studioRepoRoot } from "@/lib/site-cd-local";
 import { siteAddresses } from "@/lib/site-domain";
 import { getProjectLinks } from "./project-detail-types";
+import { workbenchHref } from "@/config/workbench";
 import { getHealthSignals, HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { computeProjectHealth } from "@/lib/project-health";
 import { FixSignalButton } from "./ProjectActionButtons";
@@ -197,7 +198,7 @@ export function ProjectWorkspaceView({
       : links.prodUrl
     : null;
   const shortcuts =
-    siteHref || (!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath)) ? (
+    siteHref || !dossier.readonly ? (
       <List aria-label="Shortcuts">
         {siteHref && links.prodUrl && (
           <ListRow
@@ -206,6 +207,15 @@ export function ProjectWorkspaceView({
             icon={Globe}
             title="Open the site"
             secondary={plainWords(links.prodUrl)}
+            chevron
+          />
+        )}
+        {!dossier.readonly && (
+          <ListRow
+            href={workbenchHref(project.id)}
+            icon={LayoutGrid}
+            title="Workbench"
+            secondary="The site, the session and Loki side by side — on one screen or two"
             chevron
           />
         )}

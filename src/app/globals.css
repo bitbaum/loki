@@ -3261,6 +3261,44 @@
   .ui-term-pane-btn-on {
     @apply border-border-default bg-surface-overlay text-text-primary;
   }
+
+  /* The workbench (components/workbench): one header row, then columns that
+     split the rest of the shell's height. A pane is the same frame whatever
+     it holds; its header reuses the terminal's pane buttons above. The site
+     is never a pane — it is a window (docs/architecture/workbench.md). */
+  .ui-workbench {
+    @apply flex h-full min-h-0 flex-1 flex-col gap-2 bg-surface-page;
+  }
+  .ui-workbench:fullscreen {
+    @apply p-2;
+  }
+  .ui-workbench-strip {
+    @apply flex min-h-11 flex-wrap items-center gap-2;
+  }
+  .ui-workbench-title {
+    @apply text-sm font-semibold text-text-primary;
+  }
+  .ui-workbench-strip-group {
+    @apply flex items-center gap-1;
+  }
+  .ui-workbench-note {
+    @apply text-sm text-text-muted;
+  }
+  .ui-workbench-columns {
+    @apply flex min-h-0 flex-1 gap-2;
+  }
+  .ui-workbench-pane {
+    @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-base;
+  }
+  .ui-workbench-pane-head {
+    @apply flex h-10 shrink-0 items-center gap-2 border-b border-border-subtle px-3;
+  }
+  .ui-workbench-pane-title {
+    @apply text-sm font-medium text-text-secondary;
+  }
+  .ui-workbench-pane-body {
+    @apply flex min-h-0 flex-1 flex-col p-2;
+  }
   .ui-term-loki {
     @apply flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-raised;
   }
@@ -9074,4 +9112,22 @@
   margin-inline-start: 0.25rem;
   border-color: transparent;
   background: var(--surface-raised);
+}
+
+/* A window that shows one workbench pane (`?pane=`) is that pane: no sidebar,
+   no top bar, no bottom tabs, no surface guide, at every width
+   (hooks/use-solo-window.ts). In the utilities layer on purpose: the sidebar
+   is shown by `md:flex` in its className, a utility, and a components-layer
+   rule loses to it whatever its specificity. */
+@layer utilities {
+  body.fc-workbench-solo .ui-sidebar,
+  body.fc-workbench-solo .ui-app-topbar,
+  body.fc-workbench-solo .ui-mobile-nav,
+  body.fc-workbench-solo .ui-fleet-guide {
+    display: none;
+  }
+  body.fc-workbench-solo .app-main,
+  body.fc-workbench-solo .app-main-column {
+    padding-bottom: 0;
+  }
 }

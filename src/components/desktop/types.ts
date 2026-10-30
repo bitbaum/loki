@@ -64,6 +64,16 @@ export type FleetRunnerBridge = {
    *  .deb where Electron can't escalate sudo — renderer shows manual
    *  dpkg -i command instead. v0.7.5+. */
   quitAndInstall: () => Promise<boolean>;
+  /** Open a window — a workbench pane of Loki's own, or the project's site —
+   *  beside this one or on the other display. The web shell cannot
+   *  `window.open` inside Fleet Runner (every new window goes to the default
+   *  browser), so this is the only way a second window exists there. The
+   *  main process places it from the real display list and brings an open
+   *  one forward instead of opening it twice. v0.8.60+. */
+  openWorkbenchWindow: (
+    url: string,
+    placement: "beside" | "other-screen",
+  ) => Promise<{ ok: true; displays: number } | { ok: false; error?: string }>;
 };
 
 /** Result of the v0.7.5 update-state IPC. */

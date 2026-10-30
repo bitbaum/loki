@@ -22,6 +22,7 @@ import { dispatchAutopilot } from './dispatch'
 import { peekPtyBuffer } from './pty-runtime'
 import { loadToken, saveToken, clearToken, tokenDir } from './token-store'
 import { ensureCaptureHook } from './capture-hook'
+import { openWorkbenchWindow, workbenchPreloadPath } from './workbench-windows'
 
 // v0.7.4 — bundled renderer removed; one UI surface only.
 //
@@ -683,6 +684,20 @@ function createWindow(): void {
       console.warn('[desktop] quit-and-install failed:', (e as Error).message)
       return false
     }
+  })
+
+  // Workbench windows: the web shell asks, this process places (see
+  // workbench-windows.ts for why the shell cannot open one itself). The
+  // caller is whichever window asked — a popped-out pane may ask too.
+  ipcMain.handle('open-workbench-window', async (event, url: unknown, placement: unknown) => {
+    if (typeof url !== 'string') return { ok: false, error: 'no url' }
+    return openWorkbenchWindow({
+      caller: BrowserWindow.fromWebContents(event.sender),
+      url,
+      placement: placement === 'other-screen' ? 'other-screen' : 'beside',
+      shellUrl: WEB_SHELL_URL,
+      preloadPath: workbenchPreloadPath(__dirname),
+    })
   })
 
   // Reload the web shell from the offline page's retry button. Posts a
