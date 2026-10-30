@@ -86,8 +86,18 @@ STAGE=$(mktemp -d)
 cp -r "$ST"/. "$STAGE/"
 # static + public live next to the (possibly monorepo-nested) server.js
 NEST=$(cd "$STAGE" && find . -maxdepth 4 -name server.js -not -path '*node_modules*' | head -1 | xargs dirname)
-cp -r "$SRC/.next/static" "$STAGE/$NEST/.next/static"
-[ -d "$SRC/public" ] && cp -r "$SRC/public" "$STAGE/$NEST/public"
+# Copy CONTENTS into the target, never the directory itself: `cp -r public
+# dest/public` nests (dest/public/public) when the target already exists, and
+# it does whenever the app imports a file from public/ — Next's output tracing
+# then puts that file in the standalone bundle first. Substrata imports
+# public/geo/*.json, so every other public file (its install icons) shipped one
+# level down and answered 404 in production while geo kept working.
+mkdir -p "$STAGE/$NEST/.next/static"
+cp -r "$SRC/.next/static/." "$STAGE/$NEST/.next/static/"
+if [ -d "$SRC/public" ]; then
+  mkdir -p "$STAGE/$NEST/public"
+  cp -r "$SRC/public/." "$STAGE/$NEST/public/"
+fi
 
 # Fleet owns artifact parsing. Stamp the exact staged output, including nested
 # standalone servers, before rsync and the atomic release swap.
