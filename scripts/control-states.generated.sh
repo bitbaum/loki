@@ -18,7 +18,7 @@
 FC_STATE_KEYS='offline not_running recently_active tab_open open_idle working ready awaiting_you orchestration_ready closing completed'
 
 FC_LABEL_OFFLINE='Offline'
-FC_DESCRIPTION_OFFLINE='The builder hasn'\''t pushed fresh state for this project — we don'\''t know what'\''s happening right now.'
+FC_DESCRIPTION_OFFLINE='The runner hasn'\''t pushed fresh state for this project — we don'\''t know what'\''s happening right now.'
 FC_COUNTER_CATEGORY_OFFLINE='offline'
 
 FC_LABEL_NOT_RUNNING='Not running'
