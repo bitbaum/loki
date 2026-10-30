@@ -2,13 +2,12 @@ import { Globe } from "lucide-react";
 import { List, ListRow } from "@/components/ui/list-row";
 import { PageLayout } from "@/components/ui/page-layout";
 import { WORKBENCH_PANE_IDS, WORKBENCH_PANES } from "@/config/workbench";
-import { fleetSurfaceHref } from "@/lib/fleet-context";
 import type { WorkbenchSite } from "./workbench-types";
 
 /**
  * The workbench on a phone: the same three things as rows, each opening the
- * phone's own shape of it (the surface each pane is a column of, from the
- * pane registry). Two columns on a 390px screen would be two unreadable
+ * phone's own shape of it (the page each pane is a column of, from the pane
+ * registry). Two columns on a 390px screen would be two unreadable
  * strips; no-screen mode and the session's phone chrome already exist for
  * exactly this width, so this page sends there instead of squeezing (one
  * shape per kind, fleet AGENTS.md).
@@ -46,7 +45,7 @@ export function WorkbenchNarrow({
           return (
             <ListRow
               key={id}
-              href={fleetSurfaceHref(meta.surface, workspaceKey)}
+              href={meta.pageHref({ id: projectId, workspaceKey })}
               icon={meta.icon}
               title={meta.label}
               secondary={meta.description}

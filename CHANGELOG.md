@@ -8,15 +8,17 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-30 — The workbench
 
-One project side by side: the session and Loki as columns of one window, the
-site in a window of its own.
+One project side by side, one box: the builder and what it is doing as
+columns of one window, the site in a window of its own.
 
 - **A Workbench row on every project you can work on.** {#workbench} It opens
-  `/projects/[id]/workbench`: the agent's session and Loki's chat as two
-  columns, and "Open the site" — the live page with your pass, where pointing
-  and "Fix it now" already live — beside this window or on the other screen,
-  whichever you chose. Nothing in it is new: the columns are the Sessions
-  page and the Loki page, mounted as they are.
+  `/projects/[id]/workbench`: Session (say what to change — the agent's own
+  box — and the agent at work) and Watch (what is happening, step by step,
+  and where the change is) as two columns, and "Open the site" — the live
+  page with your pass, where pointing and "Fix it now" already live — beside
+  this window or on the other screen, whichever you chose. One place to type
+  on the whole screen. Nothing in it is new: the columns are the Sessions
+  page and the Watch page, mounted as they are.
 - **Any pane in its own window.** {#workbench-pop-out} A pane pops out to a
   window that is that pane alone (no sidebar, no top bar), on the other
   screen if you asked. The window it left stops drawing it and takes it back

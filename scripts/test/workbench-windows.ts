@@ -22,15 +22,15 @@ assert.equal(openingNote({ how: "desktop" }), null);
 assert.match(openingNote({ how: "blocked" }) ?? "", /pop-ups/);
 
 // The bus accepts exactly its own messages.
-assert.deepEqual(parseBusMessage({ kind: "pane", pane: "loki", state: "open", from: "w1" }), {
+assert.deepEqual(parseBusMessage({ kind: "pane", pane: "watch", state: "open", from: "w1" }), {
   kind: "pane",
-  pane: "loki",
+  pane: "watch",
   state: "open",
   from: "w1",
 });
 assert.equal(parseBusMessage({ kind: "pane", pane: "site", state: "open", from: "w1" }), null);
-assert.equal(parseBusMessage({ kind: "pane", pane: "loki", state: "gone", from: "w1" }), null);
-assert.equal(parseBusMessage({ kind: "pane", pane: "loki", state: "open", from: "" }), null);
+assert.equal(parseBusMessage({ kind: "pane", pane: "watch", state: "gone", from: "w1" }), null);
+assert.equal(parseBusMessage({ kind: "pane", pane: "watch", state: "open", from: "" }), null);
 assert.equal(parseBusMessage("pane"), null);
 assert.equal(workbenchChannelName("p1"), "loki:workbench:p1");
 

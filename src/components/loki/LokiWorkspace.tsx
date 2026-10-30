@@ -62,18 +62,6 @@ export type LokiWorkspaceProps = {
   initialProjects?: LokiProject[];
   initialConversations?: ConversationSummary[];
   loadErrors?: { projects?: string | null; conversations?: string | null };
-  /** The page this workspace lives on. The open thread and project are kept
-   *  in the URL (?c=, ?project=) so Back works; on /loki that is the default,
-   *  and the workbench hosts the same workspace on its own route. */
-  basePath?: string;
-  /** Scope to this project from the start, as `?project=` does — for a host
-   *  that already knows the project (the workbench) and carries it in its
-   *  path rather than its query. */
-  project?: string | null;
-  /** Where the history rail's pinned choice is remembered, and what it is
-   *  before the person chooses. /loki keeps the default; the workbench
-   *  column starts unpinned so the chat has the width. */
-  history?: { storageKey: string; defaultPinned: boolean };
 };
 
 /**
@@ -118,15 +106,9 @@ export function LokiWorkspace({
   initialProjects,
   initialConversations,
   loadErrors,
-  basePath = "/loki",
-  project: hostProject = null,
-  history,
 }: LokiWorkspaceProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // The URL wins once it carries a project (the person switched); the host's
-  // project seeds the first visit.
-  const projectParam = searchParams.get("project") ?? hostProject;
   // ?q= deep-link seeds the composer at mount (initializer); later q changes
   // are mirrored by the guarded render-time adjustment below, not an effect.
   const prefillParam = searchParams.get("q")?.trim() || null;
@@ -166,7 +148,7 @@ export function LokiWorkspace({
   const [activeId, setActiveId] = useState<string | null>(() =>
     initialThreadId({
       c: searchParams.get("c"),
-      project: projectParam,
+      project: searchParams.get("project"),
       q: prefillParam,
       conversations: initialConversations,
     }),
@@ -179,8 +161,8 @@ export function LokiWorkspace({
   // Compact slide-overs keep secondary lists out of the primary chat.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyPinned, setHistoryPinned] = useLocalStorageState(
-    history?.storageKey ?? HISTORY_PIN_KEY,
-    history?.defaultPinned ?? true,
+    HISTORY_PIN_KEY,
+    true,
     pinSerialize,
     pinDeserialize,
   );
@@ -276,7 +258,7 @@ export function LokiWorkspace({
   if (seedReady && !(activeId && convosLoading)) {
     // ?project=, or the open thread's own projects (project-selection.ts).
     const thread = conversations.find((c) => c.id === activeId);
-    const fromUrl = initialLokiSelection(projects, projectParam, thread);
+    const fromUrl = initialLokiSelection(projects, searchParams.get("project"), thread);
     if (fromUrl.length > 0) setSelectedProjects(fromUrl);
     setSelectionInitialized(true);
   }
@@ -295,8 +277,8 @@ export function LokiWorkspace({
     if (activeId) params.set("c", activeId);
     else params.delete("c");
     const query = params.toString();
-    router.replace(query ? `${basePath}?${query}` : basePath, { scroll: false });
-  }, [router, searchParams, selectedProjects, selectionInitialized, activeId, basePath]);
+    router.replace(query ? `/loki?${query}` : "/loki", { scroll: false });
+  }, [router, searchParams, selectedProjects, selectionInitialized, activeId]);
 
   /**
    * The thread THIS send just created, which must not be mistaken for a

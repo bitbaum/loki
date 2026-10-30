@@ -215,7 +215,7 @@ export function ProjectWorkspaceView({
             href={workbenchHref(project.id)}
             icon={LayoutGrid}
             title="Workbench"
-            secondary="The site, the session and Loki side by side — on one screen or two"
+            secondary="Say what to change and watch it happen, with the site beside — on one screen or two"
             chevron
           />
         )}

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LokiWorkspace } from "@/components/loki/LokiWorkspace";
+import { ProjectWatch } from "@/components/projects/ProjectWatch";
 import { TerminalSurface } from "@/components/terminal/TerminalSurface";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -13,7 +13,7 @@ import { useWorkbenchWindows } from "@/hooks/use-workbench-windows";
 import { isPaneOpen, panesOnScreen } from "@/lib/workbench/layout";
 import {
   WORKBENCH_COLUMNS_QUERY,
-  WORKBENCH_RAIL_KEYS,
+  WORKBENCH_SESSION_RAIL_KEY,
   workbenchHref,
   type WorkbenchPaneId,
 } from "@/config/workbench";
@@ -23,16 +23,18 @@ import { WorkbenchStrip } from "./WorkbenchStrip";
 import type { WorkbenchSite } from "./workbench-types";
 
 /**
- * The workbench: this project's session and Loki as columns of ONE window,
- * and the site in a window of its own, beside it or on the other screen.
+ * The workbench: this project's builder (Session) and what it is doing
+ * (Watch) as columns of ONE window, and the site in a window of its own,
+ * beside it or on the other screen. One box on the whole screen: the
+ * session's, which types into the live agent or starts one.
  *
  * Nothing here is new UI. The columns are the Sessions page's surface and
- * the Loki page's workspace, mounted as they are; the site is the live
- * page with the widget in owner mode, where pointing and "Fix it now"
- * already live. What the workbench adds is the arrangement: which panes
- * this window shows (use-workbench-layout.ts, device-local) and where new
- * windows go (use-workbench-windows.ts). docs/architecture/workbench.md
- * says why the site is not a pane.
+ * the Watch page's thread, mounted as they are; the site is the live page
+ * with the widget in owner mode, where pointing and "Fix it now" already
+ * live. What the workbench adds is the arrangement: which panes this window
+ * shows (use-workbench-layout.ts, the window's own) and where new windows
+ * go (use-workbench-windows.ts). docs/architecture/workbench.md says why
+ * the site is not a pane, and why Loki's chat is not either.
  */
 export function WorkbenchView({
   projectId,
@@ -63,23 +65,18 @@ export function WorkbenchView({
   const { layout, open, close } = useWorkbenchLayout(projectId, solo);
   const windows = useWorkbenchWindows(projectId);
 
-  // A column is half a window; a solo window is a whole one, where each
-  // surface's own rail has the room it has on its own page.
+  // A column is half a window, so the session's Loki rail starts closed
+  // there; a solo window is a whole one, where it has the room it has on
+  // the Sessions page.
   const renderPane = (pane: WorkbenchPaneId) =>
     pane === "session" ? (
       <TerminalSurface
         local={local}
         initialTab={workspaceKey}
-        rail={{ storageKey: WORKBENCH_RAIL_KEYS.session, defaultOpen: solo !== null }}
+        rail={{ storageKey: WORKBENCH_SESSION_RAIL_KEY, defaultOpen: solo !== null }}
       />
     ) : (
-      <LokiWorkspace
-        // The path only: the workspace writes ?c= and ?project= beside the
-        // params already there, and `?pane=` is one of those.
-        basePath={workbenchHref(projectId)}
-        project={workspaceKey}
-        history={{ storageKey: WORKBENCH_RAIL_KEYS.loki, defaultPinned: solo !== null }}
-      />
+      <ProjectWatch projectId={projectId} profileHref={`/projects/${projectId}`} />
     );
 
   if (narrow && !solo)
@@ -103,7 +100,7 @@ export function WorkbenchView({
   if (solo)
     return (
       <div ref={rootRef} className="ui-workbench" data-fc-place="tab">
-        <WorkbenchPane pane={solo} solo onClose={closeSolo}>
+        <WorkbenchPane pane={solo} solo scroll={solo === "watch"} onClose={closeSolo}>
           {renderPane(solo)}
         </WorkbenchPane>
       </div>
@@ -151,6 +148,7 @@ export function WorkbenchView({
               key={pane}
               pane={pane}
               solo={false}
+              scroll={pane === "watch"}
               onPopOut={() => void popOut(pane)}
               onClose={() => close(pane)}
             >

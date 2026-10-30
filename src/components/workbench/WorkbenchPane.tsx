@@ -2,6 +2,7 @@
 
 import { AppWindow, X } from "lucide-react";
 import { WORKBENCH_PANES, type WorkbenchPaneId } from "@/config/workbench";
+import { cn } from "@/lib/utils";
 
 /**
  * The frame every pane sits in: one header row — the pane's name, then
@@ -15,12 +16,16 @@ import { WORKBENCH_PANES, type WorkbenchPaneId } from "@/config/workbench";
 export function WorkbenchPane({
   pane,
   solo,
+  scroll = false,
   onPopOut,
   onClose,
   children,
 }: {
   pane: WorkbenchPaneId;
   solo: boolean;
+  /** The body is a thread that scrolls (Watch); otherwise it is a surface
+   *  that fills the pane and scrolls inside itself (the session). */
+  scroll?: boolean;
   onPopOut?: () => void;
   onClose?: () => void;
   children: React.ReactNode;
@@ -56,7 +61,9 @@ export function WorkbenchPane({
           </button>
         )}
       </header>
-      <div className="ui-workbench-pane-body">{children}</div>
+      <div className={cn("ui-workbench-pane-body", scroll && "ui-workbench-pane-body-scroll")}>
+        {children}
+      </div>
     </section>
   );
 }

@@ -2,8 +2,9 @@
 
 **Created:** 2026-10-30
 
-A project's session and Loki as columns of one window, and the site in a
-window of its own — beside it, or on the other screen. Route:
+A project's builder (Session) and what it is doing (Watch) as columns of
+one window, one box between them, and the site in a window of its own —
+beside it, or on the other screen. Route:
 `/projects/[id]/workbench`; code: `src/components/workbench/`,
 `src/lib/workbench/`, `src/config/workbench.ts` (the pane SSOT),
 `desktop/src/main/workbench-windows.ts`.
@@ -12,12 +13,26 @@ window of its own — beside it, or on the other screen. Route:
 
 Build something, use it, and say what to change without leaving the screen
 it is on. The widget on the site already does the saying — pointing at an
-element, a voice note while scrolling, "Fix it now" for the owner — and the
-Sessions page already shows the build as it happens. The workbench is the
-arrangement: those two beside Loki's chat, and the site where a second
-screen or a second window puts it. Nothing in it is new UI. The columns are
-`TerminalSurface` and `LokiWorkspace`, mounted as they are; the site is the
-live page with the owner's pass in the fragment (`lib/feedback/owner-pass.ts`).
+element, a voice note while scrolling, "Fix it now" for the owner — the
+Sessions page already has the builder and its box, and the Watch page
+already shows the build as it happens: what was asked, Loki narrating, the
+agent's screen, and where the change is (merged, deploying, live). The
+workbench is the arrangement: those two side by side, and the site where a
+second screen or a second window puts it. Nothing in it is new UI. The
+columns are `TerminalSurface` and `ProjectWatch`, mounted as they are; the
+site is the live page with the owner's pass in the fragment
+(`lib/feedback/owner-pass.ts`).
+
+## One box
+
+The first cut put Loki's chat in the second column. Beside the session's
+box that was a second place to type on one screen, and a person had to work
+out which box did what (owner, 2026-10-30: "I see two chats, and it just
+gets confusing"). The session's box already does the one thing the screen
+is for — it types into the live agent, or starts one — and the session
+already offers Loki about itself ("What's going on?", the rail). So the
+second column is what the builder is DOING, which has no box, and Loki's
+chat stays its own page. One screen, one box.
 
 ## Why the site is a window and not a pane
 
@@ -38,7 +53,7 @@ always has — through the server, as a note, a voice walk or a change — and
 the Session column shows the build start by itself.
 
 A second slice can carry a pointed-at element from the site straight into
-the Loki column's composer. The transport for that is the server (the widget
+the session's box. The transport for that is the server (the widget
 already talks to `/api/widget/*`; the app already streams a project's
 events), never the browser's window relationships. It is not built yet.
 
@@ -105,14 +120,13 @@ and the pane comes back. A window ignores its own announcements.
 `?pane=session` or `?pane=loki` makes the window that one pane: the sidebar,
 top bar and bottom tabs are gone at every width (`body.fc-workbench-solo`,
 `hooks/use-solo-window.ts`), and the pane's header offers Close, which
-closes the window. `LokiWorkspace` keeps its thread and project in the URL
-so Back works; on the workbench it is told the host path (`basePath`) and
-the project (`project`) instead of reading `/loki?project=`.
+closes the window — or, where nobody's script opened it (a typed address)
+and `window.close()` is a no-op, leads to the whole workbench.
 
 ## The phone
 
-Below `md` the route is the same three things as rows — the site, Sessions,
-Loki — each opening the phone's own shape of it. Two columns on a 390px
+Below `md` the route is the same three things as rows — the site, Session,
+Watch — each opening the phone's own shape of it. Two columns on a 390px
 screen would be two unreadable strips, and no-screen mode and the
 session's phone chrome exist for exactly that width.
 
