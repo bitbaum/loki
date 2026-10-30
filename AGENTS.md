@@ -13,7 +13,16 @@ into this file.
   package, not in this app. Every chat is `@bitbaum/chatkit`, every search box
   `@bitbaum/searchkit`, every chart `@bitbaum/chartkit`, accounts
   `@bitbaum/accountkit`, model calls `@bitbaum/ai-kit`. Review this product's
-  `package-plan.json` before building anything.
+  `package-plan.json` before building anything. When a second product needs
+  what one product built (a map, a globe, a calculator), extract it into a
+  package before writing the second copy.
+- **A gap is a task, not an answer.** Never end the work, or a reply, at "not
+  supported" or "not available". When a source cannot be read or a case does
+  not fit the model, find another way (another format or publisher, the
+  official tool measured, the model extended) and do it. What truly cannot be
+  done yet is tracked with its plan, never presented as a limit of the product.
+- **Every page leads to an action.** What a reader learns, they can act on
+  from the same screen: file, pay, apply, compare, ask, contact.
 - **One shape per kind.** Things of the same kind look the same and sit in the
   same place (fleet `AGENTS.md`, "One shape per kind").
 - **Finished work ships by itself.** Open a non-draft pull request; the fleet
@@ -21,7 +30,8 @@ into this file.
   merge API, with `--auto` or with an admin bypass, and never force-push a
   shared branch.
 - **Nothing made up.** A fact on a page or in a doc needs a source that was
-  opened; where there is none, the line is removed or softened.
+  opened; where there is none, the line is removed or softened. A gap is
+  filled with sourced data, never with a guess.
 - **Bitcoin orange is for Bitcoin and top-of-funnel actions only.**
 - **No model identifier** in anything pushed to a repository.
 - Before you finish, run `node <fleet>/scripts/ci/docs-truth-audit.mjs --dir .`:
