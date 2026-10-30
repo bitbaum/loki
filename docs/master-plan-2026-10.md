@@ -205,6 +205,18 @@ and the whitepaper's Plans section updated the day 2.2 lands.
 | 3.3 | **The fee** is the builder's own OrangeCat service; the client pays it to the builder's wallet when they accept the work. Loki holds no money | One real assignment paid end to end |
 | 3.4 | **The words on the screens** for the three people around a project (the one who owns it, the one with a seat, the one booked to build) are settled here, with the screens that need them, from first principles across Bitbaum, Loki, OrangeCat and Solon. This plan uses descriptions, not names, on purpose | The owner reads each screen cold and is not confused |
 
+**3.4, first word settled (2026-10-30).** The one booked to build is a
+**builder** — an *approved builder* wherever "build it yourself" sits beside
+it. Not "partner": that read as co-ownership or a revenue share, which is not
+on offer, and it is what vendors call each other. The line around it is
+**builders in the loop**: agents do the typing, a builder owns the judgement —
+the owner on their own Loki, an approved builder, or the studio's own. Bitbaum's
+`/builders/` (with `/partners/` forwarding), Loki's build paths, chat and
+application screens say it now; the reasoning is in Bitbaum's
+`site/PURPOSE.md`. Identifiers other systems read (`kind: "partner"`,
+`/api/studio-partners`, `/studio/partner`) keep their names. The words for the
+owner and the one with a seat are still open.
+
 **Cost:** CHF 0. **Records:** roadmap "Builders on other people's sites"
 moves to Now; an essay when 3.3 ships.
 

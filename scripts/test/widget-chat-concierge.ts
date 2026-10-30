@@ -440,10 +440,10 @@ const hugeStudio = renderConciergeFacts(
   studio,
 );
 assert.ok(hugeStudio.length <= FACTS_BUDGET_CHARS);
-assert.ok(hugeStudio.includes("Become a partner"), "a huge map does not push the partner door out");
+assert.ok(hugeStudio.includes("Become a builder"), "a huge map does not push the builder door out");
 assert.ok(
   conciergeSystemPrompt(withStudio, {}).includes(
-    "Never say the partner programme or the course does not exist",
+    "Never say the builder programme or the course does not exist",
   ),
 );
 assert.deepEqual(
@@ -452,7 +452,7 @@ assert.deepEqual(
     map,
     BASE,
   ).map((l) => l.label),
-  ["Become a partner", "Read the systems design pilot"],
+  ["Become a builder", "Read the systems design pilot"],
 );
 // Someone building a course website is not asking about the studio's course.
 assert.ok(
@@ -463,7 +463,7 @@ assert.ok(
 const offline = fallbackAnswer("How do partners qualify? Is there a capstone?", map, BASE);
 assert.deepEqual(
   offline.links.map((l) => l.label),
-  ["Become a partner", "Read the systems design pilot"],
+  ["Become a builder", "Read the systems design pilot"],
   "with no model, a partner question still reaches the partner doors",
 );
 

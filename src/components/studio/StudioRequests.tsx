@@ -184,8 +184,8 @@ export function StudioRequests({
                     {view.fee.paidAt
                       ? ` · paid on ${new Date(view.fee.paidAt).toLocaleDateString()}`
                       : view.fee.url
-                        ? " · listed in the partner's name on OrangeCat"
-                        : " · not listed yet: the partner signs in to Loki with OrangeCat first"}
+                        ? " · listed in the builder's name on OrangeCat"
+                        : " · not listed yet: the builder signs in to Loki with OrangeCat first"}
                     {view.fee.url && (
                       <>
                         {" · "}
@@ -296,7 +296,7 @@ export function StudioRequests({
                 </section>
                 {view.target === "partner" && (
                   <section className="ui-card-shell space-y-4 p-5">
-                    <h3 className="font-semibold text-text-primary">Assign an approved partner</h3>
+                    <h3 className="font-semibold text-text-primary">Assign an approved builder</h3>
                     {view.preferredPartnerId && (
                       <p className="break-all text-sm text-text-secondary">
                         Customer preference: {view.preferredPartnerId}
@@ -317,7 +317,7 @@ export function StudioRequests({
                         required
                         defaultValue={view.partnerId ?? ""}
                       >
-                        <option value="">Choose a partner application</option>
+                        <option value="">Choose a builder application</option>
                         {requests
                           .filter(
                             (r) => r.kind === "partner" && r.status === "approved" && !r.revoked,
@@ -336,9 +336,9 @@ export function StudioRequests({
                         <p className="text-sm text-text-secondary">
                           {view.builderUserId
                             ? view.projectId
-                              ? "The partner holds a seat on the linked project and builds in a Loki of their own, on their own engine."
-                              : "The partner has a Loki account. Link a project above and they get a seat on it."
-                            : "The partner has no Loki account yet. They sign in with OrangeCat from their portal, and the seat follows."}
+                              ? "The builder holds a seat on the linked project and builds in a Loki of their own, on their own engine."
+                              : "The builder has a Loki account. Link a project above and they get a seat on it."
+                            : "The builder has no Loki account yet. They sign in with OrangeCat from their portal, and the seat follows."}
                         </p>
                       )}
                       {send("Assign this brief")}
@@ -349,7 +349,7 @@ export function StudioRequests({
             )}
             {view.partner && (
               <section className="ui-card-shell space-y-4 p-5">
-                <h3 className="font-semibold text-text-primary">Partner application</h3>
+                <h3 className="font-semibold text-text-primary">Builder application</h3>
                 <p className="text-sm text-text-secondary">
                   Studio approval: {view.partner.approved ? "approved" : "pending"} · Course
                   (optional):{" "}
@@ -430,14 +430,14 @@ export function StudioRequests({
                   >
                     <select name="result" className="ui-input w-full">
                       {!view.partner.approved && (
-                        <option value="approve_partner">Approve this partner</option>
+                        <option value="approve_partner">Approve this builder</option>
                       )}
                       <option value="decline_partner">
                         {view.partner.approved ? "Withdraw approval" : "Decline application"}
                       </option>
                     </select>
                     {label("body", "Studio decision and reasons (they receive this)", true)}
-                    {send("Record partner decision")}
+                    {send("Record builder decision")}
                   </form>
                 )}
                 {view.partner.profile && (
