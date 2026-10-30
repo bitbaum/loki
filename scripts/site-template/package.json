@@ -38,7 +38,7 @@
     "zod": "^4.6.6",
     "@bitbaum/sitekit": "^0.4.2",
     "@bitbaum/accountkit": "^0.14.0",
-    "@bitbaum/chatkit": "^0.21.2"
+    "@bitbaum/chatkit": "^0.21.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

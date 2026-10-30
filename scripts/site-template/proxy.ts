@@ -53,7 +53,10 @@ export default function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|_vercel|.*\\..*).*)",
+      // `icon` is the generated tab and install icon (app/icon.tsx, /icon/192):
+      // a file with no extension that i18n routing would otherwise send to
+      // /en/icon/192, where it does not exist.
+      source: "/((?!api|icon|_next/static|_next/image|_vercel|.*\\..*).*)",
       // A prefetch is not rendered for a reader and needs no nonce.
       missing: [
         { type: "header", key: "next-router-prefetch" },
