@@ -219,8 +219,11 @@ words already exist in Loki's roster (`ROLE_LABELS`): **Owner**, and **Builder**
 for the one with a seat (stored `editor`) — the seat an approved builder gets on
 assignment (`applyBuilderSeat`), so the person keeps one word from Bitbaum to
 the project. Still open: Loki also says "builder" for the machine that runs the
-work ("Cloud builder", "Waiting for a builder to pick it up"); that word should
-move to "engine", which this plan already uses.
+work ("Cloud builder", "Waiting for a builder to pick it up"). It should become
+**runner**, the word the code and the desktop app already use (box-runner,
+Fleet Runner, "Hosted runner") — not "engine", which on screen already means
+the model and subscription a change is built with ("Your engine for building",
+"Loki's engine").
 
 **Cost:** CHF 0. **Records:** roadmap "Builders on other people's sites"
 moves to Now; an essay when 3.3 ships.
