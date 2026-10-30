@@ -214,8 +214,13 @@ the owner on their own Loki, an approved builder, or the studio's own. Bitbaum's
 `/builders/` (with `/partners/` forwarding), Loki's build paths, chat and
 application screens say it now; the reasoning is in Bitbaum's
 `site/PURPOSE.md`. Identifiers other systems read (`kind: "partner"`,
-`/api/studio-partners`, `/studio/partner`) keep their names. The words for the
-owner and the one with a seat are still open.
+`/api/studio-partners`, `/studio/partner`) keep their names. The other two
+words already exist in Loki's roster (`ROLE_LABELS`): **Owner**, and **Builder**
+for the one with a seat (stored `editor`) — the seat an approved builder gets on
+assignment (`applyBuilderSeat`), so the person keeps one word from Bitbaum to
+the project. Still open: Loki also says "builder" for the machine that runs the
+work ("Cloud builder", "Waiting for a builder to pick it up"); that word should
+move to "engine", which this plan already uses.
 
 **Cost:** CHF 0. **Records:** roadmap "Builders on other people's sites"
 moves to Now; an essay when 3.3 ships.
