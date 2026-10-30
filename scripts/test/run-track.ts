@@ -65,12 +65,12 @@ const states = (i: RunTrackInput) =>
 check("queued: nothing is claimed as done but the ask", () => {
   const t = buildRunTrack(base);
   assert.equal(states(base), "done now next next next next");
-  assert.match(t.summary, /Waiting for a builder/);
+  assert.match(t.summary, /Waiting for a runner/);
   assert.equal(t.settled, false);
   assert.equal(t.current, "builder");
 });
 
-check("claimed and generating: the builder stage is done on the event, not on time", () => {
+check("claimed and generating: the runner stage is done on the event, not on time", () => {
   const i: RunTrackInput = {
     ...base,
     eventKinds: ["dispatched", "claimed", "launched", "submitted", "generating"],
@@ -100,7 +100,7 @@ check("a pull request seen on GitHub while the run is live is a done stage with 
   const t = buildRunTrack(i);
   assert.equal(states(i), "done done now done next next", "still in the session: finishing up");
   assert.match(t.stages[2].label, /finishing up/);
-  assert.equal(t.stages[1].at, "2026-10-17T09:52:30Z", "the builder stage is dated by its event");
+  assert.equal(t.stages[1].at, "2026-10-17T09:52:30Z", "the runner stage is dated by its event");
   assert.equal(t.stages[3].at, "2026-10-17T09:58:02.000Z", "the PR stage is dated by GitHub");
   const pr = t.stages.find((s) => s.id === "pr")!;
   assert.equal(pr.href, PR);
@@ -269,25 +269,25 @@ check("an agent that never opened could not start — it did not stop", () => {
     eventKinds: ["dispatched", "claimed", "closed"],
     phase: "failed",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "failed" },
-    failure: "Grok is not installed on the cloud builder, so nothing was started.",
+    failure: "Grok is not installed on the cloud runner, so nothing was started.",
   };
   const t = buildRunTrack(i);
   assert.equal(states(i), "done done failed next next next");
   assert.equal(t.stages[2].label, "Claude Code could not start");
-  assert.equal(t.summary, "Grok is not installed on the cloud builder, so nothing was started.");
+  assert.equal(t.summary, "Grok is not installed on the cloud runner, so nothing was started.");
 });
 
-check("a run that ended before any builder claimed it fails at the builder stage", () => {
+check("a run that ended before any runner claimed it fails at the runner stage", () => {
   const i: RunTrackInput = {
     ...base,
     eventKinds: ["dispatched", "closed"],
     phase: "failed",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "undelivered" },
-    failure: "No builder was online.",
+    failure: "No runner was online.",
   };
   const t = buildRunTrack(i);
   assert.equal(t.stages[1].state, "failed");
-  assert.equal(t.summary, "No builder was online.");
+  assert.equal(t.summary, "No runner was online.");
 });
 
 check("closed pull request fails the merge stage and settles", () => {
@@ -329,16 +329,16 @@ check("timings: took between dated stages, a clock on the current one, nothing f
       generating: "2026-10-17T09:53:10Z",
     },
     phase: "working",
-    builderLabel: "the cloud builder",
+    builderLabel: "the cloud runner",
   };
   const t = buildRunTrack(i);
   const now = Date.parse("2026-10-17T09:55:10Z");
   const timing = stageTimings(t.stages, now);
   assert.equal(timing[0].took, null, "the ask has no 'took'");
-  assert.equal(timing[1].took, 40, "builder: 40s after the ask");
+  assert.equal(timing[1].took, 40, "runner: 40s after the ask");
   assert.equal(timing[2].soFar, 120, "working for two minutes so far");
   assert.equal(timing[3].took, null);
-  assert.equal(t.stages[1].label, "The cloud builder picked it up");
+  assert.equal(t.stages[1].label, "The cloud runner picked it up");
   assert.ok(t.stages[1].facts.some((f) => f.text.includes("claimed the job")));
 });
 
@@ -448,15 +448,11 @@ check("a run that finished well was picked up, even with no claim on record", ()
       outcome: "success",
     },
     phase: "done",
-    builderLabel: "the cloud builder",
+    builderLabel: "the cloud runner",
   };
   const t = buildRunTrack(i);
   assert.equal(t.stages[1].state, "done");
-  assert.equal(
-    t.stages[1].label,
-    "The cloud builder picked it up",
-    "a label starts with a capital",
-  );
+  assert.equal(t.stages[1].label, "The cloud runner picked it up", "a label starts with a capital");
   assert.ok(!t.stages.some((s) => s.state === "failed"), "no stage contradicts the finish");
 });
 

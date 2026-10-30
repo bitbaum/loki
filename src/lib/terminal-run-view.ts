@@ -59,7 +59,7 @@ export function presentTerminalRun(
     label: SESSION_LOST_LABEL,
     stepSummary: "The agent's screen stopped answering",
     nextAction:
-      "Usually the builder restarting — it reconnects by itself. If it stays like this, open the project and send the task again.",
+      "Usually the runner restarting — it reconnects by itself. If it stays like this, open the project and send the task again.",
   };
 }
 
@@ -112,7 +112,7 @@ export function nextActionForWork(work: FeedbackWorkView, quotaDeath = false): s
   if (work.detail) return work.detail;
   if (work.phase === FEEDBACK_WORK_PHASE.WORKING) return WORKING_NEXT_ACTION;
   if (work.phase === FEEDBACK_WORK_PHASE.QUEUED) {
-    return work.stepSummary ?? "Waiting for the builder.";
+    return work.stepSummary ?? "Waiting for the runner.";
   }
   return work.label;
 }

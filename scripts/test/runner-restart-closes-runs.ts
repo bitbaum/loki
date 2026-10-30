@@ -139,7 +139,7 @@ check(
 check(
   "reason names the boot time in UTC",
   runnerRestartReason(BOOT) ===
-    "The builder restarted at 10:53 UTC and this run's agent session ended with it.",
+    "The runner restarted at 10:53 UTC and this run's agent session ended with it.",
 );
 
 for (const [name, ok] of cases) console.log(`${ok ? "✓" : "✗"} ${name}`);

@@ -132,7 +132,7 @@ export async function ensureBoxWorkspace(
     // laptop). Fail loud so the ack records the truth and the operator sees a
     // failed command instead of confident garbage.
     throw new Error(
-      `workspace for "${tab}" is not materializable on this builder: ${requestedDir} does not exist here and the project has no cloneable GitHub gitUrl${gitUrlRaw ? ` (unsupported URL: ${gitUrlRaw})` : ""}. Dispatch it to the machine that has the directory, or link a GitHub repo.`,
+      `workspace for "${tab}" is not materializable on this runner: ${requestedDir} does not exist here and the project has no cloneable GitHub gitUrl${gitUrlRaw ? ` (unsupported URL: ${gitUrlRaw})` : ""}. Dispatch it to the machine that has the directory, or link a GitHub repo.`,
     );
   } else {
     console.log(

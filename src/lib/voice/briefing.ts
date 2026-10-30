@@ -128,8 +128,8 @@ export function composeBriefing(s: FleetSnapshot, opts: { hints?: boolean } = {}
   const hints = opts.hints ?? true;
   const lines: string[] = [];
 
-  if (s.builderOnline === false) lines.push("The builder is offline, so nothing can run.");
-  else if (s.builderOnline === null) lines.push("I can't tell whether the builder is online.");
+  if (s.builderOnline === false) lines.push("The runner is offline, so nothing can run.");
+  else if (s.builderOnline === null) lines.push("I can't tell whether the runner is online.");
 
   if (s.working.length > 0) {
     lines.push(
@@ -144,7 +144,7 @@ export function composeBriefing(s: FleetSnapshot, opts: { hints?: boolean } = {}
   if (s.waitingForBuilder.length > 0) {
     lines.push(
       sentence(
-        `${count(s.waitingForBuilder.length, "run is", "runs are")} waiting for a builder${whereSaid(
+        `${count(s.waitingForBuilder.length, "run is", "runs are")} waiting for a runner${whereSaid(
           s.waitingForBuilder.map((w) => spoken(w.project)),
         )}.`,
       ),

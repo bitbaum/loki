@@ -807,7 +807,7 @@ export function TerminalSurface({
     <div className="flex h-full min-h-0 flex-col gap-2" style={rootStyle}>
       {sourceBar}
       {/* With nothing open the app's own top bar names the page, and the
-          list below is the way in: a second header saying "Cloud builder ·
+          list below is the way in: a second header saying "Cloud runner ·
           4 sessions" over it was a second title (owner, 2026-10-21). */}
       {activeTab && <div className="md:hidden">{mobileHeader}</div>}
       <TerminalAgentTabs

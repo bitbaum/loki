@@ -19,7 +19,7 @@ export async function POST() {
         closeRunUndelivered(
           r.runId!,
           userId,
-          "you stopped waiting from Control after no builder picked it up",
+          "you stopped waiting from Control after no runner picked it up",
         ).catch(() => {}),
       ),
   );

@@ -102,7 +102,7 @@ export function ControlSettingsSheet({
         </section>
 
         <section className="ui-sheet-section">
-          <h3 className="ui-sheet-label">Builder</h3>
+          <h3 className="ui-sheet-label">Runner</h3>
           <p className="ui-sheet-value">{runnerLabel}</p>
           {runnerDetail && <p className="ui-sheet-hint">{runnerDetail}</p>}
           {versionDetail && <p className="ui-sheet-hint">{versionDetail}</p>}

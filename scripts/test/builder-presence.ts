@@ -14,7 +14,7 @@ import {
 if (!isCloudRunnerVersion("box-0.8.9")) throw new Error("box version detect");
 if (isCloudRunnerVersion("0.8.9")) throw new Error("desktop version not cloud");
 
-if (builderCompactLabel("connected", "box-0.8.9") !== "Cloud builder online") {
+if (builderCompactLabel("connected", "box-0.8.9") !== "Cloud runner online") {
   throw new Error("cloud label");
 }
 if (builderCompactLabel("connected", "0.8.9") !== "This computer online") {
@@ -26,7 +26,7 @@ if (
 ) {
   throw new Error("both label");
 }
-if (builderCompactLabel("offline", null) !== "Builder offline") {
+if (builderCompactLabel("offline", null) !== "Runner offline") {
   throw new Error("offline label");
 }
 
@@ -36,7 +36,7 @@ const cloudOnly = inferBuilderChannelPresence({
   localConnected: false,
 });
 if (!cloudOnly.cloud || cloudOnly.local) throw new Error("cloud-only infer");
-if (builderPresenceDetail(cloudOnly) !== "This computer offline — cloud builder runs the queue") {
+if (builderPresenceDetail(cloudOnly) !== "This computer offline — cloud runner runs the queue") {
   throw new Error("cloud-only detail");
 }
 
@@ -49,8 +49,8 @@ if (!builderBehind("box-0.7.99", "0.8.0")) throw new Error("older minor is behin
 if (builderBehind("box-0.8.45", "0.8.45")) throw new Error("same version is not behind");
 if (builderBehind("box-0.8.46", "0.8.45")) throw new Error("newer is not behind");
 if (builderBehind("box", "0.8.45")) throw new Error("no number: no claim");
-if (builderBehind(null, "0.8.45")) throw new Error("no builder: no claim");
+if (builderBehind(null, "0.8.45")) throw new Error("no runner: no claim");
 if (builderUpdateNote("box-0.0.1") !== "a newer version waits for its agents to finish")
   throw new Error("update note");
-if (builderUpdateNote(null) !== null) throw new Error("no builder, no note");
+if (builderUpdateNote(null) !== null) throw new Error("no runner, no note");
 console.log("✓ builder-presence");

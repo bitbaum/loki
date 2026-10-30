@@ -133,7 +133,7 @@ export async function providerChoiceFor(
     channel &&
     installed?.length &&
     !installed.includes(current)
-      ? `${providerLabel(current)} is not installed on ${channel === "local" ? "this computer" : "the cloud builder"}`
+      ? `${providerLabel(current)} is not installed on ${channel === "local" ? "this computer" : "the cloud runner"}`
       : null;
 
   return {

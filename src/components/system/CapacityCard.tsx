@@ -39,16 +39,14 @@ export async function CapacityCard() {
           Welcome builds this month: {chf(welcomeUsd)} of CHF {WELCOME_MONTHLY_CAP_CHF}.
         </p>
         <div>
-          <p className="ui-micro-label mb-1">Waited for a builder, last 24 h</p>
+          <p className="ui-micro-label mb-1">Waited for a runner, last 24 h</p>
           {waits.length === 0 ? (
             <EmptyState>No work was claimed in the last day.</EmptyState>
           ) : (
             <ul className="divide-y divide-border-subtle text-sm">
               {waits.map((w) => (
                 <li key={w.channel ?? "any"} className="flex items-center gap-3 py-1.5">
-                  <span className="font-medium text-text-primary">
-                    {w.channel ?? "any builder"}
-                  </span>
+                  <span className="font-medium text-text-primary">{w.channel ?? "any runner"}</span>
                   <span className="text-text-secondary">{w.claimed} claimed</span>
                   <span className="ml-auto text-xs text-text-tertiary">
                     median {seconds(w.medianSeconds)} · worst {seconds(w.worstSeconds)}

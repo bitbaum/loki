@@ -84,15 +84,15 @@ export function shellCommandRefusal(type: string, payload: unknown): string | nu
  *  screen and the API never say two different things. */
 export const SHELL_REFUSALS = {
   "not-operator":
-    "Only the account that owns this builder can open a shell on it. Nothing else can.",
+    "Only the account that owns this runner can open a shell on it. Nothing else can.",
   "pin-required":
     "A shell needs a PIN first. Set one in Settings → Privacy, then come back — it takes a minute.",
   locked: "The shell is locked. Enter your PIN to unlock it.",
-  "no-channel": "Say where the shell should run: the cloud builder or your computer.",
-  offline: "That builder is not connected, so there is nothing to open a shell on.",
+  "no-channel": "Say where the shell should run: the cloud runner or your computer.",
+  offline: "That runner is not connected, so there is nothing to open a shell on.",
   "too-many": `Three shells are already open there. Close one first.`,
   "rate-limited": "Too many shells opened in a short while. Wait a few minutes and try again.",
-  sandboxed: "This builder runs sealed builds only, so it does not offer a shell.",
+  sandboxed: "This runner runs sealed builds only, so it does not offer a shell.",
 } as const;
 
 export type ShellRefusal = keyof typeof SHELL_REFUSALS;
@@ -107,7 +107,7 @@ export function runnerOffersShell(env: Record<string, string | undefined>): bool
 
 /** The label a person reads for the builder a shell runs on. */
 export function shellPlaceLabel(channel: "cloud" | "local"): string {
-  return channel === "cloud" ? "the cloud builder" : "your computer";
+  return channel === "cloud" ? "the cloud runner" : "your computer";
 }
 
 /** Audit events. NO command content, no output, no keystrokes — who, when,

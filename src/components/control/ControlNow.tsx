@@ -187,7 +187,7 @@ export function ControlFoot({
   // The last rows of the page, not a strip of chrome: settings (naming the
   // builder when one is on), and a new project.
   return (
-    <List aria-label="Builder and settings" className="ui-home-foot">
+    <List aria-label="Runner and settings" className="ui-home-foot">
       <ListRow
         icon={Server}
         title={builderLabel ?? "Settings"}

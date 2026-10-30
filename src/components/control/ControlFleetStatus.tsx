@@ -364,7 +364,7 @@ export function ControlFleetStatus({
             type="button"
             onClick={onOpenSettings}
             className="ui-btn-icon"
-            title="Fleet settings — autopilot, refresh, builder status"
+            title="Fleet settings — autopilot, refresh, runner status"
             aria-label="Fleet settings"
           >
             <Settings2 className="h-4 w-4" />

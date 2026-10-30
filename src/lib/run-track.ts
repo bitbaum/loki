@@ -307,7 +307,7 @@ function askedStage(f: Facts): TrackStage {
 
 function builderStage(f: Facts): TrackStage {
   const t = f.input.eventTimes;
-  const who = f.input.builderLabel ?? "A builder";
+  const who = f.input.builderLabel ?? "A runner";
   const facts: TrackFact[] = [];
   if (t.claimed) facts.push({ text: `${who} claimed the job.`, at: t.claimed });
   if (t.launched) facts.push({ text: `Opened an agent session.`, at: t.launched });
@@ -320,17 +320,17 @@ function builderStage(f: Facts): TrackStage {
     });
   // The reason is the card's headline (summaryOf); saying it twice, one line
   // apart, is what the first preview showed.
-  if (f.finished) return stage("builder", "No builder picked it up", "failed", { at: f.askedAt });
+  if (f.finished) return stage("builder", "No runner picked it up", "failed", { at: f.askedAt });
   if (f.input.stalled)
-    return stage("builder", "Waiting for a builder", "attention", {
+    return stage("builder", "Waiting for a runner", "attention", {
       note: "Nobody has picked it up for a while.",
       at: f.askedAt,
-      facts: [{ text: "Builders claim work every few seconds; a long wait means none is online." }],
+      facts: [{ text: "Runners claim work every few seconds; a long wait means none is online." }],
     });
-  return stage("builder", "Waiting for a builder", "now", {
+  return stage("builder", "Waiting for a runner", "now", {
     note: "Usually under a minute.",
     at: f.askedAt,
-    facts: [{ text: "The job is on the queue; the next free builder claims it." }],
+    facts: [{ text: "The job is on the queue; the next free runner claims it." }],
   });
 }
 
@@ -585,10 +585,10 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
         : `${p} finished — checking where the change is.`;
   if (f.finished) return f.input.failure ?? `${p} stopped before the change shipped.`;
   if (work.state === "attention") return work.note ?? `${p} needs you.`;
-  if (builder.state === "attention") return "Sent, but no builder has picked it up.";
+  if (builder.state === "attention") return "Sent, but no runner has picked it up.";
   if (f.working || f.generated) return `${p} is making the change.`;
   if (f.started) return `${p} is starting.`;
-  return "Waiting for a builder to pick it up — usually under a minute.";
+  return "Waiting for a runner to pick it up — usually under a minute.";
 }
 
 /** What a stage that was still moving reads once nobody follows it any more. */

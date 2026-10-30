@@ -12,13 +12,13 @@ import { findAdapter } from "./index";
 export type BuilderWhere = "cloud" | "local" | null;
 
 const WHERE: Record<"cloud" | "local", string> = {
-  cloud: "the cloud builder",
+  cloud: "the cloud runner",
   local: "this computer",
 };
 
 /** The sentence a person reads when the agent is missing. */
 export function agentNotInstalledMessage(label: string, where: BuilderWhere): string {
-  const place = where ? WHERE[where] : "this builder";
+  const place = where ? WHERE[where] : "this runner";
   return (
     `${label} is not installed on ${place}, so nothing was started. ` +
     `Switch this project to an agent installed there, or install ${label} on ${place}, ` +

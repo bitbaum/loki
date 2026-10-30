@@ -263,8 +263,8 @@ function ChatEmpty({
     : connected
       ? // Only seen by a caller that does not take onUnavailable; the
         // terminal surface switches to the terminal instead.
-        ["Showing the terminal instead", "This builder does not send the conversation view."]
-      : ["Reconnecting…", "Lost the connection to the builder. Trying again."];
+        ["Showing the terminal instead", "This runner does not send the conversation view."]
+      : ["Reconnecting…", "Lost the connection to the runner. Trying again."];
   return (
     <div className="ui-claude-chat-empty" role="status">
       <MessageCircle className="h-6 w-6 text-text-muted" aria-hidden />

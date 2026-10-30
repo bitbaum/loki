@@ -76,8 +76,7 @@ export async function implementFeedback(
     return {
       status: 403,
       body: {
-        error:
-          "Only the project's owner can start a build on their builder. Your ask is with them.",
+        error: "Only the project's owner can start a build on their runner. Your ask is with them.",
       },
     };
   const executionUserId = row.ownerUserId;
@@ -197,7 +196,7 @@ export async function implementFeedback(
       return {
         status: 409,
         body: {
-          error: "No other agent on this builder can answer right now.",
+          error: "No other agent on this runner can answer right now.",
           exhausted: true,
           tried: [...exclude],
         },

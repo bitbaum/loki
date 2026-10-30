@@ -246,7 +246,7 @@ export function SessionComposer({
         {sent.kind === "typed"
           ? `Typed ${sent.what} into the terminal.`
           : (dispatch?.label ??
-            `Sent as a task — it starts ${agentLabel} in ${tab}, or waits for the builder.`)}
+            `Sent as a task — it starts ${agentLabel} in ${tab}, or waits for the runner.`)}
       </span>
       <button
         type="button"

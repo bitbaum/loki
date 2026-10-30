@@ -476,7 +476,7 @@ function KickoffNextStep({
           Connect your computer to start the build.
         </p>
         <p className="text-xs leading-relaxed text-text-secondary">
-          Your account has no builder on Loki&apos;s cloud yet — the operator switches one on per
+          Your account has no runner on Loki&apos;s cloud yet — the operator switches one on per
           account — so the agent runs on your own computer. Install Fleet Runner, then press Try
           again here; everything above is saved.
         </p>
@@ -497,11 +497,11 @@ function KickoffNextStep({
     return (
       <div className="space-y-2 border-t border-border-subtle pt-3">
         <p className="text-sm font-medium text-text-primary">
-          Your agent is queued, waiting for a builder.
+          Your agent is queued, waiting for a runner.
         </p>
         <p className="text-xs leading-relaxed text-text-secondary">
-          No builder is connected right now, so nothing is running yet — the work is saved and
-          starts by itself the moment the cloud builder or your computer comes online.
+          No runner is connected right now, so nothing is running yet — the work is saved and starts
+          by itself the moment the cloud runner or your computer comes online.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/download" className="ui-btn-primary">

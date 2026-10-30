@@ -96,12 +96,12 @@ export const STATE_DEFINITIONS: Record<ProjectStateKey, ProjectStateDefinition> 
   offline: {
     label: "Offline",
     description:
-      "The builder hasn't pushed fresh state for this project — we don't know what's happening right now.",
+      "The runner hasn't pushed fresh state for this project — we don't know what's happening right now.",
     dotClass: "bg-status-warning",
     tagClass: "ui-tag ui-tag-warning",
     counterCategory: "offline",
     problem: {
-      hint: "Press Start building or send it from Home — the cloud builder or desktop app will pick it up.",
+      hint: "Press Start building or send it from Home — the cloud runner or desktop app will pick it up.",
       ctaLabel: "Get desktop app",
       ctaHref: "/download",
     },
@@ -251,7 +251,7 @@ export const RUNNER_STATE_DEFINITIONS: Record<RunnerStateKey, RunnerStateDefinit
   setup_needed: {
     label: EXECUTOR_COPY.builder.setupOptional,
     description:
-      "No builder has reported in yet. Git-backed projects can still queue from the browser when the cloud builder is running.",
+      "No runner has reported in yet. Git-backed projects can still queue from the browser when the cloud runner is running.",
     dotClass: "bg-border-default",
     tagClass: "ui-tag ui-tag-neutral",
     problem: {
@@ -263,23 +263,23 @@ export const RUNNER_STATE_DEFINITIONS: Record<RunnerStateKey, RunnerStateDefinit
   offline: {
     label: EXECUTOR_COPY.builder.offline,
     description:
-      "No builder is connected. Dispatches queue until the cloud builder or desktop app is online.",
+      "No runner is connected. Dispatches queue until the cloud runner or desktop app is online.",
     dotClass: "bg-status-warning",
     tagClass: "ui-tag ui-tag-warning",
     problem: {
-      hint: "Work stays queued. Open the desktop app on this computer, or ensure the cloud builder service is running.",
+      hint: "Work stays queued. Open the desktop app on this computer, or ensure the cloud runner service is running.",
     },
   },
   state_unknown: {
     label: EXECUTOR_COPY.builder.uncertain,
-    description: "A builder is connected but hasn't pushed usable state yet. Wait a few seconds.",
+    description: "A runner is connected but hasn't pushed usable state yet. Wait a few seconds.",
     dotClass: "bg-status-warning",
     tagClass: "ui-tag ui-tag-warning",
     problem: null,
   },
   connected: {
     label: EXECUTOR_COPY.builder.online,
-    description: "A builder pushed state recently — cloud and/or this computer.",
+    description: "A runner pushed state recently — cloud and/or this computer.",
     dotClass: "bg-status-positive",
     tagClass: "ui-tag ui-tag-positive",
     problem: null,

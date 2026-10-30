@@ -186,8 +186,8 @@ export default function FeedbackWidgetDocsPage() {
           </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
-              <strong>Implement</strong> — one report becomes one agent run, on whichever builder
-              the project runs on. You do not pick a terminal.
+              <strong>Implement</strong> — one report becomes one agent run, on whichever runner the
+              project runs on. You do not pick a terminal.
             </li>
             <li>
               <strong>Implement all as one</strong> (two or more new reports) — one agent run that

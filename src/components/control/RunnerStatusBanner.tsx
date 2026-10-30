@@ -112,7 +112,7 @@ export function RunnerStatusBanner({
   if (way === "unknown") {
     return (
       <p className="text-sm text-text-secondary" role="status">
-        Checking your builder connection…
+        Checking your runner connection…
       </p>
     );
   }
@@ -246,7 +246,7 @@ export function RunnerStatusBanner({
                       Pair this computer
                     </div>
                     <p className="text-xs text-text-muted">
-                      You&apos;re in the desktop app. One click connects it to the shared builder
+                      You&apos;re in the desktop app. One click connects it to the shared runner
                       queue. — no manual copy-paste.
                     </p>
                     <button

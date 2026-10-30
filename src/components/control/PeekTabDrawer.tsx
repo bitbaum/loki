@@ -197,8 +197,8 @@ export function PeekTabDrawer({
             <p className="font-medium text-status-warning">Couldn&apos;t peek this tab</p>
             <p className="mt-2 text-text-tertiary">{error}</p>
             <p className="mt-4 text-xs text-text-muted">
-              Common reasons: no agent is running for this project on the builder (dispatch to start
-              one), or neither Fleet Runner nor the cloud builder is online.
+              Common reasons: no agent is running for this project on the runner (dispatch to start
+              one), or neither Fleet Runner nor the cloud runner is online.
             </p>
           </div>
         ) : content === null ? (
@@ -242,11 +242,11 @@ function NoAgentState({ tab }: { tab: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm">
       <p className="font-medium text-text-secondary">
-        {queued ? "Queued — waiting for a builder" : "No agent is running for this project"}
+        {queued ? "Queued — waiting for a runner" : "No agent is running for this project"}
       </p>
       <p className="max-w-sm text-text-muted">
         {queued
-          ? "The work is saved and starts by itself the moment the cloud builder or your computer comes online."
+          ? "The work is saved and starts by itself the moment the cloud runner or your computer comes online."
           : "Nothing to watch yet. Start one from the project — its terminal shows up here while it works."}
       </p>
       <div className="mt-2 flex flex-wrap justify-center gap-2">
