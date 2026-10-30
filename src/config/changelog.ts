@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.60",
+    tag: "fleet-runner-v0.8.60",
+    date: "2026-10-30T12:00:00Z",
+    highlights: [
+      "New app and tray icon: Loki's mark is now a disc with an off-centre spiral cut into it.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.59",
     tag: "fleet-runner-v0.8.59",
     date: "2026-10-27T18:30:00Z",
