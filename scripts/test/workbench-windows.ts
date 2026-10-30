@@ -1,32 +1,25 @@
 /**
- * Where a workbench window goes, and what the windows say to each other.
+ * What a browser is told about a workbench window, and what the windows say
+ * to each other. (Where a window goes is scripts/test/workbench-placement.ts.)
  *
  * Run: npx tsx scripts/test/workbench-windows.ts
  */
 import assert from "node:assert/strict";
-import { popupBounds, popupFeatures } from "../../src/lib/workbench/windows";
+import { openingNote, popupFeatures } from "../../src/lib/workbench/windows";
 import { parseBusMessage, workbenchChannelName } from "../../src/lib/workbench/bus";
 
-const here = { left: 0, top: 0, width: 1440, height: 900 };
-const other = { left: 1440, top: 0, width: 2560, height: 1440 };
+assert.equal(
+  popupFeatures({ x: 1440, y: 0, width: 2560, height: 1440 }),
+  "popup,left=1440,top=0,width=2560,height=1440",
+);
 
-// The other screen, whole, when there is one.
-assert.deepEqual(popupBounds("other-screen", here, other), other);
-// Asked for the other screen with only one: beside, like the fallback says.
-assert.deepEqual(popupBounds("other-screen", here, null), {
-  left: 720,
-  top: 0,
-  width: 720,
-  height: 900,
-});
-// Beside: the right half of this screen, never narrower than a usable page.
-assert.deepEqual(popupBounds("beside", { left: 100, top: 50, width: 800, height: 600 }, other), {
-  left: 420,
-  top: 50,
-  width: 480,
-  height: 600,
-});
-assert.equal(popupFeatures(other), "popup,left=1440,top=0,width=2560,height=1440");
+// Only a refused window earns a word.
+assert.equal(openingNote(null), null);
+assert.equal(openingNote({ how: "opened" }), null);
+assert.equal(openingNote({ how: "placed" }), null);
+assert.equal(openingNote({ how: "focused" }), null);
+assert.equal(openingNote({ how: "desktop" }), null);
+assert.match(openingNote({ how: "blocked" }) ?? "", /pop-ups/);
 
 // The bus accepts exactly its own messages.
 assert.deepEqual(parseBusMessage({ kind: "pane", pane: "loki", state: "open", from: "w1" }), {

@@ -27,7 +27,6 @@ export function WorkbenchStrip({
   projectId,
   projectName,
   site,
-  openPanes,
   shownPanes,
   onTogglePane,
   placement,
@@ -38,8 +37,6 @@ export function WorkbenchStrip({
   projectId: string;
   projectName: string;
   site: WorkbenchSite | null;
-  /** Open in this window. */
-  openPanes: readonly WorkbenchPaneId[];
   /** On screen now: every open pane where there is room for columns, one
    *  of them where there is not — then the buttons choose which. */
   shownPanes: readonly WorkbenchPaneId[];
@@ -66,9 +63,6 @@ export function WorkbenchStrip({
               type="button"
               className={cn("ui-term-pane-btn", on && "ui-term-pane-btn-on")}
               aria-pressed={on}
-              title={
-                openPanes.includes(id) && !on ? `${meta.label} (open, not on screen)` : undefined
-              }
               onClick={() => onTogglePane(id)}
             >
               <meta.icon className="h-3.5 w-3.5" aria-hidden="true" />

@@ -7,10 +7,11 @@ import type { WorkbenchSite } from "./workbench-types";
 
 /**
  * The workbench on a phone: the same three things as rows, each opening the
- * phone's own shape of it. Two columns on a 390px screen would be two
- * unreadable strips; no-screen mode and the session's phone chrome already
- * exist for exactly this width, so this page sends there instead of
- * squeezing (one shape per kind, fleet AGENTS.md).
+ * phone's own shape of it (the surface each pane is a column of, from the
+ * pane registry). Two columns on a 390px screen would be two unreadable
+ * strips; no-screen mode and the session's phone chrome already exist for
+ * exactly this width, so this page sends there instead of squeezing (one
+ * shape per kind, fleet AGENTS.md).
  */
 export function WorkbenchNarrow({
   projectId,
@@ -23,10 +24,6 @@ export function WorkbenchNarrow({
   workspaceKey: string;
   site: WorkbenchSite | null;
 }) {
-  const hrefs = {
-    session: fleetSurfaceHref("terminal", workspaceKey),
-    loki: fleetSurfaceHref("chat", workspaceKey),
-  } as const;
   return (
     <PageLayout
       title="Workbench"
@@ -36,7 +33,7 @@ export function WorkbenchNarrow({
       <List aria-label="Workbench">
         {site && (
           <ListRow
-            href={site.ownerUrl ?? site.url}
+            href={site.href}
             external
             icon={Globe}
             title={site.kind === "preview" ? "Open the preview" : "Open the site"}
@@ -49,7 +46,7 @@ export function WorkbenchNarrow({
           return (
             <ListRow
               key={id}
-              href={hrefs[id]}
+              href={fleetSurfaceHref(meta.surface, workspaceKey)}
               icon={meta.icon}
               title={meta.label}
               secondary={meta.description}

@@ -1,5 +1,6 @@
 import { MessageSquare, SquareTerminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { FleetWorkspaceSurfaceId } from "@/lib/fleet-context";
 
 /**
  * The workbench: one project's session and Loki side by side, with the site
@@ -23,6 +24,9 @@ export type WorkbenchPane = {
   /** What the pane is for, in one line (the narrow shape's secondary line). */
   description: string;
   icon: LucideIcon;
+  /** The page this pane is a column of — where a phone opens it instead
+   *  (fleetSurfaceHref), and what the column mounts. */
+  surface: FleetWorkspaceSurfaceId;
 };
 
 export const WORKBENCH_PANES: Record<WorkbenchPaneId, WorkbenchPane> = {
@@ -31,12 +35,14 @@ export const WORKBENCH_PANES: Record<WorkbenchPaneId, WorkbenchPane> = {
     label: "Session",
     description: "The agent at work on this project",
     icon: SquareTerminal,
+    surface: "terminal",
   },
   loki: {
     id: "loki",
     label: "Loki",
     description: "Ask, or send work, in plain language",
     icon: MessageSquare,
+    surface: "chat",
   },
 };
 

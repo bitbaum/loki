@@ -9,6 +9,7 @@ import {
   DEFAULT_WORKBENCH_LAYOUT,
   isPaneOpen,
   paneFromParam,
+  panesOnScreen,
   parseLayout,
   parsePlacement,
   serializeLayout,
@@ -55,5 +56,13 @@ assert.equal(workbenchWindowName("p1", "site"), "loki-workbench-p1-site");
 assert.equal(parsePlacement("other-screen"), "other-screen");
 assert.equal(parsePlacement("beside"), "beside");
 assert.equal(parsePlacement("moon"), "beside");
+
+// On screen: all open panes with room for columns; one of them without.
+assert.deepEqual(panesOnScreen({ open: ["session", "loki"] }, true, null), ["session", "loki"]);
+assert.deepEqual(panesOnScreen({ open: ["session", "loki"] }, false, null), ["session"]);
+assert.deepEqual(panesOnScreen({ open: ["session", "loki"] }, false, "loki"), ["loki"]);
+// A focus on a closed pane falls back to the first open one.
+assert.deepEqual(panesOnScreen({ open: ["session"] }, false, "loki"), ["session"]);
+assert.deepEqual(panesOnScreen({ open: [] }, false, "loki"), []);
 
 console.log("workbench-layout: ok");

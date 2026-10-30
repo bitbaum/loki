@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useBodyClass } from "@/hooks/use-body-class";
 
 const BODY_CLASS = "fc-workbench-solo";
 
@@ -11,9 +11,5 @@ const BODY_CLASS = "fc-workbench-solo";
  * they are done. Scoped in globals.css to this class, at every width.
  */
 export function useSoloWindow(active: boolean) {
-  useEffect(() => {
-    if (!active) return;
-    document.body.classList.add(BODY_CLASS);
-    return () => document.body.classList.remove(BODY_CLASS);
-  }, [active]);
+  useBodyClass(BODY_CLASS, active);
 }

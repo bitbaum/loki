@@ -1080,7 +1080,10 @@ app.whenReady().then(async () => {
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    // The shell window, not any window: a workbench window (the site, a
+    // pane) may be open with the shell closed, and the dock click must
+    // bring the shell back.
+    if (!mainWindow || mainWindow.isDestroyed()) createWindow()
   })
 })
 

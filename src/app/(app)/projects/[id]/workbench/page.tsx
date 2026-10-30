@@ -49,11 +49,12 @@ export default async function ProjectWorkbenchPage({
   const site: WorkbenchSite | null = links.prodUrl
     ? {
         url: links.prodUrl,
-        ownerUrl: pass ? ownerSiteUrl(links.prodUrl, pass) : null,
+        href: pass ? ownerSiteUrl(links.prodUrl, pass) : links.prodUrl,
         kind: isPreviewDir(userProject?.dirPath) ? "preview" : "live",
       }
     : null;
-  const name = projectTitle(userProject ?? detail.project);
+  // Named as the project page names it.
+  const name = projectTitle(detail.project);
 
   return (
     <>

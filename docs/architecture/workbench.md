@@ -52,34 +52,53 @@ site — in the best way the platform offers, in this order:
    window-open handler), so inside it the workbench asks through the bridge
    (`window.fleetRunner.openWorkbenchWindow`, v0.8.60+). The main process
    reads the real display list, puts the window on the other display or
-   tiles this one (caller left, new window right), and brings an open
-   window forward instead of opening it twice. The placement arithmetic is
-   pure (`desktop/src/main/workbench-placement.ts`,
-   `scripts/test/workbench-placement.ts`).
+   tiles this one (caller left, new window right; the shell keeps its
+   800px minimum and the new window takes the rest), and a window already
+   open is restored, placed where the person now asks and brought forward
+   instead of opened twice.
 2. **A browser with the Window Management API** (Chromium) names the other
-   screen once the person allows it, and the popup is placed there.
+   screen once the person allows it, and the popup is placed there. The
+   permission prompt is raised when "On the other screen" is chosen, not
+   on the open that follows: a click that waits for a prompt goes stale,
+   and the browser then refuses the window as unasked-for.
 3. **Any browser:** a popup sized to half this screen, left for the person
-   to drag. A blocked popup is said on the page, not swallowed.
+   to drag. A window this page already opened is brought forward, never
+   navigated again (the site's address carries a fresh pass each visit,
+   which a second navigation would leave unread in the address bar). A
+   refused window is said on the page, not swallowed.
+
+The placement arithmetic is one pure module both sides share,
+`src/lib/workbench/placement.ts`, tested in
+`scripts/test/workbench-placement.ts`.
 
 Where new windows go — beside, or the other screen — is one choice in the
 strip, remembered on this device, and the same choice drives the site and
-every popped-out pane.
+every popped-out pane (`hooks/use-workbench-windows.ts`). Fleet Runner keeps
+one window per page, keyed by the URL without its fragment: the owner's link
+to the site carries a pass minted afresh on every visit, so two taps on
+"Open the site" are two URLs for one window.
 
-## Layout is device-local
+## Layout is the window's
 
-Which panes this window shows lives in `localStorage` per project
-(`lib/workbench/layout.ts`, tested in `scripts/test/workbench-layout.ts`).
-Two screens are one machine; a laptop and a phone want different
-arrangements of the same project; and a window arrangement is not a fact
-about the project. So there is no column for it and no API — the project's
-STATE (threads, sessions, runs) is shared through the server as everywhere,
-its windows are not.
+Which panes this window shows is the window's own state: `sessionStorage`
+per project (`lib/workbench/layout.ts` and `hooks/use-workbench-layout.ts`,
+tested in `scripts/test/workbench-layout.ts`), kept across the window's
+reloads and never shared — two full workbench windows of one project, one
+per screen, each keep their own arrangement, which `localStorage` and its
+cross-window `storage` event would have clobbered. Two columns need room: from `xl` the
+open panes sit side by side; below it the window shows one at a time and
+the strip's buttons choose which (`panesOnScreen`). Below `md` it is the
+phone's rows.
+A window arrangement is not a fact about the project. So there is no
+column for it and no API — the project's STATE (threads, sessions, runs) is
+shared through the server as everywhere, its windows are not.
 
 The project's windows on one machine keep each other honest over a
 `BroadcastChannel` per project (`lib/workbench/bus.ts`): a pane popped out
-announces itself open, and the window it left stops drawing it; when that
-window closes (`pagehide`), the pane comes back. A window ignores its own
-announcements.
+announces itself open (again when it returns from the back-forward cache),
+and the window it left stops drawing it; on every way out — `pagehide`, or
+a soft navigation away that unmounts the pane — it announces itself closed
+and the pane comes back. A window ignores its own announcements.
 
 ## One pane, one window
 

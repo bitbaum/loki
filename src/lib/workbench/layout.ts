@@ -70,3 +70,18 @@ export const WORKBENCH_PLACEMENT_KEY = "loki:workbench:placement";
 export function parsePlacement(raw: string): WorkbenchPlacement {
   return raw === "other-screen" ? "other-screen" : "beside";
 }
+
+/**
+ * Which open panes are on screen. With room for columns, all of them; with
+ * room for one, the focused pane if it is open, else the first open one.
+ * Focus is session state in the window (a tiled window shows one pane and
+ * the strip picks which); the layout is what is remembered.
+ */
+export function panesOnScreen(
+  layout: WorkbenchLayout,
+  columns: boolean,
+  focus: WorkbenchPaneId | null,
+): WorkbenchPaneId[] {
+  if (columns || layout.open.length === 0) return layout.open;
+  return [focus && layout.open.includes(focus) ? focus : layout.open[0]];
+}

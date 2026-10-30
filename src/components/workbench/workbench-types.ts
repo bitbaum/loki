@@ -1,8 +1,9 @@
-/** The project's site as the workbench opens it: the address, the owner's
- *  link into it (the pass that makes a note build at once), and whether it
- *  is the live site or a preview — the window must say which. */
+/** The project's site as the workbench offers it: the address people read,
+ *  the address that is opened (the owner's link carries the pass that makes
+ *  a note build at once, lib/feedback/owner-pass.ts), and whether it is the
+ *  live site or a preview — the window must say which. */
 export type WorkbenchSite = {
   url: string;
-  ownerUrl: string | null;
+  href: string;
   kind: "live" | "preview";
 };

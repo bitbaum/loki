@@ -1,4 +1,10 @@
-import type { WorkbenchPlacement } from "@/config/workbench";
+import {
+  placeWorkbenchWindow,
+  windowKey,
+  type DisplayRect,
+  type Rect,
+  type WorkbenchPlacement,
+} from "@/lib/workbench/placement";
 
 /**
  * Opening a window from the workbench — a pane of Loki's own, or the
@@ -14,11 +20,16 @@ import type { WorkbenchPlacement } from "@/config/workbench";
  *  3. Any browser: a popup, sized to half this screen, left for the person
  *     to drag where they want it.
  *
- * The bounds arithmetic is pure (scripts/test/workbench-windows.ts); the
- * rest touches `window` and is kept thin.
+ * A window this page already opened is brought forward, never navigated
+ * again: the site's address carries a pass in its fragment that is minted
+ * afresh per visit, and a second navigation would leave the new one in the
+ * address bar unread (the widget lifts it out only at boot). Where the site
+ * severs the relationship (COOP), the handle reads as closed and the window
+ * opens again — a duplicate, never a leak.
+ *
+ * The placement arithmetic is shared with Fleet Runner
+ * (lib/workbench/placement.ts); the rest touches `window` and is kept thin.
  */
-export type ScreenRect = { left: number; top: number; width: number; height: number };
-
 export type WindowOpening =
   /** Fleet Runner placed it. */
   | { how: "desktop" }
@@ -26,29 +37,20 @@ export type WindowOpening =
   | { how: "placed" }
   /** A browser opened it; the person moves it. */
   | { how: "opened" }
-  /** The browser refused (a popup blocker). */
+  /** It was already open; it is in front now. */
+  | { how: "focused" }
+  /** The browser refused (a popup blocker, or the click had gone stale). */
   | { how: "blocked" };
 
-/** Where a new window goes, as the `window.open` features string wants it. */
-export function popupBounds(
-  placement: WorkbenchPlacement,
-  current: ScreenRect,
-  other: ScreenRect | null,
-): ScreenRect {
-  if (placement === "other-screen" && other) return other;
-  // Beside: the right half of this screen. The person's own window is left
-  // where it is; a page cannot move the window that opened it.
-  const width = Math.max(480, Math.floor(current.width / 2));
-  return {
-    left: current.left + current.width - width,
-    top: current.top,
-    width,
-    height: current.height,
-  };
+/** What an opening that needs a word from us says; the rest say nothing. */
+export function openingNote(opening: WindowOpening | null): string | null {
+  if (opening?.how === "blocked")
+    return "The window could not be opened. Allow pop-ups for Loki, then try again.";
+  return null;
 }
 
-export function popupFeatures(rect: ScreenRect): string {
-  return `popup,left=${rect.left},top=${rect.top},width=${rect.width},height=${rect.height}`;
+export function popupFeatures(rect: Rect): string {
+  return `popup,left=${rect.x},top=${rect.y},width=${rect.width},height=${rect.height}`;
 }
 
 /** The Window Management API (Chromium), typed only as far as this uses it. */
@@ -57,36 +59,46 @@ type ScreenDetailed = {
   availTop: number;
   availWidth: number;
   availHeight: number;
-  isPrimary: boolean;
 };
 type ScreenDetails = { screens: ScreenDetailed[]; currentScreen: ScreenDetailed };
 type WindowWithScreens = Window & { getScreenDetails?: () => Promise<ScreenDetails> };
 
-function rectOf(s: ScreenDetailed): ScreenRect {
-  return { left: s.availLeft, top: s.availTop, width: s.availWidth, height: s.availHeight };
+function rectOf(s: ScreenDetailed): Rect {
+  return { x: s.availLeft, y: s.availTop, width: s.availWidth, height: s.availHeight };
 }
 
 /** This screen, from what every browser exposes. */
-function thisScreen(): ScreenRect {
+function thisScreen(): Rect {
   const s = window.screen as Screen & { availLeft?: number; availTop?: number };
-  return {
-    left: s.availLeft ?? 0,
-    top: s.availTop ?? 0,
-    width: s.availWidth,
-    height: s.availHeight,
-  };
+  return { x: s.availLeft ?? 0, y: s.availTop ?? 0, width: s.availWidth, height: s.availHeight };
 }
 
-/** Ask the browser for the screens; null where it cannot or the person said no. */
-async function screensOrNull(): Promise<ScreenDetails | null> {
+/** The screens as displays, with this one named; null where the browser
+ *  cannot say or the person said no. */
+async function displaysOrNull(): Promise<{ displays: DisplayRect[]; currentId: number } | null> {
   const w = window as WindowWithScreens;
   if (typeof w.getScreenDetails !== "function") return null;
   try {
-    return await w.getScreenDetails();
+    const details = await w.getScreenDetails();
+    const displays = details.screens.map((s, id) => ({ id, workArea: rectOf(s) }));
+    return { displays, currentId: Math.max(0, details.screens.indexOf(details.currentScreen)) };
   } catch {
     return null;
   }
 }
+
+/**
+ * Ask for the screens now, while a click is fresh. The permission prompt
+ * takes the person's attention, and a click that waits for it goes stale:
+ * `window.open` after it is treated as unasked-for and refused. So the
+ * prompt is raised when "On the other screen" is chosen, and the open that
+ * follows finds the permission already given.
+ */
+export function primeScreens(): void {
+  void displaysOrNull();
+}
+
+const handles = new Map<string, Window>();
 
 export async function openWorkbenchWindow(opts: {
   url: string;
@@ -100,14 +112,20 @@ export async function openWorkbenchWindow(opts: {
     // An older desktop build without the method lands below — and there
     // window.open goes to the default browser, which still opens the page.
   }
-  const details = opts.placement === "other-screen" ? await screensOrNull() : null;
-  const other = details?.screens.find((s) => s !== details.currentScreen) ?? null;
-  const rect = popupBounds(
-    opts.placement,
-    details ? rectOf(details.currentScreen) : thisScreen(),
-    other ? rectOf(other) : null,
-  );
-  const handle = window.open(opts.url, opts.name, popupFeatures(rect));
+  const key = `${opts.name}:${windowKey(opts.url)}`;
+  const existing = handles.get(key);
+  if (existing && !existing.closed) {
+    existing.focus();
+    return { how: "focused" };
+  }
+  const screens = opts.placement === "other-screen" ? await displaysOrNull() : null;
+  const placed = placeWorkbenchWindow({
+    placement: opts.placement,
+    displays: screens?.displays ?? [{ id: 0, workArea: thisScreen() }],
+    currentId: screens?.currentId ?? 0,
+  });
+  const handle = window.open(opts.url, opts.name, popupFeatures(placed.window));
   if (!handle) return { how: "blocked" };
-  return { how: other ? "placed" : "opened" };
+  handles.set(key, handle);
+  return { how: placed.caller === null ? "placed" : "opened" };
 }

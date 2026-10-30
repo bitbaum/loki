@@ -2,10 +2,13 @@ import { BrowserWindow, screen, shell } from 'electron'
 import { join } from 'path'
 import {
   isOpenableUrl,
+  MIN_WINDOW_WIDTH,
   placeWorkbenchWindow,
   sameOrigin,
+  windowKey,
+  type Placed,
   type WorkbenchPlacement,
-} from './workbench-placement'
+} from '@/lib/workbench/placement'
 
 /**
  * Workbench windows: a pane of Loki's own, or the project's site, opened
@@ -15,8 +18,8 @@ import {
  * here (the main window's window-open handler sends everything external).
  * So the workbench asks through the bridge, and this module is the one
  * place a second window is made: it reads the real display list, tiles or
- * moves, and brings a window already open forward instead of opening it
- * twice — the browser's named-window behaviour, done by hand.
+ * moves, and brings a window already open forward — restored and placed
+ * where the person now asks — instead of opening it twice.
  *
  * A window on the shell's own origin gets the preload (it is Loki, and may
  * itself open windows); any other page gets none and stays sandboxed.
@@ -24,6 +27,22 @@ import {
 const open = new Map<string, BrowserWindow>()
 
 export type OpenOutcome = { ok: true; displays: number } | { ok: false; error: string }
+
+function place(caller: BrowserWindow | null, placement: WorkbenchPlacement): Placed {
+  const callerBounds = caller?.getBounds() ?? null
+  const current = callerBounds ? screen.getDisplayMatching(callerBounds) : screen.getPrimaryDisplay()
+  const placed = placeWorkbenchWindow({
+    placement,
+    displays: screen.getAllDisplays(),
+    currentId: current.id,
+    minCallerWidth: caller?.getMinimumSize()[0] ?? 0,
+  })
+  if (placed.caller && caller && !caller.isDestroyed()) {
+    if (caller.isMaximized()) caller.unmaximize()
+    caller.setBounds(placed.caller)
+  }
+  return placed
+}
 
 export function openWorkbenchWindow(opts: {
   caller: BrowserWindow | null
@@ -34,36 +53,33 @@ export function openWorkbenchWindow(opts: {
 }): OpenOutcome {
   if (!isOpenableUrl(opts.url)) return { ok: false, error: 'not a page' }
   const placement: WorkbenchPlacement = opts.placement === 'other-screen' ? 'other-screen' : 'beside'
+  const displays = screen.getAllDisplays().length
 
-  const existing = open.get(opts.url)
+  const key = windowKey(opts.url)
+  const existing = open.get(key)
   if (existing && !existing.isDestroyed()) {
+    // Asked again: where the person asks NOW, in front, and not minimized.
+    const placed = place(opts.caller, placement)
+    if (existing.isMinimized()) existing.restore()
+    existing.setBounds(placed.window)
     existing.focus()
-    return { ok: true, displays: screen.getAllDisplays().length }
+    return { ok: true, displays }
   }
 
-  const displays = screen.getAllDisplays()
-  const callerBounds = opts.caller?.getBounds() ?? null
-  const currentId = (callerBounds ? screen.getDisplayMatching(callerBounds) : screen.getPrimaryDisplay()).id
-  const placed = placeWorkbenchWindow({ placement, displays, currentId })
-
-  if (placed.caller && opts.caller && !opts.caller.isDestroyed()) {
-    if (opts.caller.isMaximized()) opts.caller.unmaximize()
-    opts.caller.setBounds(placed.caller)
-  }
-
+  const placed = place(opts.caller, placement)
   const ours = sameOrigin(opts.url, opts.shellUrl)
   const win = new BrowserWindow({
     ...placed.window,
-    minWidth: 480,
+    minWidth: MIN_WINDOW_WIDTH,
     minHeight: 400,
     autoHideMenuBar: !ours,
     webPreferences: ours
       ? { preload: opts.preloadPath, sandbox: false }
       : { contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
-  open.set(opts.url, win)
+  open.set(key, win)
   win.on('closed', () => {
-    if (open.get(opts.url) === win) open.delete(opts.url)
+    if (open.get(key) === win) open.delete(key)
   })
   // The same rule as the main window: a page may not grow more windows of
   // its own here; a link to elsewhere opens in the default browser.
@@ -72,7 +88,7 @@ export function openWorkbenchWindow(opts: {
     return { action: 'deny' }
   })
   void win.loadURL(opts.url).catch(() => {})
-  return { ok: true, displays: displays.length }
+  return { ok: true, displays }
 }
 
 export function workbenchPreloadPath(mainDir: string): string {

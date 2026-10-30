@@ -1,35 +1,26 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LokiWorkspace } from "@/components/loki/LokiWorkspace";
 import { TerminalSurface } from "@/components/terminal/TerminalSurface";
 import { useFullscreen } from "@/hooks/use-fullscreen";
-import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { NARROW_QUERY } from "@/hooks/use-is-narrow";
 import { useSoloWindow } from "@/hooks/use-solo-window";
 import { useWorkbenchLayout } from "@/hooks/use-workbench-layout";
-import { parsePlacement, WORKBENCH_PLACEMENT_KEY } from "@/lib/workbench/layout";
-import { openWorkbenchWindow, type WindowOpening } from "@/lib/workbench/windows";
+import { useWorkbenchWindows } from "@/hooks/use-workbench-windows";
+import { isPaneOpen, panesOnScreen } from "@/lib/workbench/layout";
 import {
   WORKBENCH_COLUMNS_QUERY,
   WORKBENCH_RAIL_KEYS,
   workbenchHref,
-  workbenchWindowName,
   type WorkbenchPaneId,
-  type WorkbenchPlacement,
 } from "@/config/workbench";
 import { WorkbenchNarrow } from "./WorkbenchNarrow";
 import { WorkbenchPane } from "./WorkbenchPane";
 import { WorkbenchStrip } from "./WorkbenchStrip";
 import type { WorkbenchSite } from "./workbench-types";
-
-/** What an opening that needs a word from us says; the rest say nothing. */
-function openingNote(opening: WindowOpening | null): string | null {
-  if (opening?.how === "blocked")
-    return "Your browser blocked the window. Allow pop-ups for Loki and try again.";
-  return null;
-}
 
 /**
  * The workbench: this project's session and Loki as columns of ONE window,
@@ -38,9 +29,10 @@ function openingNote(opening: WindowOpening | null): string | null {
  * Nothing here is new UI. The columns are the Sessions page's surface and
  * the Loki page's workspace, mounted as they are; the site is the live
  * page with the widget in owner mode, where pointing and "Fix it now"
- * already live. What the workbench adds is the arrangement — and the
- * arrangement is device-local state (hooks/use-workbench-layout.ts).
- * docs/architecture/workbench.md says why the site is not a pane.
+ * already live. What the workbench adds is the arrangement: which panes
+ * this window shows (use-workbench-layout.ts, device-local) and where new
+ * windows go (use-workbench-windows.ts). docs/architecture/workbench.md
+ * says why the site is not a pane.
  */
 export function WorkbenchView({
   projectId,
@@ -60,33 +52,16 @@ export function WorkbenchView({
   /** `?pane=`: this window shows that one pane and nothing else. */
   solo: WorkbenchPaneId | null;
 }) {
+  const router = useRouter();
   const narrow = useMediaQuery(NARROW_QUERY);
   const columns = useMediaQuery(WORKBENCH_COLUMNS_QUERY);
-  // The pane on screen where there is room for only one. Session state: a
-  // window tiled beside the site shows one pane and the strip picks which.
+  // The pane on screen where there is room for only one (panesOnScreen).
   const [focus, setFocus] = useState<WorkbenchPaneId | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const fullscreen = useFullscreen(rootRef);
   useSoloWindow(solo !== null);
-  const { layout, open, close, popOut, lastOpening } = useWorkbenchLayout(projectId, solo);
-  const [placement, setPlacement] = useLocalStorageState<WorkbenchPlacement>(
-    WORKBENCH_PLACEMENT_KEY,
-    "beside",
-    String,
-    parsePlacement,
-  );
-  const [siteOpening, setSiteOpening] = useState<WindowOpening | null>(null);
-
-  const openSite = useCallback(async () => {
-    if (!site) return;
-    setSiteOpening(
-      await openWorkbenchWindow({
-        url: site.ownerUrl ?? site.url,
-        name: workbenchWindowName(projectId, "site"),
-        placement,
-      }),
-    );
-  }, [site, projectId, placement]);
+  const { layout, open, close } = useWorkbenchLayout(projectId, solo);
+  const windows = useWorkbenchWindows(projectId);
 
   // A column is half a window; a solo window is a whole one, where each
   // surface's own rail has the room it has on its own page.
@@ -117,43 +92,52 @@ export function WorkbenchView({
       />
     );
 
+  // Close closes the window the person opened. A window nobody's script
+  // opened (a typed address, a bookmark) ignores window.close(), and its
+  // chrome is hidden, so the same button then leads to the whole workbench.
+  const closeSolo = () => {
+    window.close();
+    setTimeout(() => router.replace(workbenchHref(projectId)), 200);
+  };
+
   if (solo)
     return (
       <div ref={rootRef} className="ui-workbench" data-fc-place="tab">
-        <WorkbenchPane pane={solo} solo onClose={() => window.close()}>
+        <WorkbenchPane pane={solo} solo onClose={closeSolo}>
           {renderPane(solo)}
         </WorkbenchPane>
       </div>
     );
 
-  const note = openingNote(siteOpening) ?? openingNote(lastOpening);
-  const shown: WorkbenchPaneId[] = columns
-    ? layout.open
-    : layout.open.length === 0
-      ? []
-      : [focus && layout.open.includes(focus) ? focus : layout.open[0]];
+  const shown = panesOnScreen(layout, columns, focus);
+  // With columns a button opens or closes its pane; with room for one it
+  // chooses which pane is on screen, opening it if it was closed.
   const togglePane = (pane: WorkbenchPaneId) => {
-    if (columns) return layout.open.includes(pane) ? close(pane) : open(pane);
-    if (!layout.open.includes(pane)) open(pane);
+    if (columns) return isPaneOpen(layout, pane) ? close(pane) : open(pane);
+    if (!isPaneOpen(layout, pane)) open(pane);
     setFocus(pane);
   };
+  // A pane in its own window leaves this one; a blocked popup leaves it be.
+  const popOut = async (pane: WorkbenchPaneId) => {
+    if ((await windows.openPane(pane)).how !== "blocked") close(pane);
+  };
+
   return (
     <div ref={rootRef} className="ui-workbench" data-fc-place="tab">
       <WorkbenchStrip
         projectId={projectId}
         projectName={projectName}
         site={site}
-        openPanes={layout.open}
         shownPanes={shown}
         onTogglePane={togglePane}
-        placement={placement}
-        onPlacementChange={setPlacement}
-        onOpenSite={() => void openSite()}
+        placement={windows.placement}
+        onPlacementChange={windows.setPlacement}
+        onOpenSite={() => site && void windows.openSite(site.href)}
         fullscreen={fullscreen}
       />
-      {note && (
+      {windows.note && (
         <p className="ui-workbench-note" role="status">
-          {note}
+          {windows.note}
         </p>
       )}
       {layout.open.length === 0 ? (
@@ -167,7 +151,7 @@ export function WorkbenchView({
               key={pane}
               pane={pane}
               solo={false}
-              onPopOut={() => void popOut(pane, placement)}
+              onPopOut={() => void popOut(pane)}
               onClose={() => close(pane)}
             >
               {renderPane(pane)}
