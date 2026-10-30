@@ -284,6 +284,12 @@ fi
 # rolled back a build that was actually fine. Poll until the server accepts, and
 # only then run the (one-shot) health/provider assertions.
 echo "→ post-deploy verification"
+# Paused providers (PAUSED_PROVIDERS in src/lib/auth-providers.ts) are
+# deliberately unmounted, so they are not expected here. Computing the list
+# fails the deploy rather than falling back to a guess.
+EXPECTED_PROVIDERS=$(cd "$PROJECT_DIR" && npx tsx scripts/expected-auth-providers.ts) || {
+  echo "✗ could not compute expected auth providers" >&2; rollback_box "expected auth providers unknown"; exit 1
+}
 if ! ssh "$HOST" 'set -e
   base=http://127.0.0.1:4002
   code=000
@@ -298,10 +304,10 @@ if ! ssh "$HOST" 'set -e
   echo "  /api/health: $hcode"; [ "$hcode" = 200 ] || { echo "  ✗ env health degraded — see debug_logs source=instrumentation/env"; exit 1; }
   # Expected auth providers must actually be mounted (not just env-gated in the UI)
   prov=$(curl -s "$base/api/auth/providers")
-  for p in github google x-1a email-password; do
+  for p in '"$EXPECTED_PROVIDERS"'; do
     grep -q "\"$p\"" <<<"$prov" || { echo "  ✗ auth provider missing: $p"; exit 1; }
   done
-  echo "  ✓ providers mounted: github google x-1a email-password"'; then
+  echo "  ✓ providers mounted: '"$EXPECTED_PROVIDERS"'"'; then
   echo "✗ post-deploy verification failed" >&2; rollback_box "post-deploy verification failed (sign-in / health / providers)"; exit 1
 fi
 
