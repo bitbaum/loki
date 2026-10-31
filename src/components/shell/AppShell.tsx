@@ -27,8 +27,11 @@ export function AppShell({
   children,
   orangecatEnabled = false,
   feedbackWidget = false,
+  viewerId = null,
 }: {
   children: React.ReactNode;
+  /** The signed-in person's id (server fact), the floating assistant's storage scope. */
+  viewerId?: string | null;
   /** Whether the OrangeCat provider is configured (server fact from the layout). */
   orangecatEnabled?: boolean;
   /** Whether Loki's own feedback widget is loaded here (server fact): the top
@@ -82,7 +85,7 @@ export function AppShell({
           <AppFooter />
         </div>
         <MobileNav />
-        <AskLokiButton />
+        <AskLokiButton viewerId={viewerId} />
         <RefreshOnFocus />
         <CommandPalette />
         <FleetRunnerAutoMint />

@@ -6,6 +6,31 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-31 — Ask Loki, improved by two companions
+
+Two companions on OrangeCat (one arguing for Loki, one against), briefed on
+how Ask Loki works, agreed on three changes; this is them.
+
+- **A build line only when you asked for one.** {#build-line-held} Every
+  answer used to be able to end with a bold **project: task** command, even
+  "how much did we spend last week?". Now the line stays only when your
+  message asked for direction (what next, what to build, propose, decide, a
+  bare yes); otherwise it comes off the answer and the floating panel offers it
+  under the answer as "Next build, if you want it" — a tap puts it in the box,
+  sending is still yours. In the full Loki chat a "yes" after an answer that
+  never offered a build no longer sends one.
+- **The floating panel remembers, per project.** {#panel-thread-per-project}
+  Its transcript lives on your device, one thread per person and per project
+  (and one for the fleet-wide pages). Leave project A for project B and you see
+  B's thread, never A's questions as B's context; come back and A's is there,
+  and the next ask sends it as history. **Clear** in the panel's header forgets
+  the thread on this device.
+- **Loki says what it is.** {#advisor-boundary} Both of its system prompts
+  now open the role with the same sentence: the advisory surface, not the
+  executor — no Calendar access, no email, no direct change to the fleet, only
+  proposals for the approval queue. The capability list said as much, but only
+  on fallback turns and never as part of who Loki is.
+
 ## 2026-10-23 — One widget, not two pieces
 
 The owner's launcher and its microphone are now one thing.
