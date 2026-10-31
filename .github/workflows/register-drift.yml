@@ -1,0 +1,42 @@
+name: Register drift
+
+# Read-only: does the box's checkout of apps.conf (where register-site.sh
+# writes a new row first) agree with main's? A row that only the box knows is
+# a port main will hand out again — biaslens and signin, both on 4038, on
+# 2026-10-31. scripts/hetzner/register-drift.sh is the rule; it prints names and
+# ports only (this repo, and so this log, is public). A red run is the alarm.
+on:
+  schedule:
+    - cron: "41 5 * * *" # daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: register-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Compare the box's register with main
+        run: |
+          . scripts/hetzner/_box-env.sh
+          ssh -o BatchMode=yes "$BOX_UBUNTU" "cat '$BOX_LOKI/scripts/hetzner/apps.conf'" > "$RUNNER_TEMP/box-apps.conf"
+          bash scripts/hetzner/register-drift.sh "$RUNNER_TEMP/box-apps.conf" scripts/hetzner/apps.conf
