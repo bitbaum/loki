@@ -41,23 +41,29 @@ export function useWorkbenchWindows(projectId: string) {
     [setPlacement],
   );
 
+  // A placement named for this one opening wins over the remembered one,
+  // and becomes it: "on the other screen" from the menu is the choice.
   const openWindow = useCallback(
-    async (url: string, name: string) => {
-      const opening = await openWorkbenchWindow({ url, name, placement });
+    async (url: string, name: string, chosen?: WorkbenchPlacement) => {
+      const where = chosen ?? placement;
+      if (chosen && chosen !== placement) choosePlacement(chosen);
+      const opening = await openWorkbenchWindow({ url, name, placement: where });
       setLast(opening);
       return opening;
     },
-    [placement],
+    [placement, choosePlacement],
   );
   const openSite = useCallback(
-    (href: string) => openWindow(href, workbenchWindowName(projectId, "site")),
+    (href: string, chosen?: WorkbenchPlacement) =>
+      openWindow(href, workbenchWindowName(projectId, "site"), chosen),
     [openWindow, projectId],
   );
   const openPane = useCallback(
-    (pane: WorkbenchPaneId) =>
+    (pane: WorkbenchPaneId, chosen?: WorkbenchPlacement) =>
       openWindow(
         new URL(workbenchHref(projectId, pane), window.location.href).href,
         workbenchWindowName(projectId, pane),
+        chosen,
       ),
     [openWindow, projectId],
   );

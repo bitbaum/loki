@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { ROUTES } from "@/config/auth";
 import { WORKBENCH_PANE_PARAM } from "@/config/workbench";
 import { getProjectDossier } from "@/db/queries/project-dossier";
+import { latestSiteReview, publicReview } from "@/db/queries/site-reviews";
 import { createOwnerPass } from "@/lib/feedback/owner-pass";
 import { mayHoldPass } from "@/lib/feedback/pass-rule";
 import { isPreviewDir } from "@/lib/previews/root";
@@ -14,7 +15,7 @@ import { projectTitle } from "@/lib/project-display";
 import { FleetProjectRoute } from "@/components/projects/FleetProjectRoute";
 import { getProjectLinks } from "@/components/projects/project-detail-types";
 import { WorkbenchView } from "@/components/workbench/WorkbenchView";
-import type { WorkbenchSite } from "@/components/workbench/workbench-types";
+import type { WorkbenchReview, WorkbenchSite } from "@/components/workbench/workbench-types";
 import { ownerSiteUrl } from "../../../../../../widget/owner-pass";
 
 export const metadata: Metadata = { title: "Workbench" };
@@ -37,6 +38,26 @@ export default async function ProjectWorkbenchPage({
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const dossier = await getProjectDossier(session.user.id, id).catch(() => null);
   if (!dossier) notFound();
+  // Loki's latest look at the site — the review worker's frame — for the
+  // site region. The owner's and a builder's; a review can dispatch fixes.
+  const review = mayHoldPass(dossier.viewerRole)
+    ? await latestSiteReview(session.user.id, id).catch(() => null)
+    : null;
+  const initialReview: WorkbenchReview | null = review
+    ? (({ id, status, frame }) => ({
+        id,
+        status,
+        frame: frame
+          ? {
+              url: frame.url,
+              image: frame.image,
+              width: frame.width,
+              height: frame.height,
+              action: frame.action,
+            }
+          : null,
+      }))(publicReview(review))
+    : null;
 
   const { detail, userProject } = dossier;
   const workspaceKey = userProject?.name ?? detail.project.name;
@@ -67,6 +88,7 @@ export default async function ProjectWorkbenchPage({
             workspaceKey={workspaceKey}
             local={isRuntimeAvailable()}
             site={site}
+            initialReview={initialReview}
             solo={paneFromParam(query[WORKBENCH_PANE_PARAM])}
           />
         </Suspense>

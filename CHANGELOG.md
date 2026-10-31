@@ -6,32 +6,32 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
-## 2026-10-30 — The workbench
+## 2026-10-31 — The workbench
 
-One project side by side, one box: the builder and what it is doing as
-columns of one window, the site in a window of its own.
+One project on one screen, one box.
 
 - **A Workbench row on every project you can work on.** {#workbench} It opens
-  `/projects/[id]/workbench`: Session (say what to change — the agent's own
-  box — and the agent at work) and Watch (what is happening, step by step,
-  and where the change is) as two columns, and "Open the site" — the live
-  page with your pass, where pointing and "Fix it now" already live — beside
-  this window or on the other screen, whichever you chose. One place to type
-  on the whole screen. Nothing in it is new: the columns are the Sessions
-  page and the Watch page, mounted as they are.
-- **Any pane in its own window.** {#workbench-pop-out} A pane pops out to a
-  window that is that pane alone (no sidebar, no top bar), on the other
-  screen if you asked. The window it left stops drawing it and takes it back
-  when that window closes. Full screen is the browser's own, on the
-  workbench.
-- **Fleet Runner places the windows.** {#workbench-desktop} Inside the desktop
-  app the workbench asks the app, which reads the real display list: the
-  other display whole, or this one tiled with the app on the left and the new
-  window on the right, and a window already open is brought forward rather
-  than opened twice (v0.8.60).
-- **The site is a window, not a pane, on purpose.** Every fleet site forbids
-  being framed and severs `window.opener`; the workbench says only what it
-  knows (`docs/architecture/workbench.md`).
+  `/projects/[id]/workbench`: on the left, the site as Loki's browser sees
+  it — while Loki reviews, you watch it click through, frame by frame; at
+  rest, its last look — and a tap opens the real site in its own window,
+  with your pass, where pointing and "Fix it now" already live. On the
+  right, the robot: one line saying where the build is ("Pull request
+  open", "Live on …"), the agent's conversation or terminal, and the one
+  box on the whole screen. No builder picker, no tab strip, no second
+  chat.
+- **One "⋯" for the rest.** {#workbench-pop-out} The robot in its own
+  window or on the other screen, the site on the other screen, full
+  screen. A popped-out robot is a window that is the robot alone (no
+  sidebar, no top bar); the window it left shows the site, and takes the
+  robot back when that window closes.
+- **Fleet Runner places the windows.** {#workbench-desktop} Inside the
+  desktop app the workbench asks the app, which reads the real display
+  list: the other display whole, or this one tiled with the app on the
+  left and the new window on the right, and a window already open is
+  brought forward rather than opened twice (v0.8.60).
+- **The site is a picture here, not a frame, on purpose.** Every fleet
+  site forbids being framed and severs `window.opener`; Loki's own
+  browser is what can be shown (`docs/architecture/workbench.md`).
 
 ## 2026-10-23 — One widget, not two pieces
 

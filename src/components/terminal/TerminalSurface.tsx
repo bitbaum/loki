@@ -211,6 +211,20 @@ const deserializeMode = (raw: string): TerminalMode => {
  * say anything back. TerminalKeyDeck is that missing half of the keyboard, and
  * it is why this page is now something you can work in rather than watch.
  */
+/** The Resume rows: every project, or — in the quiet shape — only this one. */
+function resumeProjects<T extends { name: string }>(all: T[], only: string | null | false): T[] {
+  return only ? all.filter((p) => p.name === only) : all;
+}
+
+/** The builder picker, from md up (a phone picks in its sheet). */
+function SourceBar(props: React.ComponentProps<typeof TerminalSourceBar>) {
+  return (
+    <div className="hidden md:block">
+      <TerminalSourceBar {...props} />
+    </div>
+  );
+}
+
 export function TerminalSurface({
   local,
   immersive = false,
@@ -221,6 +235,7 @@ export function TerminalSurface({
   initialExplain = false,
   initialPrompt = null,
   rail,
+  quiet = false,
 }: {
   local: boolean;
   immersive?: boolean;
@@ -243,6 +258,12 @@ export function TerminalSurface({
    *  (a half-width column beside Loki's own chat) remembers its own choice
    *  and starts closed, so the session has the columns. */
   rail?: { storageKey: string; defaultOpen: boolean };
+  /** The workbench's shape: this project's session and its box, without
+   *  the builder picker (which builder runs a project is a stored decision,
+   *  lib/execution-access), the tab strip of other projects, or the shell
+   *  rows. The view switch and the agent stay: they are how the robot is
+   *  seen two ways. */
+  quiet?: boolean;
 }) {
   // "shell" — a Loki-owned bash PTY — is only offered where one can
   // actually be provisioned. On the hosted control plane it is absent rather
@@ -515,14 +536,7 @@ export function TerminalSurface({
   // Constant across substrates: scope on top, then the tab strip, then the
   // controls that act on the selected tab.
   const sourceBar = (
-    <div className="hidden md:block">
-      <TerminalSourceBar
-        source={source}
-        onSourceChange={setSource}
-        sources={sources}
-        honesty={honesty}
-      />
-    </div>
+    <SourceBar source={source} onSourceChange={setSource} sources={sources} honesty={honesty} />
   );
 
   // The phone's one header row. What it names is what changes: which session,
@@ -666,7 +680,7 @@ export function TerminalSurface({
     // The Resume rows' common half: the empty state lists every project, a
     // missed deep link only the one it named.
     const resume = {
-      projects: context?.launchable ?? [],
+      projects: resumeProjects(context?.launchable ?? [], quiet && (initialTab ?? fleetProject)),
       agents,
       defaultAgent: context?.agents.defaultAgent ?? null,
       channel,
@@ -736,9 +750,9 @@ export function TerminalSurface({
             <TerminalResume
               {...resume}
               activeProject={emptyStateProject}
-              onAllProjects={launchProps ? () => setNewSessionOpen(true) : undefined}
+              onAllProjects={launchProps && !quiet ? () => setNewSessionOpen(true) : undefined}
             />
-            <ShellEntryRows shell={plainShell} heading="No project needed" />
+            {!quiet && <ShellEntryRows shell={plainShell} heading="No project needed" />}
           </div>
         );
       }
@@ -811,27 +825,29 @@ export function TerminalSurface({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2" style={rootStyle}>
-      {sourceBar}
+      {!quiet && sourceBar}
       {/* With nothing open the app's own top bar names the page, and the
           list below is the way in: a second header saying "Cloud builder ·
           4 sessions" over it was a second title (owner, 2026-10-21). */}
       {activeTab && <div className="md:hidden">{mobileHeader}</div>}
-      <TerminalAgentTabs
-        tabs={stripTabs}
-        activeTab={activeTab}
-        onSelect={setUserSelection}
-        layout={ta.layout}
-        setLayout={ta.setLayout}
-        onRename={(id, name) =>
-          ta.rename(id, name, stripTabs.find((t) => t.id === id)?.original ?? id)
-        }
-        onClose={(id) => void ta.closeTab(id)}
-        launch={launchProps}
-        shellEntry={canOpenShell ? <ShellEntryRows shell={plainShell} /> : undefined}
-        launchOpen={ta.launchOpen}
-        setLaunchOpen={ta.setLaunchOpen}
-        error={ta.actionError}
-      />
+      {!quiet && (
+        <TerminalAgentTabs
+          tabs={stripTabs}
+          activeTab={activeTab}
+          onSelect={setUserSelection}
+          layout={ta.layout}
+          setLayout={ta.setLayout}
+          onRename={(id, name) =>
+            ta.rename(id, name, stripTabs.find((t) => t.id === id)?.original ?? id)
+          }
+          onClose={(id) => void ta.closeTab(id)}
+          launch={launchProps}
+          shellEntry={canOpenShell ? <ShellEntryRows shell={plainShell} /> : undefined}
+          launchOpen={ta.launchOpen}
+          setLaunchOpen={ta.setLaunchOpen}
+          error={ta.actionError}
+        />
+      )}
       <TerminalSessionNotice news={news} tabs={stripTabs} onOpen={setUserSelection} />
       {activeTab && !isShell && (
         <div className="hidden md:block">

@@ -129,11 +129,12 @@ The same control patterns — an on/off autopilot, approvals, handoff, queues, v
 ## Shipped
 
 ### Workbench
-One project side by side, one box: the builder and what it is doing as columns of one window, the site in a window of its own — beside it or on the other screen — so building, using and asking for the next change happen on one screen, or two. `docs/architecture/workbench.md`.
-- [x] `/projects/[id]/workbench`: Session and Watch columns from the surfaces that already exist, a Workbench row on the project page {#workbench}
-- [x] Any pane in its own window (`?pane=`), the windows of one project keeping each other honest on one machine {#workbench-pop-out}
+One project on one screen, one box: the site as Loki's browser sees it, the robot at work under one line of state, and the real site in a window of its own — beside it or on the other screen — so building, using and asking for the next change happen on one screen, or two. `docs/architecture/workbench.md`.
+- [x] `/projects/[id]/workbench`: the site picture, the robot (the Sessions surface, quiet) with its box, the state line, a Workbench row on the project page {#workbench}
+- [x] The robot in its own window (`?pane=session`), the windows of one project keeping each other honest on one machine {#workbench-pop-out}
 - [x] Fleet Runner places windows on displays; a browser gets a placed or plain popup {#workbench-desktop}
-- [ ] A pointed-at element on the site lands in the session's box, carried through the server (the site cannot be framed or reached as an opener)
+- [ ] A pointed-at element on the site lands in the robot's box, carried through the server (the site cannot be framed or reached as an opener)
+- [ ] A live stream of Loki's browser rather than one frame per action, if watching the robot click wants it
 - [ ] Remember which display each window went to, per project, in the desktop app
 
 ### No-screen mode

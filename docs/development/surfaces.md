@@ -133,23 +133,27 @@ src/
 │   │                 (the SessionInfo chip, named by model family) and the one answering
 │   │                 Loki (loki/ModelPicker, "Loki answers with").
 │   │                 See docs/development/responsive-design.md.
-│   ├── workbench/ → WorkbenchView (/projects/[id]/workbench): Session (the
-│   │                 builder, ONE box) and Watch (what it is doing) as columns
-│   │                 of ONE window — TerminalSurface and ProjectWatch mounted
-│   │                 as they are, never a second shell or composer; Loki's
-│   │                 chat is NOT a column, it was a second place to type on
-│   │                 one screen — and the site in a window of its own,
-│   │                 beside or on the other screen. WorkbenchStrip = the one
-│   │                 header row (back, pane toggles in the terminal's own
-│   │                 pane-button shape, where new windows go, Open the site,
-│   │                 full screen); WorkbenchPane = the frame every pane sits
-│   │                 in; WorkbenchNarrow = the phone's rows. Panes are SSOT
-│   │                 in config/workbench.ts; which panes a window shows is
-│   │                 the window's own (lib/workbench/layout.ts) and the project's
-│   │                 windows on one machine talk over a BroadcastChannel
-│   │                 (lib/workbench/bus.ts). The site is NOT a pane: fleet
-│   │                 sites forbid framing and sever window.opener
-│   │                 (docs/architecture/workbench.md).
+│   ├── workbench/ → WorkbenchView (/projects/[id]/workbench): one project on
+│   │                 one screen, ONE box. Left, the site as Loki's browser
+│   │                 sees it (WorkbenchSiteView: the review worker's frame,
+│   │                 the robot's walk while it reviews; a tap opens the real
+│   │                 site in its own window). Right, the robot: a line of
+│   │                 state (WorkbenchStateLine: the Watch track's sentence)
+│   │                 over TerminalSurface in its quiet shape (`quiet`: no
+│   │                 builder picker, no tab strip, no shell rows) with its
+│   │                 own box. WorkbenchStrip = back, title, Open the site,
+│   │                 and ONE "⋯" (the robot in its own window / on the other
+│   │                 screen, the site on the other screen, full screen).
+│   │                 Loki's chat is NOT here (a second box), Watch's card is
+│   │                 NOT here (a second surface). WorkbenchPane = a solo
+│   │                 window (`?pane=session`); WorkbenchNarrow = the phone's
+│   │                 rows. Panes are SSOT in config/workbench.ts; whether the
+│   │                 robot is in this window is the window's own
+│   │                 (lib/workbench/layout.ts) and the project's windows on
+│   │                 one machine talk over a BroadcastChannel
+│   │                 (lib/workbench/bus.ts). The site is a PICTURE, not a
+│   │                 frame: fleet sites forbid framing and sever
+│   │                 window.opener (docs/architecture/workbench.md).
 │   ├── activity/  → ActivityView (scope menus, the answer as a sentence, NeedsYouCard
 │   │                 and EventStream as ListRows), ActivityReport (the written
 │   │                 report, the page's one action, in a sheet)
@@ -281,7 +285,7 @@ extension/         → Loki for Firefox (Android and desktop): fills a form Loki
 | Money | /money | The month as one sentence (per currency — no exchange rate is invented), subscriptions as ListRows, each opening a sheet (mark paid, edit, verify, alternatives, cancel, delete) |
 | Goals | /goals | One sentence, goals as ListRows (progress ring, due · project), Sort/Project menus. `/goals/[id]`: progress, date, milestones, sub-goals (their own pages), habits that feed it, actions |
 | Projects | /projects | ListRows: a search row, Show/Sort menus, one plain line per project (`lib/project-list-line.ts`: broken → busy → needs you → how it is) and the time since its last run; earlier `-refresh-` copies and archived projects fold under Archived. The `+` asks "Build a site" or "Add an existing project" (`NewProjectChooser`). A project page: one title, a section menu on a phone (tabs from md), sections as plain headings, checks/stage/feedback counts in Story; per-project dossier + shareable public link (/share/project/[token], audience-scoped resource visibility). A new site's kickoff plans which fleet packages it is BUILT FROM (`lib/kit-plan`, trigger words SSOT `config/kit-plan.ts` keyed by catalogue name, validated against the live catalogue): the kickoff screen says it in plain words (`KitPlanPreview`, text only, never a gate), the first build's prompt carries it as a `BUILT FROM` block with install lines and "do not write your own", and client work is also told to swap `@bitbaum/design-tokens` for the client's tokens. The plan is stored on `user_projects.kit_plan` (a plan — never written into `project_packages`, which stays observations) and shown as a "Planned" line under Built from; the kickoff run's `payload.kitPlan` records planned vs observed after the first build (`lib/kit-plan/coverage.ts`) |
-| Workbench | /projects/[id]/workbench | One project side by side, one box: Session (the Sessions surface — say what to change, the agent at work) and Watch (the Watch thread — what is happening, where the change is) as columns, the site in its own window beside or on the other screen (`?pane=` makes a window one pane; Fleet Runner places windows on displays, a browser gets a placed or plain popup), full screen on the root. Layout is the window's, never the project's. On a phone: the same three as rows |
+| Workbench | /projects/[id]/workbench | One project on one screen, one box: the site as Loki's browser sees it (the review worker's frame; a tap opens the real site in its own window, beside or on the other screen) and the robot (the Sessions surface, quiet, with its box) under one line of state (the Watch track's sentence). One "⋯" for windows, screens and full screen. `?pane=session` makes a window the robot alone. Below xl the robot alone; on a phone the same things as rows |
 | Packages | /packages | What the fleet is built from: every shared package in bitbaum/fleet's register (read through the fleet brief's one fetch, `lib/packages/catalogue.ts`), its latest version, and which of your projects is on which version (`/packages/[slug]`, behind first). Rows in `project_packages` are OBSERVATIONS read from each repo's package.json + lockfile (`lib/packages/sync.ts`) — never decisions; a project's Story tab shows the same as "Built from". Each project's UPDATE SETTING (`user_projects.package_updates`: Automatic / Ask me / Stay on these versions, SSOT `config/package-updates.ts`) is applied to its open Dependabot PRs every 15 minutes (`lib/packages/updates.ts`, cron `sync-package-updates`): Loki adds its own `hold` label where the setting or a breaking bump says wait, removes only holds it added, and merges only a breaking update a person approved once green — Dependabot proposes, the fleet sweep merges. Held updates are cards on /approvals, read from `package_update_requests`. The package's OWNER (whoever owns the Loki project that is the package repo; with no such project, whoever's GitHub token can push — `lib/packages/release-access.ts`) releases from `/packages/[slug]` ("Unreleased": changes since the highest version tag, next version from conventional commits — under 1.0 breaking is a minor — `lib/packages/release.ts`): Loki dispatches the repo's own `release.yml` (bitbaum/fleet `templates/package`) with an exact version and stores nothing about it. "Rollout" per recent version is DERIVED (`lib/packages/rollout.ts`); "Pause vX.Y.Z everywhere" is the one stored decision (`package_release_pauses`, SSOT words `config/package-releases.ts`): the update sync holds every open update to that version in every project whatever its setting, and resume removes only holds nothing else wants. **npm** (the panel at the top): the owner pastes ONE npm key (made on npmjs.com from a phone; settings SSOT `config/npm-publishing.ts`), Loki keeps it sealed (`lib/secret-box.ts`, table `npm_publish_keys`, never sent to a browser), and for every package npm does not know yet writes it into the package repo as the Actions secret `NPM_BOOTSTRAP_TOKEN` and starts its `publish.yml`, which publishes the first version and links itself as trusted publisher — later releases need no key. The 15-minute package cron does the same for packages registered later (`lib/packages/npm-publish.ts`). Android Chrome/Brave run no extensions, so this needs no browser extension at all |
 | Habits | /habits | "3 of 5 done today", a row per habit with its check-off on the left; the row opens a sheet: 30-day heatmap, how often, linked goals, pause, rename, delete |
 | Events | /events | Coming up / no date / already happened (deadline, else `date_start`), a Show menu for kinds, a sheet per event (edit, ask Loki, archive, delete) |

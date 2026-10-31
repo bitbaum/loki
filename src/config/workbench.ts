@@ -1,29 +1,25 @@
-import { Eye, SquareTerminal } from "lucide-react";
+import { SquareTerminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 
 /**
- * The workbench: one project's builder and what it is doing, side by side,
- * with the site in a window of its own — on the same screen or the other.
+ * The workbench: one project on one screen — the site as Loki's browser
+ * sees it, the robot at work, one line of state and ONE box — with the
+ * real site in a window of its own beside it or on the other screen.
  *
- * Two panes and ONE box. Session is where you say what to change — the
- * agent's own box, which types into a live session or starts one — and
- * Watch is what happens next, step by step, with the agent's screen and
- * where the change is. Loki's chat is not a column: beside the session box
- * it was a second place to type on one screen, and the session already
- * offers Loki about itself ("What's going on?"). /loki stays its own page.
+ * One thing to do, a few things to see. The box is the session's own (it
+ * types into the live agent or starts one); everything that is not the
+ * site, the robot or the box sits behind one "⋯". Loki's chat is not here:
+ * beside the session's box it was a second place to type on one screen,
+ * and the session already offers Loki about itself ("What's going on?").
  *
- * SSOT for what a pane is. The layout (which panes this window shows) is
- * derived from this list (lib/workbench/layout.ts); the strip, the pop-out
- * links and the narrow shape all read it. A new pane is one entry here.
- *
- * The SITE is deliberately not a pane. Every fleet site answers with
- * `frame-ancestors 'none'` and `Cross-Origin-Opener-Policy: same-origin`
- * (scripts/site-template/lib/security.ts), so it can be neither framed nor
- * reached through `window.opener`: the only honest shape is its own window,
- * which is also the shape a second screen wants. docs/architecture/workbench.md.
+ * SSOT for the panes of Loki's own that a window can show on their own
+ * (`?pane=`). The site is a REGION, not a pane: it is a picture of Loki's
+ * browser (the review worker's frames), and "in its own window" for the
+ * site means the real site, which every fleet site forbids framing and
+ * severs as an opener (docs/architecture/workbench.md).
  */
-export type WorkbenchPaneId = "session" | "watch";
+export type WorkbenchPaneId = "session";
 
 export type WorkbenchPane = {
   id: WorkbenchPaneId;
@@ -38,27 +34,20 @@ export type WorkbenchPane = {
 export const WORKBENCH_PANES: Record<WorkbenchPaneId, WorkbenchPane> = {
   session: {
     id: "session",
-    label: "Session",
+    label: "The robot",
     description: "Say what to change; the agent at work",
     icon: SquareTerminal,
     pageHref: (p) => fleetSurfaceHref("terminal", p.workspaceKey),
   },
-  watch: {
-    id: "watch",
-    label: "Watch",
-    description: "What is happening, and where the change is",
-    icon: Eye,
-    pageHref: (p) => `/projects/${encodeURIComponent(p.id)}/watch`,
-  },
 };
 
 /** Every pane, in the order the columns are drawn. */
-export const WORKBENCH_PANE_IDS: readonly WorkbenchPaneId[] = ["session", "watch"];
+export const WORKBENCH_PANE_IDS: readonly WorkbenchPaneId[] = ["session"];
 
-/** Two columns need room: from here the open panes sit side by side; below
- *  it the window shows one pane at a time and the strip's buttons choose
- *  which. Tailwind's `xl`, so a window tiled beside the site on a laptop
- *  (720px) is one pane, never two strips. */
+/** The site region needs room beside the robot: from here both are on
+ *  screen; below it the robot alone, the site being in its own window
+ *  anyway. Tailwind's `xl`, so a window tiled beside the site on a laptop
+ *  (720px) is the robot and the box, never two strips. */
 export const WORKBENCH_COLUMNS_QUERY = "(min-width: 80rem)";
 
 /** `?pane=` — a window that shows ONE pane (popped out, or on the other screen). */
@@ -68,8 +57,8 @@ export const WORKBENCH_PANE_PARAM = "pane";
 export type WorkbenchPlacement = "beside" | "other-screen";
 
 export const WORKBENCH_PLACEMENTS: Record<WorkbenchPlacement, { label: string }> = {
-  beside: { label: "Beside this window" },
-  "other-screen": { label: "On the other screen" },
+  beside: { label: "in its own window" },
+  "other-screen": { label: "on the other screen" },
 };
 
 export function workbenchHref(projectId: string, pane?: WorkbenchPaneId): string {
@@ -86,3 +75,7 @@ export function workbenchWindowName(projectId: string, what: WorkbenchPaneId | "
  *  Sessions page: a half-width column and a full page are different places
  *  to want one. */
 export const WORKBENCH_SESSION_RAIL_KEY = "loki:workbench:terminal-rail";
+
+/** How often the site region and the state line ask the server while
+ *  something is moving. */
+export const WORKBENCH_POLL_MS = 5000;

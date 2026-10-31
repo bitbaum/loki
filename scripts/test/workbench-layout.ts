@@ -9,7 +9,6 @@ import {
   DEFAULT_WORKBENCH_LAYOUT,
   isPaneOpen,
   paneFromParam,
-  panesOnScreen,
   parseLayout,
   parsePlacement,
   serializeLayout,
@@ -22,47 +21,37 @@ import { WORKBENCH_PANE_IDS, workbenchHref, workbenchWindowName } from "../../sr
 assert.deepEqual(DEFAULT_WORKBENCH_LAYOUT.open, [...WORKBENCH_PANE_IDS]);
 
 // Round trip.
-assert.deepEqual(parseLayout(serializeLayout({ open: ["watch", "session"] })), {
-  open: ["session", "watch"],
-});
+assert.deepEqual(parseLayout(serializeLayout({ open: ["session"] })), { open: ["session"] });
 
 // Garbage, the wrong shape, unknown ids: the default, or what is known.
 assert.deepEqual(parseLayout("not json"), DEFAULT_WORKBENCH_LAYOUT);
 assert.deepEqual(parseLayout("null"), DEFAULT_WORKBENCH_LAYOUT);
 assert.deepEqual(parseLayout('{"open":"watch"}'), DEFAULT_WORKBENCH_LAYOUT);
-assert.deepEqual(parseLayout('{"open":["site","watch","watch",3]}'), { open: ["watch"] });
+assert.deepEqual(parseLayout('{"open":["site","session","session",3]}'), { open: ["session"] });
 // Every pane closed is a choice, not an error.
 assert.deepEqual(parseLayout('{"open":[]}'), { open: [] });
 
-// Open and close keep the order and never duplicate.
+// Open and close never duplicate.
 const closed = setPaneOpen(DEFAULT_WORKBENCH_LAYOUT, "session", false);
-assert.deepEqual(closed.open, ["watch"]);
+assert.deepEqual(closed.open, []);
 assert.equal(isPaneOpen(closed, "session"), false);
-assert.deepEqual(setPaneOpen(closed, "session", true).open, ["session", "watch"]);
-assert.deepEqual(setPaneOpen(DEFAULT_WORKBENCH_LAYOUT, "watch", true).open, ["session", "watch"]);
+assert.deepEqual(setPaneOpen(closed, "session", true).open, ["session"]);
+assert.deepEqual(setPaneOpen(DEFAULT_WORKBENCH_LAYOUT, "session", true).open, ["session"]);
 
 // ?pane= names a pane or nothing.
-assert.equal(paneFromParam("watch"), "watch");
+assert.equal(paneFromParam("session"), "session");
 assert.equal(paneFromParam("site"), null);
 assert.equal(paneFromParam(null), null);
 
 // Keys and links are per project.
 assert.equal(workbenchLayoutKey("p1"), "loki:workbench:p1");
 assert.equal(workbenchHref("p1"), "/projects/p1/workbench");
-assert.equal(workbenchHref("p1", "watch"), "/projects/p1/workbench?pane=watch");
+assert.equal(workbenchHref("p1", "session"), "/projects/p1/workbench?pane=session");
 assert.equal(workbenchWindowName("p1", "site"), "loki-workbench-p1-site");
 
 // A remembered placement, or the safe one.
 assert.equal(parsePlacement("other-screen"), "other-screen");
 assert.equal(parsePlacement("beside"), "beside");
 assert.equal(parsePlacement("moon"), "beside");
-
-// On screen: all open panes with room for columns; one of them without.
-assert.deepEqual(panesOnScreen({ open: ["session", "watch"] }, true, null), ["session", "watch"]);
-assert.deepEqual(panesOnScreen({ open: ["session", "watch"] }, false, null), ["session"]);
-assert.deepEqual(panesOnScreen({ open: ["session", "watch"] }, false, "watch"), ["watch"]);
-// A focus on a closed pane falls back to the first open one.
-assert.deepEqual(panesOnScreen({ open: ["session"] }, false, "watch"), ["session"]);
-assert.deepEqual(panesOnScreen({ open: [] }, false, "watch"), []);
 
 console.log("workbench-layout: ok");
