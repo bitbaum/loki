@@ -16,9 +16,25 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # The fleet's shared keys first (AI vendors, web search, the shared mail
 # account; scripts/hetzner/fleet-env.sh), then the app's own .env, so an app
-# that holds its own key for any of them keeps it.
-if [ -f /opt/fleet/env ]; then set -a; source /opt/fleet/env; set +a; fi
+# that holds its own key for any of them keeps it. An EMPTY line in the app's
+# file does not erase a fleet key: the app templates ship `RESEND_API_KEY=`, and
+# that blank kept password-recovery mail off on diplodoctor, solon and heidi
+# while the fleet held the key (2026-10-31). To switch fleet keys off for one
+# app, name them in its .env: FLEET_KEYS_OFF="RESEND_API_KEY GROQ_API_KEY".
+# load-build-env.sh does the same for the build; test-fleet-env-merge.sh runs both.
+__fleet_keys=""
+if [ -f /opt/fleet/env ]; then
+  set -a; source /opt/fleet/env; set +a
+  for __fk in $(sed -nE 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=.*/\2/p' /opt/fleet/env); do
+    printf -v "__fleet_$__fk" '%s' "${!__fk-}"; __fleet_keys="$__fleet_keys $__fk"
+  done
+fi
 if [ -f "$HERE/.env" ]; then set -a; source "$HERE/.env"; set +a; fi
+for __fk in $__fleet_keys; do
+  __fv="__fleet_$__fk"; [ -n "${!__fk-}" ] || export "$__fk=${!__fv}"; unset "$__fv"
+done
+for __fk in ${FLEET_KEYS_OFF-}; do unset "$__fk"; done
+unset __fleet_keys __fk __fv
 # HOSTNAME defaults to loopback; an app sets BIND_HOST in its .env (sourced
 # just above, so it wins) to bind elsewhere. Solon needed BIND_HOST=0.0.0.0
 # (2026-09-25, ~30 min of 500s): Next 16 standalone plus any middleware rewrite
