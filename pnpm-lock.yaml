@@ -35,8 +35,8 @@ importers:
         specifier: ^1.21.5
         version: 1.21.5(react@19.3.1)
       '@bitbaum/chatkit':
-        specifier: ^0.21.4
-        version: 0.21.4(react@19.3.1)
+        specifier: ^0.21.5
+        version: 0.21.5(react@19.3.1)
       '@bitbaum/mail-kit':
         specifier: ^0.2.0
         version: 0.2.0
@@ -478,8 +478,8 @@ packages:
       react:
         optional: true
 
-  '@bitbaum/chatkit@0.21.4':
-    resolution: {integrity: sha512-vNSbTUSbaX1DYCofcnd7CpybNn1YISUEDQZRpJRO+9L8s5C7+I7/W0ZJ59Yrd8/PufMzmuXbZ0+1Odhk3e05fA==}
+  '@bitbaum/chatkit@0.21.5':
+    resolution: {integrity: sha512-iukpV3JS3lTCObkAF4TTSZbEvjDTeYDNDRVUGwFoP7Q61K5JlWhjFSt6uuSfho8ZSH1V883+GFayr5szagkaJg==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -5676,7 +5676,7 @@ snapshots:
     transitivePeerDependencies:
       - canvas
 
-  '@bitbaum/chatkit@0.21.4(react@19.3.1)':
+  '@bitbaum/chatkit@0.21.5(react@19.3.1)':
     dependencies:
       pdfjs-dist: 6.4.299
       react: 19.3.1
