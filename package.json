@@ -124,7 +124,7 @@
     "@auth/drizzle-adapter": "^1.11.3",
     "@bitbaum/accountkit": "^0.14.0",
     "@bitbaum/ai-kit": "^1.21.5",
-    "@bitbaum/chatkit": "^0.21.3",
+    "@bitbaum/chatkit": "^0.21.4",
     "@bitbaum/mail-kit": "^0.2.0",
     "@bitbaum/searchkit": "^0.2.3",
     "@bitbaum/whenkit": "^0.3.3",
