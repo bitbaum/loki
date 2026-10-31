@@ -90,6 +90,7 @@ grep -q "nap-wake.socket did not start (it holds 127.0.0.1:4040" <<<"$L" || fail
 remote=$(awk '/^=== ssh .*mkdir -p \/opt\/nap\/app/{f=1; sub(/^=== ssh -n -o BatchMode=yes [^ ]+ /,"")} /^=== ssh .*caddy\/apps.d\/nap.caddy/{f=0} f' "$TMP/log")
 grep -q "enable --now nap-wake.socket" <<<"$remote" && bash -n <<<"$remote" || fail "the generated activation script does not parse"
 grep -q "systemctl disable nap-app" <<<"$L" || fail "the app must no longer start at boot"
+grep -q "systemctl stop nap-wake.service nap-app" <<<"$L" || fail "a first switch must stop a wake proxy a deploy left holding the port"
 grep -q "nap|wake:nap|socket" <<<"$L" || fail "the watchdog must check nap's socket, not request it"
 grep -q "https://nap.example.org" <<<"$L" && fail "the watchdog must not request a sleeping site every 5 minutes"
 ok "sleeping site: inner port, socket on :4040, bound app, watchdog checks the socket"
