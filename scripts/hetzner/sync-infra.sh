@@ -106,7 +106,13 @@ PROXY_EOF
 sudo systemctl daemon-reload
 sudo systemctl disable $NAME-app >/dev/null 2>&1 || true
 if ! systemctl is-active --quiet $NAME-wake.socket; then sudo systemctl stop $NAME-app; fi
-sudo systemctl enable --now $NAME-wake.socket >/dev/null 2>&1"
+if ! sudo systemctl enable --now $NAME-wake.socket >/dev/null 2>&1; then
+  echo \"    $NAME-wake.socket did not start (it holds 127.0.0.1:$PORT for the app):\" >&2
+  systemctl status --no-pager --lines=15 $NAME-wake.socket >&2 || true
+  echo \"    listening on :$PORT now:\" >&2
+  sudo ss -ltnpH | grep -E ':$PORT[[:space:]]' >&2 || echo '    (nothing)' >&2
+  exit 1
+fi"
   else
     # A site that went live is always on again: drop its wake units and
     # restart the app on its own port. Otherwise exactly what it always was.
