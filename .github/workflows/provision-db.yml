@@ -1,0 +1,67 @@
+name: Provision DB
+
+# A registered app's host database and its box env, from GitHub, without a
+# laptop. Runs scripts/hetzner/provision-db-on-box.sh <app> exactly as a laptop
+# would — on the runner, SSHing to the box as ubuntu over the same key and host
+# the deploy uses (HETZNER_SSH_KEY, HETZNER_IP). The script is the rules:
+#   - creates the Postgres role + database named after the app, records the
+#     password in the box's ~/.db-credentials, adds the role's pg_hba line;
+#   - writes DATABASE_URL, BETTER_AUTH_SECRET and SECRET_SEAL_KEY into
+#     /opt/<app>/shared/.env only where missing — it NEVER replaces a key, so a
+#     re-run is a no-op;
+#   - generates every value ON THE BOX and prints key NAMES only. This repo is
+#     public, so this log is too.
+#
+# Only apps whose apps.conf `db` column is a host database the script would
+# create under that same name are accepted (scripts/hetzner/provisionable-db.sh).
+#
+# Manual on purpose: it writes to the box.
+#   gh workflow run provision-db.yml -f app=signin
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Register name of the app (apps.conf) whose db column is a host database, e.g. signin"
+        required: true
+
+permissions:
+  contents: read
+
+# Its own group, not deploy-prod (a deploy does not edit .env), and ONE group
+# for every app: each run edits the box's shared pg_hba.conf and
+# ~/.db-credentials, so two must never interleave.
+concurrency:
+  group: provision-db
+  cancel-in-progress: false
+
+jobs:
+  provision-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the app against the register
+        env:
+          APP: ${{ inputs.app }}
+        run: |
+          db="$(bash scripts/hetzner/provisionable-db.sh "$APP")"
+          echo "app $APP → host database $db"
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Provision ${{ inputs.app }}
+        env:
+          APP: ${{ inputs.app }}
+        # The laptop's deploy key (DEPLOY_KEY_PATH) does not exist on the
+        # runner, so the script's plain `ssh ubuntu@<box>` uses the config above.
+        run: bash scripts/hetzner/provision-db-on-box.sh "$APP"
