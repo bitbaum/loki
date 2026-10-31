@@ -17,6 +17,11 @@ export type FleetSite = {
 /** Ordered by name. Loki itself is absent on purpose. */
 export const FLEET_SITES: readonly FleetSite[] = [
   {
+    name: "biaslens",
+    url: "https://biaslens.orangecat.ch",
+    blurb: "",
+  },
+  {
     name: "Botsmann",
     url: "https://botsmann.orangecat.ch",
     blurb: "Private AI that works with your own documents.",
