@@ -21,8 +21,11 @@
 # - A VAPID pair is one unit: both keys or neither. Half a pair is reported,
 #   not patched — the browsers already subscribed hold the old public key.
 # - Restarts <app>-app only when something was added to ITS file and the unit
-#   exists (launch.sh sources .env at start; nothing is baked into the build).
-#   An app not deployed yet has no unit; its first deploy starts it with these.
+#   is RUNNING (launch.sh sources .env at start; nothing is baked into the
+#   build). A unit that exists but is not running is left alone: an app that
+#   is registered but was never deployed (keller, 2026-11-01) has a unit and
+#   no release, so restarting it only fails the run. Its next start, the
+#   first deploy, reads the new values.
 # - A pair is one value in TWO apps' env files (a client secret both ends of an
 #   OIDC client must hold). Generated once, written to both; when only one side
 #   has it, it is copied ON THE BOX to the other, so the value never travels or
@@ -192,11 +195,11 @@ for pair in "SIGNIN_ISSUER=\$ISSUER" "SIGNIN_CLIENT_ID=\$CLIENT"; do
 done
 if [ "\$added" -gt 0 ]; then
   chmod 600 "\$ENVF"
-  if systemctl cat "\$APP-app" >/dev/null 2>&1; then
+  if systemctl is-active --quiet "\$APP-app" 2>/dev/null; then
     sudo systemctl restart "\$APP-app"; sleep 3
     echo "\$APP: restarted \$APP-app: \$(systemctl is-active "\$APP-app" || true)"
   else
-    echo "\$APP: no \$APP-app unit — its next start reads the new values"
+    echo "\$APP: \$APP-app is not running — its next start reads the new values"
   fi
 fi
 REMOTE
@@ -387,12 +390,12 @@ done <<< "\$PLAN"
 
 if [ "\$ACTION" = ensure ] && [ "\$added" -gt 0 ]; then
   chmod 600 "\$ENVF"
-  if systemctl cat "\$APP-app" >/dev/null 2>&1; then
+  if systemctl is-active --quiet "\$APP-app" 2>/dev/null; then
     sudo systemctl restart "\$APP-app"
     sleep 3
     echo "restarted \$APP-app: \$(systemctl is-active "\$APP-app" || true) (\$added values added to \$ENVF)"
   else
-    echo "\$added values added to \$ENVF; no \$APP-app unit yet — its first deploy starts with them"
+    echo "\$added values added to \$ENVF; \$APP-app is not running — its next start reads them"
   fi
 elif [ "\$ACTION" = ensure ]; then
   echo "nothing to add for \$APP; not restarted"

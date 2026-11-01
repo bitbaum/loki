@@ -92,7 +92,7 @@ c="$(val SIGNIN_CLIENT_SECRET_CAUSIUS "$S")"
   && ok "two different values: reported as MISMATCH, neither changed" || fail "solon mismatch handling: $OUT"
 ! grep -q "SIGNIN_CLIENT_SECRET_BIASLENS" "$S" && grep -q "biaslens has no env file on the box — pair skipped" <<<"$OUT" \
   && ok "an app with no env on the box: skipped, nothing written to either side" || fail "biaslens: $OUT"
-grep -q "no morulia-app unit yet" <<<"$OUT" && ok "no unit yet: says so instead of failing the restart" || fail "restart: $OUT"
+grep -q "morulia-app is not running" <<<"$OUT" && ok "no unit yet: says so instead of failing the restart" || fail "restart: $OUT"
 
 # Nothing that was written may appear in the output.
 leaked=""
@@ -183,5 +183,21 @@ grep -q "nosuchapp: not a Morulia client" <<<"$OUT13" && ok "signin-on: an app t
 ! grep -qE "^[a-z0-9-]+\|SIGNIN_(ISSUER|CLIENT_ID)\|" "$HERE/app-secrets.sh" \
   && ok "no registry row sets SIGNIN_ISSUER or SIGNIN_CLIENT_ID; only signin-on does" \
   || fail "a registry row sets SIGNIN_ISSUER/SIGNIN_CLIENT_ID; use signin-on"
+
+# A unit that exists but is not running (registered, never deployed: keller on
+# 2026-11-01) is not restarted, so the run does not fail on it.
+cat > "$TMP/bin/systemctl" <<STUB
+#!/usr/bin/env bash
+case "\$1" in
+  cat) exit 0 ;;
+  is-active) exit 3 ;;
+  restart) echo restarted >> "$TMP/restarts"; exit 1 ;;
+esac
+exit 1
+STUB
+sed -i '/^CRON_SECRET=/d' "$OPT/heidi/shared/.env"
+OUT14="$(run ensure heidi)" || fail "ensure on a stopped unit failed: $OUT14"
+[ ! -e "$TMP/restarts" ] && grep -q "heidi-app is not running" <<<"$OUT14" \
+  && ok "a unit that is not running is left alone, and the run succeeds" || fail "stopped unit: $OUT14"
 
 echo "app-secrets: $PASSED passed"
