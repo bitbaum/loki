@@ -36,10 +36,10 @@ export CI_GATE_LIB_ONLY=1
 source "$GATE" owner/repo deadbeef
 unset CI_GATE_LIB_ONLY
 
-# run <path> <run_number> <status> <conclusion>
+# run <path> <run_number> <status> <conclusion> [event, default push]
 run() {
-  printf '{"path":"%s","run_number":%s,"status":"%s","conclusion":%s}' \
-    "$1" "$2" "$3" "$([ "$4" = "null" ] && echo null || echo "\"$4\"")"
+  printf '{"path":"%s","run_number":%s,"status":"%s","conclusion":%s,"event":"%s"}' \
+    "$1" "$2" "$3" "$([ "$4" = "null" ] && echo null || echo "\"$4\"")" "${5:-push}"
 }
 runs() { local IFS=,; echo "[$*]"; }
 
@@ -103,6 +103,17 @@ expect "a failed dependabot update is not a red CI" GREEN "" \
 
 expect "excluding non-workflow runs cannot manufacture a pass from nothing" NONE "" \
   "$(runs "$(run "$DEPENDABOT" 1 completed success)")"
+
+# Bug 4 — a data load dispatched on main's SHA failed, and the commit could not deploy.
+LOAD='.github/workflows/law-text.yml'
+expect "a failed hand-started run is not a red CI" GREEN "" \
+  "$(runs "$(run "$CI" 1 completed success)" "$(run "$LOAD" 21 completed failure workflow_dispatch)")"
+
+expect "a failed scheduled run is not a red CI" GREEN "" \
+  "$(runs "$(run "$CI" 1 completed success)" "$(run "$LOAD" 22 completed failure schedule)")"
+
+expect "a hand-started run cannot outvote the push run's red" FAILED "" \
+  "$(runs "$(run "$CI" 1 completed failure)" "$(run "$CI" 2 completed success workflow_dispatch)")"
 
 # Cancellation still has to survive as a signal — it is how a superseded commit
 # bows out with exit 3 instead of deploying stale code.
