@@ -41,7 +41,7 @@ this chat.
 | What arrives | Trigger | Source |
 |---|---|---|
 | 🔴 DOWN: \<unit\> — \<app error\> → 🤖 fix agent dispatched | A systemd unit fails and stays failed past the grace window | `scripts/hetzner/install-host-alerts.sh` (notify-failure.sh) |
-| ⚙️ STILL FAILING: a; b (digest) / ✅ RECOVERED: a; b (digest) | The 5-min sweep sees a unit failed on two consecutive ticks / recover | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
+| ⚙️ STILL FAILING: a; b (digest) / ✅ RECOVERED: a; b (digest) — delivered silently (no sound), and never about transient `systemd-run` units (`run-p<pid>-i<id>`), which the sweep clears instead of announcing (2026-11-01: one every 5 min, new name each time) | The 5-min sweep sees a unit failed on two consecutive ticks / recover | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
 | 🔧 FIXED (no action needed): \<what was repaired\> | host-check auto-repaired an unreadable app `.env` and restarted the app | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
 | 💾 DISK / 🧠 MEM / 🐘 POSTGRES transitions | Resource crosses its hysteresis band on the box | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
 | 🔥⚠️ Loki self-check — DEGRADED / 🔥✅ RECOVERED / 🔥 Loki auto-fixed | Every 15 min (`ivy-health.timer`): postgres or a `loki-*` unit is down and a restart did not bring it back, or loki-app stops answering `/api/health`. A heal that worked is reported once; the same failure re-pages at most every 4h | `scripts/hetzner/ivy-health.sh` (installed by hand to `/usr/local/bin`) |

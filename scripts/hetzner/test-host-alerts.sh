@@ -333,6 +333,19 @@ check "units: the unit NAME is alerted, not systemd's bullet" \
 check "units: the state key is derived from the name, not the bullet" \
   "$([ -e "$TMP/state/host_failed_z_service" ] && echo 0 || echo 1)"
 
+# ── transient systemd-run units are never incidents ---------------------------
+# 2026-11-01: "STILL FAILING: run-p3527451-i229931606" every five minutes, a new
+# name each time, so no per-unit cooldown ever held.
+rm -f "$TMP"/state/host_failed_* "$TMP"/state/paged_*
+run_units "run-p3527451-i229931606.service run-p4142870-i347955354.service"
+run_units "run-p3527451-i229931606.service run-p4142870-i347955354.service"
+check "units: transient run-p<pid>-i<id> units never page (got $(unit_alerts))" \
+  "$([ "$(unit_alerts)" -eq 0 ] && echo 0 || echo 1)"
+run_units "run-p1-i2.service real.service"
+run_units "run-p1-i2.service real.service"
+check "units: a real unit still pages beside a transient one, without naming it" \
+  "$(grep -q 'STILL FAILING: real' "$ALERT_LOG" && ! grep -q 'run-p' "$ALERT_LOG" && echo 0 || echo 1)"
+
 # ── 6. OnFailure notifier: one incident is ONE page, not one per restart ──────
 # On 2026-08-28 vitareba-app could not read its .env (root-owned after a
 # `chown --reference`). Restart=on-failure + RestartSec=3 restarted it 18 times

@@ -85,8 +85,12 @@ _alert_deliver() {
     return 0
   fi
   if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
+    # ALERT_SILENT=1 delivers without a sound or vibration: it is in the chat
+    # for whoever looks, it does not wake anyone. Used for digests and
+    # reminders; a first DOWN still rings.
     curl -fsS -m 10 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
       --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+      --data-urlencode "disable_notification=$([ -n "${ALERT_SILENT:-}" ] && echo true || echo false)" \
       --data-urlencode "text=${text}" -o /dev/null \
       || logger -t watchdog "ALERT telegram send failed"
   fi
@@ -484,8 +488,21 @@ fi
 # whichever detector notices first speaks, the other finds the claim already
 # taken and goes to the journal. Neither has to know the other exists.
 UNIT_COOLDOWN=${NOTIFY_COOLDOWN_SEC:-1800}
+# TRANSIENT `systemd-run` COMMANDS ARE NOT SERVICES. Anything started with a bare
+# `systemd-run` (an agent running a shell command, a one-off build step) gets an
+# auto-named unit `run-p<pid>-i<id>.service`; when its command exits non-zero the
+# unit lingers as `failed`. Every one has a fresh name, so the per-unit
+# cooldown never matches and each one paged as its own incident: on 2026-11-01 the
+# phone got "⚙️ STILL FAILING: run-p3527451-i229931606" every five minutes, a new
+# name each time, all night. A failed one-off command already reported to
+# whoever ran it; it is never an outage. Clear it from the failed set (so
+# `systemctl --failed` keeps meaning "something is wrong") and never announce it.
+systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
+  | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '^run-p[0-9]+-i[0-9]+\.service$' \
+  | xargs -r systemctl reset-failed >/dev/null 2>&1 || true
 mapfile -t failed_units < <(systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
-  | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '\.service$' | grep -v '^notify-failure@')
+  | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '\.service$' | grep -v '^notify-failure@' \
+  | grep -vE '^run-p[0-9]+-i[0-9]+\.service$')
 declare -A unit_now=()
 announce=()
 for u in ${failed_units[@]+"${failed_units[@]}"}; do
@@ -519,7 +536,7 @@ done
 # reads as triples — 09:32, 10:02, 10:33, each three separate messages naming
 # one unit apiece. A digest carries the same facts in a single glance.
 if [ "${#announce[@]}" -gt 0 ]; then
-  _alert_deliver "⚙️ STILL FAILING: $(printf '%s; ' "${announce[@]}" | sed 's/; $//')"
+  ALERT_SILENT=1 _alert_deliver "⚙️ STILL FAILING: $(printf '%s; ' "${announce[@]}" | sed 's/; $//')"
 fi
 # Anything that was failing and is not in the current set has recovered. Without
 # this the key would stay set and its next genuine failure would be silent —
@@ -544,7 +561,7 @@ done
 # Same digest rule as the failures: closures that land on one tick are one
 # message (10:58 on 2026-08-29 was three separate RECOVERED lines for one fix).
 if [ "${#recovered[@]}" -gt 0 ]; then
-  _alert_deliver "✅ RECOVERED: $(printf '%s; ' "${recovered[@]}" | sed 's/; $//')"
+  ALERT_SILENT=1 _alert_deliver "✅ RECOVERED: $(printf '%s; ' "${recovered[@]}" | sed 's/; $//')"
 fi
 # Retire the old aggregate latch, and the previous per-unit keys whose content
 # was a bare ok/bad and whose name could not be turned back into a unit.
