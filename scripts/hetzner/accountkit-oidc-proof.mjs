@@ -53,8 +53,12 @@ try {
       await page.waitForURL(back, { timeout: 45_000 });
     }),
   ]);
-  if (new URL(page.url()).searchParams.get("error")) {
-    throw new Error("the product refused the OrangeCat callback");
+  const landed = new URL(page.url());
+  const refusal = landed.searchParams.get("error");
+  if (refusal) {
+    // Error codes carry no personal data; they say which check refused.
+    const detail = landed.searchParams.get("error_description") ?? "";
+    throw new Error(`the product refused the OrangeCat callback: ${refusal} ${detail}`.trim());
   }
   step("back in the product");
 
