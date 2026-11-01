@@ -51,6 +51,9 @@ git fetch -q "$URL" main
 target="$(git rev-parse FETCH_HEAD)"
 if ! git merge-base --is-ancestor HEAD "$target"; then
   echo "the checkout has $(git rev-list --count "$target..HEAD") commit(s) main does not; refusing (not a fast-forward)" >&2
+  echo "  HEAD $(git rev-parse HEAD), main $target, merge-base $(git merge-base HEAD "$target" 2>/dev/null || echo none)" >&2
+  echo "  shallow: $(git rev-parse --is-shallow-repository); grafts: $( [ -f "$(git rev-parse --git-dir)/shallow" ] && wc -l < "$(git rev-parse --git-dir)/shallow" || echo 0)" >&2
+  echo "  oldest of those: $(git log -1 --format='%h %ad %s' --date=short "$(git rev-list "$target..HEAD" | tail -1)")" >&2
   exit 1
 fi
 
