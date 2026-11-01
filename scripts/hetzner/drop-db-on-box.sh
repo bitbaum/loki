@@ -58,6 +58,10 @@ rows="$(psql_su -d "$DB" -c "select coalesce(sum((xpath('/row/c/text()', query_t
 role="$(psql_su -c "select 1 from pg_roles where rolname = '$DB'")"
 
 echo "database $DB: owner $owner, $size, $tables table(s) holding $rows row(s), $conns open connection(s)"
+# Which tables those rows are in (names and counts, never contents): 8 rows
+# of migration bookkeeping and signing keys is not 8 people.
+psql_su -d "$DB" -F' ' -c "select schemaname || '.' || tablename, (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', schemaname, tablename), false, true, '')))[1]::text::bigint as n from pg_tables where schemaname not in ('pg_catalog','information_schema') order by 1" \
+  | awk '$2 != 0 { printf "  %-40s %s row(s)\n", $1, $2 }'
 [ -n "$role" ] && echo "role $DB exists (dropped after the database if it owns nothing else)" \
   || echo "no role named $DB"
 
