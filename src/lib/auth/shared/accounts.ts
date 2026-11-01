@@ -2,22 +2,26 @@
  * A person AccountKit created itself (a first OrangeCat or bitbaum sign-in)
  * gets Loki's `users` row under the same id and their personal org, so every
  * Loki table can reference them. Linking OrangeCat to an existing person
- * records the actor id, as the Auth.js signIn event does. Idempotent:
- * AccountKit may call this more than once for one person.
+ * records the actor id, as the Auth.js signIn event does, and OrangeCat's
+ * tokens go to Loki's `accounts`, where publish, promote and the wallet read
+ * them (AccountKit itself stores no provider token). Idempotent: AccountKit may
+ * call this more than once for one person.
  */
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import type { CreatedAccount } from "@bitbaum/accountkit/auth/server";
 import { ORANGECAT_PROVIDER_ID } from "@bitbaum/accountkit/orangecat";
 import { db } from "@/db";
 import { authUsers } from "@/db/schema/accountkit";
-import { users } from "@/db/schema";
+import { accounts, users } from "@/db/schema";
 import { isValidUuid } from "@/lib/utils";
 import { bootstrapAfterSignIn } from "../bootstrap";
 
-export async function ensureLokiUser(account: {
-  userId: string;
-  providerId: string;
-  accountId: string;
-}): Promise<void> {
+export async function ensureLokiUser(account: CreatedAccount): Promise<void> {
+  await ensureRow(account);
+  await keepOrangecatTokens(account);
+}
+
+async function ensureRow(account: CreatedAccount): Promise<void> {
   const actorId =
     account.providerId === ORANGECAT_PROVIDER_ID && isValidUuid(account.accountId)
       ? account.accountId
@@ -57,4 +61,39 @@ export async function ensureLokiUser(account: {
     })
     .onConflictDoNothing();
   await bootstrapAfterSignIn({ id: account.userId, name: shared.name, email });
+}
+
+/**
+ * OrangeCat's token set, as the Auth.js adapter kept it. A refresh token is
+ * replaced, never blanked.
+ */
+async function keepOrangecatTokens({ userId, providerId, accountId, tokens }: CreatedAccount) {
+  if (providerId !== ORANGECAT_PROVIDER_ID || !tokens?.accessToken) return;
+  const expiresAt = tokens.accessTokenExpiresAt
+    ? Math.floor(tokens.accessTokenExpiresAt.getTime() / 1000)
+    : null;
+  await db
+    .insert(accounts)
+    .values({
+      userId,
+      type: "oidc",
+      provider: ORANGECAT_PROVIDER_ID,
+      providerAccountId: accountId,
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+      expires_at: expiresAt,
+      token_type: "bearer",
+      scope: tokens.scope,
+      id_token: tokens.idToken,
+    })
+    .onConflictDoUpdate({
+      target: [accounts.provider, accounts.providerAccountId],
+      set: {
+        access_token: tokens.accessToken,
+        refresh_token: sql`coalesce(excluded.refresh_token, ${accounts.refresh_token})`,
+        expires_at: sql`coalesce(excluded.expires_at, ${accounts.expires_at})`,
+        scope: sql`coalesce(excluded.scope, ${accounts.scope})`,
+        id_token: sql`coalesce(excluded.id_token, ${accounts.id_token})`,
+      },
+    });
 }

@@ -74,7 +74,6 @@ async function main(): Promise<number> {
     browser.cookie = "";
     await raw.unsafe(`SET client_min_messages = warning; DROP TRIGGER IF EXISTS loki_accountkit_from_users ON users;
       DROP TRIGGER IF EXISTS loki_accountkit_to_users ON auth_users;
-      DROP TRIGGER IF EXISTS loki_accountkit_tokens_to_accounts ON auth_accounts;
       TRUNCATE auth_users, auth_accounts, auth_sessions, auth_verifications,
         auth_passkeys, auth_two_factors, users CASCADE`);
     const hash = await hashPassword(PASSWORD);
@@ -223,11 +222,18 @@ async function main(): Promise<number> {
       },
     ],
     [
-      "an OrangeCat token set AccountKit stores reaches Loki's accounts row, never blanking a refresh token",
+      "OrangeCat's tokens, handed over at a first OrangeCat sign-in, reach Loki's accounts row; a refresh token is never blanked",
       async () => {
-        await raw`UPDATE auth_accounts SET access_token = 'at-1', refresh_token = 'rt-1',
-        access_token_expires_at = now() + interval '1 hour', scope = 'openid'
-        WHERE provider_id = 'orangecat' AND account_id = ${OC_ACTOR}`;
+        const tokens = (accessToken: string, refreshToken: string | null) => ({
+          accessToken,
+          refreshToken,
+          idToken: null,
+          accessTokenExpiresAt: new Date(Date.now() + 3_600_000),
+          scope: "openid",
+        });
+        const { ensureLokiUser } = await import("@/lib/auth/shared/accounts");
+        const link = { userId: PERSON, providerId: "orangecat", accountId: OC_ACTOR };
+        await ensureLokiUser({ ...link, tokens: tokens("at-1", "rt-1") });
         let [row] =
           await raw`SELECT user_id, access_token, refresh_token, expires_at FROM accounts WHERE provider = 'orangecat'`;
         assert.deepEqual(
@@ -235,10 +241,13 @@ async function main(): Promise<number> {
           [PERSON, "at-1", "rt-1"],
         );
         assert.ok(row.expires_at > Date.now() / 1000);
-        await raw`UPDATE auth_accounts SET access_token = 'at-2', refresh_token = NULL WHERE provider_id = 'orangecat'`;
+        await ensureLokiUser({ ...link, tokens: tokens("at-2", null) });
         [row] =
           await raw`SELECT access_token, refresh_token FROM accounts WHERE provider = 'orangecat'`;
         assert.deepEqual([row.access_token, row.refresh_token], ["at-2", "rt-1"]);
+        const [stored] =
+          await raw`SELECT count(*)::int AS n FROM auth_accounts WHERE access_token IS NOT NULL`;
+        assert.equal(stored.n, 0, "AccountKit's own table holds no provider token");
       },
     ],
     [
@@ -248,8 +257,16 @@ async function main(): Promise<number> {
         const id = "00000000-0000-4000-8000-0000000000aa";
         const actor = "00000000-0000-4000-8000-0000000000ab";
         await raw`INSERT INTO auth_users (id, name, email) VALUES (${id}, 'New', 'x@orangecat.invalid')`;
-        await ensureLokiUser({ userId: id, providerId: "orangecat", accountId: actor });
-        await ensureLokiUser({ userId: id, providerId: "orangecat", accountId: actor });
+        const noTokens = {
+          accessToken: null,
+          refreshToken: null,
+          idToken: null,
+          accessTokenExpiresAt: null,
+          scope: null,
+        };
+        const created = { userId: id, providerId: "orangecat", accountId: actor, tokens: noTokens };
+        await ensureLokiUser(created);
+        await ensureLokiUser(created);
         const [row] = await raw`SELECT email, orangecat_actor_id FROM users WHERE id = ${id}`;
         assert.deepEqual([row.email, row.orangecat_actor_id], [null, actor]);
         const [{ count }] =
@@ -325,7 +342,6 @@ async function main(): Promise<number> {
   }
   await raw.unsafe(`SET client_min_messages = warning; DROP TRIGGER IF EXISTS loki_accountkit_from_users ON users;
     DROP TRIGGER IF EXISTS loki_accountkit_to_users ON auth_users;
-    DROP TRIGGER IF EXISTS loki_accountkit_tokens_to_accounts ON auth_accounts;
     TRUNCATE auth_users, auth_accounts, auth_sessions, auth_verifications, users CASCADE`);
   await raw.end();
 
