@@ -50,9 +50,8 @@ const OC_ACTOR = "00000000-0000-4000-8000-0000000000ac";
 async function main(): Promise<number> {
   const { db } = await import("@/db");
   const { hashPassword } = await import("@/lib/password");
-  const bridge = await import("@/lib/auth/shared/bridge");
-  const runtime = await import("@/lib/auth/shared/runtime");
-  const sessionMod = await import("@/lib/auth/shared/session");
+  const { compat } = await import("@/lib/auth/shared/compat");
+  const { createCompatClient } = await import("@bitbaum/accountkit/auth/compat-testing");
   const { getEnabledAuthProviders } = await import("@/lib/auth-providers");
   const raw = (db as unknown as { $client: import("postgres").Sql }).$client;
 
@@ -63,57 +62,16 @@ async function main(): Promise<number> {
   const importSql = readFileSync(resolve(root, "scripts/db/accountkit-import.sql"), "utf8");
   const importAccounts = () => raw.begin((tx) => tx.unsafe(importSql));
 
-  let cookie = "";
-  let ip = 0;
-  const request = (route: string, form?: Record<string, string>) => {
-    ip += 1;
-    const headers = new Headers({
-      origin: SITE,
-      "x-forwarded-for": `198.51.100.${ip % 250}`,
-      cookie,
-    });
-    if (form) headers.set("content-type", "application/x-www-form-urlencoded");
-    return new Request(`${SITE}/api/auth${route}`, {
-      method: form ? "POST" : "GET",
-      headers,
-      body: form ? new URLSearchParams(form) : undefined,
-    });
-  };
-  const answer = async (req: Request) => {
-    const res =
-      (await bridge.nextAuthClientCompat(req)) ??
-      (await (req.method === "GET" ? runtime.sharedAuth.GET(req) : runtime.sharedAuth.POST(req)));
-    const jar = new Map(
-      cookie
-        .split("; ")
-        .filter(Boolean)
-        .map((c) => [c.slice(0, c.indexOf("=")), c.slice(c.indexOf("=") + 1)] as [string, string]),
-    );
-    for (const set of res.headers.getSetCookie()) {
-      const [pair] = set.split(";");
-      const name = pair.slice(0, pair.indexOf("="));
-      const value = pair.slice(pair.indexOf("=") + 1);
-      if (/max-age=0/i.test(set) || value === "") jar.delete(name);
-      else jar.set(name, value);
-    }
-    cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
-    return res;
-  };
-  const signIn = async (provider: string, fields: Record<string, string>) =>
-    (await (
-      await answer(
-        request(`/callback/${provider}`, {
-          ...fields,
-          csrfToken: "x",
-          callbackUrl: `${SITE}/projects`,
-        }),
-      )
-    ).json()) as { url: string };
+  const browser = createCompatClient({ compat, site: SITE });
+  const request = (route: string, form?: Record<string, string>) => ({ route, form });
+  const answer = (req: ReturnType<typeof request>) => browser.call(req.route, req.form);
+  const signIn = (provider: string, fields: Record<string, string>) =>
+    browser.signIn(provider, fields, `${SITE}/projects`);
   const errorOf = (r: { url: string }) => new URL(r.url).searchParams.get("error");
   const session = async () => (await answer(request("/session"))).json();
 
   async function reset() {
-    cookie = "";
+    browser.cookie = "";
     await raw.unsafe(`SET client_min_messages = warning; DROP TRIGGER IF EXISTS loki_accountkit_from_users ON users;
       DROP TRIGGER IF EXISTS loki_accountkit_to_users ON auth_users;
       DROP TRIGGER IF EXISTS loki_accountkit_tokens_to_accounts ON auth_accounts;
@@ -231,22 +189,22 @@ async function main(): Promise<number> {
       "changing your own password keeps your session and ends every other one",
       async () => {
         await signIn("email-password", { email: "person@example.test", password: PASSWORD });
-        const mine = cookie;
-        cookie = "";
+        const mine = browser.cookie;
+        browser.cookie = "";
         await signIn("email-password", { email: "person@example.test", password: PASSWORD });
-        const other = cookie;
-        const keep = await sessionMod.sharedSessionId(new Headers({ cookie: mine }));
+        const other = browser.cookie;
+        const keep = await compat.sessionIdFor(new Headers({ cookie: mine }));
         assert.ok(keep);
         const hash = await hashPassword("the new password");
         await raw.begin(async (tx) => {
           await tx`SELECT set_config('loki.keep_session', ${keep}, true)`;
           await tx`UPDATE users SET password_hash = ${hash} WHERE id = ${PERSON}`;
         });
-        cookie = mine;
+        browser.cookie = mine;
         assert.equal((await session())?.user?.id, PERSON, "the changing session stays");
-        cookie = other;
+        browser.cookie = other;
         assert.equal(await session(), null, "every other session ends");
-        cookie = "";
+        browser.cookie = "";
         assert.equal(
           errorOf(
             await signIn("email-password", { email: "person@example.test", password: PASSWORD }),
@@ -308,13 +266,13 @@ async function main(): Promise<number> {
           [enabled.github, enabled.google, enabled.x, enabled.localOwnerKeyTab],
           [false, false, false, false],
         );
-        assert.deepEqual(Object.keys(bridge.providers({ ENABLE_OWNER_KEY: "1" })), [
+        assert.deepEqual(Object.keys(compat.providers()), [
           "email-password",
           "user-password",
           "local",
         ]);
         const res = await answer(request("/signin"));
-        assert.equal(res.status, 307);
+        assert.equal(res.status, 302);
         delete process.env.GITHUB_CLIENT_ID;
         delete process.env.GITHUB_CLIENT_SECRET;
       },
@@ -373,7 +331,7 @@ async function main(): Promise<number> {
 
   // The rehearsal CLI must also pass on this chain (it rolls back).
   try {
-    const out = execFileSync("npx", ["tsx", "scripts/db/accountkit-import-rehearse.ts"], {
+    const out = execFileSync("pnpm", ["run", "-s", "db:rehearse-import"], {
       cwd: root,
       env: { ...process.env, DATABASE_URL: target },
       encoding: "utf8",

@@ -2,9 +2,9 @@ import NextAuth from "next-auth";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { authConfig } from "@/auth.config";
 import { ROUTES } from "@/config/auth";
-import { sharedAuthEnabled } from "@/lib/auth/shared/enabled";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 import { siteUrl } from "@/lib/auth/shared/runtime";
-import { sharedSessionFor } from "@/lib/auth/shared/session";
+import { compat } from "@/lib/auth/shared/compat";
 
 // Edge-safe auth middleware — uses only the JWT session and the authorized()
 // callback from auth.config.ts. No DB adapter, no Node.js crypto.
@@ -29,8 +29,8 @@ const authJsProxy = NextAuth(authConfig).auth as unknown as (
  * sends it. Otherwise the Auth.js JWT, exactly as before.
  */
 export default async function proxy(req: NextRequest, ev: NextFetchEvent) {
-  if (!sharedAuthEnabled()) return authJsProxy(req, ev);
-  const session = await sharedSessionFor(req.headers);
+  if (!sharedRuntimeEnabled()) return authJsProxy(req, ev);
+  const session = await compat.sessionFor(req.headers);
   const verdict = await authConfig.callbacks.authorized({
     auth: session,
     request: req,

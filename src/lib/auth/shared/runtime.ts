@@ -4,16 +4,13 @@
  * (docs/architecture/accountkit-migration.md).
  */
 import { createAuthRuntime } from "@bitbaum/accountkit/auth/next";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 import { createAuthMailer } from "@bitbaum/accountkit/auth/mail";
 import { APP_URL } from "@/config/brand";
 import { db } from "@/db";
 import { authTables } from "@/db/schema/accountkit";
 import { verifyPassword } from "@/lib/password";
 import { ensureLokiUser } from "./accounts";
-
-import { sharedAuthEnabled } from "./enabled";
-
-export { sharedAuthEnabled };
 
 /** The public origin every redirect and every AccountKit origin check uses. */
 export function siteUrl(env: NodeJS.ProcessEnv = process.env): string {
@@ -33,7 +30,7 @@ export const sharedAuth = createAuthRuntime({
   site,
   // Account mail through the fleet transport (RESEND_*).
   mail: createAuthMailer({ site }),
-  isDatabaseConfigured: (env) => sharedAuthEnabled(env) && Boolean(env.DATABASE_URL),
+  isDatabaseConfigured: (env) => sharedRuntimeEnabled(env) && Boolean(env.DATABASE_URL),
   getDatabase: () => db,
   schema: authTables,
   // Imported hashes keep working, and Loki's own writers keep writing them.

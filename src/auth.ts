@@ -21,9 +21,8 @@ import {
 import { logDebug } from "@/db/queries/debug-logs";
 import { healReturningUserOnboarding, onboardingCompleteFlag } from "@/lib/onboarding-heal";
 import { bootstrapAfterSignIn } from "@/lib/auth/bootstrap";
-import { sharedAuth, sharedAuthEnabled } from "@/lib/auth/shared/runtime";
-import { sharedSession } from "@/lib/auth/shared/session";
-import { nextAuthClientCompat } from "@/lib/auth/shared/bridge";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
+import { compat } from "@/lib/auth/shared/compat";
 import type { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 import { isValidUuid } from "@/lib/utils";
@@ -627,7 +626,7 @@ export const { signOut } = nextAuth;
  * way (docs/architecture/accountkit-migration.md).
  */
 export async function auth(): Promise<Session | null> {
-  return sharedAuthEnabled() ? sharedSession() : nextAuth.auth();
+  return sharedRuntimeEnabled() ? compat.currentSession() : nextAuth.auth();
 }
 
 /**
@@ -639,7 +638,7 @@ export async function signIn(
   provider: string,
   options: { redirectTo?: string } = {},
 ): Promise<never | void> {
-  if (!sharedAuthEnabled()) return nextAuth.signIn(provider, options);
+  if (!sharedRuntimeEnabled()) return nextAuth.signIn(provider, options);
   const next = encodeURIComponent(options.redirectTo ?? "/");
   redirect(`/api/auth/signin/${provider}?callbackUrl=${next}`);
 }
@@ -647,11 +646,7 @@ export async function signIn(
 /** /api/auth/*: AccountKit answers when the shared runtime is on. */
 export const handlers = {
   GET: async (request: NextRequest) =>
-    sharedAuthEnabled()
-      ? ((await nextAuthClientCompat(request)) ?? sharedAuth.GET(request))
-      : nextAuth.handlers.GET(request),
+    sharedRuntimeEnabled() ? compat.route.GET(request) : nextAuth.handlers.GET(request),
   POST: async (request: NextRequest) =>
-    sharedAuthEnabled()
-      ? ((await nextAuthClientCompat(request)) ?? sharedAuth.POST(request))
-      : nextAuth.handlers.POST(request),
+    sharedRuntimeEnabled() ? compat.route.POST(request) : nextAuth.handlers.POST(request),
 };

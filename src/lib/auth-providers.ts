@@ -10,7 +10,7 @@
  * (the values would be undefined in the client bundle).
  */
 import { isDemoEnabled } from "@/config/demo";
-import { sharedAuthEnabled } from "@/lib/auth/shared/enabled";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 
 export type EnabledAuthProviders = {
   /** GitHub OAuth (NextAuth provider). */
@@ -55,7 +55,7 @@ export function getEnabledAuthProviders(): EnabledAuthProviders {
   // and X are not mounted: AccountKit reaches them only through the bitbaum
   // sign-in, and the owner key accepts only a stored hash there
   // (docs/architecture/accountkit-migration.md).
-  const shared = sharedAuthEnabled();
+  const shared = sharedRuntimeEnabled();
   return {
     github: !shared && Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
     google:

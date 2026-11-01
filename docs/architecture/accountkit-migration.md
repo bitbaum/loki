@@ -14,7 +14,7 @@ Against an isolated database holding an authorised snapshot, after every
 migration:
 
 ```sh
-DATABASE_URL=postgres://… npx tsx scripts/db/accountkit-import-rehearse.ts
+DATABASE_URL=postgres://… pnpm run db:rehearse-import
 ```
 
 It runs `scripts/db/accountkit-import.sql` in one transaction, always rolls
@@ -61,8 +61,9 @@ every sign-in; unset, Auth.js answers as today. The secret is
   reseeded account applies on the next request.
 - The proxy reads the shared session and asks the same `authorized()`
   callback (`src/auth.config.ts`).
-- The pages keep `next-auth/react`. `/api/auth` answers its calls from
-  AccountKit:
+- The pages keep `next-auth/react`. AccountKit's compat layer
+  (`@bitbaum/accountkit/auth/nextauth-compat`, configured in
+  `src/lib/auth/shared/compat.ts`) answers its calls from the shared runtime:
   - `session` (GET and POST), `csrf`, `providers` and `signout`;
   - the three credentials flows: `email-password`, the invite's
     `user-password`, and the owner key against the stored hash;
@@ -99,8 +100,8 @@ yet. On this runtime their buttons hide (`getEnabledAuthProviders`), so:
 
 ## Before switching
 
-1. **OrangeCat callback.** Client `loki` must also accept
-   `/api/auth/oauth2/callback/orangecat` (orangecat#1508 adds it).
+1. **OrangeCat callback.** Done: client `loki` accepts
+   `/api/auth/oauth2/callback/orangecat` (orangecat#1508, live).
 2. **Social sign-in.** Either the bitbaum sign-in carries GitHub and Google
    (owner: provider credentials), or the people who sign in only that way are
    counted and asked to set a password first. A "Connect GitHub" step for the
