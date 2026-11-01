@@ -34,11 +34,18 @@ was "tons of options … paralysis" (2026-10-31). So:
   ways, and the people who want the raw terminal are one tap from it. The
   agent's name and the menu that changes it are off (`agentSwitch`): the
   session's own chip names the agent, and its box changes it.
-- **One line of state** over the robot (`WorkbenchStateLine`): the
-  sentence the Watch track already composes ("Pull request open",
-  "Live on …", "Claude Code went quiet"), a dot for its tone, and "Watch
-  it work" for the whole story. Watch's card said the same as a column of
-  stages; on this screen that column was a second surface.
+- **One line of state**, as the robot's title bar (`hooks/use-run-state`,
+  `lib/workbench/state-line`): the sentence the Watch track already
+  composes ("Pull request open", "Live on …", "Claude Code went quiet"),
+  a dot for its tone, and "Watch it work" for the whole story. Watch's
+  card said the same as a column of stages; on this screen that column
+  was a second surface.
+- **Two windows of one desk.** The site and the robot sit in the same
+  frame (`WorkbenchFrame`): a title bar — a dot, one sentence, one link —
+  over a body. The site's bar is its address and what Loki is doing
+  there, like a browser's own tab; the robot's bar is the build's state.
+  A card beside a bare surface read as two different things; one anatomy
+  reads as one desk (one shape per kind).
 - **One "⋯"** for everything chosen rarely: the robot in its own window or
   on the other screen, the site on the other screen, full screen.
 
@@ -59,7 +66,8 @@ Chromium on the box, walks the site, clicks, and keeps one frame per
 action with the action named. `WorkbenchSiteView` shows that: while a
 review walks, the robot using the site, frame by frame (the one thing no
 window of yours can show, because it is not your browser); at rest, the
-last look it took. A tap on the picture opens the real site in its own
+last look it took; before any look, the address alone, waiting for a tap
+— never a sentence apologising for an empty box. A tap on the picture opens the real site in its own
 window, where the person uses it and the widget does the watching —
 pointing, a voice walk, "Fix it now" — exactly as it does today. The two
 cases are different because the clicking hand is different, and each gets

@@ -134,12 +134,16 @@ src/
 │   │                 Loki (loki/ModelPicker, "Loki answers with").
 │   │                 See docs/development/responsive-design.md.
 │   ├── workbench/ → WorkbenchView (/projects/[id]/workbench): one project on
-│   │                 one screen, ONE box. Left, the site as Loki's browser
-│   │                 sees it (WorkbenchSiteView: the review worker's frame,
-│   │                 the robot's walk while it reviews; a tap opens the real
-│   │                 site in its own window). Right, the robot: a line of
-│   │                 state (WorkbenchStateLine: the Watch track's sentence)
-│   │                 over TerminalSurface in its quiet shape (`quiet`: no
+│   │                 one screen, ONE box. Two windows of one desk, each a
+│   │                 WorkbenchFrame (a title bar: dot · sentence · one link,
+│   │                 over a body). Left, the site as Loki's browser sees it
+│   │                 (WorkbenchSiteView: the bar is the address and what
+│   │                 Loki is doing there, the body the review worker's frame
+│   │                 — the robot's walk while it reviews; a tap opens the
+│   │                 real site in its own window). Right, the robot: the bar
+│   │                 is the build's state (hooks/use-run-state: the Watch
+│   │                 track's sentence, lib/workbench/state-line) over
+│   │                 TerminalSurface in its quiet shape (`quiet`: no
 │   │                 builder picker, no tab strip, no shell rows, no agent
 │   │                 switch) with its own box. A FOCUS screen: the sidebar,
 │   │                 top bar and project strip leave while it is open
@@ -147,8 +151,9 @@ src/
 │   │                 and ONE "⋯" (the robot in its own window / on the other
 │   │                 screen, the site on the other screen, full screen).
 │   │                 Loki's chat is NOT here (a second box), Watch's card is
-│   │                 NOT here (a second surface). WorkbenchPane = a solo
-│   │                 window (`?pane=session`); WorkbenchNarrow = the phone's
+│   │                 NOT here (a second surface). A solo window
+│   │                 (`?pane=session`) is the robot's frame with Close;
+│   │                 WorkbenchNarrow = the phone's
 │   │                 rows. Panes are SSOT in config/workbench.ts; whether the
 │   │                 robot is in this window is the window's own
 │   │                 (lib/workbench/layout.ts) and the project's windows on

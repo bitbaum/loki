@@ -3284,43 +3284,30 @@
   .ui-workbench-columns {
     @apply flex min-h-0 flex-1 gap-3;
   }
-  /* A region: the site, or the robot. Same frame for both. */
-  .ui-workbench-region {
-    @apply flex min-h-0 min-w-0 flex-1 flex-col gap-2;
-  }
-  /* The site as Loki's browser sees it: the frame fills the region, the
-     caption under it names the page and what Loki is doing there. */
-  .ui-workbench-site {
-    @apply flex min-h-0 flex-1 flex-col gap-2;
-  }
-  .ui-workbench-site-frame {
-    @apply flex min-h-0 flex-1 cursor-pointer items-start justify-center overflow-hidden rounded-xl border border-border-subtle bg-surface-base;
-  }
-  .ui-workbench-site-frame img {
-    @apply h-auto max-h-full w-full object-contain object-top;
-  }
-  .ui-workbench-site-empty {
-    @apply flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border-subtle p-6 text-center;
-  }
-  .ui-workbench-site-caption {
-    @apply flex shrink-0 items-center gap-2 px-1;
-  }
-  /* The build as one line over the robot. */
-  .ui-workbench-state {
-    @apply flex shrink-0 items-center gap-2 px-1 text-sm text-text-secondary;
-  }
-  /* A window that is one pane (`?pane=`). */
-  .ui-workbench-pane {
+  /* The one frame both regions sit in, and a solo window is: a title bar
+     (dot · sentence · one link) over a body. Two windows of one desk. */
+  .ui-workbench-frame {
     @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-base;
   }
-  .ui-workbench-pane-head {
-    @apply flex h-10 shrink-0 items-center gap-2 border-b border-border-subtle px-3;
+  .ui-workbench-frame-bar {
+    @apply flex h-10 shrink-0 items-center gap-2 border-b border-border-subtle px-3 text-sm text-text-secondary;
   }
-  .ui-workbench-pane-title {
-    @apply text-sm font-medium text-text-secondary;
+  .ui-workbench-frame-title {
+    @apply min-w-0 flex-1 truncate;
   }
-  .ui-workbench-pane-body {
+  .ui-workbench-frame-body {
     @apply flex min-h-0 flex-1 flex-col p-2;
+  }
+  /* The site's page: the picture fills the frame, top-aligned like a
+     browser; a tap opens the real site. At rest, the address alone. */
+  .ui-workbench-site-page {
+    @apply flex min-h-0 flex-1 cursor-pointer items-start justify-center overflow-hidden rounded-lg bg-surface-page;
+  }
+  .ui-workbench-site-page img {
+    @apply h-auto max-h-full w-full object-contain object-top;
+  }
+  .ui-workbench-site-rest {
+    @apply flex h-full w-full flex-col items-center justify-center gap-2 text-sm text-text-muted;
   }
   .ui-term-loki {
     @apply flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-raised;
@@ -9138,8 +9125,10 @@
 }
 
 /* The workbench is a focus screen (hooks/use-workbench-focus.ts): no
-   sidebar, no top bar, no bottom tabs, no project strip, at every width —
-   the one back link in its header is the way out. In the utilities layer
+   sidebar, no top bar, no bottom tabs, no project strip, no floating Ask
+   Loki (its panel is the second chat the screen deliberately has not, and
+   its button sat on the send arrow), at every width — the one back link in
+   its header is the way out. In the utilities layer
    on purpose: the sidebar is shown by `md:flex` in its className, a
    utility, and a components-layer rule loses to it whatever its
    specificity. */
@@ -9148,7 +9137,8 @@
   body.fc-workbench-focus .ui-app-topbar,
   body.fc-workbench-focus .ui-mobile-nav,
   body.fc-workbench-focus .ui-app-footer,
-  body.fc-workbench-focus .ui-fleet-guide {
+  body.fc-workbench-focus .ui-fleet-guide,
+  body.fc-workbench-focus .ui-fab {
     display: none;
   }
   body.fc-workbench-focus .app-main,

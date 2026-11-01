@@ -3,7 +3,9 @@
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { TerminalSurface } from "@/components/terminal/TerminalSurface";
+import Link from "next/link";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useRunState } from "@/hooks/use-run-state";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { NARROW_QUERY } from "@/hooks/use-is-narrow";
 import { useWorkbenchFocus } from "@/hooks/use-workbench-focus";
@@ -17,10 +19,9 @@ import {
   type WorkbenchPaneId,
   type WorkbenchPlacement,
 } from "@/config/workbench";
+import { WorkbenchFrame } from "./WorkbenchFrame";
 import { WorkbenchNarrow } from "./WorkbenchNarrow";
-import { WorkbenchPane } from "./WorkbenchPane";
 import { WorkbenchSiteView } from "./WorkbenchSiteView";
-import { WorkbenchStateLine } from "./WorkbenchStateLine";
 import { WorkbenchStrip } from "./WorkbenchStrip";
 import type { WorkbenchReview, WorkbenchSite } from "./workbench-types";
 
@@ -69,6 +70,7 @@ export function WorkbenchView({
   useWorkbenchFocus(!narrow || solo !== null);
   const { layout, close } = useWorkbenchLayout(projectId, solo);
   const windows = useWorkbenchWindows(projectId);
+  const run = useRunState(projectId);
 
   // A column is half a window, so the session's Loki rail starts closed
   // there; a solo window is a whole one, where it has the room it has on
@@ -100,12 +102,32 @@ export function WorkbenchView({
     setTimeout(() => router.replace(workbenchHref(projectId)), 200);
   };
 
+  // The robot's window: its bar is the build's state, its body the session.
+  const robotFrame = (onClose?: () => void) => (
+    <WorkbenchFrame
+      label="The robot"
+      tone={run.tone}
+      title={run.text}
+      aside={
+        run.hasRun ? (
+          <Link
+            href={`/projects/${encodeURIComponent(projectId)}/watch`}
+            className="ui-link shrink-0 text-sm"
+          >
+            Watch it work
+          </Link>
+        ) : undefined
+      }
+      onClose={onClose}
+    >
+      {robot}
+    </WorkbenchFrame>
+  );
+
   if (solo)
     return (
       <div ref={rootRef} className="ui-workbench" data-fc-place="tab">
-        <WorkbenchPane pane={solo} onClose={closeSolo}>
-          {robot}
-        </WorkbenchPane>
+        {robotFrame(closeSolo)}
       </div>
     );
 
@@ -134,21 +156,14 @@ export function WorkbenchView({
       )}
       <div className="ui-workbench-columns">
         {(columns || !robotHere) && (
-          <section className="ui-workbench-region" aria-label="The site">
-            <WorkbenchSiteView
-              projectId={projectId}
-              site={site}
-              initialReview={initialReview}
-              onOpenSite={() => openSite("beside")}
-            />
-          </section>
+          <WorkbenchSiteView
+            projectId={projectId}
+            site={site}
+            initialReview={initialReview}
+            onOpenSite={() => openSite("beside")}
+          />
         )}
-        {robotHere && (
-          <section className="ui-workbench-region" aria-label="The robot">
-            <WorkbenchStateLine projectId={projectId} />
-            <div className="min-h-0 flex-1">{robot}</div>
-          </section>
-        )}
+        {robotHere && robotFrame()}
       </div>
     </div>
   );
