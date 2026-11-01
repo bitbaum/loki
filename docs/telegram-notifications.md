@@ -13,6 +13,13 @@ One incident is one message; reminders back off (30m → 2h → 8h → daily);
 recoveries name subjects, never keys; N events on one tick digest into one
 message; test runs (`ALERT_DRY_RUN=1`) never deliver.
 
+**Ring policy** (`_alert_silent` in `lib-alert.sh`): every box alert lands in
+the chat SILENTLY; only 🔴 DOWN, 🚨, ☠️, 🔓, 🧱, 🔥⚠️, 🛡️ GUARD DOWN and an SSH
+password login make the phone ring. Digests, recoveries and file-change notes
+never do. Failed `appcron-*` oneshots are paged by the OnFailure notifier only,
+not re-announced by the sweep; files a deploy rewrites by design (app Caddy
+snippets, `*-app.service`) are journal-only in the sensitive-file check.
+
 **Whose news.** The chat is the operator's. News about ONE account's work —
 a visitor's note on their site, their run, their fix, their night — goes to
 Telegram only when that account is the operator's

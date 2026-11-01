@@ -155,6 +155,16 @@ else
   edited=$(comm -13 <(sort "$S/manifest") <(sort "$S/manifest.new") | awk '{print $3}' \
              | while read -r f; do grep -q " $f\$" "$S/manifest" && echo "edited $f"; done)
   all=$(printf '%s\n%s\n' "$changed" "$edited" | sed '/^$/d' | sort -u)
+  # Files a deploy rewrites BY DESIGN (each app's Caddy snippet and unit files)
+  # are journal-only: "edited /etc/caddy/apps.d/substrata.caddy, edited
+  # /etc/systemd/system/substrata-app.service … If this was you or a deploy,
+  # ignore" reached the phone after every deploy on 2026-11-01, i.e. a message
+  # whose own text says to ignore it. The shared files an intruder edits to
+  # persist (sshd, sudoers, keys, PAM, cron, Caddyfile, ufw, monitoring) still page.
+  deploy_owned='^(added|edited|removed) (/etc/caddy/apps\.d/[^/]+\.caddy|/etc/systemd/system/[^/]+-(app|wake)\.(service|socket)|/etc/systemd/system/(appcron|loki)-[^/]+\.(service|timer))$'
+  quiet=$(printf '%s\n' "$all" | grep -E "$deploy_owned" || true)
+  [ -n "$quiet" ] && logger -t watchdog "deploy-owned files changed (not paged): $(echo "$quiet" | tr '\n' ';')"
+  all=$(printf '%s\n' "$all" | grep -vE "$deploy_owned" | sed '/^$/d' || true)
   if [ -n "$all" ]; then
     n=$(echo "$all" | wc -l); head5=$(echo "$all" | head -5 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
     more=""; [ "$n" -gt 5 ] && more=" (+$((n-5)) more in journal)"

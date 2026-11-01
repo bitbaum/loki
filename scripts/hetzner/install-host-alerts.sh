@@ -75,6 +75,22 @@ ALERT_DEDUPE_SEC="${ALERT_DEDUPE_SEC:-300}"
 # of a new check and a planted zz-audit-probe.service both rang George's actual
 # phone at 22:14 — a message about nothing, which is the exact failure this
 # file exists to prevent. Testing the alerter must not page anyone.
+# THE RING POLICY. A phone that rings for everything is a phone nobody trusts:
+# on 2026-11-01 the chat held ~1,200 unread messages and woke its owner every
+# five minutes. Everything lands in the chat, SILENTLY (no sound, no vibration);
+# only a message that means "something is down or someone is in" rings:
+#   🔴 DOWN · 🚨 (deploy failed, SSH password login, …) · ☠️ suspicious process ·
+#   🔓 sshd drift · 🧱 firewall down · 🔥⚠️ Loki degraded · 🛡️ GUARD DOWN
+# Add to this list deliberately; the default is quiet. ALERT_SILENT=1 forces
+# quiet, ALERT_RING=1 forces a ring.
+_alert_silent() {  # text → prints true|false (Telegram's disable_notification)
+  [ -n "${ALERT_SILENT:-}" ] && { echo true; return; }
+  [ -n "${ALERT_RING:-}" ] && { echo false; return; }
+  case "$1" in
+    "🔴"*|"🚨"*|"☠️"*|"🔓"*|"🧱"*|"🔥⚠️"*|"🛡️ GUARD"*|*"SSH PASSWORD LOGIN"*) echo false ;;
+    *) echo true ;;
+  esac
+}
 # The one place anything is delivered. Journal first, always — every caller,
 # every path, including the ones that decide not to deliver.
 _alert_deliver() {
@@ -90,7 +106,7 @@ _alert_deliver() {
     # reminders; a first DOWN still rings.
     curl -fsS -m 10 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
       --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-      --data-urlencode "disable_notification=$([ -n "${ALERT_SILENT:-}" ] && echo true || echo false)" \
+      --data-urlencode "disable_notification=$(_alert_silent "$text")" \
       --data-urlencode "text=${text}" -o /dev/null \
       || logger -t watchdog "ALERT telegram send failed"
   fi
@@ -502,7 +518,14 @@ systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/nu
   | xargs -r systemctl reset-failed >/dev/null 2>&1 || true
 mapfile -t failed_units < <(systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
   | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '\.service$' | grep -v '^notify-failure@' \
-  | grep -vE '^run-p[0-9]+-i[0-9]+\.service$')
+  | grep -vE '^run-p[0-9]+-i[0-9]+\.service$' \
+  | grep -v '^appcron-')
+# appcron-* are oneshot jobs. A failed oneshot STAYS failed until its next run
+# (a day, for most), so a sweep over the failed set re-announced one failure for
+# hours — "STILL FAILING: appcron-substrata-sweep" at 00:01, "…auto-updates" at
+# 00:06, both a curl connection reset while substrata was mid-deploy. The OnFailure
+# notifier already looked again after a grace window and pages a job that is
+# still failing; the sweep adds only repeats.
 declare -A unit_now=()
 announce=()
 for u in ${failed_units[@]+"${failed_units[@]}"}; do

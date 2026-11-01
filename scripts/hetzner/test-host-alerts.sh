@@ -346,6 +346,24 @@ run_units "run-p1-i2.service real.service"
 check "units: a real unit still pages beside a transient one, without naming it" \
   "$(grep -q 'STILL FAILING: real' "$ALERT_LOG" && ! grep -q 'run-p' "$ALERT_LOG" && echo 0 || echo 1)"
 
+# appcron oneshots belong to the OnFailure notifier, not the sweep
+rm -f "$TMP"/state/host_failed_* "$TMP"/state/paged_*
+run_units "appcron-substrata-sweep.service"
+run_units "appcron-substrata-sweep.service"
+check "units: a failed appcron oneshot is never re-announced by the sweep (got $(unit_alerts))" \
+  "$([ "$(unit_alerts)" -eq 0 ] && echo 0 || echo 1)"
+
+# ring policy: quiet by default, rings only for down/intrusion
+cat > "$TMP/ring.sh" <<'RING'
+. "$1"
+for t in "🔴 DOWN: x" "🚨 Loki deploy failed" "⚙️ STILL FAILING: a" "📝 2 SENSITIVE FILE(S) CHANGED" "✅ RECOVERED: a"; do
+  printf '%s => %s\n' "$t" "$(_alert_silent "$t")"
+done
+RING
+ring=$(MON="$TMP" bash "$TMP/ring.sh" "$TMP/lib-alert.sh" 2>/dev/null || true)
+check "ring: DOWN and deploy failure ring, digests/recoveries/file changes are silent" \
+  "$(echo "$ring" | grep -q 'DOWN: x => false' && echo "$ring" | grep -q 'deploy failed => false' && echo "$ring" | grep -q 'STILL FAILING: a => true' && echo "$ring" | grep -q 'SENSITIVE FILE(S) CHANGED => true' && echo "$ring" | grep -q 'RECOVERED: a => true' && echo 0 || echo 1)"
+
 # ── 6. OnFailure notifier: one incident is ONE page, not one per restart ──────
 # On 2026-08-28 vitareba-app could not read its .env (root-owned after a
 # `chown --reference`). Restart=on-failure + RestartSec=3 restarted it 18 times
