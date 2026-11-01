@@ -8,6 +8,7 @@
 #   accountkit-switch.sh <app> survey   <import.sql>  counts only, changes nothing
 #   accountkit-switch.sh <app> switch   <import.sql>  import, AUTH_RUNTIME=accountkit, restart, prove
 #   accountkit-switch.sh <app> rollback <import.sql>  AUTH_RUNTIME off, mirrors dropped, shared tables emptied
+#   accountkit-switch.sh <app> prove    <import.sql>  the account journeys, live, on a switched app
 #
 # survey reports how many people could sign in before and could not after: an
 # account whose only way in is an Auth.js social provider the product offers
@@ -21,13 +22,26 @@
 # through the product's own sign-in route, its session reads back, sign-out
 # ends it. The account is deleted afterwards. Any failed step rolls back.
 #
+# prove runs the journeys a person relies on, on the public site, with
+# throwaway accounts it deletes again:
+#   - two sessions at once, and a change to the person's row read on the next
+#     request (the session is re-read from the product's row every time);
+#   - a password write to the product's row (what its reset and change-password
+#     writers do) ends both sessions; the old password is refused, the new one
+#     signs in;
+#   - sign-out ends a session, and deleting the person ends theirs;
+#   - where the product offers OrangeCat, a real browser sign-in with a
+#     throwaway OrangeCat account: the product's OrangeCat button, OrangeCat's
+#     sign-in and consent, back into the product signed in
+#     (scripts/hetzner/accountkit-oidc-proof.mjs).
+#
 # This repo is public, so the log is too: it prints counts and verdicts only.
 set -euo pipefail
 
 APP="${1:?usage: accountkit-switch.sh <app> survey|switch|rollback <import.sql>}"
 ACTION="${2:?usage: accountkit-switch.sh <app> survey|switch|rollback <import.sql>}"
 SQL="${3:?usage: accountkit-switch.sh <app> survey|switch|rollback <import.sql>}"
-case "$ACTION" in survey|switch|rollback) ;; *) echo "unknown action $ACTION" >&2; exit 2 ;; esac
+case "$ACTION" in survey|switch|rollback|prove) ;; *) echo "unknown action $ACTION" >&2; exit 2 ;; esac
 [ -f "$SQL" ] || { echo "no import SQL at $SQL" >&2; exit 2; }
 
 # app|database|unit|domain|password column|OrangeCat column|credentials provider|social providers offered today
@@ -49,18 +63,28 @@ SSH=(ssh -o BatchMode=yes)
 # scrypt, `salt:hex`), made here so the box needs nothing installed.
 PROOF_EMAIL="accountkit-proof-$(openssl rand -hex 6)@example.invalid"
 PROOF_PASSWORD="$(openssl rand -hex 24)"
-PROOF_HASH="$(PROOF_PASSWORD="$PROOF_PASSWORD" node -e '
-  const { scryptSync, randomBytes } = require("node:crypto");
-  const pw = process.env.PROOF_PASSWORD.normalize("NFKC");
-  const salt = randomBytes(16).toString("hex");
-  const key = scryptSync(pw, salt, 64, { N: 16384, r: 16, p: 1, maxmem: 128 * 16384 * 16 * 2 });
-  process.stdout.write(`${salt}:${key.toString("hex")}`);
-')"
+native_hash() {
+  PW="$1" node -e '
+    const { scryptSync, randomBytes } = require("node:crypto");
+    const pw = process.env.PW.normalize("NFKC");
+    const salt = randomBytes(16).toString("hex");
+    const key = scryptSync(pw, salt, 64, { N: 16384, r: 16, p: 1, maxmem: 128 * 16384 * 16 * 2 });
+    process.stdout.write(`${salt}:${key.toString("hex")}`);
+  '
+}
+PROOF_HASH="$(native_hash "$PROOF_PASSWORD")"
+# prove's second password, and its throwaway OrangeCat account.
+PROOF_PASSWORD2="$(openssl rand -hex 24)"
+PROOF_HASH2="$(native_hash "$PROOF_PASSWORD2")"
+OC_EMAIL="accountkit-proof-$(openssl rand -hex 6)@example.invalid"
+OC_PASSWORD="Ak-$(openssl rand -hex 18)"
 
+remote() {  # remote <step> [PRODUCT_USER_ID]
 {
-  printf 'APP=%q DB=%q UNIT=%q DOMAIN=%q PWCOL=%q OCCOL=%q PROVIDER=%q SOCIAL=%q ACTION=%q\n' \
-    "$APP" "$DB" "$UNIT" "$DOMAIN" "$PWCOL" "$OCCOL" "$PROVIDER" "$SOCIAL" "$ACTION"
+  printf 'APP=%q DB=%q UNIT=%q DOMAIN=%q PWCOL=%q OCCOL=%q PROVIDER=%q SOCIAL=%q ACTION=%q PRODUCT_USER_ID=%q\n' \
+    "$APP" "$DB" "$UNIT" "$DOMAIN" "$PWCOL" "$OCCOL" "$PROVIDER" "$SOCIAL" "$1" "${2:-}"
   printf 'PROOF_EMAIL=%q PROOF_PASSWORD=%q PROOF_HASH=%q\n' "$PROOF_EMAIL" "$PROOF_PASSWORD" "$PROOF_HASH"
+  printf 'PROOF_PASSWORD2=%q PROOF_HASH2=%q OC_EMAIL=%q OC_PASSWORD=%q\n' "$PROOF_PASSWORD2" "$PROOF_HASH2" "$OC_EMAIL" "$OC_PASSWORD"
   printf 'IMPORT_SQL=%q\n' "$(cat "$SQL")"
   cat <<'REMOTE'
 set -euo pipefail
@@ -127,33 +151,139 @@ rollback() {
   echo "rolled back: AUTH_RUNTIME unset, $UNIT restarted on Auth.js, mirrors dropped, shared tables emptied"
 }
 
-prove() {
-  local jar body sess uid
-  jar="$(mktemp)"
-  [ "$(curl -s --max-time 15 "https://$DOMAIN/api/auth/get-session")" = null ] \
-    || { echo "proof: AccountKit does not answer /api/auth/get-session"; return 1; }
-  uid="$(q -c "INSERT INTO users (email, name, $PWCOL) VALUES ('$PROOF_EMAIL', 'AccountKit proof', '$PROOF_HASH') RETURNING id" | head -n 1)"
-  [ -n "$uid" ] || { echo "proof: could not create the throwaway account"; return 1; }
-  trap "q -c \"DELETE FROM users WHERE id = '$uid'\" >/dev/null 2>&1 || true; rm -f '$jar'" RETURN
-  body="$(curl -s --max-time 20 -c "$jar" -b "$jar" -H "origin: https://$DOMAIN" \
-    --data-urlencode "email=$PROOF_EMAIL" --data-urlencode "password=$PROOF_PASSWORD" \
+# One person's browser: a cookie jar, and next-auth/react's calls.
+sign_in() {  # sign_in <jar> <email> <password>: the answer's body
+  curl -s --max-time 20 -c "$1" -b "$1" -H "origin: https://$DOMAIN" \
+    --data-urlencode "email=$2" --data-urlencode "password=$3" \
     --data-urlencode "callbackUrl=https://$DOMAIN/" --data-urlencode "csrfToken=accountkit" \
-    "https://$DOMAIN/api/auth/callback/$PROVIDER")"
-  case "$body" in *'"url"'*) ;; *) echo "proof: sign-in did not answer next-auth/react's shape"; return 1 ;; esac
-  case "$body" in *error=*) echo "proof: the throwaway account was refused"; return 1 ;; esac
-  sess="$(curl -s --max-time 15 -b "$jar" "https://$DOMAIN/api/auth/session")"
-  case "$sess" in *"$PROOF_EMAIL"*) ;; *) echo "proof: the session did not read back"; return 1 ;; esac
-  curl -s --max-time 15 -c "$jar" -b "$jar" -H "origin: https://$DOMAIN" \
+    "https://$DOMAIN/api/auth/callback/$PROVIDER"
+}
+signed_in() {  # signed_in <jar> <body>: the answer is next-auth/react's success
+  case "$2" in *'"url"'*) ;; *) return 1 ;; esac
+  case "$2" in *error=*) return 1 ;; esac
+}
+session() { curl -s --max-time 15 -b "$1" "https://$DOMAIN/api/auth/session"; }
+sign_out() {
+  curl -s --max-time 15 -c "$1" -b "$1" -H "origin: https://$DOMAIN" \
     --data-urlencode "csrfToken=accountkit" --data-urlencode "callbackUrl=https://$DOMAIN/" \
     "https://$DOMAIN/api/auth/signout" >/dev/null
-  [ "$(curl -s --max-time 15 -b "$jar" "https://$DOMAIN/api/auth/session")" = null ] \
-    || { echo "proof: sign-out did not end the session"; return 1; }
+}
+fail() { echo "proof: $*"; return 1; }
+
+answers_null() {
+  [ "$(curl -s --max-time 15 "https://$DOMAIN/api/auth/get-session")" = null ] \
+    || fail "AccountKit does not answer /api/auth/get-session"
+}
+
+prove() {
+  local jar uid
+  jar="$(mktemp)"
+  answers_null || return 1
+  uid="$(q -c "INSERT INTO users (email, name, $PWCOL) VALUES ('$PROOF_EMAIL', 'AccountKit proof', '$PROOF_HASH') RETURNING id" | head -n 1)"
+  [ -n "$uid" ] || fail "could not create the throwaway account" || return 1
+  trap "q -c \"DELETE FROM users WHERE id = '$uid'\" >/dev/null 2>&1 || true; rm -f '$jar'" RETURN
+  signed_in "$jar" "$(sign_in "$jar" "$PROOF_EMAIL" "$PROOF_PASSWORD")" \
+    || fail "the throwaway account was refused" || return 1
+  case "$(session "$jar")" in *"$PROOF_EMAIL"*) ;; *) fail "the session did not read back"; return 1 ;; esac
+  sign_out "$jar"
+  [ "$(session "$jar")" = null ] || fail "sign-out did not end the session" || return 1
   echo "proof: AccountKit answers; a fresh account signed in, read its session, signed out"
+}
+
+journeys() {
+  local a b c uid
+  a="$(mktemp)"; b="$(mktemp)"; c="$(mktemp)"
+  answers_null || return 1
+  uid="$(q -c "INSERT INTO users (email, name, $PWCOL) VALUES ('$PROOF_EMAIL', 'AccountKit proof', '$PROOF_HASH') RETURNING id" | head -n 1)"
+  [ -n "$uid" ] || fail "could not create the throwaway account" || return 1
+  trap "q -c \"DELETE FROM users WHERE id = '$uid'\" >/dev/null 2>&1 || true; q -c \"DELETE FROM auth_users WHERE email = '$PROOF_EMAIL'\" >/dev/null 2>&1 || true; rm -f '$a' '$b' '$c'" RETURN
+
+  signed_in "$a" "$(sign_in "$a" "$PROOF_EMAIL" "$PROOF_PASSWORD")" || fail "sign-in refused" || return 1
+  signed_in "$b" "$(sign_in "$b" "$PROOF_EMAIL" "$PROOF_PASSWORD")" || fail "a second sign-in refused" || return 1
+  case "$(session "$a")$(session "$b")" in *"$PROOF_EMAIL"*"$PROOF_EMAIL"*) ;; *) fail "two sessions did not both read back"; return 1 ;; esac
+  echo "journey: signed in twice; both sessions read back"
+
+  q -c "UPDATE users SET name = 'AccountKit proof renamed' WHERE id = '$uid'" >/dev/null
+  case "$(session "$a")" in *"AccountKit proof renamed"*) ;; *) fail "a change to the person's row did not reach the session"; return 1 ;; esac
+  echo "journey: a change to the person's row is in the session on the next request"
+
+  # What the product's reset and change-password writers do: write the row.
+  q -c "UPDATE users SET $PWCOL = '$PROOF_HASH2' WHERE id = '$uid'" >/dev/null
+  [ "$(session "$a")" = null ] && [ "$(session "$b")" = null ] \
+    || fail "a password write did not end the other sessions" || return 1
+  echo "journey: a password write ended both sessions"
+  if signed_in "$c" "$(sign_in "$c" "$PROOF_EMAIL" "$PROOF_PASSWORD")"; then
+    fail "the old password still signs in"; return 1
+  fi
+  signed_in "$c" "$(sign_in "$c" "$PROOF_EMAIL" "$PROOF_PASSWORD2")" || fail "the new password was refused" || return 1
+  case "$(session "$c")" in *"$PROOF_EMAIL"*) ;; *) fail "the new password's session did not read back"; return 1 ;; esac
+  echo "journey: the old password is refused; the new one signs in"
+
+  sign_out "$c"
+  [ "$(session "$c")" = null ] || fail "sign-out did not end the session" || return 1
+  signed_in "$c" "$(sign_in "$c" "$PROOF_EMAIL" "$PROOF_PASSWORD2")" || fail "signing in again was refused" || return 1
+  q -c "DELETE FROM users WHERE id = '$uid'" >/dev/null
+  [ "$(session "$c")" = null ] || fail "deleting the person did not end their session" || return 1
+  echo "journey: sign-out ends a session; deleting the person ends theirs"
+}
+
+# OrangeCat's own Supabase, for a throwaway OrangeCat account.
+oc_credentials() {  # "<url> <service key>", from OrangeCat's env on this box
+  local envf
+  for envf in /opt/orangecat/shared/.env /opt/orangecat/app/.env; do [ -f "$envf" ] && break; done
+  printf '%s %s' \
+    "$(sudo grep -E '^NEXT_PUBLIC_SUPABASE_URL=' "$envf" | tail -n 1 | cut -d= -f2- | tr -d '"')" \
+    "$(sudo grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$envf" | tail -n 1 | cut -d= -f2- | tr -d '"')"
+}
+oc_admin() {  # oc_admin <method> <path> [json]
+  local url key
+  read -r url key <<< "$(oc_credentials)"
+  curl -s --max-time 20 -X "$1" -H "apikey: $key" -H "Authorization: Bearer $key" \
+    -H 'content-type: application/json' ${3:+--data "$3"} "$url/auth/v1$2"
+}
+oc_rest() {  # oc_rest <path>: OrangeCat's PostgREST, as the service role
+  local url key
+  read -r url key <<< "$(oc_credentials)"
+  curl -s --max-time 20 -H "apikey: $key" -H "Authorization: Bearer $key" "$url/rest/v1$1"
+}
+oc_user_id() {
+  oc_admin GET "/admin/users?per_page=1000" | python3 -c '
+import json, sys
+email = sys.argv[1]
+for u in json.load(sys.stdin).get("users", []):
+    if u.get("email") == email: print(u["id"])' "$OC_EMAIL"
+}
+oc_create() {
+  oc_admin POST /admin/users "{\"email\":\"$OC_EMAIL\",\"password\":\"$OC_PASSWORD\",\"email_confirm\":true}" >/dev/null
+  [ -n "$(oc_user_id)" ] || fail "could not create a throwaway OrangeCat account" || return 1
+  echo "oidc: a throwaway OrangeCat account exists"
+}
+oc_cleanup() {
+  local oc actor ids id
+  oc="$(oc_user_id)"
+  # OrangeCat's sub is the actor id: it finds the product's person even when
+  # the browser step failed before printing one.
+  actor=""
+  [ -z "$oc" ] || actor="$(oc_rest "/actors?select=id&user_id=eq.$oc" | python3 -c '
+import json, sys
+rows = json.load(sys.stdin)
+print(rows[0]["id"] if isinstance(rows, list) and rows else "")')"
+  ids="$PRODUCT_USER_ID"
+  [ -z "$actor" ] || ids="$ids $(q -c "SELECT user_id FROM auth_accounts WHERE provider_id = 'orangecat' AND account_id = '$actor'" | tr '\n' ' ')"
+  for id in $ids; do
+    q -c "DELETE FROM users WHERE id::text = '$id'" >/dev/null 2>&1 || true
+    q -c "DELETE FROM auth_users WHERE id = '$id'" >/dev/null 2>&1 || true
+  done
+  [ -z "$oc" ] || oc_admin DELETE "/admin/users/$oc" >/dev/null
+  echo "oidc: the throwaway accounts are deleted"
 }
 
 case "$ACTION" in
   survey) survey ;;
   rollback) rollback ;;
+  journeys) journeys ;;
+  oc-create) oc_create ;;
+  oc-cleanup) oc_cleanup ;;
   switch)
     s="$(survey)"; echo "$s"
     case "$s" in *runtime=accountkit*) echo "$APP already runs on AccountKit; nothing to do"; exit 0 ;; esac
@@ -181,3 +311,22 @@ case "$ACTION" in
 esac
 REMOTE
 } | "${SSH[@]}" "$BOX" 'bash -s'
+}
+
+if [ "$ACTION" != prove ]; then
+  remote "$ACTION"
+  exit 0
+fi
+
+remote journeys
+if [ "$OCCOL" = - ]; then
+  echo "oidc: $APP offers no OrangeCat sign-in; nothing to prove"
+  exit 0
+fi
+remote oc-create
+product_user=""
+cleanup() { remote oc-cleanup "$product_user" || true; }
+trap cleanup EXIT
+product_user="$(DOMAIN="$DOMAIN" OC_EMAIL="$OC_EMAIL" OC_PASSWORD="$OC_PASSWORD" \
+  node "$(dirname "$0")/accountkit-oidc-proof.mjs")"
+echo "oidc: OrangeCat's button, OrangeCat's sign-in and consent, back into $APP signed in"

@@ -22,8 +22,14 @@ offered="$(grep -oP 'options: \[\K[^\]]*' "$W" | head -1 | tr -d ' ' | tr ',' '\
 [ "$registered" = "$offered" ] && ok "the workflow offers exactly the registered apps ($registered)" \
   || no "workflow offers [$offered], script registers [$registered]"
 
-grep -q 'printf.*PROOF_PASSWORD' "$S" && ! grep -qE 'echo .*\$PROOF_(PASSWORD|HASH|EMAIL)' "$S" \
-  && ok "the throwaway account's secrets reach the box but are never echoed" \
+grep -q 'printf.*PROOF_PASSWORD' "$S" && ! grep -qE 'echo .*\$(PROOF_(PASSWORD2?|HASH2?|EMAIL)|OC_(EMAIL|PASSWORD))' "$S" \
+  && ! grep -qE '(console\.(log|error)|step|stdout\.write)\(.*(\$\{OC_|[(,] *OC_(EMAIL|PASSWORD))' scripts/hetzner/accountkit-oidc-proof.mjs \
+  && ok "the throwaway accounts' secrets reach the box and the browser but are never echoed" \
   || no "a proof secret may be printed"
+
+grep -q "options: \[survey, switch, rollback, prove\]" .github/workflows/accountkit-switch.yml \
+  && grep -q 'survey|switch|rollback|prove)' "$S" \
+  && ok "the workflow offers exactly the actions the script takes" \
+  || no "the workflow's actions and the script's differ"
 
 [ "$fail" = 0 ] && echo "accountkit-switch: all checks pass" || { echo "accountkit-switch: failures"; exit 1; }
