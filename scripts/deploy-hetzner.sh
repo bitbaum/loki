@@ -287,7 +287,14 @@ echo "→ post-deploy verification"
 # Paused providers (PAUSED_PROVIDERS in src/lib/auth-providers.ts) are
 # deliberately unmounted, so they are not expected here. Computing the list
 # fails the deploy rather than falling back to a guess.
-EXPECTED_PROVIDERS=$(cd "$PROJECT_DIR" && npx tsx scripts/expected-auth-providers.ts) || {
+# Which runtime the box answers sign-in with decides which providers are
+# mounted (AUTH_RUNTIME=accountkit unmounts GitHub, Google and X), so read it
+# from the box's env. A mode name, not a secret; anything that is not a plain
+# word is treated as unset.
+BOX_AUTH_RUNTIME=$(ssh "$HOST" "grep -oE '^(export[[:space:]]+)?AUTH_RUNTIME=[a-z]+' $APP_DIR/.env 2>/dev/null | tail -1 | sed 's/.*=//'" || true)
+[[ "$BOX_AUTH_RUNTIME" =~ ^[a-z]+$ ]] || BOX_AUTH_RUNTIME=""
+echo "  box auth runtime: ${BOX_AUTH_RUNTIME:-authjs (unset)}"
+EXPECTED_PROVIDERS=$(cd "$PROJECT_DIR" && AUTH_RUNTIME="$BOX_AUTH_RUNTIME" npx tsx scripts/expected-auth-providers.ts) || {
   echo "✗ could not compute expected auth providers" >&2; rollback_box "expected auth providers unknown"; exit 1
 }
 if ! ssh "$HOST" 'set -e
