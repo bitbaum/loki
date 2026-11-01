@@ -15,6 +15,7 @@ export default function SignUpPage() {
         googleEnabled: providers.google,
         twitterEnabled: providers.x,
       }}
+      magicLinkEnabled={providers.magicLink}
     />
   );
 }

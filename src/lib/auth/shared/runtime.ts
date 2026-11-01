@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { authTables } from "@/db/schema/accountkit";
 import { verifyPassword } from "@/lib/password";
 import { ensureLokiUser } from "./accounts";
+import { lokiSignInHook } from "./sign-in-hook";
 
 /** The public origin every redirect and every AccountKit origin check uses. */
 export function siteUrl(env: NodeJS.ProcessEnv = process.env): string {
@@ -25,11 +26,13 @@ export const lokiPasswordFormat = {
 
 const site = { url: siteUrl(), title: "Loki", slug: "loki" };
 
+// Account mail through the fleet transport (RESEND_*).
+const mailer = createAuthMailer({ site });
+
 // The secret is BETTER_AUTH_SECRET, or the AUTH_SECRET the box already holds.
 export const sharedAuth = createAuthRuntime({
   site,
-  // Account mail through the fleet transport (RESEND_*).
-  mail: createAuthMailer({ site }),
+  mail: mailer,
   isDatabaseConfigured: (env) => sharedRuntimeEnabled(env) && Boolean(env.DATABASE_URL),
   getDatabase: () => db,
   schema: authTables,
@@ -38,4 +41,6 @@ export const sharedAuth = createAuthRuntime({
   // users.id is a uuid that every Loki table references.
   ids: "uuid",
   onAccountCreated: ensureLokiUser,
+  // Loki's row and bootstrap after every new session, whatever the way in.
+  plugins: [lokiSignInHook()],
 });

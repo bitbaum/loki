@@ -8,7 +8,8 @@
  * - three password forms: email, the invite's user id, and the owner key
  *   (against the stored hash only; an env-only LOCAL_AUTH_PASSWORD install
  *   stays on Auth.js);
- * - onboarding heal and personal org after every sign-in, and the refusal log.
+ * - the refusal log (onboarding heal and the personal org run for every new
+ *   session in the runtime, ./sign-in-hook).
  *
  * GitHub, Google and X are Auth.js providers. AccountKit reaches them only
  * through the bitbaum sign-in, so they are not offered here; their buttons
@@ -21,7 +22,6 @@ import { isDemoEmail } from "@/config/demo";
 import { logDebug } from "@/db/queries/debug-logs";
 import { getDefaultUser, getUserById } from "@/db/queries/users";
 import { onboardingCompleteFlag } from "@/lib/onboarding-heal";
-import { bootstrapAfterSignIn } from "../bootstrap";
 import { sharedAuth, siteUrl } from "./runtime";
 
 async function lokiSession(userId: string, expiresAt: Date | string): Promise<Session | null> {
@@ -77,7 +77,8 @@ export const compat = createNextAuthCompat<Session>({
         }
       : {}),
   },
-  onSignedIn: ({ user, email }) => bootstrapAfterSignIn({ id: user.id, name: user.name, email }),
+  // Onboarding heal and the personal org run for every new session in the
+  // runtime itself (./sign-in-hook), so not a second time here.
   onRefused: async ({ provider, email, status }) => {
     await logDebug({
       source: "auth.authorize",
