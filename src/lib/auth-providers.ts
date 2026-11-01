@@ -10,6 +10,7 @@
  * (the values would be undefined in the client bundle).
  */
 import { isDemoEnabled } from "@/config/demo";
+import { sharedAuthEnabled } from "@/lib/auth/shared/enabled";
 
 export type EnabledAuthProviders = {
   /** GitHub OAuth (NextAuth provider). */
@@ -50,20 +51,28 @@ export const PAUSED_PROVIDERS: Partial<Record<"github" | "google" | "x", string>
 };
 
 export function getEnabledAuthProviders(): EnabledAuthProviders {
+  // On the staged AccountKit runtime (AUTH_RUNTIME=accountkit) GitHub, Google
+  // and X are not mounted: AccountKit reaches them only through the bitbaum
+  // sign-in, and the owner key accepts only a stored hash there
+  // (docs/architecture/accountkit-migration.md).
+  const shared = sharedAuthEnabled();
   return {
-    github: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+    github: !shared && Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
     google:
+      !shared &&
       !PAUSED_PROVIDERS.google &&
       Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     // X's OAuth 2.0 authorize endpoint 503s on this Pay-Per-Use account, so the
     // 1.0a consumer keys are the gate — not the 2.0 client id/secret.
     x:
-      !PAUSED_PROVIDERS.x && Boolean(process.env.X1_CONSUMER_KEY && process.env.X1_CONSUMER_SECRET),
+      !shared &&
+      !PAUSED_PROVIDERS.x &&
+      Boolean(process.env.X1_CONSUMER_KEY && process.env.X1_CONSUMER_SECRET),
     orangecat: Boolean(
       process.env.ORANGECAT_OAUTH_CLIENT_ID && process.env.ORANGECAT_OAUTH_CLIENT_SECRET,
     ),
     localOwnerKeyTab:
-      Boolean(process.env.LOCAL_AUTH_PASSWORD) && process.env.ENABLE_OWNER_KEY === "1",
+      !shared && Boolean(process.env.LOCAL_AUTH_PASSWORD) && process.env.ENABLE_OWNER_KEY === "1",
     demo: isDemoEnabled(),
   };
 }
