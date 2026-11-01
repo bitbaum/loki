@@ -32,8 +32,8 @@ importers:
         specifier: ^1.7.14
         version: 1.7.14(@better-auth/core@1.7.14(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(@opentelemetry/api@1.9.1)(better-call@1.4.4(zod@4.6.7))(jose@6.2.14)(kysely@0.29.7)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-auth@1.7.14(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(better-call@1.4.4(zod@4.6.7))(nanostores@1.5.5)
       '@bitbaum/accountkit':
-        specifier: github:bitbaum/accountkit#2a587c873ea379bb564ab7d53203fb44f44eb9a4
-        version: https://codeload.github.com/bitbaum/accountkit/tar.gz/2a587c873ea379bb564ab7d53203fb44f44eb9a4(f29ed1a3fe0155c615a3ac09d7e8240f)
+        specifier: github:bitbaum/accountkit#4e6451e690b20b17bfa1ec32acc74b152b19780a
+        version: https://codeload.github.com/bitbaum/accountkit/tar.gz/4e6451e690b20b17bfa1ec32acc74b152b19780a(f29ed1a3fe0155c615a3ac09d7e8240f)
       '@bitbaum/ai-kit':
         specifier: ^1.22.0
         version: 1.22.0(react@19.3.1)
@@ -539,9 +539,9 @@ packages:
   '@better-fetch/fetch@1.3.3':
     resolution: {integrity: sha512-U6SlDt/GUWtK2JAxS/NhdoYTEim+EL1G5byz2TUj83KjLZBUpYzb5SmX0aXaCnbGkAjFKnV/o/0+cyXMbEcqqg==}
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/2a587c873ea379bb564ab7d53203fb44f44eb9a4':
-    resolution: {gitHosted: true, integrity: sha512-eN8dFNM+V0NqWBHGNmqNINlMKMsYAerN/DlmsY080M1qk9leJfwt/oarfaCOYJSW8J7uhZUU4vHDo+9HzeU41A==, tarball: https://codeload.github.com/bitbaum/accountkit/tar.gz/2a587c873ea379bb564ab7d53203fb44f44eb9a4}
-    version: 0.18.0
+  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/4e6451e690b20b17bfa1ec32acc74b152b19780a':
+    resolution: {gitHosted: true, integrity: sha512-1fpRp970InBGN/mS8QjJN3+J3XFh3jcEMgrSS07X7t1Uog1RFfGTxv/PLX2TQZG7nnIBOjkAFkmU69ZJNYZ2cQ==, tarball: https://codeload.github.com/bitbaum/accountkit/tar.gz/4e6451e690b20b17bfa1ec32acc74b152b19780a}
+    version: 0.18.1
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -5978,7 +5978,7 @@ snapshots:
 
   '@better-fetch/fetch@1.3.3': {}
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/2a587c873ea379bb564ab7d53203fb44f44eb9a4(f29ed1a3fe0155c615a3ac09d7e8240f)':
+  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/4e6451e690b20b17bfa1ec32acc74b152b19780a(f29ed1a3fe0155c615a3ac09d7e8240f)':
     dependencies:
       limitkit: 0.2.1
       react: 19.3.1
