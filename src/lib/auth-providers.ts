@@ -11,6 +11,7 @@
  */
 import { isDemoEnabled } from "@/config/demo";
 import { DEFAULT_AUTH_LABELS, signinBroker } from "@bitbaum/accountkit/auth";
+import { isMailConfigured } from "@bitbaum/mail-kit";
 import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 
 export type EnabledAuthProviders = {
@@ -29,6 +30,13 @@ export type EnabledAuthProviders = {
    * env (signinBroker), so it exists only on the AccountKit runtime.
    */
   signin: boolean;
+  /**
+   * Passkeys and the second factor: AccountKit's, so on that runtime only.
+   * Nothing external is needed for either.
+   */
+  passkey: boolean;
+  /** The sign-in link by email: AccountKit's, and only when account mail can go out. */
+  magicLink: boolean;
   /**
    * Whether to SHOW the owner-key (local password) sign-in tab. UI gate only:
    * a configured password AND the explicit opt-in flag. Deliberately NOT the
@@ -80,6 +88,8 @@ export function getEnabledAuthProviders(): EnabledAuthProviders {
       process.env.ORANGECAT_OAUTH_CLIENT_ID && process.env.ORANGECAT_OAUTH_CLIENT_SECRET,
     ),
     signin: shared && signinBroker(process.env) !== null,
+    passkey: shared,
+    magicLink: shared && isMailConfigured(process.env),
     localOwnerKeyTab:
       !shared && Boolean(process.env.LOCAL_AUTH_PASSWORD) && process.env.ENABLE_OWNER_KEY === "1",
     demo: isDemoEnabled(),

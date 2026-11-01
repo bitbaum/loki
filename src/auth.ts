@@ -23,6 +23,8 @@ import { healReturningUserOnboarding, onboardingCompleteFlag } from "@/lib/onboa
 import { bootstrapAfterSignIn } from "@/lib/auth/bootstrap";
 import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 import { compat } from "@/lib/auth/shared/compat";
+import { isOpenSharedPath } from "@/lib/auth/shared/open-paths";
+import { sharedAuth } from "@/lib/auth/shared/runtime";
 import type { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 import { isValidUuid } from "@/lib/utils";
@@ -643,10 +645,22 @@ export async function signIn(
   redirect(`/api/auth/signin/${provider}?callbackUrl=${next}`);
 }
 
-/** /api/auth/*: AccountKit answers when the shared runtime is on. */
+/**
+ * /api/auth/*: AccountKit answers when the shared runtime is on — through the
+ * compat layer, except passkeys, the second factor and the sign-in link, which
+ * Loki's screens reach directly (src/lib/auth/shared/open-paths.ts).
+ */
 export const handlers = {
   GET: async (request: NextRequest) =>
-    sharedRuntimeEnabled() ? compat.route.GET(request) : nextAuth.handlers.GET(request),
+    !sharedRuntimeEnabled()
+      ? nextAuth.handlers.GET(request)
+      : isOpenSharedPath(request.nextUrl.pathname)
+        ? sharedAuth.GET(request)
+        : compat.route.GET(request),
   POST: async (request: NextRequest) =>
-    sharedRuntimeEnabled() ? compat.route.POST(request) : nextAuth.handlers.POST(request),
+    !sharedRuntimeEnabled()
+      ? nextAuth.handlers.POST(request)
+      : isOpenSharedPath(request.nextUrl.pathname)
+        ? sharedAuth.POST(request)
+        : compat.route.POST(request),
 };

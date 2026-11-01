@@ -1,5 +1,6 @@
 "use client";
 
+import { SignInSecurity } from "@/components/settings/SignInSecurity";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
@@ -259,11 +260,13 @@ function SetInitialPasswordSection() {
 
 type Props = {
   user: { email: string | null; hasPassword: boolean };
+  /** AccountKit runtime: passkeys and the second factor (null on Auth.js). */
+  security?: { twoFactorEnabled: boolean } | null;
   /** Whether the OrangeCat OIDC provider is mounted (env-gated, server-derived). */
   orangecatEnabled: boolean;
 };
 
-export function AccountSettings({ user, orangecatEnabled }: Props) {
+export function AccountSettings({ user, orangecatEnabled, security = null }: Props) {
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
@@ -417,6 +420,13 @@ export function AccountSettings({ user, orangecatEnabled }: Props) {
             Update password
           </button>
         </div>
+      )}
+
+      {security && (
+        <SignInSecurity
+          twoFactorEnabled={security.twoFactorEnabled}
+          hasPassword={user.hasPassword}
+        />
       )}
 
       {/* Danger zone */}

@@ -74,14 +74,27 @@ every sign-in; unset, Auth.js answers as today. The secret is
   - `signin/orangecat`, which signs in, or links for a signed-in person. The
     studio's server-side `signIn("orangecat")` arrives at the same place by
     redirect.
-- Every sign-in runs `src/lib/auth/bootstrap.ts` (onboarding heal, personal
-  org), the same code the Auth.js event now calls.
+- Every new session, whatever the way in, runs `src/lib/auth/bootstrap.ts`
+  (onboarding heal, personal org), the same code the Auth.js event calls. A
+  plugin in the runtime runs it (`src/lib/auth/shared/sign-in-hook.ts`), and
+  it first gives a person AccountKit has but Loki does not (a sign-in link to
+  a new address) their `users` row.
 - A person AccountKit creates itself (a first OrangeCat sign-in) gets a Loki
   row under the same id, without a placeholder address.
-- Of AccountKit's own endpoints only the session, sign-in, sign-out and the
-  OAuth callback are open. Its sign-up, reset and password endpoints stay
-  closed until Loki adopts its screens, so there is no second credential
-  writer.
+- Of AccountKit's own endpoints, the session, sign-in, sign-out and OAuth
+  callback are open. So are the ones Loki's screens reach directly
+  (`src/lib/auth/shared/open-paths.ts`, routed in `src/auth.ts`):
+  - passkeys: sign in with one, and add or remove one under Settings →
+    Account;
+  - the second factor: turn it on or off with the password, and give the code
+    on the sign-in card right after the password;
+  - the sign-in link, on sign-in and sign-up when account mail is configured.
+
+  None of these writes a password. AccountKit's sign-up, reset, password,
+  profile and deletion endpoints stay closed, so there is no second credential
+  writer. Recovery stays Loki's own ("Forgot password?",
+  `/api/auth/forgot-password`). Auth.js ignores passkeys and the second
+  factor, so a rollback leaves people with their password and OrangeCat.
 
 `scripts/test/accountkit-journeys.ts` (part of `pnpm run test:db`, which CI
 runs on a fresh Postgres) runs all of this through the real handlers and the

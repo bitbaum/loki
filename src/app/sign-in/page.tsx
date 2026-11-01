@@ -17,6 +17,8 @@ export default function SignInPage() {
       twitterEnabled={providers.x}
       orangecatEnabled={providers.orangecat}
       signinLabel={sharedSigninLabel(providers)}
+      passkeyEnabled={providers.passkey}
+      magicLinkEnabled={providers.magicLink}
       localAuthEnabled={providers.localOwnerKeyTab}
       demoEnabled={providers.demo}
     />
