@@ -1,0 +1,80 @@
+name: Drop DB
+
+# Drop ONE host Postgres database a retired or renamed service left behind —
+# from GitHub, without a laptop. retire-site.sh never drops a database (a site
+# taken down keeps its data), so this is the only path that does, and it is
+# narrow on purpose:
+#
+#   - scripts/hetzner/droppable-db.sh refuses a system database, a name that
+#     has a row in apps.conf, and a name any row's `db` column uses — against
+#     main's register and against the box's checkout of it;
+#   - scripts/hetzner/drop-db-on-box.sh, on the box, refuses a template
+#     database, one an env file under /opt names in DATABASE_URL, and one with
+#     an open connection;
+#   - nothing is dropped unless `confirm` repeats the database name. Leave it
+#     empty for a dry run: the log then says what exists and what would go.
+#
+# Prints names, counts and sizes only. This repo is public, so this log is too.
+#
+#   gh workflow run drop-db.yml -f db=signin                # dry run
+#   gh workflow run drop-db.yml -f db=signin -f confirm=signin
+on:
+  workflow_dispatch:
+    inputs:
+      db:
+        description: "Host database to drop (no apps.conf row may name or use it)"
+        required: true
+      confirm:
+        description: "Type the database name again to drop it (empty = dry run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# The box's Postgres is shared with provision-db; never interleave the two.
+concurrency:
+  group: provision-db
+  cancel-in-progress: false
+
+jobs:
+  drop-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+      DB_NAME: ${{ inputs.db }}
+      CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the name against main's register, and the confirmation
+        run: |
+          bash scripts/hetzner/droppable-db.sh "$DB_NAME"
+          if [ -z "$CONFIRM" ]; then
+            echo "GO=0" >> "$GITHUB_ENV"; echo "dry run (confirm is empty)"
+          elif [ "$CONFIRM" = "$DB_NAME" ]; then
+            echo "GO=1" >> "$GITHUB_ENV"; echo "confirmed: $DB_NAME will be dropped"
+          else
+            echo "::error::confirm does not repeat the database name"; exit 1
+          fi
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Check the name against the box's register
+        run: |
+          . scripts/hetzner/_box-env.sh
+          ssh -o BatchMode=yes "$BOX_UBUNTU" "cat '$BOX_LOKI/scripts/hetzner/apps.conf'" > "$RUNNER_TEMP/box-apps.conf"
+          MANIFEST="$RUNNER_TEMP/box-apps.conf" bash scripts/hetzner/droppable-db.sh "$DB_NAME"
+
+      - name: Drop ${{ inputs.db }} (or report, on a dry run)
+        run: |
+          . scripts/hetzner/_box-env.sh
+          ssh -o BatchMode=yes "$BOX_UBUNTU" bash -s -- "$DB_NAME" "$GO" < scripts/hetzner/drop-db-on-box.sh
