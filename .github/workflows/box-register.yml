@@ -1,0 +1,61 @@
+name: Box register
+
+# Bring the box's durable loki checkout — and so its apps.conf, the register
+# register-site.sh writes first — to main, from GitHub, without a laptop. It is
+# the adoption register-site.sh already does before each registration, on its
+# own: scripts/hetzner/box-register-follow.sh is the rule. It fast-forwards
+# only, and refuses while the box holds a row main lacks, a local commit, or a
+# change outside apps.conf. Leave `go` off for the plan; register-drift.yml is
+# the check this clears.
+#
+#   gh workflow run box-register.yml               # plan
+#   gh workflow run box-register.yml -f go=true
+on:
+  workflow_dispatch:
+    inputs:
+      go:
+        description: "Actually fast-forward (off = print the plan only)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# The register is written by registrations and retirements, which run in
+# deploy-prod; never alongside one.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  follow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+      GO: ${{ inputs.go }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Follow main (or plan it)
+        run: |
+          . scripts/hetzner/_box-env.sh
+          [ "$GO" = "true" ] && go=1 || go=0
+          ssh -o BatchMode=yes "$BOX_UBUNTU" bash -s -- "$BOX_LOKI" "$go" < scripts/hetzner/box-register-follow.sh
+
+      - name: The register now
+        if: inputs.go
+        run: |
+          . scripts/hetzner/_box-env.sh
+          ssh -o BatchMode=yes "$BOX_UBUNTU" "cat '$BOX_LOKI/scripts/hetzner/apps.conf'" > "$RUNNER_TEMP/box-apps.conf"
+          bash scripts/hetzner/register-drift.sh "$RUNNER_TEMP/box-apps.conf" scripts/hetzner/apps.conf

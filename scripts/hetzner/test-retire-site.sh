@@ -129,6 +129,28 @@ out=$(retire demo-site --mode restore)
 has "$out" "sync-infra"
 hasnt "$out" "rm -rf"
 
+echo "→ a sleeping site's wake socket goes with it (it holds the port and wakes the app)"
+out=$(retire demo-site --mode offline); has "$out" "wake socket"
+out=$(retire demo-site --mode delete --repo keep); has "$out" "demo-site-wake.socket"
+grep -q 'disable --now $SLUG-wake.socket' "$SCRIPT" && ok 0 "" || ok 1 "the wake socket is not disabled"
+
+echo "→ delete removes the row from the box's own register, not only this copy"
+has "$out" "remove the row from the box's register"
+grep -q "sed -i '/^\$SLUG|/d' '\$BOX_REGISTER'" "$SCRIPT" && ok 0 "" || ok 1 "no box-register removal"
+
+echo "→ --no-github touches no repository, workflow or secret"
+out=$(retire demo-site --mode delete --repo keep --no-github)
+has "$out" "no GitHub step"
+hasnt "$out" "disable the repository"
+hasnt "$out" "HETZNER_SSH_PRIVATE_KEY"
+out=$(retire demo-site --mode delete --repo archive --no-github || true); has "$out" "contradicts"
+
+echo "→ --keep-data keeps /opt and the checkout, and the summary says so"
+out=$(retire demo-site --mode delete --repo keep --no-github --keep-data)
+has "$out" "keep /opt/demo-site"
+hasnt "$out" "remove /opt/demo-site"
+has "$out" "are kept"
+
 echo "→ no backtick command substitution (the sync-infra footgun)"
 grep -n '`' "$SCRIPT" >/dev/null 2>&1 && ok 1 "retire-site.sh contains a backtick" || ok 0 ""
 

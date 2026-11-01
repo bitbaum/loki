@@ -14,7 +14,7 @@
 #   box-only   a row the box has and main does not   → exit 1
 #   differs    the same name, a different row        → exit 1
 #   main-only  a row main has and the box does not   → warning (the box's
-#              checkout lags until it is pulled; its port allocator still
+#              checkout lags until box-register.yml pulls it; its port allocator still
 #              sees the listener, so this is a lag, not a collision)
 set -euo pipefail
 
@@ -48,7 +48,7 @@ while IFS= read -r line; do
 done <<<"$main_rows"
 
 if [ "$bad" = 1 ]; then
-  echo "register drift: the box's apps.conf disagrees with main. Land the row on main (the box's register/<name> PR), or correct the box." >&2
+  echo "register drift: the box's apps.conf disagrees with main. Land a row the box has right on main (its register/<name> PR), then bring the box to main with the Box register workflow (box-register.yml)." >&2
   exit 1
 fi
 echo "register drift: none (box rows all on main, unchanged)"
