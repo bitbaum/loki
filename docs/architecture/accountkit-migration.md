@@ -151,8 +151,25 @@ connection waits for the "Connect GitHub" step (above).
 To roll back, run the workflow with `rollback`. Hashes stay in Loki's format
 in `users.password_hash`, so nothing needs a reset.
 
-Still to prove with an approved test identity on the deployed artifact:
-- recovery;
-- an invite;
-- an OrangeCat sign-in followed by a publish;
-- revocation.
+Proven live on 2026-11-01 by `prove`, using throwaway accounts that it deleted
+again:
+
+- two sessions at once;
+- a change to the person's row, read on the next request;
+- a password write, which is what a reset does. It ended both sessions, the
+  old password was refused and the new one signed in;
+- sign-out, and deleting the person ending their session;
+- a real browser OrangeCat sign-in: OrangeCat's sign-in and consent, and back
+  into Loki, signed in.
+
+That proof found two defects, fixed in AccountKit 0.19.0 and #1528 here:
+
+- the first OrangeCat sign-in failed (`unable_to_create_user`);
+- OrangeCat's tokens never reached Loki's `accounts`.
+
+The invite flow (`user-password`) runs in `test:db` on every pull request.
+
+Not proven by a machine:
+
+- a reset mail arriving in a real inbox;
+- a publish to OrangeCat with a token that a real sign-in stored.
