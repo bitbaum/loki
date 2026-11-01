@@ -177,4 +177,11 @@ OUT12="$(run signin-on heidi)" || fail "second signin-on failed: $OUT12"
 OUT13="$(run signin-on nosuchapp)" && fail "signin-on accepted an unknown app"
 grep -q "nosuchapp: not a Morulia client" <<<"$OUT13" && ok "signin-on: an app that is not a client is refused" || fail "$OUT13"
 
+# Only signin-on may switch the shared sign-in on: a fixed SIGNIN_ISSUER or
+# SIGNIN_CLIENT_ID row would be written by any `ensure`, button and all, while
+# Morulia may still have no provider (loki #1531, undone).
+! grep -qE "^[a-z0-9-]+\|SIGNIN_(ISSUER|CLIENT_ID)\|" "$HERE/app-secrets.sh" \
+  && ok "no registry row sets SIGNIN_ISSUER or SIGNIN_CLIENT_ID; only signin-on does" \
+  || fail "a registry row sets SIGNIN_ISSUER/SIGNIN_CLIENT_ID; use signin-on"
+
 echo "app-secrets: $PASSED passed"
