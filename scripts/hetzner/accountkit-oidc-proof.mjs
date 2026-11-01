@@ -54,12 +54,13 @@ try {
     }),
   ]);
   const landed = new URL(page.url());
-  const refusal = landed.searchParams.get("error");
-  if (refusal) {
-    // Error codes carry no personal data; they say which check refused.
-    const detail = landed.searchParams.get("error_description") ?? "";
-    throw new Error(`the product refused the OrangeCat callback: ${refusal} ${detail}`.trim());
-  }
+  // Error codes carry no personal data; they say which check refused. The
+  // product's own code comes first, better-auth's reason after it.
+  const refusal = [
+    ...landed.searchParams.getAll("error"),
+    ...landed.searchParams.getAll("error_description"),
+  ].join(" ");
+  if (refusal) throw new Error(`the product refused the OrangeCat callback: ${refusal}`);
   step("back in the product");
 
   const session = await (await context.request.get(`${site}/api/auth/session`)).json();
