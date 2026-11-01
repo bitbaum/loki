@@ -150,8 +150,25 @@ export async function updateUserBilling(id: string, patch: UpdateUserBillingInpu
   return updated ?? null;
 }
 
-export async function updateUserPasswordHash(id: string, passwordHash: string) {
-  await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
+/**
+ * `keepSession`: on the staged AccountKit runtime, the shared session that is
+ * making this change. The mirror trigger (migration 0130) ends every other
+ * session of this person and keeps that one, so changing your own password
+ * does not sign you out. Without it the write is exactly what it always was.
+ */
+export async function updateUserPasswordHash(
+  id: string,
+  passwordHash: string,
+  keepSession?: string | null,
+) {
+  if (!keepSession) {
+    await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
+    return;
+  }
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('loki.keep_session', ${keepSession}, true)`);
+    await tx.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
+  });
 }
 
 /**
