@@ -69,7 +69,7 @@ export const NAV = {
   loki: {
     id: "loki",
     label: "Loki",
-    description: "Talk to your fleet — ask or dispatch in plain language",
+    description: "Say what you want — Loki answers, or builds it with you",
     href: "/loki",
     icon: MessageSquare,
     active: true,

@@ -75,7 +75,7 @@ export function EmptyStateWelcome({
           <WelcomeCard
             icon={Sparkles}
             title="New"
-            body="Describe it. We create the repo and start the agent."
+            body="Say what you want. Loki sets it up and starts building."
             cta="Start →"
             onClick={onBootstrap}
           />

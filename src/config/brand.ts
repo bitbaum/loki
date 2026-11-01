@@ -48,7 +48,7 @@ export const APP_KICKER = "Beta";
 /** The one sentence that describes Loki — meta description, OG/Twitter alt,
  *  manifest. The hero says the same thing at length; keep them one claim. */
 export const APP_DESCRIPTION =
-  "Describe a website or app in plain words. AI coding agents build it, put it online, and keep improving it.";
+  "Tell Loki what you want, in plain words. It builds the website or app with AI agents, puts it online, and keeps improving it with you.";
 
 // Helpers — never hardcode these patterns in components.
 export const APP_URL = `https://${APP_DOMAIN}`;
@@ -75,7 +75,7 @@ export const BRIDGE_URL = `https://${BRIDGE_DOMAIN}/sse`;
  *  the compact sibling of MARKETING_TAGLINE below. Was "your life operating
  *  system", which survived the life-OS → agent-fleet pivot and kept shipping
  *  the old product's promise on every public profile and social card. */
-export const APP_TAGLINE = "describe it, agents build it";
+export const APP_TAGLINE = "say what you want, Loki builds it with you";
 
 // Marketing / Positioning (SSOT for public copy).
 //
@@ -85,10 +85,14 @@ export const APP_TAGLINE = "describe it, agents build it";
 // a first-time visitor cannot parse — while the product's actual first flow is
 // a person describing something and agents building, shipping and improving
 // it. Plain words first; the vocabulary lives on /how-it-works.
+// The voice (AGENTS.md, "Why Loki exists"): a friend on your side, not a
+// staff you direct. "Agents build it" framed Loki as hired hands; the owner
+// asked for the opposite (2026-11-01). Every claim stays one the product
+// keeps: it does build with AI agents, put it online, and change it on ask.
 export const MARKETING_TAGLINE =
-  "Describe a website or app in plain words. AI coding agents build it, put it online, and keep changing it whenever you say what should be different.";
-export const MARKETING_HERO_PRIMARY = "Describe it.";
-export const MARKETING_HERO_SECONDARY = "Agents build it.";
+  "Tell Loki what you want, in your own words. It builds the website or app with AI agents, puts it online, and keeps changing it whenever you say what should be different.";
+export const MARKETING_HERO_PRIMARY = "Say what you want.";
+export const MARKETING_HERO_SECONDARY = "Loki builds it with you.";
 export const MARKETING_POSITIONING = "Beta · Free while in beta · Open source";
 /** Phone-width variant of the positioning badge — a badge that wraps stops
  *  reading as a badge. Same claim, fewer words. */

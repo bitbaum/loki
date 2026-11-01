@@ -17,6 +17,12 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   Across your projects, Under the hood), and every line says what it is for
   when you hover. The sections used to be Build, Loki, To review and The
   fleet, always open.
+- **Loki speaks as someone on your side.** {#on-your-side} The homepage
+  says "Say what you want. Loki builds it with you." instead of "Describe
+  it. Agents build it.", and the principles open with two new ones: On
+  your side, and Life is short. New projects start with "Say what you
+  want. Loki sets it up and starts building." rather than talk of repos
+  and agents.
 
 ## 2026-10-31 — The workbench
 
