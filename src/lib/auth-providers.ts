@@ -10,6 +10,7 @@
  * (the values would be undefined in the client bundle).
  */
 import { isDemoEnabled } from "@/config/demo";
+import { DEFAULT_AUTH_LABELS, signinBroker } from "@bitbaum/accountkit/auth";
 import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 
 export type EnabledAuthProviders = {
@@ -21,6 +22,13 @@ export type EnabledAuthProviders = {
   x: boolean;
   /** "Login with OrangeCat" — OIDC against orangecat.ch (the identity SSOT). */
   orangecat: boolean;
+  /**
+   * The shared sign-in (SIGNIN_ISSUER/CLIENT_ID/CLIENT_SECRET): one service that
+   * holds the Google, Apple, GitHub, X and Facebook credentials for every app.
+   * AccountKit mounts it as the OIDC provider `bitbaum-signin` from the same
+   * env (signinBroker), so it exists only on the AccountKit runtime.
+   */
+  signin: boolean;
   /**
    * Whether to SHOW the owner-key (local password) sign-in tab. UI gate only:
    * a configured password AND the explicit opt-in flag. Deliberately NOT the
@@ -71,8 +79,18 @@ export function getEnabledAuthProviders(): EnabledAuthProviders {
     orangecat: Boolean(
       process.env.ORANGECAT_OAUTH_CLIENT_ID && process.env.ORANGECAT_OAUTH_CLIENT_SECRET,
     ),
+    signin: shared && signinBroker(process.env) !== null,
     localOwnerKeyTab:
       !shared && Boolean(process.env.LOCAL_AUTH_PASSWORD) && process.env.ENABLE_OWNER_KEY === "1",
     demo: isDemoEnabled(),
   };
+}
+
+/**
+ * The shared sign-in button's words, AccountKit's own ("Continue with Google,
+ * Apple, GitHub, X or Facebook"), or null when it is off. Computed here so the
+ * client bundle never imports the server half of AccountKit.
+ */
+export function sharedSigninLabel(enabled: Pick<EnabledAuthProviders, "signin">): string | null {
+  return enabled.signin ? DEFAULT_AUTH_LABELS.withSignin : null;
 }

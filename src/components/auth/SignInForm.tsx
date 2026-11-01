@@ -27,6 +27,7 @@ function FormInner({
   googleEnabled,
   twitterEnabled,
   orangecatEnabled,
+  signinLabel,
   localAuthEnabled,
   demoEnabled,
 }: {
@@ -34,6 +35,7 @@ function FormInner({
   googleEnabled: boolean;
   twitterEnabled: boolean;
   orangecatEnabled: boolean;
+  signinLabel: string | null;
   localAuthEnabled: boolean;
   demoEnabled: boolean;
 }) {
@@ -110,7 +112,13 @@ function FormInner({
     setError("");
   }
 
-  const oauthFlags = { orangecatEnabled, githubEnabled, googleEnabled, twitterEnabled };
+  const oauthFlags = {
+    orangecatEnabled,
+    signinLabel,
+    githubEnabled,
+    googleEnabled,
+    twitterEnabled,
+  };
 
   return (
     <AuthShell>
@@ -242,6 +250,7 @@ export function SignInForm({
   googleEnabled,
   twitterEnabled,
   orangecatEnabled,
+  signinLabel,
   localAuthEnabled,
   demoEnabled,
 }: {
@@ -249,6 +258,7 @@ export function SignInForm({
   googleEnabled: boolean;
   twitterEnabled: boolean;
   orangecatEnabled: boolean;
+  signinLabel: string | null;
   localAuthEnabled: boolean;
   demoEnabled: boolean;
 }) {
@@ -259,6 +269,7 @@ export function SignInForm({
         googleEnabled={googleEnabled}
         twitterEnabled={twitterEnabled}
         orangecatEnabled={orangecatEnabled}
+        signinLabel={signinLabel}
         localAuthEnabled={localAuthEnabled}
         demoEnabled={demoEnabled}
       />

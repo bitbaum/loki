@@ -1,5 +1,5 @@
 import { SignInForm } from "@/components/auth/SignInForm";
-import { getEnabledAuthProviders } from "@/lib/auth-providers";
+import { getEnabledAuthProviders, sharedSigninLabel } from "@/lib/auth-providers";
 
 // Server component — reads env (via the auth-providers SSOT) on the server and
 // passes the result as props. This prevents the hydration mismatch that
@@ -16,6 +16,7 @@ export default function SignInPage() {
       googleEnabled={providers.google}
       twitterEnabled={providers.x}
       orangecatEnabled={providers.orangecat}
+      signinLabel={sharedSigninLabel(providers)}
       localAuthEnabled={providers.localOwnerKeyTab}
       demoEnabled={providers.demo}
     />
