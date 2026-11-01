@@ -38,7 +38,7 @@ What the import carries:
 Address collisions once lower-cased, drift between runs, or an already-used
 shared runtime fail the transaction.
 
-The import finally attaches three mirror triggers defined in migration 0130:
+The import finally attaches two mirror triggers defined in migration 0130:
 
 - `users` → `auth_users`: every Loki writer of `users` (sign-up, invites,
   setup, the reset link, the password routes, admin edits, deletion) keeps the
@@ -47,9 +47,12 @@ The import finally attaches three mirror triggers defined in migration 0130:
   `loki.keep_session`, so the person changing it stays signed in.
 - `auth_users` → `users`: a verification, or a real address change, made by
   AccountKit.
-- `auth_accounts` → `accounts`: an OrangeCat sign-in through AccountKit stores
-  its token set where publish, promote and the wallet read it. A refresh token
-  is replaced, never blanked.
+
+AccountKit stores no provider token. A first OrangeCat sign-in hands OrangeCat's
+token set to `onAccountCreated` (`src/lib/auth/shared/accounts.ts`), which keeps
+it in Loki's `accounts`, where publish, promote and the wallet read it. A refresh
+token is replaced, never blanked. Migration 0131 dropped the trigger that was
+meant to copy them out of `auth_accounts`, where they never arrive.
 
 ## Shared runtime (on since 2026-11-01)
 
@@ -128,7 +131,7 @@ The switch ran from `accountkit-switch.yml`:
    link. Nobody's only way in was GitHub, the one social sign-in Loki offered:
    Google and X were already paused (`PAUSED_PROVIDERS`). So nobody was locked
    out.
-2. The import ran once, under locks, and attached the three mirror triggers.
+2. The import ran once, under locks, and attached the mirror triggers.
 3. `AUTH_RUNTIME=accountkit` was set and the app restarted.
 4. A live proof ran on loki.orangecat.ch. A throwaway account signed in
    through `email-password`, read its session back, signed out, and was

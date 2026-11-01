@@ -75,6 +75,3 @@ CREATE TRIGGER loki_accountkit_from_users AFTER INSERT OR UPDATE OR DELETE ON us
 DROP TRIGGER IF EXISTS loki_accountkit_to_users ON auth_users;
 CREATE TRIGGER loki_accountkit_to_users AFTER UPDATE ON auth_users
   FOR EACH ROW EXECUTE FUNCTION loki_accountkit_to_users();
-DROP TRIGGER IF EXISTS loki_accountkit_tokens_to_accounts ON auth_accounts;
-CREATE TRIGGER loki_accountkit_tokens_to_accounts AFTER INSERT OR UPDATE ON auth_accounts
-  FOR EACH ROW EXECUTE FUNCTION loki_accountkit_tokens_to_accounts();
