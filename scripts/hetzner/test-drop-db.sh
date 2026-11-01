@@ -55,6 +55,8 @@ B="$HERE/drop-db-on-box.sh"
   && ok "the box script refuses a system or malformed name before touching Postgres" || fail "box script accepted a bad name"
 grep -q 'drop role' "$B" && grep -q 'datistemplate' "$B" && grep -q 'pg_stat_activity' "$B" && grep -q 'DATABASE_URL' "$B" \
   && ok "the box script checks templates, env files and connections" || fail "box script checks"
+grep -q 'query_to_xml' "$B" && grep -q 'row(s)' "$B" \
+  && ok "the report counts the rows exactly, before anything is dropped" || fail "row count"
 go_line=$(grep -n 'if \[ "$GO" != 1 \]' "$B" | head -1 | cut -d: -f1)
 drop_line=$(grep -n 'drop database' "$B" | head -1 | cut -d: -f1)
 [ "$(grep -c 'drop database' "$B")" = 1 ] && [ -n "$go_line" ] && [ "$go_line" -lt "$drop_line" ] \

@@ -51,9 +51,13 @@ conns="$(psql_su -c "select count(*) from pg_stat_activity where datname = '$DB'
 size="$(psql_su -c "select pg_size_pretty(pg_database_size('$DB'))")"
 owner="$(psql_su -c "select pg_get_userbyid(datdba) from pg_database where datname = '$DB'")"
 tables="$(psql_su -d "$DB" -c "select count(*) from pg_tables where schemaname not in ('pg_catalog','information_schema')")"
+# Exact, not pg_stat's estimate (zero until autovacuum has looked): "it holds
+# no users" is a claim to check before an irreversible drop, not to take on
+# trust. One count per table, summed; a count is not data.
+rows="$(psql_su -d "$DB" -c "select coalesce(sum((xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', schemaname, tablename), false, true, '')))[1]::text::bigint), 0) from pg_tables where schemaname not in ('pg_catalog','information_schema')")"
 role="$(psql_su -c "select 1 from pg_roles where rolname = '$DB'")"
 
-echo "database $DB: owner $owner, $size, $tables table(s), $conns open connection(s)"
+echo "database $DB: owner $owner, $size, $tables table(s) holding $rows row(s), $conns open connection(s)"
 [ -n "$role" ] && echo "role $DB exists (dropped after the database if it owns nothing else)" \
   || echo "no role named $DB"
 
