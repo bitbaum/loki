@@ -260,7 +260,7 @@ export function nextActionFor(
   if (e.auth === "none") {
     const k = spec.keyEnvs[0];
     return channel === "cloud"
-      ? `add ${k} to the builder's runner env (/opt/loki/runner/.env)`
+      ? `add ${k} to the cloud runner's env (/opt/loki/runner/.env)`
       : spec.loginFiles.length
         ? `sign in on this computer (run ${spec.bins[0] ?? spec.id} once) or set ${k}`
         : `set ${k}`;

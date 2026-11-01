@@ -31,6 +31,7 @@ import {
   Boxes,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ORANGECAT_PUBLIC_ORIGIN } from "@/config/orangecat";
 
 export type NavItem = {
   id: string;
@@ -74,6 +75,18 @@ export const NAV = {
     icon: MessageSquare,
     active: true,
     mobile: true,
+  },
+  bots: {
+    id: "bots",
+    label: "Bots",
+    description:
+      "Your bots on OrangeCat — the Cat, the fleet's specialists and the ones you made, one list; group chats too",
+    // The list is OrangeCat's (the bot's face: profile, price, purse); Loki
+    // is where a bot's work runs. One list, not two: this opens that one.
+    href: `${ORANGECAT_PUBLIC_ORIGIN}/companions/talk`,
+    icon: Bot,
+    active: true,
+    mobile: false,
   },
   voice: {
     id: "voice",
@@ -395,9 +408,18 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     id: "day",
     label: "Your day",
-    question: "What now, beyond the box — the day, what's next, Loki read aloud.",
+    question: "What now, beyond the box — the day, and what is worth doing next.",
     foldedByDefault: true,
-    items: [NAV.today, NAV.suggestions, NAV.voice],
+    items: [NAV.today, NAV.suggestions],
+  },
+  {
+    id: "talk",
+    label: "Other ways to talk",
+    // Bots open the one list on OrangeCat (the bot's face is OrangeCat's,
+    // its work is Loki's; one list, not two — #1495).
+    question: "Loki out loud, and the bots you talk to.",
+    foldedByDefault: true,
+    items: [NAV.voice, NAV.bots],
   },
   {
     id: "across",

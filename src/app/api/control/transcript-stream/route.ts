@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const runnerChannel: RunnerChannel | undefined = parsed.success ? parsed.data : undefined;
   if (runnerChannel === "cloud") {
     const access = await getExecutionAccess(userId);
-    if (!access.cloudBuilderAllowed) return json(403, "Cloud builder is private for this account.");
+    if (!access.cloudBuilderAllowed) return json(403, "Cloud runner is private for this account.");
   }
 
   const channel = transcriptChannel(userId, tab, runnerChannel);

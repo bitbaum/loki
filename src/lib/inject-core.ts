@@ -407,7 +407,7 @@ async function dispatchToHostedBuilder(
       source: "hosted-runner",
       adapter: "hermes" as AdapterId,
       intent: ctx.eventIntent,
-      detail: "Routed to the hosted runner (Hermes) — project pinned to the hosted builder",
+      detail: "Routed to the hosted runner (Hermes) — project pinned to the hosted runner",
       happenedAt: new Date(ctx.nowS * 1000),
     },
     `hosted-dispatch:${hostedId}`,
@@ -614,7 +614,7 @@ function recordInjectSuccess(
           ? EXECUTOR_COPY.inject.queuedOfflineApi
           : // Either builder (cloud box-runner or desktop) can claim the queued
             // command — "local runner" was a lie whenever the box served it.
-            "Queued — a connected builder (cloud or this computer) will claim it"
+            "Queued — a connected runner (cloud or this computer) will claim it"
         : "Injected into local runtime",
     promptHash: fingerprint.promptHash,
     promptPreview: fingerprint.promptPreview,
@@ -808,16 +808,16 @@ async function executeAndReport(
       await closeRunUndelivered(
         runId,
         userId,
-        "No builder online (cloud box-runner / Fleet Runner) to claim the command",
+        "No runner online (cloud box-runner / Fleet Runner) to claim the command",
       ).catch((err) => console.error("[inject] close undelivered failed:", err));
     }
     return {
       status: 503,
       body: {
         ok: false,
-        error: "No builder is online to run this.",
+        error: "No runner is online to run this.",
         nextAction:
-          "Cloud builder is offline. Ensure loki-box-runner is active on the box, or open Fleet Runner — then choose Implement again.",
+          "Cloud runner is offline. Ensure loki-box-runner is active on the box, or open Fleet Runner — then choose Implement again.",
         code: "builder-offline",
         warning: "runner-offline",
         channel,

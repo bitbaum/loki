@@ -379,7 +379,7 @@ export function deriveFleetPulse(input: {
       return {
         key: "stalled",
         label: "Waiting for this computer",
-        detail: `${n} dispatch${plural} queued ${mins}m for this computer${who}, which is offline. The cloud builder is online and can take it now.`,
+        detail: `${n} dispatch${plural} queued ${mins}m for this computer${who}, which is offline. The cloud runner is online and can take it now.`,
         action: "run_in_cloud",
       };
     }
@@ -391,13 +391,13 @@ export function deriveFleetPulse(input: {
     const holder =
       (stall.cloudQueued ?? 0) > 0 && (stall.localQueued ?? 0) === 0
         ? input.cloudOnline === false
-          ? "for the cloud builder, which is offline"
-          : "for the cloud builder, which is connected but has not picked " + them + " up"
+          ? "for the cloud runner, which is offline"
+          : "for the cloud runner, which is connected but has not picked " + them + " up"
         : (stall.localQueued ?? 0) > 0 && (stall.cloudQueued ?? 0) === 0
           ? input.localOnline
             ? "for this computer, which is connected but has not picked " + them + " up"
-            : "for this computer, which is offline — and so is the cloud builder"
-          : "and no builder has picked " + them + " up";
+            : "for this computer, which is offline — and so is the cloud runner"
+          : "and no runner has picked " + them + " up";
     return {
       key: "stalled",
       label: "Stalled",
@@ -718,7 +718,7 @@ const RUNNING_EVIDENCE_LABEL: Record<
 > = {
   process: "Live agent process detected",
   "live-turn": "Agent reported a turn in progress",
-  "run-output": "Run output still arriving from the builder",
+  "run-output": "Run output still arriving from the runner",
   "dispatched-prompt": "Dispatched prompt still tracked, no agent process seen",
 };
 

@@ -97,7 +97,7 @@ function FleetSettingsSheet({
       )}
       runnerDetail={
         runnerLastPushedAt && !runnerNeverSeen
-          ? `Builder sync ${timeAgo(new Date(runnerLastPushedAt).getTime())}`
+          ? `Runner sync ${timeAgo(new Date(runnerLastPushedAt).getTime())}`
           : null
       }
       versionDetail={

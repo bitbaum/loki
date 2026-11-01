@@ -150,8 +150,8 @@ check("singulars read correctly", () => {
   assert.equal(activityHeadline({ ...base, running: 1 }), "1 agent is working right now.");
 });
 
-check("work waiting on a builder is surfaced, not silently dropped", () => {
-  assert.ok(activityHeadline({ ...base, queued: 2 }).includes("waiting on a builder"));
+check("work waiting on a runner is surfaced, not silently dropped", () => {
+  assert.ok(activityHeadline({ ...base, queued: 2 }).includes("waiting on a runner"));
 });
 
 check("an empty window says so plainly", () => {

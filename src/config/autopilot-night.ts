@@ -358,7 +358,7 @@ export function estimateText(e: NightEstimate): string {
   if (e.runs === 0) return "nothing to spend — no runs planned";
   if (e.sample === 0) return "no past runs to estimate from";
   if (e.totalUsd == null) {
-    return `no metered cost — your builder reported no price on the last ${e.sample} ${e.sample === 1 ? "run" : "runs"}`;
+    return `no metered cost — your runner reported no price on the last ${e.sample} ${e.sample === 1 ? "run" : "runs"}`;
   }
   const tokens = e.perRunTokens ? `, ~${Math.round(e.perRunTokens / 1000)}k tokens a run` : "";
   return `~$${e.totalUsd.toFixed(2)} (your last ${e.sample} runs averaged $${(e.perRunUsd as number).toFixed(2)}${tokens})`;

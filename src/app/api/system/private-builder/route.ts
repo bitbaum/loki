@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const demoDenied = await denyDemoInHandler(operatorId, "billing");
   if (demoDenied) return demoDenied;
   if (!(await isSiteOperator(operatorId).catch(() => false)))
-    return jsonError("Only the operator can switch a private builder.", 403);
+    return jsonError("Only the operator can switch a private runner.", 403);
 
   const dataOrResp = await readJsonBody(req, Body);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
@@ -36,13 +36,13 @@ export async function POST(req: NextRequest) {
   const user = await getUserById(userId);
   if (!user) return jsonError("No such user.", 404);
   // The founder builds on the box's own unit; the flag is for everyone else.
-  if (user.isDefault) return jsonError("The operator's builder is the box's own unit.", 409);
+  if (user.isDefault) return jsonError("The operator's runner is the box's own unit.", 409);
 
   await setPrivateBuilder(userId, enabled);
   await logDebug({
     source: "system/private-builder",
     level: "info",
-    message: `private builder ${enabled ? "on" : "off"}: ${user.username ?? userId}`,
+    message: `private runner ${enabled ? "on" : "off"}: ${user.username ?? userId}`,
     meta: { userId, by: operatorId },
   }).catch(() => {});
   return jsonOk({ userId, privateBuilder: enabled });

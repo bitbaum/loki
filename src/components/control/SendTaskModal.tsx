@@ -58,7 +58,7 @@ export function SendTaskModal({
       const queued = body.results.filter((r) => r.mode === "queued").length;
       onSent(
         `Task sent to ${body.results.map((r) => r.project).join(", ")}` +
-          (queued ? ` — ${queued} queued until a builder picks it up.` : "."),
+          (queued ? ` — ${queued} queued until a runner picks it up.` : "."),
       );
       onClose();
       return true;

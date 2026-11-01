@@ -22,7 +22,7 @@ export async function PrivateBuildersCard() {
     <SystemBlock>
       <SystemBlockHeader
         icon={Server}
-        title="Private builders"
+        title="Private runners"
         right={
           <span className="text-xs text-text-tertiary">
             {on.length} on the cloud · {tenants.length - on.length} without
@@ -33,7 +33,7 @@ export async function PrivateBuildersCard() {
         {on.length === 0 ? (
           <EmptyState>
             Nobody but you builds on the cloud yet. Switch an account on below: within a minute it
-            has its own builder on the box, and its Sessions page shows it.
+            has its own runner on the box, and its Sessions page shows it.
           </EmptyState>
         ) : (
           <ul className="divide-y divide-border-subtle">

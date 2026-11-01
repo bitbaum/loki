@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { getThought } from "@/lib/thoughts-content";
 import { APP_NAME } from "@/config/brand";
-import { BRAND_MARK, spiralPathD } from "@/config/brand-mark";
+import { BRAND_MARK, MARK_TURNS, markPathD } from "@/config/brand-mark";
 import { PALETTE } from "@/lib/palette";
 
 // Per-essay OG image: dark 1200×630 canvas with a small brand stamp top-left,
@@ -60,16 +60,13 @@ export default async function EssayOGImage({ params }: { params: Promise<{ slug:
         fontFamily: "sans-serif",
       }}
     >
-      {/* Brand stamp — dense spiral coil from the SSOT (src/config/brand-mark.ts) */}
+      {/* Brand stamp — rotorelief disc from the SSOT (src/config/brand-mark.ts) */}
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <svg width="40" height="40" viewBox={`0 0 ${BRAND_MARK.viewBox} ${BRAND_MARK.viewBox}`}>
           <path
-            d={spiralPathD()}
-            fill="none"
-            stroke={PALETTE.dark.textPrimary}
-            strokeWidth={BRAND_MARK.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            d={markPathD({ turns: MARK_TURNS.small })}
+            fill={PALETTE.dark.textPrimary}
+            fillRule="evenodd"
           />
         </svg>
         <span style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.01em" }}>{APP_NAME}</span>

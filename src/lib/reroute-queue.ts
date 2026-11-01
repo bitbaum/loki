@@ -33,10 +33,10 @@ export async function rerouteQueuedToCloud(
 ): Promise<RerouteResult> {
   const access = await getExecutionAccess(userId);
   if (!access.cloudBuilderAllowed) {
-    return { ok: false, status: 403, error: "The cloud builder is private for this account." };
+    return { ok: false, status: 403, error: "The cloud runner is private for this account." };
   }
   if (!access.presence.cloud) {
-    return { ok: false, status: 409, error: "The cloud builder is offline too." };
+    return { ok: false, status: 409, error: "The cloud runner is offline too." };
   }
   const [rows, projects] = await Promise.all([
     listUnclaimedForChannel(userId, "local"),
@@ -90,7 +90,7 @@ export async function rerouteQueuedToCloud(
       payload: next as unknown as Record<string, unknown>,
     });
     if (moved) rerouted++;
-    else skipped.push({ projectKey: key, reason: "a builder just picked it up" });
+    else skipped.push({ projectKey: key, reason: "a runner just picked it up" });
   }
   return { ok: true, rerouted, skipped };
 }

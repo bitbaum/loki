@@ -228,7 +228,7 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
           ? "the hosted cloud runner"
           : body.channel === "local"
             ? "the owner's Fleet Runner"
-            : "the cloud builder";
+            : "the cloud runner";
       const how =
         body.mode === "queued"
           ? `Queued for ${where}.`
@@ -327,7 +327,7 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
   loki_projects: define({
     title: "Projects",
     description:
-      "List the owner's registered projects with a one-line status each: what it is, where it is live, which builder runs it, and when work was last dispatched. Use to pick the exact project name for loki_dispatch, or to answer 'what am I working on'.",
+      "List the owner's registered projects with a one-line status each: what it is, where it is live, which runner it uses, and when work was last dispatched. Use to pick the exact project name for loki_dispatch, or to answer 'what am I working on'.",
     input: z.object({}),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     async run(_args, { userId, services }) {

@@ -12,7 +12,7 @@ const check = (name: string, cond: boolean) => {
 
 check(
   "reroute that moved two says so",
-  rerouteNotice(true, { rerouted: 2, skipped: [] }) === "Handed 2 dispatches to the cloud builder.",
+  rerouteNotice(true, { rerouted: 2, skipped: [] }) === "Handed 2 dispatches to the cloud runner.",
 );
 check(
   "reroute that moved nothing names why the first one stayed",
@@ -27,15 +27,15 @@ check(
 );
 check(
   "a refused reroute carries the server's reason",
-  rerouteNotice(false, { error: "The cloud builder is offline too." }) ===
-    "The cloud builder is offline too.",
+  rerouteNotice(false, { error: "The cloud runner is offline too." }) ===
+    "The cloud runner is offline too.",
 );
 check(
   "stop waiting points at where the work went",
   /failed list below/.test(stopWaitingNotice(true, { stopped: 2 })),
 );
 check(
-  "stop waiting with nothing stuck says a builder got there first",
+  "stop waiting with nothing stuck says a runner got there first",
   /picked it up/.test(stopWaitingNotice(true, { stopped: 0 })),
 );
 check("a failed stop says to try again", /try again/.test(stopWaitingNotice(false, {})));

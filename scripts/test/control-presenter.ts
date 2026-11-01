@@ -765,7 +765,7 @@ function runTests(): void {
     assert(pulse.key === "stalled", "still the stalled state (the hero's button keys off it)");
     assert(pulse.label === "Waiting for this computer", `label: ${pulse.label}`);
     assert(
-      !!pulse.detail && /cloud builder is online and can take it/.test(pulse.detail),
+      !!pulse.detail && /cloud runner is online and can take it/.test(pulse.detail),
       "says the cloud can take it, not 'restart the desktop app'",
     );
     // Cloud offline too: the old diagnosis stands.
@@ -786,7 +786,7 @@ function runTests(): void {
     assert(noWayOut.action === "stop_waiting", "…and Stalled still has a button");
   });
 
-  check("fleet pulse: a stall names the builder holding it and always offers a way out", () => {
+  check("fleet pulse: a stall names the runner holding it and always offers a way out", () => {
     // 2026-10-12: two dispatches handed to the cloud were reported as
     // "the builder is connected but not executing them. Restart the desktop
     // app" — under "This computer offline", with no button.
@@ -808,8 +808,8 @@ function runTests(): void {
     assert(cloudHeld.label === "Stalled", `label: ${cloudHeld.label}`);
     assert(cloudHeld.action === "stop_waiting", "a genuine stall offers Stop waiting");
     assert(
-      !!cloudHeld.detail && cloudHeld.detail.includes("cloud builder"),
-      `names the cloud builder: ${cloudHeld.detail}`,
+      !!cloudHeld.detail && cloudHeld.detail.includes("cloud runner"),
+      `names the cloud runner: ${cloudHeld.detail}`,
     );
     assert(
       !!cloudHeld.detail && !/restart the desktop app/i.test(cloudHeld.detail),
@@ -939,7 +939,7 @@ function runTests(): void {
     );
     const snapshot = buildProjectOperationsSnapshot(project, ["loki"], nowS);
     assert(
-      snapshot.evidenceLabel === "Run output still arriving from the builder",
+      snapshot.evidenceLabel === "Run output still arriving from the runner",
       `expected the run-output line, got "${snapshot.evidenceLabel}"`,
     );
   });
@@ -1088,7 +1088,7 @@ function runTests(): void {
 
   check("local runtime is never offline, whatever the bridge says", () => {
     const p = deriveRunnerPresence({ ...NEVER, runtimeAvailable: true, runnerConnected: false });
-    assert(p.runnerOffline === false, "a local runtime needs no builder connection");
+    assert(p.runnerOffline === false, "a local runtime needs no runner connection");
     assert(p.runnerNeverSeen === false, "and is never 'never seen'");
   });
 
@@ -1120,7 +1120,7 @@ function runTests(): void {
     assert(p.runtimeSyncCtx.syncStale === true, "and the card context says so too");
   });
 
-  check("a live cloud builder holds presence open while the heartbeat ages", () => {
+  check("a live cloud runner holds presence open while the heartbeat ages", () => {
     // The ADDITIVE rollout: connected===false from a pre-rollout runner must
     // not read as offline on its own.
     const p = deriveRunnerPresence({

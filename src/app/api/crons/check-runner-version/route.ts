@@ -161,7 +161,7 @@ function versionAlertCopy(
     `updater can download but not apply (no sudo from userspace).`;
   if (computers === 0) {
     return {
-      title: "The cloud builder is waiting to update",
+      title: "The cloud runner is waiting to update",
       description:
         `It updates itself as soon as no agent is working, and new work waits a moment ` +
         `for that. Nothing to do unless this is still here in an hour.` +

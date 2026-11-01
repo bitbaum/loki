@@ -42,6 +42,12 @@ POLL_S=20
 #   * Third-party check apps (Snyk) can sit pending forever and deadlock a gate
 #     that waits for every check on the commit.
 #
+#   * Runs started by hand or by a clock (event workflow_dispatch / schedule)
+#     are operations ON a commit, not checks OF it: a nightly data load that
+#     could not read three scanned PDFs said nothing about solon's code, but it
+#     ran on main's SHA and blocked four deploys of it (2026-11-01). Only runs a
+#     push or a pull request started are CI.
+#
 # Hence: the workflow-runs API filtered to real repo workflows, not the
 # check-runs API.
 # Exclude the DEPLOY workflow itself — every run of it, not just the current
@@ -78,6 +84,7 @@ ci_verdict() {
     [ .[]
       | select(.path | startswith(".github/workflows/"))
       | select($exclude == "" or .path != $exclude)
+      | select((.event // "push") | IN("workflow_dispatch","schedule") | not)
     ]
     | group_by(.path)
     | map(max_by(.run_number))

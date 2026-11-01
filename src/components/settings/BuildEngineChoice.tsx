@@ -52,7 +52,7 @@ export function BuildEngineChoice() {
       <SettingsSectionHeader
         id="build-engine-title"
         title="Your engine for building"
-        lede="Whoever asks for a change pays for it, with their own engine, in their own builder. Nothing you build runs on anyone else's subscription, and nobody's runs on yours."
+        lede="Whoever asks for a change pays for it, with their own engine, in their own runner. Nothing you build runs on anyone else's subscription, and nobody's runs on yours."
       />
       <Segmented
         label="Build with"
@@ -88,5 +88,5 @@ function lokiMeans(view: View): string {
     view.planBuildsMonthly > 0
       ? `, then ${view.planLeft ?? view.planBuildsMonthly} of ${view.planBuildsMonthly} a month on your plan`
       : "; a paid plan adds a monthly number";
-  return `${head}${then}. Loki's key, Loki's bill; reaches your builder within a minute.`;
+  return `${head}${then}. Loki's key, Loki's bill; reaches your runner within a minute.`;
 }

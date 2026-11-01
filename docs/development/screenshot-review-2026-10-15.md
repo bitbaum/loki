@@ -70,5 +70,5 @@ than a newly built native iOS/Android application. Broader shared-cloud access i
 not enabled by bypassing existing account-isolation gates.
 
 Install icon sources are `public/icon.svg`; regenerate the checked-in raster
-assets with `node scripts/generate-app-icons.mjs`. Install assets and the push
+assets with `npm run generate:brand`. Install assets and the push
 worker are public static resources; private application routes remain protected.

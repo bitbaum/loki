@@ -5,6 +5,7 @@ import { askLoki } from "@/lib/loki-core";
 import { getProjectContext } from "@/db/queries/project-context";
 import { isSiteOperator } from "@/db/queries/users";
 import { enqueueProposalFromMessage } from "@/lib/actions/enqueue-proposal";
+import { holdBuildLine } from "@/lib/loki/build-line";
 
 const AskLokiBody = z.object({
   message: z.string().trim().min(1, "message is required"),
@@ -111,5 +112,12 @@ export async function POST(req: NextRequest) {
   ]);
 
   if (queued) body.queuedAction = queued;
+  // The bold next-build line stays only when this message asked for direction;
+  // otherwise it travels apart, for the panel to offer rather than conclude.
+  if (typeof body.text === "string") {
+    const held = holdBuildLine(body.text, dataOrResp.message);
+    body.text = held.text;
+    if (held.buildLine) body.buildLine = held.buildLine;
+  }
   return NextResponse.json(body, { status });
 }

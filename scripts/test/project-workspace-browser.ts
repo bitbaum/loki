@@ -143,7 +143,7 @@ async function main() {
         0,
         "no competing workspace strip",
       );
-      assert.equal(await page.getByRole("heading", { name: "Queued for a builder" }).count(), 1);
+      assert.equal(await page.getByRole("heading", { name: "Queued for a runner" }).count(), 1);
       assert.equal(
         await page.getByRole("link", { name: "Ask Loki" }).getAttribute("href"),
         "/loki?project=loki",

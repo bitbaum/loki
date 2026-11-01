@@ -5,9 +5,9 @@ import { COMMISSION } from "@/config/commission";
  * The three ways to get something built — the one list.
  *
  * Every door a newcomer meets ends in one of these: build it yourself on
- * Loki, build it with a partner the studio approves, or have the studio build
+ * Loki, build it with a builder the studio approves, or have the studio build
  * it. They used to be scattered — the landing page offered only the first,
- * the public nav hid the third under "bitbaum", the partner directory was
+ * the public nav hid the third under "bitbaum", the builder directory was
  * reachable from OrangeCat's careers page and nowhere here, and a stranger who
  * watched a fix land on someone else's site was sent to a bare homepage.
  *
@@ -35,11 +35,11 @@ export const BUILD_PATHS: readonly BuildPath[] = [
   },
   {
     id: "partner",
-    who: "With a partner",
-    title: "Build it with a partner",
+    who: "With a builder",
+    title: "Build it with a builder",
     body: "Independent engineers the studio approves. They watch over a project built with Loki and move it forward, at their own price — you stay the owner.",
-    cta: "Find a partner",
-    href: "https://bitbaum.orangecat.ch/partners/",
+    cta: "Find a builder",
+    href: "https://bitbaum.orangecat.ch/builders/",
   },
   {
     id: "studio",
@@ -55,7 +55,7 @@ export const BUILD_PAGE = {
   path: "/build",
   eyebrow: "Three ways in",
   title: "Build it the way that fits.",
-  lede: "Yourself, with a partner, or let the studio do it. Every way ends the same: something of yours, online, that keeps getting better when you say so.",
+  lede: "Yourself, with a builder, or let the studio do it. Every way ends the same: something of yours, online, that keeps getting better when you say so.",
 } as const;
 
 /** The /build link a stranger's touchpoint hands out, naming where they saw Loki. */

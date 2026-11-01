@@ -37,7 +37,7 @@ const md = dispatchAssistantContent("loki", {
   mode: "queued",
   runnerConnected: true,
 });
-if (!md.includes("loki") || !md.includes("builder")) {
+if (!md.includes("loki") || !md.includes("runner")) {
   throw new Error("assistant content");
 }
 
@@ -80,12 +80,12 @@ if (timeout.label !== "Run timed out" || !timeout.terminal || timeout.tone !== "
 
 const onLocal = dispatchStatusLabel({ mode: "direct", channel: "local" });
 if (!onLocal.label.includes(EXECUTOR_COPY.ranOn.local) || onLocal.warn) {
-  throw new Error("direct dispatch must name the local builder");
+  throw new Error("direct dispatch must name the local runner");
 }
 
 const onCloud = dispatchStatusLabel({ mode: "direct", channel: "cloud" });
 if (!onCloud.label.includes(EXECUTOR_COPY.ranOn.cloud)) {
-  throw new Error("direct dispatch must name the cloud builder");
+  throw new Error("direct dispatch must name the cloud runner");
 }
 
 // The highest-value case: nothing is happening, and this says which machine to
@@ -97,7 +97,7 @@ const offlineNamed = dispatchStatusLabel({
   channel: "local",
 });
 if (!offlineNamed.label.includes(EXECUTOR_COPY.ranOn.local) || !offlineNamed.warn) {
-  throw new Error("offline queue must name the builder it is waiting on");
+  throw new Error("offline queue must name the runner it is waiting on");
 }
 
 const queuedNamed = dispatchStatusLabel({
@@ -106,7 +106,7 @@ const queuedNamed = dispatchStatusLabel({
   channel: "cloud",
 });
 if (!queuedNamed.label.includes(EXECUTOR_COPY.ranOn.cloud) || queuedNamed.warn) {
-  throw new Error("queued-with-builder must name the builder");
+  throw new Error("queued-with-builder must name the runner");
 }
 
 // Never guess. Messages persisted before routing was recorded carry no channel;
@@ -140,7 +140,7 @@ const namedContent = dispatchAssistantContent("loki", {
   channel: "cloud",
 });
 if (!namedContent.includes(EXECUTOR_COPY.ranOn.cloud)) {
-  throw new Error("assistant content must name the builder");
+  throw new Error("assistant content must name the runner");
 }
 
 // Every channel in the union has a name — no channel can render as "undefined".

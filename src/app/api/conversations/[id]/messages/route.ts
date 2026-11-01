@@ -1,4 +1,5 @@
 import { isBareConfirmation, offeredCommand } from "@/lib/loki/confirmation";
+import { holdBuildLine } from "@/lib/loki/build-line";
 import { nameThreadSoon } from "@/lib/loki/name-thread";
 import { conversationDispatchPrompt } from "@/lib/loki/dispatch-context";
 /**
@@ -688,9 +689,15 @@ async function chatReply(
     }),
     enqueueProposalFromMessage(ctx.userId, ctx.text, new Date().toISOString()).catch(() => null),
   ]);
-  const reply =
+  // The bold next-build line stays only when the person asked for direction;
+  // otherwise it comes off the answer and is kept in meta, so a "yes" to an
+  // answer about last week's spending does not send a build nobody asked for.
+  const held = holdBuildLine(
     (typeof loki.body.text === "string" && loki.body.text) ||
-    (typeof loki.body.error === "string" ? loki.body.error : "Loki is unavailable right now.");
+      (typeof loki.body.error === "string" ? loki.body.error : "Loki is unavailable right now."),
+    ctx.text,
+  );
+  const reply = held.text;
   const assistant = await addMessage(ctx.conversationId, {
     role: "assistant",
     kind: "chat",
@@ -698,6 +705,7 @@ async function chatReply(
     meta: {
       ...extraMeta,
       projectKey: chatProject,
+      ...(held.buildLine ? { buildLine: held.buildLine } : {}),
       // What the person is likely to say next, as one-tap buttons under the
       // latest answer. Kept apart from `content` so the stored answer — what
       // is copied, spoken, saved to memory and fed back as history — never

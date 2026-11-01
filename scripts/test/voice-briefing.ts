@@ -99,7 +99,7 @@ check(() => {
   s.recentRuns = [run("r1", "loki"), run("r2", "loki"), run("r3", "loki")];
   assert.equal(
     composeBriefing(s),
-    'Nobody is working right now. One run is waiting for a builder on loki. Approvals are locked behind your PIN. Unlock them on screen to hear them. Three runs failed on loki. Say "what failed" for the errors.',
+    'Nobody is working right now. One run is waiting for a runner on loki. Approvals are locked behind your PIN. Unlock them on screen to hear them. Three runs failed on loki. Say "what failed" for the errors.',
   );
   s.recentRuns = [run("r1", "loki"), run("r2", "heidi"), run("r3", "loki"), run("r4", "loki")];
   assert.match(composeBriefing(s), /Four runs failed: loki three times and heidi once\./);
@@ -134,7 +134,7 @@ check(() => {
 check(() => {
   const s = empty();
   s.builderOnline = false;
-  assert.match(composeBriefing(s), /^The builder is offline, so nothing can run\./);
+  assert.match(composeBriefing(s), /^The runner is offline, so nothing can run\./);
 });
 
 check(() => {

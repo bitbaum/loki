@@ -9,7 +9,7 @@ import { APP_NAME } from "@/config/brand";
 export const metadata: Metadata = {
   title: "Build something",
   description:
-    "Three ways to get something built with Loki: do it yourself, build it with a partner, or have the bitbaum studio build it.",
+    "Three ways to get something built with Loki: do it yourself, build it with a builder, or have the bitbaum studio build it.",
 };
 
 /**

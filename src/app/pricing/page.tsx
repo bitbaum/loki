@@ -60,8 +60,8 @@ export default async function PricingPage() {
           <h1 className="ui-public-page-title">Your agents, your keys. Start free.</h1>
           <p className="ui-public-body-lg mx-auto mt-4 sm:mt-5">
             Your agents run on your own computer with the Fleet Runner app, or on Loki&apos;s cloud
-            builder where your account has it. Loki is the one place you start, watch and check
-            their work. The plans differ in how many projects you can have and how many answers
+            runner where your account has it. Loki is the one place you start, watch and check their
+            work. The plans differ in how many projects you can have and how many answers
             Loki&apos;s own chat gives you each month.
           </p>
         </div>

@@ -22,7 +22,9 @@ import {
  * where the person now asks — instead of opening it twice.
  *
  * A window on the shell's own origin gets the preload (it is Loki, and may
- * itself open windows); any other page gets none and stays sandboxed.
+ * itself open windows); any other page gets none. Every one runs with the
+ * renderer sandbox on, as the main window does (#1479): each loads a remote
+ * page, and the preload imports only contextBridge and ipcRenderer.
  */
 const open = new Map<string, BrowserWindow>()
 
@@ -74,7 +76,7 @@ export function openWorkbenchWindow(opts: {
     minHeight: 400,
     autoHideMenuBar: !ours,
     webPreferences: ours
-      ? { preload: opts.preloadPath, sandbox: false }
+      ? { preload: opts.preloadPath, contextIsolation: true, nodeIntegration: false, sandbox: true }
       : { contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   open.set(key, win)

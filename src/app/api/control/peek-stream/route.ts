@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   if (runnerChannel === "cloud" && !shell) {
     const access = await getExecutionAccess(userId);
     if (!access.cloudBuilderAllowed) {
-      return new Response(JSON.stringify({ error: "Cloud builder is private for this account." }), {
+      return new Response(JSON.stringify({ error: "Cloud runner is private for this account." }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });

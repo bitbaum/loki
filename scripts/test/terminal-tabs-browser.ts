@@ -44,7 +44,7 @@ async function main() {
         const all=[{id:'substrata',label:'substrata',status:'working'},{id:'orangecat',label:'orangecat',status:'needs-you'},
           {id:'substrata~1a2b3c4d',label:'substrata 2',status:'done'},{id:'heidi',label:'heidi',status:'idle'}];
         function App(){
-          if(q.has('empty'))return <main className="app-page app-page-compact"><TerminalMobileHeader title="Cloud builder" state="idle" builder="Cloud builder" sessionCount={0} backHref="/control" onOpenSheet={()=>{}} onOpenMore={()=>{}}/></main>;
+          if(q.has('empty'))return <main className="app-page app-page-compact"><TerminalMobileHeader title="Cloud runner" state="idle" builder="Cloud runner" sessionCount={0} backHref="/control" onOpenSheet={()=>{}} onOpenMore={()=>{}}/></main>;
           const sessions=all.slice(0,Number(q.get('n')||1));
           const [active,setActive]=useState(sessions[0].id);
           const [open,setOpen]=useState(q.has('new'));
@@ -52,7 +52,7 @@ async function main() {
           window.__active=active;
           return <main className="app-page app-page-compact">
             <TerminalMobileHeader title={sessions.find(s=>s.id===active).label} agent="Claude" state="live"
-              status={sessions.find(s=>s.id===active).status} builder="Cloud builder" sessionCount={sessions.length}
+              status={sessions.find(s=>s.id===active).status} builder="Cloud runner" sessionCount={sessions.length}
               backHref="/control" onOpenSheet={()=>setSheet(true)} onOpenMore={()=>{}}
               view="chat" onViewChange={()=>{}}/>
             {sheet&&<TerminalSessionSheet onClose={()=>setSheet(false)} source="cloud" sources={['cloud','machine']}
@@ -127,10 +127,7 @@ async function main() {
 
       // One session: the name, what runs it and where.
       await mount("?n=1");
-      assert.equal(
-        await page.locator(".ui-term-mhead-sub").textContent(),
-        "Claude · cloud builder",
-      );
+      assert.equal(await page.locator(".ui-term-mhead-sub").textContent(), "Claude · cloud runner");
       assert.equal(await overflow(), false);
       await page.screenshot({ path: path.join(shots, `${width}-one.png`) });
 
@@ -139,7 +136,7 @@ async function main() {
       assert.ok((await headRows()) <= 48, "the header stays one row with four sessions");
       assert.equal(
         await page.locator(".ui-term-mhead-sub").textContent(),
-        "Claude · 4 sessions · cloud builder",
+        "Claude · 4 sessions · cloud runner",
       );
       assert.equal(await overflow(), false, "nothing pushes the page sideways");
       const title = await page

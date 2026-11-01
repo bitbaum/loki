@@ -130,7 +130,7 @@ export function buildNowJobs(
     } else if (openRun && !step && since !== null && nowMs - since > NOT_PICKED_UP_MS) {
       // Sent long ago and never reported a step: no builder took it.
       tone = "quiet";
-      status = "Waiting for a builder to pick it up";
+      status = "Waiting for a runner to pick it up";
     } else if (openRun) {
       // Sent, and not yet reporting: picked up, or still on its way.
       status = step ?? "Starting";

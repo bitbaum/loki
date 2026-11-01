@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { AlertTriangle, CircleCheck, CircleX, RefreshCw } from "lucide-react";
-import { BRAND_MARK, spiralPathD } from "@/config/brand-mark";
+import { LokiMark } from "@/components/shell/LokiMark";
 import {
   CONSULT_AREAS,
   CONSULT_QUESTIONS,
@@ -113,20 +113,7 @@ function LokiSays({ children, className }: { children: React.ReactNode; classNam
   return (
     <div className={cn("ui-consult-turn", className)}>
       <span className="ui-consult-avatar" aria-hidden>
-        <svg
-          width={16}
-          height={16}
-          viewBox={`0 0 ${BRAND_MARK.viewBox} ${BRAND_MARK.viewBox}`}
-          fill="none"
-        >
-          <path
-            d={spiralPathD()}
-            stroke="currentColor"
-            strokeWidth={BRAND_MARK.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <LokiMark turns="tiny" size={16} />
       </span>
       <div className="ui-consult-bubble">{children}</div>
     </div>

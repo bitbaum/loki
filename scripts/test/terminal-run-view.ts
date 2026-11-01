@@ -101,11 +101,11 @@ check("next action prefers the queue reason over a badge", () => {
   assert.equal(
     nextActionForWork(
       work({
-        queueReason: "Cloud builder offline — open Fleet Runner",
+        queueReason: "Cloud runner offline — open Fleet Runner",
         detail: "Retry",
       }),
     ),
-    "Cloud builder offline — open Fleet Runner",
+    "Cloud runner offline — open Fleet Runner",
   );
 });
 
@@ -161,7 +161,7 @@ check("attaching to a session is not the session being gone", () => {
 });
 
 check("empty Terminal explains session location and project routing", () => {
-  assert.match(EXECUTOR_COPY.terminal.cloudEmptyHint, /cloud builder/i);
+  assert.match(EXECUTOR_COPY.terminal.cloudEmptyHint, /cloud runner/i);
   assert.match(EXECUTOR_COPY.terminal.thisComputerEmptyHint, /your computer/i);
   assert.match(EXECUTOR_COPY.terminal.cloudEmptyHint, /Runs on/i);
   assert.match(EXECUTOR_COPY.terminal.thisComputerEmptyHint, /Runs on/i);
@@ -237,10 +237,10 @@ check("a line that adds something is kept", () => {
 check("a next action equal to the summary is not printed twice", () => {
   const lines = railStatusLines({
     label: "Queued",
-    stepSummary: "Waiting for the builder.",
-    nextAction: "Waiting for the builder.",
+    stepSummary: "Waiting for the runner.",
+    nextAction: "Waiting for the runner.",
   });
-  assert.equal(lines.summary, "Waiting for the builder.");
+  assert.equal(lines.summary, "Waiting for the runner.");
   assert.equal(lines.next, null);
 });
 

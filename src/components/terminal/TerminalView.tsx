@@ -241,7 +241,7 @@ function TerminalOpening({ state }: { state: "waiting" | "cached" }) {
       <div className="ui-card-shell-raised flex max-w-xs flex-col items-center gap-2 px-4 py-3 text-center">
         <Loader2 className="ui-spinner h-5 w-5 text-text-muted" aria-hidden="true" />
         <p className="text-sm font-medium text-text-primary">Opening the screen…</p>
-        <p className="text-xs text-text-tertiary">The builder sends it in a few seconds.</p>
+        <p className="text-xs text-text-tertiary">The runner sends it in a few seconds.</p>
       </div>
     </div>
   );

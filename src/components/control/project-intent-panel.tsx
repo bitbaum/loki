@@ -330,7 +330,7 @@ export function IntentButtonPanel({
               ended at y=779 and this button started at y=924, reading as a
               separate feature rather than the other way to answer the same
               prompt. The honesty chip stays; it says something the button
-              cannot ("Builder online"). */}
+              cannot ("Runner online"). */}
           <div className="flex justify-end">
             <ExecutorHonestyChip honesty={dispatchHonesty} />
           </div>

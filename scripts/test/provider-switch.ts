@@ -301,13 +301,13 @@ check("a scoped answer names the machine it came from", () => {
     { channel: "cloud", observedAt: new Date(Date.now() - 4 * 60_000).toISOString() },
     true,
   );
-  assert.match(cloud, /cloud builder/);
+  assert.match(cloud, /cloud runner/);
   assert.ok(!/This computer/.test(cloud), "the cloud answer must not name the laptop");
 });
 
 check("with no project named, the list is the union and says so", () => {
   const line = describeProviderEvidence({ channel: null, observedAt: null }, true);
-  assert.match(line, /across your builders/);
+  assert.match(line, /across your runners/);
 });
 
 // ── A NEW dispatch does not walk into a known wall (routeAroundSpent) ──────
@@ -383,17 +383,17 @@ check("when nothing else can answer, it keeps the preferred agent rather than re
 // 2026-10-20: a report filed from Loki's own page went to Grok on the cloud
 // builder, which reports only Claude Code. The builder refused it in a second
 // and Watch opened on "Grok is not installed on the cloud builder".
-check("an agent the builder does not have is routed to one it does, and says so", () => {
+check("an agent the runner does not have is routed to one it does, and says so", () => {
   const out = routeAroundSpent({
     preferred: "grok",
     spent: {},
     options: rankFor("grok", {}, undefined, ["claude"]),
-    notInstalled: "Grok is not installed on the cloud builder",
+    notInstalled: "Grok is not installed on the cloud runner",
   });
   assert.equal(out.agent, "claude");
   assert.ok(out.rerouted);
   assert.equal(out.rerouted.why, "not-installed");
-  assert.match(out.rerouted.because, /not installed on the cloud builder/);
+  assert.match(out.rerouted.because, /not installed on the cloud runner/);
 });
 
 check("a spent reroute is marked spent", () => {
@@ -406,13 +406,13 @@ check("a spent reroute is marked spent", () => {
 });
 
 check(
-  "not installed with nothing else on the builder keeps the agent (its refusal says why)",
+  "not installed with nothing else on the runner keeps the agent (its refusal says why)",
   () => {
     const out = routeAroundSpent({
       preferred: "grok",
       spent: {},
       options: rankFor("grok", {}, undefined, ["grok"]),
-      notInstalled: "Grok is not installed on the cloud builder",
+      notInstalled: "Grok is not installed on the cloud runner",
     });
     assert.deepEqual(out, { agent: "grok", rerouted: null });
   },

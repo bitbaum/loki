@@ -83,5 +83,5 @@ export function runsEndedByRestart(
 /** The sentence recorded on a run this boot ended. */
 export function runnerRestartReason(bootedAtMs: number): string {
   const hhmm = new Date(bootedAtMs).toISOString().slice(11, 16);
-  return `The builder restarted at ${hhmm} UTC and this run's agent session ended with it.`;
+  return `The runner restarted at ${hhmm} UTC and this run's agent session ended with it.`;
 }

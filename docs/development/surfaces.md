@@ -23,8 +23,8 @@ src/
 │   │                 bare at the top — Loki (the default screen, say it) ·
 │   │                 Home (what now) · Projects (what am I building) — then
 │   │                 folded groups that each say their question (Waiting
-│   │                 for you · Your day · Across your projects · Under the
-│   │                 hood) + PIN-gated Private; every line says what it is
+│   │                 for you · Your day · Other ways to talk · Across your
+│   │                 projects · Under the hood) + PIN-gated Private; every line says what it is
 │   │                 for on hover. They were Build / Loki / To review / The
 │   │                 fleet, by kind of thing, until 2026-11-01 (AGENTS.md,
 │   │                 "Why Loki exists"). The phone's bottom bar is the bare

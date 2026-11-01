@@ -10,11 +10,11 @@ import assert from "node:assert/strict";
 import { agentNotInstalledMessage, missingAgentReason } from "@/lib/agents/launch-check";
 
 const cloud = agentNotInstalledMessage("Codex", "cloud");
-assert.match(cloud, /^Codex is not installed on the cloud builder, so nothing was started\./);
+assert.match(cloud, /^Codex is not installed on the cloud runner, so nothing was started\./);
 assert.match(cloud, /Switch this project to an agent installed there/);
-assert.match(cloud, /or install Codex on the cloud builder/);
+assert.match(cloud, /or install Codex on the cloud runner/);
 assert.match(agentNotInstalledMessage("Grok", "local"), /not installed on this computer/);
-assert.match(agentNotInstalledMessage("Grok", null), /not installed on this builder/);
+assert.match(agentNotInstalledMessage("Grok", null), /not installed on this runner/);
 
 assert.equal(missingAgentReason("claude", "cloud"), null, "Claude is never refused here");
 assert.equal(

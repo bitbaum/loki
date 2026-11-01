@@ -18,7 +18,7 @@ const waitingCloud = summarizeRunStep({
   cloudOnline: false,
 });
 assert.equal(waitingCloud.kind, "waiting_builder");
-assert.match(waitingCloud.summary, /cloud builder/i);
+assert.match(waitingCloud.summary, /cloud runner/i);
 // 2026-10-12: the cloud builder was offline all night and this read "Command
 // is in the cloud queue. If this stays put, Watch shows why" — nothing showed
 // why. Offline is a fact the line has to state.
@@ -36,7 +36,7 @@ const waitingCloudUp = summarizeRunStep({
   cloudOnline: true,
 });
 assert.equal(waitingCloudUp.kind, "waiting_builder");
-assert.match(waitingCloudUp.summary, /waiting for cloud builder to claim/i);
+assert.match(waitingCloudUp.summary, /waiting for cloud runner to claim/i);
 
 const waitingLocal = summarizeRunStep({
   latestKind: "dispatched",
@@ -162,7 +162,7 @@ assert.match(queuedBehind.summary, /Next Best Task/);
 assert.doesNotMatch(
   `${queuedBehind.summary} ${queuedBehind.detail ?? ""}`,
   /Fleet Runner is polling|confirm .* is polling|restart/i,
-  "must not send the reader to inspect a builder that is doing nothing wrong",
+  "must not send the reader to inspect a runner that is doing nothing wrong",
 );
 // Naming Retry to say it would NOT help is the point; offering it as the
 // remedy is the bug. The copy has to say the wait ends by itself.

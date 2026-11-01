@@ -65,12 +65,12 @@ export const HOW_DEEP: HowSection[] = [
   {
     id: "architecture",
     title: "The shape of it",
-    lede: "The web app is the control plane: it stores projects, runs and the queue, and never runs an agent itself. Builders do the work and talk to it over outbound HTTPS only.",
+    lede: "The web app is the control plane: it stores projects, runs and the queue, and never runs an agent itself. Runners do the work and talk to it over outbound HTTPS only.",
     points: [
       // src/lib/inject-core.ts, pending_commands, scripts/box-runner.ts, desktop/src/main/poller.ts
-      "A dispatch becomes a queued command. A builder polls for commands it may claim, claims one, launches the agent in a terminal it owns (a PTY), delivers the prompt, and reports back.",
+      "A dispatch becomes a queued command. A runner polls for commands it may claim, claims one, launches the agent in a terminal it owns (a PTY), delivers the prompt, and reports back.",
       "State fans out live to every open browser, desktop app and phone through a small event bridge (server-sent events).",
-      "Because builders only connect out, a computer running Fleet Runner needs no open port and no inbound firewall rule.",
+      "Because runners only connect out, a computer running Fleet Runner needs no open port and no inbound firewall rule.",
     ],
   },
   {
@@ -79,10 +79,10 @@ export const HOW_DEEP: HowSection[] = [
     lede: "Which computer runs a project is a stored setting — Runs on — not a guess from who happens to be online.",
     points: [
       // docs/development/cloud-local-workflows.md, src/lib/execution-access.ts
-      "Cloud builder: an always-on server. During the beta it is for invited accounts; repositories it creates live in the bitbaum GitHub organisation.",
+      "Cloud runner: an always-on server. During the beta it is for invited accounts; repositories it creates live in the bitbaum GitHub organisation.",
       "This computer: Fleet Runner, a desktop app for Linux, Windows and Apple-silicon Macs. Agents use your files, your tools and your own agent subscriptions.",
       "Hosted runner: works from its own copy of the repository and ends every task in a pull request. Lightly used so far.",
-      "If the chosen builder is offline, the work waits in the queue where you can see it — it is never quietly sent somewhere else.",
+      "If the chosen runner is offline, the work waits in the queue where you can see it — it is never quietly sent somewhere else.",
     ],
   },
   {
@@ -103,7 +103,7 @@ export const HOW_DEEP: HowSection[] = [
     points: [
       // src/db/schema/run-events.ts, src/lib/feedback/fix-shipping.ts
       "A finished agent turn is not treated as a shipped change. Loki follows the run's pull request to merged and to deployed, and only then calls it live.",
-      "A run that goes quiet on a builder that has gone offline says so, instead of showing as working.",
+      "A run that goes quiet on a runner that has gone offline says so, instead of showing as working.",
       "When a runner restarts, runs whose agent was already working are closed with the reason straight away.",
     ],
   },

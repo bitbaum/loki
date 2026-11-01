@@ -20,7 +20,7 @@ export default async function StudioRequestsPage({
   return (
     <PageLayout
       title="Studio requests"
-      subtitle="Review briefs, partner applications and previews for your studio account."
+      subtitle="Review briefs, builder applications and previews for your studio account."
       back={{ href: "/feedback", label: "Feedback" }}
       maxWidth="max-w-6xl"
     >

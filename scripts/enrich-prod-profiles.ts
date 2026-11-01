@@ -5,7 +5,8 @@
 // pipeline as POST /api/projects/[id]/brief, but sourced from local docs and
 // pointed at the production (Hetzner) database. Sources per project, each
 // included when present: ~/dev/<project>/README.md, ~/dev/<project>/AGENTS.md,
-// ~/dev/<project>/CLAUDE.md (only when it is more than a pointer to AGENTS.md),
+// ~/dev/<project>/CLAUDE.md (a pointer is followed to the file it names, e.g.
+// AGENTS.md or .claude/CLAUDE.md, instead of being read itself),
 // ~/dev/bitbaum/projects/<project>.md (operator notes), and the newest
 // gtm*.md under ~/dev/<project>/docs/ (recursive, case-insensitive).
 //
@@ -24,7 +25,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, basename } from "path";
 import { homedir } from "os";
 import { config } from "dotenv";
-import { agentNotes } from "../src/lib/agent-notes";
+import { readAgentDocs } from "../src/lib/agent-notes";
 
 config({ path: ".env.local" });
 config({ path: ".env.hetzner.local" });
@@ -116,26 +117,25 @@ function newestGtmDocPath(dir: string): string | null {
 /** All available docs for a project, labeled so extraction sees provenance.
  *  `dir` is null for projects with no local repo — those still enrich from the
  *  operator brief alone, which is where distribution/GTM is written down. */
-function collectSources(name: string, dir: string | null): Array<{ label: string; text: string }> {
+async function collectSources(
+  name: string,
+  dir: string | null,
+): Promise<Array<{ label: string; text: string }>> {
+  const readme = dir ? readDoc(join(dir, "README.md")) : null;
+  // AGENTS.md first; CLAUDE.md pointers are followed, not read as notes.
+  const agentDocs = dir ? await readAgentDocs(async (p) => readDoc(join(dir, p))) : [];
   const candidates: Array<{ label: string; path: string }> = [];
-  if (dir) {
-    candidates.push(
-      { label: "README.md", path: join(dir, "README.md") },
-      { label: "AGENTS.md", path: join(dir, "AGENTS.md") },
-      { label: "CLAUDE.md", path: join(dir, "CLAUDE.md") },
-    );
-  }
   const note = bitbaumNotePath(name);
   if (note) candidates.push({ label: `bitbaum/projects/${basename(note)}`, path: note });
   const gtm = dir ? newestGtmDocPath(dir) : null;
   if (gtm) candidates.push({ label: `docs/…/${basename(gtm)}`, path: gtm });
 
-  return candidates.flatMap(({ label, path }) => {
+  const docs = candidates.flatMap(({ label, path }) => {
     if (!existsSync(path)) return [];
-    const read = readDoc(path);
-    const text = label === "CLAUDE.md" ? agentNotes(read) : read;
+    const text = readDoc(path);
     return text ? [{ label, text }] : [];
   });
+  return [...(readme ? [{ label: "README.md", text: readme }] : []), ...agentDocs, ...docs];
 }
 
 // Groq's free tier caps llama-3.3-70b at 12k tokens/minute, and one extraction
@@ -249,7 +249,7 @@ async function main() {
   for (const p of projects) {
     if (ONLY.length && !ONLY.includes(p.name.toLowerCase())) continue;
     const dir = localDirFor(p.name);
-    const sources = collectSources(p.name, dir);
+    const sources = await collectSources(p.name, dir);
     if (!sources.length) {
       console.log(`— ${p.name}: no repo and no operator brief, skipped`);
       continue;

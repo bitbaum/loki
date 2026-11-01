@@ -241,10 +241,10 @@ export function hasPostPromptGeneration(
  */
 function builderOfflineAsk(localQueue: boolean, cloudCanTake: boolean): string {
   if (localQueue && cloudCanTake)
-    return "This computer is offline — the cloud builder can take it now";
+    return "This computer is offline — the cloud runner can take it now";
   return localQueue
-    ? "Open Fleet Runner on This computer — or use cloud builder, then Retry"
-    : "The cloud builder is offline — the work waits and starts when it reconnects, or Retry";
+    ? "Open Fleet Runner on This computer — or use cloud runner, then Retry"
+    : "The cloud runner is offline — the work waits and starts when it reconnects, or Retry";
 }
 
 /** The cloud can take this local-queued work right now: online, allowed by
@@ -466,10 +466,10 @@ function derivePhase(
       ...(cloudCanTake(run) ? { rerouteTo: "cloud" as const } : {}),
       // watchable filled by withStep (in-flight); no PTY yet → terminalReady false
       diagnostic: run.hostedPending
-        ? "Cloud builder offline; hosted Hermes was queued but has not claimed yet."
+        ? "Cloud runner offline; hosted Hermes was queued but has not claimed yet."
         : localQueue
           ? `This computer (Fleet Runner) is offline${claimed ? " and the prompt was already handed to it — no output since" : " — no agent session until it reconnects"}, or switch the project to Cloud.`
-          : `Cloud builder offline${claimed ? " and the prompt was already handed to it — no output since" : " — no agent session will appear until loki-box-runner is online (or Hermes accepts)"}.`,
+          : `Cloud runner offline${claimed ? " and the prompt was already handed to it — no output since" : " — no agent session will appear until loki-box-runner is online (or Hermes accepts)"}.`,
     };
   }
   // Waiting its turn is not a fault, and must be read BEFORE the age-based

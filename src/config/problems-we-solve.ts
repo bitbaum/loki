@@ -44,7 +44,7 @@ export const PROBLEMS_SECTION = {
   closer: {
     text: "Don’t see yours? Describe it when you start a project — Loki asks a few short questions, and every one of them can be skipped.",
     /** Honest about who has the cloud builder today — see WHERE_IT_RUNS. */
-    note: "During the beta the agents run on the cloud builder for invited accounts, or on your own computer with the free Fleet Runner app.",
+    note: "During the beta the agents run on the cloud runner for invited accounts, or on your own computer with the free Fleet Runner app.",
   },
 } as const;
 

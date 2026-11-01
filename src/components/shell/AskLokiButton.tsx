@@ -35,20 +35,22 @@ import { citationsFrom } from "@/components/loki/footers";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { pickProvenance } from "@/lib/loki/provenance";
 import { readReplies } from "@/lib/loki/replies";
+import { readBuildLine } from "@/lib/loki/build-line";
+import {
+  clearPanelThread,
+  panelThreadKey,
+  readPanelThread,
+  writePanelThread,
+  type PanelTurn,
+} from "@/lib/loki/panel-thread";
 import { isProjectWorkspacePath } from "@/lib/navigation";
 
 /** Prior turns sent with an ask, and how much of each. Matches the loop's own trim. */
 const HISTORY_TURNS = 8;
 const HISTORY_CHARS = 600;
 
-type Turn = {
-  role: "user" | "loki";
-  text: string;
-  /** Provenance for a Loki turn — which model, what it read, whether it verified. */
-  meta?: Record<string, unknown>;
-  /** What the person is likely to say next — one tap sends it. */
-  replies?: string[];
-};
+/** One line of the panel's transcript; the shape the device keeps (lib/loki/panel-thread.ts). */
+type Turn = PanelTurn;
 
 /** Ceiling for the drawer composer's auto-grow. Smaller than the full-page
  *  composer's 240px: this one floats over the page it is asking about. */
@@ -111,11 +113,23 @@ function ProposalChip({
  * streak), plus a project-scoped Loki thread inline. Elsewhere it offers the
  * fleet-wide starters. `?` toggles it; `loki:open` opens it prefilled.
  */
-export function AskLokiButton() {
+export function AskLokiButton({ viewerId = null }: { viewerId?: string | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
+  // The turns and the scope they belong to, together: a write after a scope
+  // change must land under the key the turns came from, never the new one.
+  const [thread, setThread] = useState<{ key: string | null; turns: Turn[] }>({
+    key: null,
+    turns: [],
+  });
+  const turns = thread.turns;
+  const setTurns = useCallback((next: Turn[] | ((prev: Turn[]) => Turn[])) => {
+    setThread((prev) => ({
+      key: prev.key,
+      turns: typeof next === "function" ? next(prev.turns) : next,
+    }));
+  }, []);
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
   const sentContextRef = useRef<string | null>(null);
@@ -131,6 +145,20 @@ export function AskLokiButton() {
   }, [turns]);
 
   const context = useSyncExternalStore(subscribeContext, readAssistantContext, () => null);
+
+  // The transcript lives on the device, one thread per person and per scope:
+  // a project page shows that project's thread, every other page the
+  // fleet-wide one. Leaving project A for project B shows B's thread (or
+  // none), never A's questions as B's context; coming back restores A's, and
+  // the next ask sends it as history like any other turn.
+  const threadKey = panelThreadKey(viewerId, context?.workspaceKey ?? null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating the scope's stored thread
+    setThread({ key: threadKey, turns: readPanelThread(threadKey) });
+  }, [threadKey]);
+  useEffect(() => {
+    if (thread.key) writePanelThread(thread.key, thread.turns);
+  }, [thread]);
   // When a form is open, the assistant edits it instead of answering about it.
   const activeForm = useSyncExternalStore(subscribeActiveForm, readActiveForm, () => null);
 
@@ -254,6 +282,9 @@ export function AskLokiButton() {
               // to the records they name, as they do on /loki.
               meta: { ...pickProvenance(body), sources: body.sources },
               replies: readReplies(body),
+              // Held back by the route when this message did not ask for
+              // direction: offered under the answer, not written into it.
+              buildLine: readBuildLine(body),
             },
           ]);
         }
@@ -263,7 +294,7 @@ export function AskLokiButton() {
         setAsking(false);
       }
     },
-    [input, asking, workspaceKey, activeForm],
+    [input, asking, workspaceKey, activeForm, setTurns],
   );
 
   // /loki IS the assistant; /terminal carries it as its Loki panel (rail or
@@ -302,6 +333,20 @@ export function AskLokiButton() {
               >
                 Full Loki <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
               </Link>
+              {turns.length > 0 && !asking && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearPanelThread(threadKey);
+                    setTurns([]);
+                    setAskError(null);
+                  }}
+                  className="ui-btn-ghost min-h-8 px-2 text-xs"
+                  title="Forget this thread on this device"
+                >
+                  Clear
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -398,6 +443,24 @@ export function AskLokiButton() {
                   <MarkdownText text={turn.text} citations={citationsFrom(turn.meta ?? null)} />
                 )}
                 {turn.role === "loki" && <ProvenanceFooter meta={turn.meta ?? null} />}
+                {/* The build line the answer ended with, when nobody asked for
+                    one: a suggestion to pick up, not the answer's last word.
+                    Tapping puts it in the box; sending is still the person's. */}
+                {turn.role === "loki" && turn.buildLine && (
+                  <div className="mt-1 space-y-1">
+                    <p className="ui-micro-label">Next build, if you want it</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInput(turn.buildLine ?? "");
+                        inputRef.current?.focus();
+                      }}
+                      className="ui-btn-ghost min-h-8 max-w-full justify-start px-2 text-left text-xs"
+                    >
+                      <span className="truncate">{turn.buildLine}</span>
+                    </button>
+                  </div>
+                )}
                 {/* Under the latest answer only, and never while the next
                     turn is on its way — the same rule as every chat in the
                     fleet (chatkit's ChatThread). */}

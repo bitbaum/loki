@@ -92,7 +92,7 @@ export function mailSubject(kind: MailKind, extra?: string): string {
         : "Your private link to the bitbaum studio";
     case "studio_update":
       return extra === "partner"
-        ? "The bitbaum studio answered your partner application"
+        ? "The bitbaum studio answered your builder application"
         : "The bitbaum studio answered your request";
     case "build_request":
       return extra === "building"

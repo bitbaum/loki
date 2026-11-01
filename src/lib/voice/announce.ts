@@ -105,7 +105,7 @@ export function phraseChanges(changes: FleetChange[], variant = 0): Announcement
   if (byKind("builder-offline").length)
     out.push({
       earcon: "offline",
-      text: "The builder went offline. Nothing can run until it is back.",
+      text: "The runner went offline. Nothing can run until it is back.",
     });
 
   const failed = byKind("failed");
@@ -138,7 +138,7 @@ export function phraseChanges(changes: FleetChange[], variant = 0): Announcement
     out.push({ earcon: "failed", text: `Alert: ${excerptForSpeech(a.title, 120)}.` });
 
   if (byKind("builder-online").length)
-    out.push({ earcon: "online", text: "The builder is back online." });
+    out.push({ earcon: "online", text: "The runner is back online." });
 
   const finished = byKind("finished");
   if (finished.length === 1) {

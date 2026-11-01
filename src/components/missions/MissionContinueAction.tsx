@@ -91,7 +91,7 @@ export function MissionContinueAction({
           <Play className="h-4 w-4" aria-hidden />
         )}
         {state.phase === "sending"
-          ? "Sending to the builder…"
+          ? "Sending to the runner…"
           : offer.kind === "next_step"
             ? "Continue mission"
             : "Start mission"}

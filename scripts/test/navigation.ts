@@ -24,7 +24,10 @@ const LOOP = [
   { id: "now", items: ["loki", "control", "projects"], bare: true },
   // Everything else folded, each group one question — never a drawer.
   { id: "waiting", items: ["approvals", "feedback"], bare: false },
-  { id: "day", items: ["today", "suggestions", "voice"], bare: false },
+  { id: "day", items: ["today", "suggestions"], bare: false },
+  // "bots" opens the one list on OrangeCat (the bot's face is OrangeCat's,
+  // its work is Loki's; one list, not two — #1495).
+  { id: "talk", items: ["voice", "bots"], bare: false },
   { id: "across", items: ["terminal", "missions", "activity", "prompts"], bare: false },
   { id: "hood", items: ["packages", "system"], bare: false },
 ] as const;

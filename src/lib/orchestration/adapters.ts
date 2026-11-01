@@ -91,7 +91,7 @@ export const ADAPTER_DEFINITIONS: Record<AdapterId, AdapterDefinition> = {
       cloudQueueable: true,
     }),
     notes:
-      "Cursor Agent CLI (cursor-agent) on This computer or cloud builder — must be on PATH and logged in.",
+      "Cursor Agent CLI (cursor-agent) on This computer or cloud runner — must be on PATH and logged in.",
   },
 };
 

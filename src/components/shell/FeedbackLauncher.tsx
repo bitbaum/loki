@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BRAND_MARK, spiralPathD } from "@/config/brand-mark";
 import { isFeedbackWidgetRoute } from "@/config/feedback-widget";
 import { useFeedbackButton } from "@/hooks/use-feedback-button";
 import {
@@ -12,8 +11,8 @@ import {
   type LauncherStatus,
 } from "@/lib/open-feedback";
 import { cn } from "@/lib/utils";
+import { LokiMark } from "@/components/shell/LokiMark";
 
-const SPIRAL_D = spiralPathD();
 const NO_STATUS: LauncherStatus = { owner: false, watching: false, unread: 0 };
 
 /**
@@ -62,20 +61,7 @@ export function FeedbackLauncher({ enabled }: { enabled: boolean }) {
       aria-label={label}
       title={label}
     >
-      <svg
-        viewBox={`0 0 ${BRAND_MARK.viewBox} ${BRAND_MARK.viewBox}`}
-        fill="none"
-        className={cn("h-5 w-5", watching && "ui-topbar-spiral-watching")}
-        aria-hidden="true"
-      >
-        <path
-          d={SPIRAL_D}
-          stroke="currentColor"
-          strokeWidth={BRAND_MARK.strokeWidth * 1.4}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <LokiMark turns="tiny" className={cn("h-5 w-5", watching && "ui-topbar-spiral-watching")} />
       {/* The dot is the state; a count, when there is one, sits in the same
           corner and says more. */}
       {owner && unread === 0 && (

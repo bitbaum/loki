@@ -223,7 +223,7 @@ export async function runKickoffPlan(
     mark(
       "dispatch",
       "done",
-      "Queued — no builder is online yet, so the agent starts the moment one connects.",
+      "Queued — no runner is online yet, so the agent starts the moment one connects.",
     );
     return finish("queued-offline");
   }
@@ -232,7 +232,7 @@ export async function runKickoffPlan(
     "done",
     dispatched.mode === "direct"
       ? "Agent is working now."
-      : "Sent to the builder — the session opens in Sessions within a minute.",
+      : "Sent to the runner — the session opens in Sessions within a minute.",
   );
   return finish("running");
 }

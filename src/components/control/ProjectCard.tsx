@@ -271,7 +271,7 @@ export function ProjectCard({
             // while dispatches sit unexecuted in pending_commands contradicted
             // the hero's own stall banner one screen up.
             executionStalled
-            ? "Autopilot on, but dispatches are queued and not executing — see the builder status above."
+            ? "Autopilot on, but dispatches are queued and not executing — see the runner status above."
             : "Autopilot on: queue is empty, so Loki picks the next-best task when the agent waits.";
 
   const {

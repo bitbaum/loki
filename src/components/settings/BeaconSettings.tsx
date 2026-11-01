@@ -184,7 +184,7 @@ export function BeaconSettings() {
               <p className="text-xs text-text-muted">
                 While you sleep, Loki works through your feedback — one fix per project, the
                 owner&apos;s own notes first — and reads one site that has not been read this week,
-                filing what it finds into Feedback. Every run is an agent run on your builder, so
+                filing what it finds into Feedback. Every run is an agent run on your runner, so
                 this number is the most it can spend. It also files away reports nobody started in{" "}
                 {STALE_REPORT_DAYS} days, with the reason on the row. 0 keeps the filing and stops
                 the building. A project paused on Control is left alone.
@@ -231,7 +231,7 @@ export function BeaconSettings() {
                 it would cost from your own last runs — and nothing that spends is started without
                 your yes. Set an allowance and it runs without asking for that long, under the cap;
                 a night over the cap asks again. Filing away old reports and moving stuck rows to
-                the cloud is free and always happens. Building uses your builder as set above; the
+                the cloud is free and always happens. Building uses your runner as set above; the
                 evening message and the morning note cost nothing.
               </p>
             </div>

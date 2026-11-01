@@ -3,7 +3,7 @@ import type { StudioCommissionContract } from "@/lib/studio-commission";
 import { PARTNER_TERMS, stripEmphasis, stripMeta, type ConciergeTurn } from "./concierge";
 
 /**
- * The studio's one door (bitbaum.orangecat.ch/hire/#waitlist and /partners/),
+ * The studio's one door (bitbaum.orangecat.ch/hire/#waitlist and /builders/),
  * as a conversation. The site saves the visitor's first words at once — a
  * request that bounces is a person lost — and this module writes what the
  * studio says back: one or two questions at a time about what exists, who it
@@ -104,9 +104,9 @@ export function intakeSystemPrompt(
       : "No engagement list is available right now: do not state any price.",
   ];
   const partnerPart = [
-    "This is the partner application door: a builder applying to build for customers under their own name.",
+    "This is the builder application door: a builder applying to build for customers under their own name.",
     "Learn, skipping what was said: who they are, what they build, where their work can be seen (a link), and how they like to work with customers.",
-    `The partner terms, which you may state:\n${PARTNER_TERMS.map((t) => `- ${t}`).join("\n")}`,
+    `The builder terms, which you may state:\n${PARTNER_TERMS.map((t) => `- ${t}`).join("\n")}`,
   ];
   return [
     ...common,

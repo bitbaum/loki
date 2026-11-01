@@ -6,9 +6,13 @@
  * TS keeps the runner, hooks, and UI talking about it with the same words.
  *
  * Run: npx tsx scripts/generate-bash-state-vocab.ts
- * Wired into npm run build via the build:vocab step.
+ * Check: npx tsx scripts/generate-bash-state-vocab.ts --check (exit 1 if stale)
+ * Wired into npm run build via the build:vocab step. The file is committed,
+ * so a stale copy makes the deploy's build dirty the checkout and the
+ * release receipt refuse it (#1482); scripts/test/control-states-vocab.ts
+ * runs --check in CI so that shows up before merge.
  */
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { PROJECT_STATES, STATE_DEFINITIONS } from "../src/lib/control-states.ts";
@@ -69,5 +73,14 @@ lines.push(`  return 0`);
 lines.push(`}`);
 lines.push("");
 
-writeFileSync(OUT_PATH, lines.join("\n"), { mode: 0o644 });
-console.log(`✓ wrote ${OUT_PATH} (${PROJECT_STATES.length} states)`);
+const generated = lines.join("\n");
+if (process.argv.includes("--check")) {
+  if (readFileSync(OUT_PATH, "utf8") !== generated) {
+    console.error(`✗ ${OUT_PATH} is stale — run: npx tsx scripts/generate-bash-state-vocab.ts`);
+    process.exit(1);
+  }
+  console.log(`✓ ${OUT_PATH} is current (${PROJECT_STATES.length} states)`);
+} else {
+  writeFileSync(OUT_PATH, generated, { mode: 0o644 });
+  console.log(`✓ wrote ${OUT_PATH} (${PROJECT_STATES.length} states)`);
+}

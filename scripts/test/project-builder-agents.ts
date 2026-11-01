@@ -29,13 +29,13 @@ assert.equal(
 );
 assert.match(
   cloud.find((a) => a.id === "codex")?.availabilityReason ?? "",
-  /not installed on the cloud builder/,
+  /not installed on the cloud runner/,
 );
-assert.equal(cloud.find((a) => a.id === "codex")?.unavailableNote, "not on the cloud builder");
+assert.equal(cloud.find((a) => a.id === "codex")?.unavailableNote, "not on the cloud runner");
 assert.equal(
   cloud.find((a) => a.id === "grok")?.available,
   true,
-  "installed on the builder that runs it, whatever the laptop says",
+  "installed on the runner that runs it, whatever the laptop says",
 );
 
 const local = onProjectBuilder(panel, { builderChannel: "local", builderAgents: ["codex"] });
@@ -44,7 +44,7 @@ assert.match(local.find((a) => a.id === "claude")?.availabilityReason ?? "", /yo
 assert.deepEqual(
   onProjectBuilder(panel, { builderChannel: "cloud", builderAgents: null }),
   panel,
-  "a builder that never reported leaves the rows as they were (unknown, not none)",
+  "a runner that never reported leaves the rows as they were (unknown, not none)",
 );
 assert.deepEqual(onProjectBuilder(panel, {}), panel, "an older API response changes nothing");
 

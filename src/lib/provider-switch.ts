@@ -93,13 +93,13 @@ export function describeProviderEvidence(
   installedKnown: boolean,
 ): string {
   if (!installedKnown) {
-    return "No builder has reported what it has installed, so availability here is unknown, not empty.";
+    return "No runner has reported what it has installed, so availability here is unknown, not empty.";
   }
   const where = !evidence?.channel
-    ? "across your builders"
+    ? "across your runners"
     : evidence.channel === "local"
       ? "on This computer (Fleet Runner)"
-      : "on the cloud builder";
+      : "on the cloud runner";
   const at = evidence?.observedAt ? Date.parse(evidence.observedAt) : NaN;
   const when = Number.isFinite(at) ? `, ${timeAgo(at)}` : "";
   return `Installed list as observed ${where}${when}.`;
@@ -196,7 +196,7 @@ export function rankProviders(input: ProviderRankInput): ProviderOption[] {
           id,
           label: providerLabel(id),
           usable: false,
-          reason: `${providerLabel(id)} is not installed on the connected builder.`,
+          reason: `${providerLabel(id)} is not installed on the connected runner.`,
           block: "not-installed",
         };
       }

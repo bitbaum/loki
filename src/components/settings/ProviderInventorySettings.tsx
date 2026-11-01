@@ -30,23 +30,23 @@ export function ProviderInventorySettings() {
     <section className="ui-settings-section">
       <SectionHeading title="AI providers" />
       <p className="-mt-1 text-sm text-text-secondary">
-        Checked on each builder. A provider counts as working only once a real prompt has answered.
+        Checked on each runner. A provider counts as working only once a real prompt has answered.
       </p>
       {error && <p className="ui-error">{error}</p>}
       {!runners && !error && <EmptyState>Loading…</EmptyState>}
-      {runners?.length === 0 && <EmptyState>No builder has reported in yet.</EmptyState>}
+      {runners?.length === 0 && <EmptyState>No runner has reported in yet.</EmptyState>}
       {runners?.map((r) => (
         <div key={r.channel}>
           <p className="ui-life-field-label">
-            {r.channel === "cloud" ? "Cloud builder" : "This computer"} · checked{" "}
+            {r.channel === "cloud" ? "Cloud runner" : "This computer"} · checked{" "}
             {formatDistanceToNow(new Date(r.observedAt), { addSuffix: true })}
           </p>
           {!r.providers ? (
             <p className="text-sm text-text-secondary">
-              This builder&apos;s app is older than this list — update it to see its providers.
+              This runner&apos;s app is older than this list — update it to see its providers.
             </p>
           ) : (
-            <List aria-label={r.channel === "cloud" ? "Cloud builder" : "This computer"}>
+            <List aria-label={r.channel === "cloud" ? "Cloud runner" : "This computer"}>
               {r.providers.map((p) => (
                 <ListRow
                   key={p.id}

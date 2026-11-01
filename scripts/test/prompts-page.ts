@@ -156,7 +156,7 @@ check("a send ends in one plain sentence, never the queue's own words", () => {
   assert.equal(failed.failed, true);
   assert.equal(failed.text, "It could not start in Substrata. Try again.");
   const waiting = sendResultLine({ status: null, waitingForBuilder: true, project: "Substrata" });
-  assert.match(waiting.text, /as soon as a builder is online/);
+  assert.match(waiting.text, /as soon as a runner is online/);
   for (const status of [
     null,
     "queued",

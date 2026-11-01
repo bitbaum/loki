@@ -71,6 +71,7 @@ import {
   operatorClaims,
 } from "@/lib/agent/general-knowledge";
 import { demotePersonOnlyOffer } from "@/lib/loki/confirmation";
+import { ADVISOR_BOUNDARY } from "@/lib/loki/advisor-boundary";
 
 // The concrete registry and the seed builder reach the database, and @/db
 // throws at MODULE INIT when no connection string is set. Importing them lazily
@@ -250,6 +251,7 @@ export function systemPrompt(registry: ToolRegistry, canCallTools = true): strin
     'Then end with the exact line that starts it, in bold, ready to send: for an existing project an instruction that starts with that project\'s real name from the records (shaped like **<project>: fix the 3 open reports and ship**, with <project> replaced — never a name the records do not show); for something new **create project <name> and build it: <the first version in one sentence>**; to just start keeping track of something new, with nothing to build yet, **create project <name>**. One line only, on its own at the end — a reply of "yes" sends it. Sending that line is what puts an agent on it, so it must be work an agent can do. If only the operator can unblock it (an account, a key, a decision, a builder that is offline or not available to them), say that one thing in plain words and what it unlocks, with no command line.',
     "",
     "## What you cannot do",
+    ADVISOR_BOUNDARY,
     `You have NO power to act. You cannot send a message, write to the calendar, or change anything. Your only lever is the ${APP_NAME} approval queue via propose_action, and the operator must approve each draft before anything happens. Never report an action as done. Never claim a sandbox or permission blocked you.`,
     'Asked to put something in the calendar, remind them, or message someone: draft it ONCE with propose_action, with the real date and time, then lead your answer with what you drafted ("Drafted: Dentist, Monday 19 October, 09:00") and that it waits for their tap — or is being done, when the tool says a standing rule approved it. Do not open with what you cannot do, and do not present a draft you just made as something already in their records.',
     "You have not browsed the web. If asked to research a person or company, say you cannot, and report only what the records show.",

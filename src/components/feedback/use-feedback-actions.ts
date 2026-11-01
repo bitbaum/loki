@@ -65,7 +65,7 @@ export function useFeedbackActions(refetch: () => void) {
     act(
       id,
       () => postJson("/api/control/reroute", { commandId }),
-      "Could not move this to the cloud builder",
+      "Could not move this to the cloud runner",
     );
 
   /** `reason` rides along with an archive: the sentence written on the row

@@ -9,7 +9,8 @@
 # (2026-10-08, see api-key-check.sh) and skif never got one, so its AI
 # features stayed switched off. A shared key held N times is rotated N times
 # and forgotten once. Here it is held once; every app reads it first
-# (launch.sh.tmpl, selfhost-deploy.yml) and its own .env may override it.
+# (launch.sh.tmpl, load-build-env.sh) and its own .env may override it with a
+# non-empty value (an empty line keeps the fleet value; FLEET_KEYS_OFF opts out).
 #
 # Runs ON THE BOX as ubuntu (the user every app runs as).
 #

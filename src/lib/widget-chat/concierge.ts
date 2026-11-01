@@ -59,10 +59,13 @@ export const STUDIO_DOORS: ReadonlyArray<{
     keys: ["all projects", "catalogue", "catalog"],
   },
   {
-    label: "Become a partner",
-    url: "https://bitbaum.orangecat.ch/partners/#join",
-    when: "they are a builder who wants to build for customers under their own name, or ask about the partner programme",
+    label: "Become a builder",
+    url: "https://bitbaum.orangecat.ch/builders/#join",
+    when: "they are a builder who wants to build for customers under their own name, or ask about approved builders (once called partners)",
     keys: [
+      "become a builder",
+      "approved builder",
+      "builder application",
       "partners",
       "become a partner",
       "partner programme",
@@ -73,7 +76,7 @@ export const STUDIO_DOORS: ReadonlyArray<{
   {
     label: "Read the systems design pilot",
     url: "https://bitbaum.orangecat.ch/academy/",
-    when: "they ask about the course, the capstone, the rubric or how partners qualify",
+    when: "they ask about the course, the capstone, the rubric or how builders qualify",
     keys: ["systems design pilot", "capstone", "rubric", "academy"],
   },
   {
@@ -221,18 +224,19 @@ export function projectUrl(p: FleetMapEntry, appBase: string): string {
 export const FACTS_BUDGET_CHARS = 9000;
 
 /**
- * The partner programme as the studio site states it on /partners/. Not in
+ * The approved-builder terms as the studio site states them on /builders/
+ * (called partners until 2026-10-30). Not in
  * the published contract (commission.json carries the offer and the course,
  * not these rules), so it is stated once here, beside the doors that route to
- * it. Without it the chat told applicants on /partners/ that no partner
+ * it. Without it the chat told applicants on that page that no partner
  * programme existed.
  */
 export const PARTNER_TERMS = [
-  "Partners are independent builders approved by the studio. They work under their own name and agree their own scope and price.",
-  "Customers contract with and pay the partner directly; the studio takes no cut. Loki, OrangeCat and Solon are optional tools.",
-  "To apply: one message on /partners/ saying who you are, what you build and where your work can be seen opens a private application; no account is needed. A person at the studio decides on that work.",
-  "The systems design course and its capstone exam are optional. They are there to learn from, and passing adds a credential to the partner's profile; they are never required for approval.",
-  "An approved partner's profile appears in the public partner directory only with their consent, after review, and while their availability is current.",
+  "Approved builders are independent people the studio approved on their shipped work (they used to be called partners). They work under their own name and agree their own scope and price.",
+  "Customers contract with and pay the builder directly; the studio takes no cut. Loki, OrangeCat and Solon are optional tools.",
+  "To apply: one message on /builders/ saying who you are, what you build and where your work can be seen opens a private application; no account is needed. A person at the studio decides on that work.",
+  "The systems design course and its capstone exam are optional. They are there to learn from, and passing adds a credential to the builder's profile; they are never required for approval.",
+  "An approved builder's profile appears in the public builder directory only with their consent, after review, and while their availability is current.",
 ];
 
 /**
@@ -310,8 +314,8 @@ export function conciergeSystemPrompt(
     "- Answer only from the facts below. Never invent a feature, price, date, number or project.",
     "- If nothing fits, say so in one sentence, then give the closest real way forward: 'Build something of your own' when it could be built, 'Ask a person' otherwise. Never stop at 'nothing matched'.",
     "- Say the stage honestly, using the words given (beta, pilot, in development, concept, not built). Never call anything released or finished, and never call anyone a client.",
-    "- Do not promise payments, revenue shares or start dates. You may state the partner terms and the published engagement price exactly as the facts give them.",
-    "- A builder who wants to work here, build for customers, or asks about partners, the course or the capstone: Loki answers from '# The studio' and points to 'Become a partner' or 'Read the systems design pilot'. Never say the partner programme or the course does not exist.",
+    "- Do not promise payments, revenue shares or start dates. You may state the builder terms and the published engagement price exactly as the facts give them.",
+    "- A builder who wants to work here, build for customers, or asks about builders (or partners, the old word), the course or the capstone: Loki answers from '# The studio' and points to 'Become a builder' or 'Read the systems design pilot'. Never say the builder programme or the course does not exist.",
     "- Use each project's exact name so the visitor gets a link to it. Do not write URLs yourself; the links are attached for you.",
     "- Never tell a visitor to sign up, register, create an account or install anything: say 'open <project>'. The project's own page says what it needs, and most need nothing.",
     "- No product here gives medical, legal or financial advice, diagnoses, prescribes, or represents anyone. Say what it does — reads, explains, organises, drafts — and, when the visitor needs a decision, that a doctor, lawyer or adviser makes it.",

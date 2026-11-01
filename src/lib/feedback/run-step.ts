@@ -20,8 +20,8 @@ export type RunStepSnapshot = {
 };
 
 const KIND_SUMMARY: Record<RunEventKind, string> = {
-  dispatched: "Queued for a builder",
-  claimed: "Builder claimed the job",
+  dispatched: "Queued for a runner",
+  claimed: "Runner claimed the job",
   launched: "Cold-starting agent session",
   submitted: "Prompt delivered to agent",
   generating: "Agent is generating",
@@ -133,7 +133,7 @@ export function summarizeRunStep(input: {
     return {
       kind: "hosted_queued",
       summary: "Queued on hosted runner (Hermes)",
-      detail: "Cloud builder was offline; Hermes will clone and open a PR when it accepts.",
+      detail: "Cloud runner was offline; Hermes will clone and open a PR when it accepts.",
     };
   }
   if (input.pendingUnclaimed !== false) {
@@ -192,30 +192,30 @@ function waitingBuilderStep(
   if (channel === "cloud" && cloudOnline === false && localOnline !== true) {
     return {
       kind: "waiting_builder",
-      summary: "Cloud builder offline",
+      summary: "Cloud runner offline",
       detail:
-        "This job is on the cloud queue and the cloud builder is offline. Nothing starts until it reconnects; the work is kept and runs the moment it does.",
+        "This job is on the cloud queue and the cloud runner is offline. Nothing starts until it reconnects; the work is kept and runs the moment it does.",
     };
   }
   if (localOnline === true && cloudOnline !== true) {
     return {
       kind: "waiting_builder",
-      summary: "Waiting for cloud builder — Switch to This computer",
+      summary: "Waiting for cloud runner — Switch to This computer",
       detail:
-        "This computer is online, but this job is on the cloud queue. Set project Runs on → This computer (then Retry), or wait for the cloud builder.",
+        "This computer is online, but this job is on the cloud queue. Set project Runs on → This computer (then Retry), or wait for the cloud runner.",
     };
   }
   if (localOnline === true) {
     return {
       kind: "waiting_builder",
-      summary: "Waiting for cloud builder to claim",
+      summary: "Waiting for cloud runner to claim",
       detail:
         "Job is on the cloud queue (This computer is also online). Switch Runs on → This computer if you want Fleet Runner to claim it — or wait for cloud.",
     };
   }
   return {
     kind: "waiting_builder",
-    summary: "Waiting for cloud builder to claim",
+    summary: "Waiting for cloud runner to claim",
     detail:
       "Command is in the cloud queue. If this stays put, Watch shows why — Telegram when it stalls.",
   };

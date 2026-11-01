@@ -359,7 +359,7 @@ for (const prompt of [
   );
   assert.equal(cloudCanTake.phase, FEEDBACK_WORK_PHASE.STUCK);
   assert.equal(cloudCanTake.rerouteTo, "cloud");
-  assert.match(cloudCanTake.detail ?? "", /cloud builder can take it/);
+  assert.match(cloudCanTake.detail ?? "", /cloud runner can take it/);
   // Locked to the laptop: no offer, the honest ask stays.
   const locked = deriveFeedbackWork(
     FEEDBACK_STATUS.DISPATCHED,
@@ -380,7 +380,7 @@ for (const prompt of [
   assert.match(
     stalledOffline.diagnostic ?? "",
     /Worked 32 min/,
-    "it still says what the run achieved before the builder vanished",
+    "it still says what the run achieved before the runner vanished",
   );
 
   // A cloud run gets the cloud ask, not the laptop one.
@@ -398,7 +398,7 @@ for (const prompt of [
     now,
   );
   // Names the cloud builder in the operator's words, not the process name.
-  assert.match(stalledCloudOffline.detail ?? "", /cloud builder is offline/);
+  assert.match(stalledCloudOffline.detail ?? "", /cloud runner is offline/);
 
   // Delivered and no heartbeat yet: Starting (Queued), never fake Working.
   const fresh = deriveFeedbackWork(
@@ -581,7 +581,7 @@ for (const prompt of [
   assert.equal(
     offlineAfterDelivery.phase,
     FEEDBACK_WORK_PHASE.STUCK,
-    "delivered + builder offline + no output is STUCK, not Starting",
+    "delivered + runner offline + no output is STUCK, not Starting",
   );
   assert.match(
     offlineAfterDelivery.detail ?? "",
@@ -606,12 +606,12 @@ for (const prompt of [
   assert.equal(
     offlineBeforeDelivery.phase,
     FEEDBACK_WORK_PHASE.STUCK,
-    "never-claimed + builder offline is still STUCK",
+    "never-claimed + runner offline is still STUCK",
   );
   assert.doesNotMatch(
     offlineBeforeDelivery.diagnostic ?? "",
     /already handed to it/,
-    "never-claimed must not claim the prompt reached the builder",
+    "never-claimed must not claim the prompt reached the runner",
   );
 
   // The guard is about SILENCE, not about presence: a run that is streaming

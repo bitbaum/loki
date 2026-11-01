@@ -64,6 +64,20 @@ printf '#!/usr/bin/env bash\necho "  - Token scopes: %s"\n' "'delete_repo', 'rep
 out=$(PATH="$STUB:$PATH" retire demo-site --mode delete --repo delete || true)
 has "$out" "cannot be undone"
 hasnt "$out" "no delete_repo scope"  # a token that CAN delete is not lectured
+echo "→ a renamed repository is left to the site that now owns it"
+# GitHub redirects the old name, so without this a delete of the old site
+# would disable the new site's workflows and remove its deploy key.
+printf '#!/usr/bin/env bash\n[ "$1" = api ] && { echo "bitbaum/new-name"; exit 0; }\necho "  - Token scopes: %s"\n' "'repo'" > "$STUB/gh"
+out=$(PATH="$STUB:$PATH" retire demo-site --mode delete --repo archive || true)
+has "$out" "renamed to bitbaum/new-name"
+has "$out" "/opt/demo-site"                  # the box steps still run
+hasnt "$out" "GitHub Actions workflows"
+hasnt "$out" "HETZNER_SSH_PRIVATE_KEY"
+hasnt "$out" "archive bitbaum"
+printf '#!/usr/bin/env bash\n[ "$1" = api ] && { echo "bitbaum/demo-site"; exit 0; }\n' > "$STUB/gh"
+out=$(PATH="$STUB:$PATH" retire demo-site --mode delete || true)
+hasnt "$out" "renamed to"                    # the same name is not a rename
+has "$out" "GitHub Actions workflows"
 rm -rf "$STUB"
 
 echo "→ it refuses a mode it does not understand, and insists on one"
@@ -114,6 +128,28 @@ echo "→ restore regenerates rather than removes"
 out=$(retire demo-site --mode restore)
 has "$out" "sync-infra"
 hasnt "$out" "rm -rf"
+
+echo "→ a sleeping site's wake socket goes with it (it holds the port and wakes the app)"
+out=$(retire demo-site --mode offline); has "$out" "wake socket"
+out=$(retire demo-site --mode delete --repo keep); has "$out" "demo-site-wake.socket"
+grep -q 'disable --now $SLUG-wake.socket' "$SCRIPT" && ok 0 "" || ok 1 "the wake socket is not disabled"
+
+echo "→ delete removes the row from the box's own register, not only this copy"
+has "$out" "remove the row from the box's register"
+grep -q "sed -i '/^\$SLUG|/d' '\$BOX_REGISTER'" "$SCRIPT" && ok 0 "" || ok 1 "no box-register removal"
+
+echo "→ --no-github touches no repository, workflow or secret"
+out=$(retire demo-site --mode delete --repo keep --no-github)
+has "$out" "no GitHub step"
+hasnt "$out" "disable the repository"
+hasnt "$out" "HETZNER_SSH_PRIVATE_KEY"
+out=$(retire demo-site --mode delete --repo archive --no-github || true); has "$out" "contradicts"
+
+echo "→ --keep-data keeps /opt and the checkout, and the summary says so"
+out=$(retire demo-site --mode delete --repo keep --no-github --keep-data)
+has "$out" "keep /opt/demo-site"
+hasnt "$out" "remove /opt/demo-site"
+has "$out" "are kept"
 
 echo "→ no backtick command substitution (the sync-infra footgun)"
 grep -n '`' "$SCRIPT" >/dev/null 2>&1 && ok 1 "retire-site.sh contains a backtick" || ok 0 ""

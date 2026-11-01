@@ -97,6 +97,10 @@ EOF
     unit=$(sleep_app_unit "$unit" "$NAME" "$LISTEN")
     # Stop the always-on app only when the socket is not already holding the
     # port (the first switch); a re-sync of a sleeping site stops nothing.
+    # Stop the wake proxy then too: a deploy that ran before the first sync
+    # finished starts the app, which pulls in the proxy, and the proxy keeps
+    # the inherited listener on the public port, so the new socket cannot bind
+    # it (signin, 2026-10-31: Result: resources on every sync).
     activate="sudo tee /etc/systemd/system/$NAME-wake.socket >/dev/null <<'SOCK_EOF'
 $(wake_socket_unit "$NAME" "$PORT")
 SOCK_EOF
@@ -105,8 +109,17 @@ $(wake_proxy_unit "$NAME" "$LISTEN")
 PROXY_EOF
 sudo systemctl daemon-reload
 sudo systemctl disable $NAME-app >/dev/null 2>&1 || true
-if ! systemctl is-active --quiet $NAME-wake.socket; then sudo systemctl stop $NAME-app; fi
-sudo systemctl enable --now $NAME-wake.socket >/dev/null 2>&1"
+if ! systemctl is-active --quiet $NAME-wake.socket; then
+  sudo systemctl stop $NAME-wake.service $NAME-app >/dev/null 2>&1 || true
+  sudo systemctl reset-failed $NAME-wake.socket >/dev/null 2>&1 || true
+fi
+if ! sudo systemctl enable --now $NAME-wake.socket >/dev/null 2>&1; then
+  echo \"    $NAME-wake.socket did not start (it holds 127.0.0.1:$PORT for the app):\" >&2
+  systemctl status --no-pager --lines=15 $NAME-wake.socket >&2 || true
+  echo \"    listening on :$PORT now:\" >&2
+  sudo ss -ltnpH | grep -E ':$PORT[[:space:]]' >&2 || echo '    (nothing)' >&2
+  exit 1
+fi"
   else
     # A site that went live is always on again: drop its wake units and
     # restart the app on its own port. Otherwise exactly what it always was.

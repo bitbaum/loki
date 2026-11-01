@@ -14,8 +14,9 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **Three words at the top of the sidebar.** {#four-words} Loki, Home,
   Projects — the same three as the phone's bottom bar. Everything else is
   folded under groups that say what they answer (Waiting for you, Your day,
-  Across your projects, Under the hood), and every line says what it is for
-  when you hover. The sections used to be Build, Loki, To review and The
+  Other ways to talk, Across your projects, Under the hood), and every line
+  says what it is for when you hover. Bots sit with Voice under Other ways
+  to talk. The sections used to be Build, Loki, To review and The
   fleet, always open.
 - **Loki speaks as someone on your side.** {#on-your-side} The homepage
   says "Say what you want. Loki builds it with you." instead of "Describe
@@ -24,6 +25,11 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   want. Loki sets it up and starts building." rather than talk of repos
   and agents. The mission reads "Make everything you can imagine, with
   someone on your side."
+
+## 2026-11-01 — Bots in the sidebar
+
+- **A bot can ask Loki.** {#bots-ask-loki} One of the person's OrangeCat bots can ask Loki a question, as the person, over the signed OrangeCat rail (`POST /api/orangecat/ask`). Loki answers from their own projects, dispatches and pages; the turn is read-only, so a relayed question can never dispatch, approve or spend. A person whose OrangeCat identity is not linked to a Loki account is told the one step that links it.
+- **Bots, beside Loki and Voice.** {#bots-in-sidebar} The person's bots live on OrangeCat (the Cat, the fleet's specialists, the ones they made, and their group chats) and that list is where a bot's face, price and purse are. Loki now opens that one list from its own sidebar instead of growing a second one; a bot's work, when it has hands, runs here.
 
 ## 2026-10-31 — The workbench
 
@@ -47,10 +53,36 @@ One project on one screen, one box.
   desktop app the workbench asks the app, which reads the real display
   list: the other display whole, or this one tiled with the app on the
   left and the new window on the right, and a window already open is
-  brought forward rather than opened twice (v0.8.60).
+  brought forward rather than opened twice (v0.8.63).
 - **The site is a picture here, not a frame, on purpose.** Every fleet
   site forbids being framed and severs `window.opener`; Loki's own
   browser is what can be shown (`docs/architecture/workbench.md`).
+
+## 2026-10-31 — Ask Loki, improved by two companions
+
+Two companions on OrangeCat (one arguing for Loki, one against), briefed on
+how Ask Loki works, agreed on three changes; this is them.
+
+- **A build line only when you asked for one.** {#build-line-held} Every
+  answer used to be able to end with a bold **project: task** command, even
+  "how much did we spend last week?". Now the line stays only when your
+  message asked for direction (what next, what to build, propose, decide, a
+  bare yes); otherwise it comes off the answer and the floating panel offers it
+  under the answer as "Next build, if you want it" — a tap puts it in the box,
+  sending is still yours. In the full Loki chat a "yes" after an answer that
+  never offered a build no longer sends one.
+- **The floating panel remembers, per project.** {#panel-thread-per-project}
+  Its transcript lives on your device, one thread per person and per project
+  (and one for the fleet-wide pages). Leave project A for project B and you see
+  B's thread, never A's questions as B's context; come back and A's is there,
+  and the next ask sends it as history. **Clear** in the panel's header forgets
+  the thread on this device.
+- **Loki says what it is.** {#advisor-boundary} Both of its system prompts
+  now open the role with the same sentence: the advisory surface, not the
+  executor — no Calendar access, no email, no direct change to the fleet, only
+  proposals for the approval queue. The capability list said as much, but only
+  on fallback turns and never as part of who Loki is.
+
 
 ## 2026-10-23 — One widget, not two pieces
 

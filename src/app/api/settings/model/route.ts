@@ -176,7 +176,7 @@ export async function PATCH(req: NextRequest) {
   if (body instanceof NextResponse) return body;
   if ("forBuilding" in body) {
     const changed = await setForBuilding(userId, body.vendor, body.forBuilding);
-    if (!changed) return jsonError("That key cannot drive a builder, or is not stored.", 404);
+    if (!changed) return jsonError("That key cannot drive a runner, or is not stored.", 404);
     return jsonOk({ model: view(changed) });
   }
   return jsonOk({ models: (await reorderOwnModels(userId, body.order)).map(view) });

@@ -184,7 +184,7 @@ export const COMPARE_GROUPS: CompareGroup[] = [
 /** Loki's own row, from this repository's code (checked the same day). */
 export const COMPARE_LOKI_ROW: Omit<CompareRow, "source"> = {
   name: "Loki",
-  runs: "Its cloud builder (invited accounts during the beta), or your computer with Fleet Runner",
+  runs: "Its cloud runner (invited accounts during the beta), or your computer with Fleet Runner",
   handoff:
     "Describe it in Loki, chat or voice, the Loki button on your own site, or another AI app",
   prs: "Yes",
@@ -213,8 +213,8 @@ export const COMPARE_DIFFERENCES = [
 
 /** Where the others are better. Said on the page, because it is true. */
 export const COMPARE_HONEST = [
-  "App builders like Lovable, Bolt, Replit and v0 are more polished for a first-time builder and need nothing installed. Loki's cloud builder is invite-only during the beta; without it you install Fleet Runner and an agent.",
-  "The big agents give every user their own isolated cloud machine. Loki's cloud builder is one shared server.",
+  "App builders like Lovable, Bolt, Replit and v0 are more polished for a first-time builder and need nothing installed. Loki's cloud runner is invite-only during the beta; without it you install Fleet Runner and an agent.",
+  "The big agents give every user their own isolated cloud machine. Loki's cloud runner is one shared server.",
   "Each company ships new features in its own agent first; Loki gets them by running that same agent, sometimes later.",
   "Cursor, Copilot, Devin and Codex take work straight from Slack, Linear or Jira. Loki's doors are its own app, chat, the feedback button and other AI apps.",
   "They have large teams, support contracts and long track records. Loki is a beta.",

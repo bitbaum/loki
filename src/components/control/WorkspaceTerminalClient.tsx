@@ -89,7 +89,7 @@ export function WorkspaceTerminalClient() {
           <Link href="/control" className="text-accent-text underline">
             Control
           </Link>{" "}
-          — it runs on your connected Fleet Runner or the cloud builder.
+          — it runs on your connected Fleet Runner or the cloud runner.
         </div>
       </details>
       <div className="ui-callout-warning hidden md:flex">
@@ -107,7 +107,7 @@ export function WorkspaceTerminalClient() {
           <Link href="/control" className="text-accent-text underline">
             Control
           </Link>{" "}
-          — it runs on your connected Fleet Runner or the cloud builder.
+          — it runs on your connected Fleet Runner or the cloud runner.
         </div>
       </div>
 

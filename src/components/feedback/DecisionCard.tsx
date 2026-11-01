@@ -222,7 +222,7 @@ export function DecisionCard({
             className="ui-btn-save"
             title={
               rec.runs
-                ? "Starts one agent run on your builder"
+                ? "Starts one agent run on your runner"
                 : "Free — and one step brings it back"
             }
           >

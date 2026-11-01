@@ -70,8 +70,8 @@ export function projectStateSentence(
       };
     case "queued":
       return {
-        headline: "Queued for a builder",
-        detail: `Sent ${ago(status.sinceMs)}. Waiting for a builder to pick it up.`,
+        headline: "Queued for a runner",
+        detail: `Sent ${ago(status.sinceMs)}. Waiting for a runner to pick it up.`,
         tone: "working",
         waitingOnYou: false,
       };

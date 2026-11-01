@@ -120,7 +120,7 @@ export async function stopWaitingOnStalledCommands(
       executedAt: new Date(),
       result: {
         ok: false,
-        error: "Stopped waiting from Control — no builder picked this up. Retry sends it again.",
+        error: "Stopped waiting from Control — no runner picked this up. Retry sends it again.",
       },
     })
     .where(stalledRowsWhere(userId, graceSeconds))

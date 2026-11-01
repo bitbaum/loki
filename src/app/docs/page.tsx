@@ -49,7 +49,7 @@ export default function DocsPage() {
         <div className="ui-public-eyebrow">Documentation</div>
         <h1 className="ui-public-page-title mt-3 sm:mt-4">Build with agents you supervise</h1>
         <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
-          Start with one project and one agent. Agents run on Loki&apos;s cloud builder if your
+          Start with one project and one agent. Agents run on Loki&apos;s cloud runner if your
           account has it, or on your own computer with the Fleet Runner app. Planning, handing out
           work, checking it and approving it all happen in one place.
         </p>

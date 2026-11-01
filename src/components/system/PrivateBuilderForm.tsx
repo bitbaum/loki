@@ -31,18 +31,18 @@ export function PrivateBuilderForm({
         userId: chosen.id,
         enabled: !chosen.on,
       });
-      if (!res.ok) await throwApiError(res, "Couldn't switch the builder.");
+      if (!res.ok) await throwApiError(res, "Couldn't switch the runner.");
       setNote({
         ok: true,
         text: chosen.on
-          ? `${chosen.label}'s builder stops within a minute; their home on the box is kept.`
-          : `${chosen.label} gets their own builder within a minute. They sign in from Sessions: start claude, type /login.`,
+          ? `${chosen.label}'s runner stops within a minute; their home on the box is kept.`
+          : `${chosen.label} gets their own runner within a minute. They sign in from Sessions: start claude, type /login.`,
       });
       router.refresh();
     } catch (err) {
       setNote({
         ok: false,
-        text: err instanceof Error ? err.message : "Couldn't switch the builder.",
+        text: err instanceof Error ? err.message : "Couldn't switch the runner.",
       });
     } finally {
       setBusy(false);
@@ -75,7 +75,7 @@ export function PrivateBuilderForm({
         disabled={busy || !chosen}
       >
         {busy ? <Loader2 className="ui-spinner-sm" /> : null}
-        {chosen?.on ? "Take the builder away" : "Give a private builder"}
+        {chosen?.on ? "Take the runner away" : "Give a private runner"}
       </button>
       {note && (
         <p className={note.ok ? "text-sm text-text-secondary" : "ui-error"} role="status">

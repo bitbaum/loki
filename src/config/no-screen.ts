@@ -209,14 +209,14 @@ export const NO_SCREEN_PAGE: NoScreenPageCopy = {
     },
     {
       title: "Put the phone away.",
-      body: "Every twenty seconds the phone checks the fleet. A run that finished, a run that failed, a new approval, the builder dropping offline: each is one sentence in your ear, unasked.",
+      body: "Every twenty seconds the phone checks the fleet. A run that finished, a run that failed, a new approval, the runner dropping offline: each is one sentence in your ear, unasked.",
     },
   ],
   hears: [
     "A run finished, and what it did.",
     "A run failed, and the error.",
     "A new approval arrived. Say approve or reject.",
-    "The builder went offline, or came back.",
+    "The runner went offline, or came back.",
     "A project started working.",
   ],
   listen: [
@@ -238,7 +238,7 @@ export const NO_SCREEN_PAGE: NoScreenPageCopy = {
     },
     {
       title: "Only what needs you, if you prefer.",
-      body: 'One switch holds the "finished" news and reads it as a single sentence every five minutes. Failures, approvals and the builder dropping still come at once.',
+      body: 'One switch holds the "finished" news and reads it as a single sentence every five minutes. Failures, approvals and the runner dropping still come at once.',
     },
   ],
   button: {

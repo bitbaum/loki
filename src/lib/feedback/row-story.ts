@@ -87,7 +87,7 @@ export function rowStory(input: RowStoryInput, now = Date.now()): RowStory {
         headline:
           work.label === "Starting"
             ? "An agent is picking it up."
-            : "Waiting for a builder to pick it up.",
+            : "Waiting for a runner to pick it up.",
         next:
           inOwnersWords(work.detail ?? work.stepSummary) ?? "Nothing to do; it starts by itself.",
         tone: "machine",
@@ -125,7 +125,7 @@ export function rowStory(input: RowStoryInput, now = Date.now()): RowStory {
         };
       if (/offline/i.test(work.detail ?? ""))
         return {
-          headline: "Stuck: the builder that holds it is offline.",
+          headline: "Stuck: the runner that holds it is offline.",
           next: inOwnersWords(work.detail),
           tone: "you",
         };

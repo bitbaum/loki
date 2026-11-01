@@ -91,11 +91,11 @@ async function main() {
     },
   );
 
-  await check("no builder online reads as queued, never as working", async () => {
+  await check("no runner online reads as queued, never as working", async () => {
     const { call } = script({ dispatch: ok({ mode: "queued", warning: "runner-offline" }) });
     const run = await runKickoffPlan({ ...base, plan: ["dispatch"] }, call, () => {});
     assert(run.dispatch === "queued-offline", `offline laundered: ${run.dispatch}`);
-    assert(/no builder/i.test(run.steps[0]!.note ?? ""), "note does not say why it waits");
+    assert(/no runner/i.test(run.steps[0]!.note ?? ""), "note does not say why it waits");
   });
 
   await check("a failed repository step does not dispatch", async () => {
@@ -122,12 +122,12 @@ async function main() {
     assert(run.dispatch === "not-sent", `wrong outcome: ${run.dispatch}`);
   });
 
-  await check("a refused builder offers Connect your computer, never 'queued'", async () => {
+  await check("a refused runner offers Connect your computer, never 'queued'", async () => {
     const { call } = script({
       dispatch: {
         status: 403,
         body: {
-          error: "Injection failed: Cloud builder access is private for this account.",
+          error: "Injection failed: Cloud runner access is private for this account.",
           code: "cloud-builder-private",
         },
       },

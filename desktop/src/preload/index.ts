@@ -83,7 +83,7 @@ contextBridge.exposeInMainWorld('fleetRunner', {
   // this window or on the other display. The web shell cannot window.open
   // here (every new window is sent to the default browser), so this is the
   // one way a second window exists; the main process places it from the
-  // real display list (main/workbench-windows.ts). v0.8.60+.
+  // real display list (main/workbench-windows.ts). v0.8.63+.
   openWorkbenchWindow: (
     url: string,
     placement: 'beside' | 'other-screen'

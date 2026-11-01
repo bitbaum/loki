@@ -10,6 +10,7 @@
  * (the values would be undefined in the client bundle).
  */
 import { isDemoEnabled } from "@/config/demo";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 
 export type EnabledAuthProviders = {
   /** GitHub OAuth (NextAuth provider). */
@@ -36,18 +37,42 @@ export type EnabledAuthProviders = {
   demo: boolean;
 };
 
+/**
+ * Providers whose keys are set but whose sign-in is broken at the provider, so
+ * they are neither shown nor mounted: a button that cannot sign anyone in is
+ * worse than no button (fleet rule: never advertise an unconfigured provider).
+ * Delete a line once that provider's console is fixed and a sign-in through it
+ * has been tried on the live site.
+ */
+export const PAUSED_PROVIDERS: Partial<Record<"github" | "google" | "x", string>> = {
+  google:
+    "2026-10-30: Google rejects the sign-in with redirect_uri_mismatch. Add https://loki.orangecat.ch/api/auth/callback/google to the OAuth client's authorised redirect URIs in Google Cloud.",
+  x: "2026-10-30: /api/x-login/start fails before reaching X (sign-in?error=XLoginStart). Check the X app's 1.0a keys and callback URL in the X developer portal.",
+};
+
 export function getEnabledAuthProviders(): EnabledAuthProviders {
+  // On the staged AccountKit runtime (AUTH_RUNTIME=accountkit) GitHub, Google
+  // and X are not mounted: AccountKit reaches them only through the bitbaum
+  // sign-in, and the owner key accepts only a stored hash there
+  // (docs/architecture/accountkit-migration.md).
+  const shared = sharedRuntimeEnabled();
   return {
-    github: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
-    google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    github: !shared && Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+    google:
+      !shared &&
+      !PAUSED_PROVIDERS.google &&
+      Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     // X's OAuth 2.0 authorize endpoint 503s on this Pay-Per-Use account, so the
     // 1.0a consumer keys are the gate — not the 2.0 client id/secret.
-    x: Boolean(process.env.X1_CONSUMER_KEY && process.env.X1_CONSUMER_SECRET),
+    x:
+      !shared &&
+      !PAUSED_PROVIDERS.x &&
+      Boolean(process.env.X1_CONSUMER_KEY && process.env.X1_CONSUMER_SECRET),
     orangecat: Boolean(
       process.env.ORANGECAT_OAUTH_CLIENT_ID && process.env.ORANGECAT_OAUTH_CLIENT_SECRET,
     ),
     localOwnerKeyTab:
-      Boolean(process.env.LOCAL_AUTH_PASSWORD) && process.env.ENABLE_OWNER_KEY === "1",
+      !shared && Boolean(process.env.LOCAL_AUTH_PASSWORD) && process.env.ENABLE_OWNER_KEY === "1",
     demo: isDemoEnabled(),
   };
 }

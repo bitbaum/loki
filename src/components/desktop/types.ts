@@ -69,7 +69,7 @@ export type FleetRunnerBridge = {
    *  `window.open` inside Fleet Runner (every new window goes to the default
    *  browser), so this is the only way a second window exists there. The
    *  main process places it from the real display list and brings an open
-   *  one forward instead of opening it twice. v0.8.60+. */
+   *  one forward instead of opening it twice. v0.8.63+. */
   openWorkbenchWindow: (
     url: string,
     placement: "beside" | "other-screen",

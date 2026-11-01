@@ -4,44 +4,45 @@ import type { BuilderChannel } from "@/lib/constants/statuses";
 /**
  * SSOT for user-facing execution copy.
  *
- * Users see one concept: the **builder** (cloud + optional this computer).
+ * Users see one concept: the **runner** (cloud + optional this computer).
+ * "Builder" is a person: the role on a project and an approved builder.
  * Internal code, Settings, and /download may still say "Fleet Runner".
  */
 export const EXECUTOR_COPY = {
   /** Unified executor — cloud (box-runner) and/or this computer (desktop app) */
   builder: {
-    online: "Builder online",
+    online: "Runner online",
     /** The two tiers a project can be pinned to (Control → project profile → "Runs on"). */
-    cloudChoice: "Cloud builder",
+    cloudChoice: "Cloud runner",
     localChoice: "This computer",
     /** The third tier: no PTY, no Claude credential — Hermes in its own clone on the box. */
     hostedChoice: "Hosted runner (Hermes)",
     hostedDetail:
       "Runs in its own clone on the box with the providers the box already has keys for; every task ends in a pull request. Needs no Claude sign-in.",
-    cloudOnline: "Cloud builder online",
+    cloudOnline: "Cloud runner online",
     localComputerOnline: "This computer online",
     bothOnline: "Cloud + this computer online",
-    cloudOnlyDetail: "This computer offline — cloud builder runs the queue",
-    localOnlyDetail: "Cloud builder offline — this computer runs the queue",
-    cloudOffline: "Cloud builder offline",
+    cloudOnlyDetail: "This computer offline — cloud runner runs the queue",
+    localOnlyDetail: "Cloud runner offline — this computer runs the queue",
+    cloudOffline: "Cloud runner offline",
     // A private cloud is not an offline one: a new account's Terminal read
     // "Cloud builder offline" beside "private for this account" (2026-10-12).
-    cloudPrivate: "Cloud builder private",
+    cloudPrivate: "Cloud runner private",
     localComputerOffline: "This computer offline",
-    offline: "Builder offline",
+    offline: "Runner offline",
     queued: "Queued",
     building: "Building",
     setupOptional: "Browser only",
     uncertain: "Status uncertain",
-    staleSync: "Cached value — builder hasn't pushed fresh state",
-    versionPrefix: "builder",
+    staleSync: "Cached value — runner hasn't pushed fresh state",
+    versionPrefix: "runner",
   },
 
   /** This computer = laptop/desktop Fleet Runner (optional local path) */
   thisComputer: "This computer",
 
   /** Cloud = hosted builder channel (private beta until per-tenant sandboxes ship) */
-  cloud: "Cloud builder",
+  cloud: "Cloud runner",
 
   /**
    * The builder named MID-SENTENCE — "Running now on this computer".
@@ -57,20 +58,20 @@ export const EXECUTOR_COPY = {
    */
   ranOn: {
     local: "this computer",
-    cloud: "the cloud builder",
+    cloud: "the cloud runner",
   } as Record<BuilderChannel, string>,
 
   desktopApp: `${APP_NAME} desktop`,
 
-  queuedWhenOffline: "Queued — runs when the builder is online",
+  queuedWhenOffline: "Queued — runs when the runner is online",
 
   queuedWhenOfflineLong:
-    "Work stays in the queue and starts when a builder is online (cloud or this computer).",
+    "Work stays in the queue and starts when a runner is online (cloud or this computer).",
 
   /** Cloud web app always queues; this means a live builder will drain it. */
-  queuedWithBuilderOnline: "With builder — starting shortly",
+  queuedWithBuilderOnline: "With runner — starting shortly",
   queuedWithBuilderOnlineLong:
-    "a builder is online and will claim it shortly. Use Control for state, or open Sessions to watch the agent and talk to it. You get a notification when the run finishes.",
+    "a runner is online and will claim it shortly. Use Control for state, or open Sessions to watch the agent and talk to it. You get a notification when the run finishes.",
 
   // The first screens a new person reads. Written for someone who has never
   // heard "builder", "CLI" or "tenant" — the earlier copy said "dispatch agents
@@ -104,12 +105,12 @@ export const EXECUTOR_COPY = {
         ? `Last seen ${lastSeen} — work waits until it is back`
         : "Work waits until it is back",
     reconnect: "How to reconnect",
-    neverSeenTitle: "Connect a builder to run agents",
+    neverSeenTitle: "Connect a runner to run agents",
     /** Home's never-connected row: a short title and its one grey line (the
      *  full sentences above are for the setup that opens from it). */
-    neverSeenRowTitle: "Connect a builder",
+    neverSeenRowTitle: "Connect a runner",
     neverSeenDetail: "Install the desktop app",
-    offlineTitle: "Builder offline",
+    offlineTitle: "Runner offline",
     neverSeenBody:
       "Agents need a computer to run on. Install the desktop app and they run on yours, in your own folders.",
     offlineBody:
@@ -120,12 +121,12 @@ export const EXECUTOR_COPY = {
     // An account that HAS the cloud builder never needs the desktop app to
     // build. The lines above were written for accounts that do not, and read
     // from a second computer they sent the owner to a download (2026-10-12).
-    cloudTitle: "Agents run on the cloud builder",
+    cloudTitle: "Agents run on the cloud runner",
     cloudNeverSeenBody:
-      "This account builds on Loki's cloud builder — there is nothing to install. Connect a computer of yours only when an agent should work on files that live there.",
-    cloudOfflineTitle: "Cloud builder offline",
+      "This account builds on Loki's cloud runner — there is nothing to install. Connect a computer of yours only when an agent should work on files that live there.",
+    cloudOfflineTitle: "Cloud runner offline",
     cloudOfflineBody:
-      "The cloud builder is offline. Work stays queued — nothing is lost, and nothing needs installing: it is a service on the box that reconnects on its own once it is back.",
+      "The cloud runner is offline. Work stays queued — nothing is lost, and nothing needs installing: it is a service on the box that reconnects on its own once it is back.",
     alsoThisComputer: "Also run agents on a computer of yours",
   },
 
@@ -133,7 +134,7 @@ export const EXECUTOR_COPY = {
     started: (n: number) =>
       `Started **${n}** project loop${n === 1 ? "" : "s"}. Autopilot keeps going when agents finish.`,
     startedQueued: (n: number) =>
-      `Queued **${n}** project${n === 1 ? "" : "s"} to build — starts when the builder is online.`,
+      `Queued **${n}** project${n === 1 ? "" : "s"} to build — starts when the runner is online.`,
     slotsBusy: (max: number) =>
       `All **${max}** build slots are busy — loops continue automatically when agents finish.`,
     nothingToKick:
@@ -142,32 +143,32 @@ export const EXECUTOR_COPY = {
   },
 
   inject: {
-    queuedOfflineApi: "Queued — builder offline (runs when online)",
-    hostedFallback: "Builder offline — cloud worker will make the change and open a PR.",
+    queuedOfflineApi: "Queued — runner offline (runs when online)",
+    hostedFallback: "Runner offline — cloud worker will make the change and open a PR.",
     hostedAndLocal:
-      "Builder offline — cloud worker started; this computer runs it too when connected.",
-    queuedOnly: "Queued — runs when the builder is online.",
+      "Runner offline — cloud worker started; this computer runs it too when connected.",
+    queuedOnly: "Queued — runs when the runner is online.",
   },
 
   /** How Loki (and Control) reach the agent CLI — not a separate chat channel. */
   loki: {
     buildChain:
-      "Loki dispatches into the same builder queue as Control. A cloud or desktop builder claims the job, types into the agent terminal, and you work alongside it on Terminal → Cloud builder or Your computer.",
-    watchCloud: "Cloud builder terminal",
+      "Loki dispatches into the same runner queue as Control. A cloud or desktop runner claims the job, types into the agent terminal, and you work alongside it on Terminal → Cloud runner or Your computer.",
+    watchCloud: "Cloud runner terminal",
     watchThisComputer: "Your computer",
   },
 
   /** Short labels on dispatch / terminal actions — honest before click. */
   honesty: {
     queued: "Queued",
-    needsBuilder: "Needs builder",
+    needsBuilder: "Needs runner",
     needsGitHub: "Needs GitHub",
     needsGateway: "Needs Loki gateway",
     // Standing presence chip — it shows while idle, while running, while
     // watching. "Starting shortly" was a lie in two of those three states;
     // the chip only truthfully knows the builder is connected. Post-dispatch
     // confirmations keep their own "starting shortly" copy where it IS true.
-    builderStarting: "Builder online",
+    builderStarting: "Runner online",
     notificationWhenDone: "Notification when this run finishes.",
 
     // How a run that did NOT fail explains itself. These used to be written
@@ -195,14 +196,14 @@ export const EXECUTOR_COPY = {
   },
 
   terminal: {
-    cloudLabel: "Cloud builder",
-    cloudLabelLocalHost: "Cloud builder (this server)",
+    cloudLabel: "Cloud runner",
+    cloudLabelLocalHost: "Cloud runner (this server)",
     thisComputerLabel: "Your computer",
     cloudHelp: "Choose a session to read its messages or use its terminal.",
     cloudLoading: "Looking for open sessions…",
     cloudEmpty: "Nothing is open in the cloud.",
     cloudEmptyHint:
-      "Start an agent below to open a cloud builder session. Choose its location with Runs on.",
+      "Start an agent below to open a cloud runner session. Choose its location with Runs on.",
     cloudOfflineHint: "Cloud sessions are offline. Work you send waits until they are back.",
     // Connected to the peek stream but no screen frames arrived → the runner is
     // wedged (e.g. its outbound fetch is failing). Honest, actionable — not a

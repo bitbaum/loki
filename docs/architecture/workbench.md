@@ -87,7 +87,7 @@ site — in the best way the platform offers, in this order:
 1. **Fleet Runner.** The desktop app's main window sends every
    `window.open` to the default browser (`desktop/src/main/index.ts`, the
    window-open handler), so inside it the workbench asks through the
-   bridge (`window.fleetRunner.openWorkbenchWindow`, v0.8.60+). The main
+   bridge (`window.fleetRunner.openWorkbenchWindow`, v0.8.63+). The main
    process reads the real display list, puts the window on the other
    display or tiles this one (caller left, new window right; the shell
    keeps its 800px minimum and the new window takes the rest), and a

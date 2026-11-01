@@ -51,14 +51,14 @@ export async function GET(req: NextRequest) {
       severity: "urgent",
       title:
         stall.stalledCount === 1
-          ? "A request is waiting — the builder has not picked it up"
-          : `${stall.stalledCount} requests are waiting — the builder has not picked them up`,
+          ? "A request is waiting — the runner has not picked it up"
+          : `${stall.stalledCount} requests are waiting — the runner has not picked them up`,
       description:
-        `Loki already tried again. If it stays like this, open Home and check the builder ` +
+        `Loki already tried again. If it stays like this, open Home and check the runner ` +
         `is online.\n\n` +
         `${stall.stalledCount} dispatched command${stall.stalledCount === 1 ? " has" : "s have"} waited ` +
-        `${stall.oldestSeconds}s with no builder executing them; stuck claims were reclaimed ` +
-        `for retry. The builder is the Cloud runner or Fleet Runner.`,
+        `${stall.oldestSeconds}s with no runner executing them; stuck claims were reclaimed ` +
+        `for retry. The runner is the cloud runner or Fleet Runner on a computer.`,
       actionUrl: "/control",
       metadata: { stalledCount: stall.stalledCount, oldestSeconds: stall.oldestSeconds },
     });
@@ -68,8 +68,8 @@ export async function GET(req: NextRequest) {
       if (tg) {
         void sendTelegramMessage(
           tg,
-          `⚠️ Loki: runner stalled — ${stall.stalledCount} command(s) waited ${stall.oldestSeconds}s with no builder executing. ` +
-            `Reclaimed stuck claims for retry; check the builder.`,
+          `⚠️ Loki: runner stalled — ${stall.stalledCount} command(s) waited ${stall.oldestSeconds}s with no runner executing. ` +
+            `Reclaimed stuck claims for retry; check the runner.`,
         );
       }
     }

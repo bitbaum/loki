@@ -104,7 +104,7 @@ async function main() {
     note: "Approved <script>alert(1)</script> on your work",
     portalUrl: `${COMMISSION.studioOrigin}/portal/`,
   });
-  assert.match(update.subject, /partner application/);
+  assert.match(update.subject, /builder application/);
   assert.equal(update.html.includes("<script>"), false);
   assert.match(update.html, /&lt;script&gt;/);
   assert.match(update.text, /Approved <script>alert\(1\)<\/script> on your work/);

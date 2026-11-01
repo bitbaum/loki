@@ -1,89 +1,158 @@
-// SSOT for the Loki brand mark — a dense Archimedean coil: a "trippy"
-// spiral that pulls the eye inward toward infinity. EVERY rendered asset
-// (favicon, desktop tray icon, desktop app icon, OpenGraph images, the in-app
-// BrandMark) derives its geometry from `spiralPathD()` here. Never hand-redraw
-// the spiral anywhere else — that was the old bug (3 divergent copies + a tray
-// glyph that drew a different shape entirely).
+// SSOT for the Loki brand mark — a rotorelief. After Duchamp's discs in
+// Anémic Cinéma (1926): an Archimedean coil cut out of a disc, its inner turns
+// drifting off centre and crowding toward the middle like a corridor seen in
+// perspective. Still, it reads as a spiral; turned (a plain CSS rotate of the
+// whole disc), the eye reads a tunnel that breathes. Turning clockwise pours
+// inward, anticlockwise flows out — the voice screen uses that to say whose
+// turn it is.
+//
+// EVERY rendered asset (favicon, desktop tray icon, desktop app icon,
+// OpenGraph images, the in-app marks, the widget) derives its geometry from
+// `markPathD()` here. Never hand-redraw the mark anywhere else — that was the
+// old bug (3 divergent copies + a tray glyph that drew a different shape).
 //
 // Regenerate the static raster/vector assets after changing any parameter:
 //   npm run generate:brand
+//   npx tsx scripts/generate-widget-brand-mark.ts
 
 import { PALETTE } from "@/lib/palette";
 
 export const BRAND_MARK = {
   /** Square viewBox edge. All coordinates below live in this space. */
   viewBox: 100,
-  /** Full turns of the coil. Dense enough to read as a hypnotic spiral, sparse
-   *  enough to survive a 16px favicon. */
-  turns: 3.15,
-  /** Radius where the coil begins, near the center (the "infinity" pull-in). */
-  innerRadius: 1,
-  /** Radius of the outermost turn. Leaves room for stroke width + AA padding
-   *  inside the 100×100 box. */
-  outerRadius: 43,
-  /** Stroke width, in viewBox units. */
-  strokeWidth: 6,
+  /** Radius of the disc. The glyph fills the box edge to edge. */
+  discRadius: 47,
+  /** Outermost coil radius as a share of the disc, leaving a solid rim. */
+  coilShare: 0.86,
+  /** Full turns of the coil. Small renders pass fewer — see `MARK_TURNS`. */
+  turns: 4,
+  /** How far the innermost turn drifts off centre, in viewBox units. This is
+   *  what turns rotation into depth. */
+  depth: 10,
+  /** Perspective: >1 crowds and thins the inner turns. */
+  perspective: 1.6,
+  /** Share of each turn's pitch that is cut away (the rest is disc). */
+  cut: 0.5,
+  /** Direction the inner turns drift toward (radians; up-left). */
+  drift: -2.4,
+  /** Radius of the round "pupil" cut at the vanishing point. */
+  pupil: 2.4,
   /** Polyline samples per turn — higher is smoother. */
-  samplesPerTurn: 160,
+  samplesPerTurn: 120,
 } as const;
 
-export type BrandMarkParams = typeof BRAND_MARK;
+export type BrandMarkParams = { -readonly [K in keyof typeof BRAND_MARK]: number };
 
-/** Archimedean spiral (r = innerRadius + k·θ) as an SVG path `d` string,
- *  wound from the outer tail inward to the center so it reads as falling into
- *  the middle. Pure geometry — no styling. */
-export function spiralPathD(opts: Partial<BrandMarkParams> = {}): string {
-  const m = { ...BRAND_MARK, ...opts };
+/** Optical sizes: like a typeface, the coil sheds turns as it shrinks so the
+ *  disc still reads at a favicon. Pick by the rendered edge in CSS px. */
+export const MARK_TURNS = {
+  /** ≤ 24px — tray glyph, inline avatars, header marks. */
+  tiny: 2.2,
+  /** ≤ 64px — favicon, app chrome. */
+  small: 3.2,
+  /** Install icons and anything larger. */
+  large: 4,
+  /** Hero renders — OG card, the voice disc. */
+  hero: 5,
+} as const;
+
+const fmt = (n: number) => n.toFixed(2);
+
+/** The coil as a filled outline (outer edge forward, inner edge back), so the
+ *  band can thin toward the centre — a stroke cannot vary its width. */
+function coilOutline(m: BrandMarkParams): string {
   const cx = m.viewBox / 2;
   const cy = m.viewBox / 2;
+  const R = m.discRadius * m.coilShare;
+  // Start outside the pupil so the two cuts never overlap (evenodd would
+  // fill an overlap back in).
+  const r0 = m.pupil + 1.6;
   const thetaMax = m.turns * 2 * Math.PI;
-  const k = (m.outerRadius - m.innerRadius) / thetaMax;
-  const steps = Math.max(2, Math.round(m.turns * m.samplesPerTurn));
-
-  let d = "";
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const theta = thetaMax * (1 - t); // outer → inner
-    const r = m.innerRadius + k * theta;
-    const a = theta - Math.PI / 2; // start the outer tail near top
-    const x = cx + r * Math.cos(a);
-    const y = cy + r * Math.sin(a);
-    d += `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)} `;
+  const n = Math.max(8, Math.round(m.turns * m.samplesPerTurn));
+  const pts: [number, number][] = [];
+  const widths: number[] = [];
+  for (let i = 0; i <= n; i++) {
+    const u = i / n; // 0 = centre, 1 = outer tail
+    const theta = u * thetaMax;
+    const r = r0 + (R - r0) * Math.pow(u, m.perspective);
+    // Drift changes slowly near the centre (u²), so inner turns never touch.
+    const off = m.depth * (1 - u * u);
+    pts.push([
+      cx + off * Math.cos(m.drift) + r * Math.cos(theta),
+      cy + off * Math.sin(m.drift) + r * Math.sin(theta),
+    ]);
+    const pitch =
+      ((R - r0) * m.perspective * Math.pow(Math.max(u, 0.02), m.perspective - 1)) / m.turns;
+    const tail = u > 0.9 ? Math.pow((1 - u) / 0.1, 0.6) : 1; // taper the outer end
+    const head = Math.min(1, u / 0.04);
+    widths.push(pitch * m.cut * tail * head);
   }
-  return d.trim();
+  const left: string[] = [];
+  const right: string[] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(n, i + 1)];
+    let tx = b[0] - a[0];
+    let ty = b[1] - a[1];
+    const len = Math.hypot(tx, ty) || 1;
+    tx /= len;
+    ty /= len;
+    const h = widths[i] / 2;
+    left.push(`${fmt(pts[i][0] - ty * h)} ${fmt(pts[i][1] + tx * h)}`);
+    right.push(`${fmt(pts[i][0] + ty * h)} ${fmt(pts[i][1] - tx * h)}`);
+  }
+  return `M${left.join("L")}L${right.reverse().join("L")}Z`;
+}
+
+const circle = (cx: number, cy: number, r: number) =>
+  `M${fmt(cx - r)} ${fmt(cy)}a${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(2 * r)} 0a${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(-2 * r)} 0Z`;
+
+/** The whole mark as ONE path: the disc, with the coil and pupil cut out.
+ *  Render it with `fill-rule="evenodd"` (`fillRule="evenodd"` in JSX) and
+ *  `fill="currentColor"` — the cuts show whatever sits behind, so it themes on
+ *  any surface. Rotate the element to animate; the disc is round, so a rigid
+ *  turn is exactly Duchamp's turntable. */
+export function markPathD(opts: Partial<BrandMarkParams> = {}): string {
+  const m: BrandMarkParams = { ...BRAND_MARK, ...opts };
+  const c = m.viewBox / 2;
+  return [
+    circle(c, c, m.discRadius),
+    coilOutline(m),
+    circle(c + m.depth * Math.cos(m.drift), c + m.depth * Math.sin(m.drift), m.pupil),
+  ].join("");
 }
 
 /** Full standalone `<svg>` markup for the mark. Used by the asset generators
- *  (favicon/tray/app icon) and the OpenGraph routes. In React components,
- *  prefer rendering `spiralPathD()` inside a JSX <svg> so it can be animated /
- *  themed via currentColor. */
+ *  (favicon/tray/app icon). In React components render `<LokiMark>`
+ *  (src/components/shell/LokiMark.tsx) so it themes via currentColor. */
 export function brandMarkSvg(
   opts: {
     size?: number;
-    /** Stroke color. Defaults to the dark text-primary mirror
-     *  (PALETTE.dark.textPrimary). Use "currentColor" for themable inline use. */
-    stroke?: string;
-    /** When set, draws a rounded-rect background behind the spiral (app icon /
-     *  favicon). Omit for a transparent glyph (tray icon / inline mark). */
+    /** Disc colour. Defaults to the dark text-primary mirror. */
+    fill?: string;
+    /** When set, draws a rounded-rect tile behind the disc (app icon /
+     *  favicon); the disc shrinks so the tile shows a margin around it. Omit
+     *  for a transparent glyph (tray icon / inline mark). */
     background?: string;
-    /** Background corner radius in viewBox units. */
+    /** Tile corner radius in viewBox units. */
     radius?: number;
-    strokeWidth?: number;
-    opacity?: number;
+    turns?: number;
   } = {},
 ): string {
   const vb = BRAND_MARK.viewBox;
   const size = opts.size ?? vb;
-  const stroke = opts.stroke ?? PALETTE.dark.textPrimary;
-  const sw = opts.strokeWidth ?? BRAND_MARK.strokeWidth;
+  const fill = opts.fill ?? PALETTE.dark.textPrimary;
   const bg = opts.background
     ? `<rect width="${vb}" height="${vb}" rx="${opts.radius ?? 22}" fill="${opts.background}"/>`
     : "";
+  const d = markPathD({
+    turns: opts.turns ?? BRAND_MARK.turns,
+    ...(opts.background ? { discRadius: 41, depth: BRAND_MARK.depth * (41 / 47) } : {}),
+  });
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${vb} ${vb}">` +
     bg +
-    `<path d="${spiralPathD()}" fill="none" stroke="${stroke}" stroke-width="${sw}" ` +
-    `stroke-linecap="round" stroke-linejoin="round" opacity="${opts.opacity ?? 1}"/>` +
+    `<path d="${d}" fill="${fill}" fill-rule="evenodd"/>` +
     `</svg>`
   );
 }

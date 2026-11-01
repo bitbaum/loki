@@ -86,7 +86,7 @@ export function decideAutoReimplement(
   // Anything else the runner refused with is worth exactly one more attempt on
   // a provider with quota: the cost is one dispatch, the guard is the stamp,
   // and the alternative is a "Failed" row nobody is looking at.
-  return { retry: true, because: "the first attempt was refused by the builder" };
+  return { retry: true, because: "the first attempt was refused by the runner" };
 }
 
 /** One sentence for the row: what happened and that Loki already acted on it. */
