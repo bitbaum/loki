@@ -109,6 +109,17 @@ locks, sets `AUTH_RUNTIME=accountkit`, restarts and proves sign-in on the public
 site with a throwaway account, rolling back on any failure. `rollback` returns
 the product to Auth.js.
 
+`prove` runs on a switched product the journeys a person relies on, on the
+public site, with throwaway accounts it deletes again:
+
+- two sessions at once;
+- a change to the person's row, read on the next request;
+- a password write ending every session, then the old password refused and
+  the new one accepted;
+- sign-out, and deletion ending the session;
+- where the product offers OrangeCat, a real browser sign-in with a throwaway
+  OrangeCat account (`scripts/hetzner/accountkit-oidc-proof.mjs`).
+
 ## Switched (2026-11-01)
 
 The switch ran from `accountkit-switch.yml`:

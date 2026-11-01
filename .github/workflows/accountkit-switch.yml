@@ -9,7 +9,13 @@ name: AccountKit switch
 #              restarts, and proves sign-in on the public site with a
 #              throwaway account it deletes again; any failed step rolls back;
 #   rollback — AUTH_RUNTIME off, restart on Auth.js, mirrors dropped, shared
-#              tables emptied.
+#              tables emptied;
+#   prove    — on a switched app, the account journeys on the public site with
+#              throwaway accounts it deletes again: two sessions, a change to
+#              the person read on the next request, a password write ending
+#              every session, old password refused and new one accepted,
+#              sign-out, deletion; and where the app offers OrangeCat, a real
+#              browser sign-in with a throwaway OrangeCat account.
 # This repo is public, so this log is too: the script prints counts and
 # verdicts, never an address, a hash or a secret.
 #
@@ -24,11 +30,11 @@ on:
         type: choice
         options: [kivvi, petvity, surf-your-life, evig, loki]
       action:
-        description: "survey (read only), switch, or rollback"
+        description: "survey (read only), switch, rollback, or prove (journeys on a switched app)"
         required: true
         default: survey
         type: choice
-        options: [survey, switch, rollback]
+        options: [survey, switch, rollback, prove]
 
 permissions:
   contents: read
@@ -58,6 +64,12 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
+      # prove's OrangeCat sign-in runs in a real browser.
+      - name: Browser for prove
+        if: inputs.action == 'prove'
+        run: |
+          npm install --no-save --no-package-lock --prefix scripts/hetzner playwright@1
+          npx --prefix scripts/hetzner playwright install --with-deps chromium
       - name: SSH setup
         run: |
           mkdir -p ~/.ssh
