@@ -166,6 +166,14 @@ jobs:
           done
           npm run ${{ matrix.dist_script }}
 
+      # The Linux installers are tested as built: the AppImage must run with
+      # the Chromium sandbox on where user namespaces allow it, and start with
+      # a stated fallback where they do not. Same script as the pull-request
+      # job in desktop-linux-sandbox.yml.
+      - name: Linux AppImage runs sandboxed
+        if: runner.os == 'Linux'
+        run: desktop/scripts/ci-linux-sandbox.sh desktop/dist/Fleet-Runner-linux-x86_64.AppImage
+
       # These artifacts ARE the release — the mirror job publishes exactly what
       # lands here. `error` (not `warn`) on missing files is the point: a
       # silently empty macOS or Windows artifact is how a release ends up
