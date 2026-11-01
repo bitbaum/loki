@@ -24,12 +24,12 @@ export const HOME_HERO_CONSOLE = {
 export const HOME_STEPS = [
   {
     number: "01",
-    title: "Describe it",
-    body: "Write a sentence or two about what you want — a website, a tool, a change to a site you already have. Loki may ask up to five short questions. Skip any of them.",
+    title: "Say what you want",
+    body: "A sentence or two about what you want — a website, a tool, a change to a site you already have. Loki may ask up to five short questions. Skip any of them.",
   },
   {
     number: "02",
-    title: "Agents build it and put it online",
+    title: "Loki builds it and puts it online",
     body: "Loki sets up the project, puts an AI coding agent to work, checks the result and publishes it — a website gets its own address, like yourname.orangecat.ch.",
   },
   {
@@ -72,7 +72,9 @@ export const WHERE_IT_RUNS = {
 // Mission — one striking statement, minimal elaboration
 export const MISSION = {
   title: "Mission",
-  statement: "Direct the creation of everything you can imagine.",
+  // "Direct the creation of …" until 2026-11-01: the staff-you-manage voice
+  // the owner set aside (AGENTS.md, "Why Loki exists").
+  statement: "Make everything you can imagine, with someone on your side.",
   paragraphs: [
     "Today, a person can describe what they want and have AI agents build it, ship it and keep improving it. Loki is where that happens — one project or forty. Tomorrow, we intend the same kind of direction to reach machines that build in the physical world.",
     "The leverage shifts from companies to individuals. The bottleneck moves from raw capability to human direction.",
@@ -84,6 +86,19 @@ export const MISSION = {
 export const PHILOSOPHY = {
   title: "Principles",
   values: [
+    // The two that come first are the owner's own (2026-11-01, AGENTS.md
+    // "Why Loki exists"). They are commitments about how Loki is made, not
+    // claims about what it does, so they need no number behind them.
+    {
+      name: "On your side.",
+      description:
+        "Loki is not a staff you manage. It takes your idea seriously and gets it built with you, and it never makes you feel slow for not knowing the words. You say what you want; you watch it happen.",
+    },
+    {
+      name: "Life is short.",
+      description:
+        "Every screen is judged by how little it asks of you: the fewest clicks, the fewest choices, the least to work out. The time it saves is yours, for the next thing worth making.",
+    },
     {
       name: "Choose where agents run.",
       description:

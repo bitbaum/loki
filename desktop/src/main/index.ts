@@ -22,6 +22,7 @@ import { dispatchAutopilot } from './dispatch'
 import { peekPtyBuffer } from './pty-runtime'
 import { loadToken, saveToken, clearToken, tokenDir } from './token-store'
 import { ensureCaptureHook } from './capture-hook'
+import { openWorkbenchWindow, workbenchPreloadPath } from './workbench-windows'
 
 // v0.7.4 — bundled renderer removed; one UI surface only.
 //
@@ -692,6 +693,20 @@ function createWindow(): void {
     }
   })
 
+  // Workbench windows: the web shell asks, this process places (see
+  // workbench-windows.ts for why the shell cannot open one itself). The
+  // caller is whichever window asked — a popped-out pane may ask too.
+  ipcMain.handle('open-workbench-window', async (event, url: unknown, placement: unknown) => {
+    if (typeof url !== 'string') return { ok: false, error: 'no url' }
+    return openWorkbenchWindow({
+      caller: BrowserWindow.fromWebContents(event.sender),
+      url,
+      placement: placement === 'other-screen' ? 'other-screen' : 'beside',
+      shellUrl: WEB_SHELL_URL,
+      preloadPath: workbenchPreloadPath(__dirname),
+    })
+  })
+
   // Reload the web shell from the offline page's retry button. Posts a
   // simple "retry" message via window.postMessage that the offline.html
   // listens for via the preload bridge.
@@ -1094,7 +1109,10 @@ app.whenReady().then(async () => {
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    // The shell window, not any window: a workbench window (the site, a
+    // pane) may be open with the shell closed, and the dock click must
+    // bring the shell back.
+    if (!mainWindow || mainWindow.isDestroyed()) createWindow()
   })
 })
 

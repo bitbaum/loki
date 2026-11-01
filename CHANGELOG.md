@@ -6,10 +6,57 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-01 — Loki first, four words
+
+- **Loki's chat is the screen that opens.** {#loki-first} Signing in, and
+  Fleet Runner starting with your computer, land on Loki — say what you
+  want before you read anything. It was Today.
+- **Three words at the top of the sidebar.** {#four-words} Loki, Home,
+  Projects — the same three as the phone's bottom bar. Everything else is
+  folded under groups that say what they answer (Waiting for you, Your day,
+  Other ways to talk, Across your projects, Under the hood), and every line
+  says what it is for when you hover. Bots sit with Voice under Other ways
+  to talk. The sections used to be Build, Loki, To review and The
+  fleet, always open.
+- **Loki speaks as someone on your side.** {#on-your-side} The homepage
+  says "Say what you want. Loki builds it with you." instead of "Describe
+  it. Agents build it.", and the principles open with two new ones: On
+  your side, and Life is short. New projects start with "Say what you
+  want. Loki sets it up and starts building." rather than talk of repos
+  and agents. The mission reads "Make everything you can imagine, with
+  someone on your side."
+
 ## 2026-11-01 — Bots in the sidebar
 
 - **A bot can ask Loki.** {#bots-ask-loki} One of the person's OrangeCat bots can ask Loki a question, as the person, over the signed OrangeCat rail (`POST /api/orangecat/ask`). Loki answers from their own projects, dispatches and pages; the turn is read-only, so a relayed question can never dispatch, approve or spend. A person whose OrangeCat identity is not linked to a Loki account is told the one step that links it.
 - **Bots, beside Loki and Voice.** {#bots-in-sidebar} The person's bots live on OrangeCat (the Cat, the fleet's specialists, the ones they made, and their group chats) and that list is where a bot's face, price and purse are. Loki now opens that one list from its own sidebar instead of growing a second one; a bot's work, when it has hands, runs here.
+
+## 2026-10-31 — The workbench
+
+One project on one screen, one box.
+
+- **A Workbench row on every project you can work on.** {#workbench} It opens
+  `/projects/[id]/workbench`: on the left, the site as Loki's browser sees
+  it — while Loki reviews, you watch it click through, frame by frame; at
+  rest, its last look — and a tap opens the real site in its own window,
+  with your pass, where pointing and "Fix it now" already live. On the
+  right, the robot: one line saying where the build is ("Pull request
+  open", "Live on …"), the agent's conversation or terminal, and the one
+  box on the whole screen. No builder picker, no tab strip, no second
+  chat.
+- **One "⋯" for the rest.** {#workbench-pop-out} The robot in its own
+  window or on the other screen, the site on the other screen, full
+  screen. A popped-out robot is a window that is the robot alone (no
+  sidebar, no top bar); the window it left shows the site, and takes the
+  robot back when that window closes.
+- **Fleet Runner places the windows.** {#workbench-desktop} Inside the
+  desktop app the workbench asks the app, which reads the real display
+  list: the other display whole, or this one tiled with the app on the
+  left and the new window on the right, and a window already open is
+  brought forward rather than opened twice (v0.8.63).
+- **The site is a picture here, not a frame, on purpose.** Every fleet
+  site forbids being framed and severs `window.opener`; Loki's own
+  browser is what can be shown (`docs/architecture/workbench.md`).
 
 ## 2026-10-31 — Ask Loki, improved by two companions
 
@@ -35,6 +82,7 @@ how Ask Loki works, agreed on three changes; this is them.
   executor — no Calendar access, no email, no direct change to the fleet, only
   proposals for the approval queue. The capability list said as much, but only
   on fallback turns and never as part of who Loki is.
+
 
 ## 2026-10-23 — One widget, not two pieces
 

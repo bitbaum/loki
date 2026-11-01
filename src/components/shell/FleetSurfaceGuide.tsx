@@ -60,6 +60,7 @@ export function FleetSurfaceGuide() {
       // is it so crowded?"); and /terminal's own header names the session.
       className={cn(
         "max-md:hidden",
+        "ui-fleet-guide",
         "mx-3 mt-2 flex max-w-6xl shrink-0 flex-wrap items-center gap-x-2 gap-y-1 sm:mx-4 xl:mx-auto xl:w-full",
       )}
     >

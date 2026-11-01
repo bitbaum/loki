@@ -278,6 +278,8 @@ export const NOT_MEASURED = {
   "/projects/[id]/review":
     "needs an owned project id; actual review component and styles are measured at four widths in inspection-workspace-browser.ts",
   "/projects/[id]/watch": "needs a project id (with a run) from the audited environment's database",
+  "/projects/[id]/workbench":
+    "needs an owned project id from the audited environment's database; checked by hand at 390, 720, 1000, 1440 and 1920px on 2026-10-30 with no horizontal scroll, and at 900px as a one-pane window",
   "/atlas/[projectId]": "needs a project id from the audited environment's database",
   "/people/[id]": "needs a person id from the private zone",
   "/goals/[id]": "needs a goal id from the private zone",

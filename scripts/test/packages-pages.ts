@@ -129,9 +129,11 @@ check(
   },
 );
 
-check("Packages has a seat under Fleet", () => {
-  const fleet = SIDEBAR_SECTIONS.find((s) => s.id === "fleet");
-  assert.ok(fleet?.items.some((i) => i.id === "packages"));
+check("Packages has a seat under the hood", () => {
+  // The plumbing, folded under its question since the sidebar became three
+  // words + folds (2026-11-01).
+  const hood = SIDEBAR_SECTIONS.find((s) => s.id === "hood");
+  assert.ok(hood?.items.some((i) => i.id === "packages"));
   assert.equal(NAV.packages.href, "/packages");
 });
 

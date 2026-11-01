@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.63",
+    tag: "fleet-runner-v0.8.63",
+    date: "2026-11-01T20:00:00Z",
+    highlights: [
+      "The workbench opens windows where you ask: a project's site or a pane of Loki's own, beside this window or on the other display, from the real list of displays.",
+      "A window already open is brought forward instead of opened twice.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.62",
     tag: "fleet-runner-v0.8.62",
     date: "2026-11-01T18:00:00Z",
