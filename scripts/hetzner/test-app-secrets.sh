@@ -3,7 +3,7 @@
 #
 # What must hold, because the values are ones nobody can recover:
 #   - a value already in a file is never replaced, on any re-run;
-#   - a pair (signin's SIGNIN_CLIENT_SECRET_<ID> = the app's SIGNIN_CLIENT_SECRET)
+#   - a pair (morulia's SIGNIN_CLIENT_SECRET_<ID> = the app's SIGNIN_CLIENT_SECRET)
 #     ends up EQUAL in both files, whichever side had it first;
 #   - two different values are reported, never "fixed";
 #   - no value is ever printed.
@@ -32,20 +32,20 @@ run() { PATH="$TMP/bin:$PATH" APP_SECRETS_OPT="$OPT" bash "$HERE/app-secrets.sh"
 val() { grep -E "^$1=" "$2" | tail -n 1 | cut -d= -f2-; }
 count() { grep -cE "^$1=" "$2" || true; }
 
-S="$OPT/signin/shared/.env"
-for a in signin causius diplodoctor heidi revamp-info solon substrata; do
+S="$OPT/morulia/shared/.env"
+for a in morulia causius diplodoctor heidi revamp-info solon substrata; do
   mkdir -p "$OPT/$a/shared"; : > "$OPT/$a/shared/.env"
 done
 # biaslens has no env on this "box": its pair must be skipped, not half-written.
-# heidi already holds a client secret; solon holds one that disagrees with signin.
+# heidi already holds a client secret; solon holds one that disagrees with morulia.
 echo "SIGNIN_CLIENT_SECRET=heidi-existing-value-0123456789abcdef0123" >> "$OPT/heidi/shared/.env"
 echo "SIGNIN_CLIENT_SECRET=solon-side-value-0123456789abcdef01234567" >> "$OPT/solon/shared/.env"
-echo "SIGNIN_CLIENT_SECRET_SOLON=signin-side-value-0123456789abcdef012345" >> "$S"
+echo "SIGNIN_CLIENT_SECRET_SOLON=morulia-side-value-0123456789abcdef012345" >> "$S"
 echo "BETTER_AUTH_SECRET=from-provision-db-0123456789abcdef0123456789" >> "$S"
 
-OUT="$(run ensure signin)" || fail "ensure signin failed: $OUT"
+OUT="$(run ensure morulia)" || fail "ensure morulia failed: $OUT"
 
-[ "$(val SIGNIN_URL "$S")" = "https://signin.orangecat.ch" ] && ok "SIGNIN_URL is the issuer, no trailing slash" || fail "SIGNIN_URL: $(val SIGNIN_URL "$S")"
+[ "$(val SIGNIN_URL "$S")" = "https://morulia.orangecat.ch" ] && ok "SIGNIN_URL is the issuer, no trailing slash" || fail "SIGNIN_URL: $(val SIGNIN_URL "$S")"
 [ "$(val BETTER_AUTH_SECRET "$S")" = "from-provision-db-0123456789abcdef0123456789" ] && [ "$(count BETTER_AUTH_SECRET "$S")" = 1 ] \
   && ok "an existing BETTER_AUTH_SECRET is kept, not duplicated" || fail "BETTER_AUTH_SECRET was touched"
 [[ "$(val SIGNIN_PAIRWISE_SECRET "$S")" =~ ^[0-9a-f]{64}$ ]] && ok "SIGNIN_PAIRWISE_SECRET generated (64 hex)" || fail "no pairwise secret"
@@ -57,14 +57,14 @@ c="$(val SIGNIN_CLIENT_SECRET_CAUSIUS "$S")"
   && ok "the hirnli client's secret lands in revamp-info's env" || fail "hirnli pair differs"
 [ "$(val SIGNIN_CLIENT_SECRET_HEIDI "$S")" = "heidi-existing-value-0123456789abcdef0123" ] \
   && [ "$(count SIGNIN_CLIENT_SECRET "$OPT/heidi/shared/.env")" = 1 ] \
-  && ok "only the app had it: copied to signin, the app's value untouched" || fail "heidi pair wrong"
-[ "$(val SIGNIN_CLIENT_SECRET_SOLON "$S")" = "signin-side-value-0123456789abcdef012345" ] \
+  && ok "only the app had it: copied to morulia, the app's value untouched" || fail "heidi pair wrong"
+[ "$(val SIGNIN_CLIENT_SECRET_SOLON "$S")" = "morulia-side-value-0123456789abcdef012345" ] \
   && [ "$(val SIGNIN_CLIENT_SECRET "$OPT/solon/shared/.env")" = "solon-side-value-0123456789abcdef01234567" ] \
   && grep -q "SIGNIN_CLIENT_SECRET_SOLON = solon SIGNIN_CLIENT_SECRET: MISMATCH" <<<"$OUT" \
   && ok "two different values: reported as MISMATCH, neither changed" || fail "solon mismatch handling: $OUT"
 ! grep -q "SIGNIN_CLIENT_SECRET_BIASLENS" "$S" && grep -q "biaslens has no env file on the box — pair skipped" <<<"$OUT" \
   && ok "an app with no env on the box: skipped, nothing written to either side" || fail "biaslens: $OUT"
-grep -q "no signin-app unit yet" <<<"$OUT" && ok "no unit yet: says so instead of failing the restart" || fail "restart: $OUT"
+grep -q "no morulia-app unit yet" <<<"$OUT" && ok "no unit yet: says so instead of failing the restart" || fail "restart: $OUT"
 
 # Nothing that was written may appear in the output.
 leaked=""
@@ -78,12 +78,12 @@ done
 
 # A second run changes nothing.
 before="$(cat "$OPT"/*/shared/.env | sha256sum)"
-OUT2="$(run ensure signin)" || fail "second ensure failed: $OUT2"
+OUT2="$(run ensure morulia)" || fail "second ensure failed: $OUT2"
 [ "$before" = "$(cat "$OPT"/*/shared/.env | sha256sum)" ] && ok "a re-run writes nothing" || fail "a re-run changed a file"
-grep -q "nothing to add for signin" <<<"$OUT2" && ok "a re-run says there was nothing to add" || fail "$OUT2"
+grep -q "nothing to add for morulia" <<<"$OUT2" && ok "a re-run says there was nothing to add" || fail "$OUT2"
 
 # show only reads.
-OUT3="$(run show signin)" || fail "show failed"
+OUT3="$(run show morulia)" || fail "show failed"
 [ "$before" = "$(cat "$OPT"/*/shared/.env | sha256sum)" ] && grep -q "SIGNIN_PAIRWISE_SECRET *set" <<<"$OUT3" \
   && ok "show reports set/not set and writes nothing" || fail "show: $OUT3"
 

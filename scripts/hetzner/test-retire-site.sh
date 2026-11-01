@@ -64,6 +64,20 @@ printf '#!/usr/bin/env bash\necho "  - Token scopes: %s"\n' "'delete_repo', 'rep
 out=$(PATH="$STUB:$PATH" retire demo-site --mode delete --repo delete || true)
 has "$out" "cannot be undone"
 hasnt "$out" "no delete_repo scope"  # a token that CAN delete is not lectured
+echo "→ a renamed repository is left to the site that now owns it"
+# GitHub redirects the old name, so without this a delete of the old site
+# would disable the new site's workflows and remove its deploy key.
+printf '#!/usr/bin/env bash\n[ "$1" = api ] && { echo "bitbaum/new-name"; exit 0; }\necho "  - Token scopes: %s"\n' "'repo'" > "$STUB/gh"
+out=$(PATH="$STUB:$PATH" retire demo-site --mode delete --repo archive || true)
+has "$out" "renamed to bitbaum/new-name"
+has "$out" "/opt/demo-site"                  # the box steps still run
+hasnt "$out" "GitHub Actions workflows"
+hasnt "$out" "HETZNER_SSH_PRIVATE_KEY"
+hasnt "$out" "archive bitbaum"
+printf '#!/usr/bin/env bash\n[ "$1" = api ] && { echo "bitbaum/demo-site"; exit 0; }\n' > "$STUB/gh"
+out=$(PATH="$STUB:$PATH" retire demo-site --mode delete || true)
+hasnt "$out" "renamed to"                    # the same name is not a rename
+has "$out" "GitHub Actions workflows"
 rm -rf "$STUB"
 
 echo "→ it refuses a mode it does not understand, and insists on one"

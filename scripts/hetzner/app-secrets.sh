@@ -56,27 +56,27 @@ REGISTRY="$(cat <<'REG'
 heidi|CRON_SECRET|hex32
 heidi|VAPID|vapid
 heidi|VAPID_SUBJECT|literal:mailto:cato@orangecat.ch
-# signin: the shared sign-in (bitbaum/signin .env.example). SIGNIN_URL is the
+# morulia: the shared sign-in (bitbaum/morulia .env.example; first named signin). SIGNIN_URL is the
 # OIDC issuer, byte for byte, so no trailing slash. SIGNIN_PAIRWISE_SECRET
 # derives every person's subject in every app: it is NEVER rotated, and this
 # script never overwrites a value — that rule is what makes it safe here.
 # BETTER_AUTH_SECRET may already be there from provision-db-on-box.sh; then it
 # is kept.
-signin|SIGNIN_URL|literal:https://signin.orangecat.ch
-signin|BETTER_AUTH_SECRET|hex32
-signin|SIGNIN_PAIRWISE_SECRET|hex32
-# One row per client in bitbaum/signin lib/clients.ts: SIGNIN_CLIENT_SECRET_<ID>
+morulia|SIGNIN_URL|literal:https://morulia.orangecat.ch
+morulia|BETTER_AUTH_SECRET|hex32
+morulia|SIGNIN_PAIRWISE_SECRET|hex32
+# One row per client in bitbaum/morulia lib/clients.ts: SIGNIN_CLIENT_SECRET_<ID>
 # here equals SIGNIN_CLIENT_SECRET in that app. The hirnli client is served by
 # the revamp-info app (apps.conf), so its env is /opt/revamp-info. The secret
 # alone switches nothing on in an app: accountkit shows the button only once
 # SIGNIN_ISSUER and SIGNIN_CLIENT_ID are set too.
-signin|SIGNIN_CLIENT_SECRET_BIASLENS|pair:biaslens:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_CAUSIUS|pair:causius:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_DIPLODOCTOR|pair:diplodoctor:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_HEIDI|pair:heidi:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_HIRNLI|pair:revamp-info:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_SOLON|pair:solon:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_SUBSTRATA|pair:substrata:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_BIASLENS|pair:biaslens:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_CAUSIUS|pair:causius:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_DIPLODOCTOR|pair:diplodoctor:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_HEIDI|pair:heidi:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_HIRNLI|pair:revamp-info:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SOLON|pair:solon:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SUBSTRATA|pair:substrata:SIGNIN_CLIENT_SECRET
 REG
 )"
 
