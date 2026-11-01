@@ -91,7 +91,14 @@ real import, then the rehearsal. That is not deployed evidence.
 
 AccountKit reaches Google, GitHub and X only through the shared bitbaum
 sign-in (`SIGNIN_*`). That service is live but has no provider credentials
-yet. On this runtime their buttons hide (`getEnabledAuthProviders`), so:
+yet. Once `SIGNIN_ISSUER`, `SIGNIN_CLIENT_ID` and `SIGNIN_CLIENT_SECRET` are
+set, AccountKit mounts it as `bitbaum-signin`, and the sign-in and sign-up
+pages show "Continue with Google, Apple, GitHub, X or Facebook"
+(`getEnabledAuthProviders().signin`). The compat layer starts it like
+OrangeCat. The deploy then expects it in `/api/auth/providers`
+(`scripts/expected-auth-providers.ts` reads the box's OIDC env). Until
+then, the separate GitHub, Google and X buttons stay hidden on this runtime,
+so:
 
 - A person whose only way in is GitHub, Google or X, with no password and no
   OrangeCat link, cannot sign in until the broker carries that provider or

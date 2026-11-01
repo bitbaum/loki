@@ -294,7 +294,21 @@ echo "→ post-deploy verification"
 BOX_AUTH_RUNTIME=$(ssh "$HOST" "grep -oE '^(export[[:space:]]+)?AUTH_RUNTIME=[a-z]+' $APP_DIR/.env 2>/dev/null | tail -1 | sed 's/.*=//'" || true)
 [[ "$BOX_AUTH_RUNTIME" =~ ^[a-z]+$ ]] || BOX_AUTH_RUNTIME=""
 echo "  box auth runtime: ${BOX_AUTH_RUNTIME:-authjs (unset)}"
-EXPECTED_PROVIDERS=$(cd "$PROJECT_DIR" && AUTH_RUNTIME="$BOX_AUTH_RUNTIME" npx tsx scripts/expected-auth-providers.ts) || {
+# The OIDC clients AccountKit mounts come from the box's env too: the issuer
+# and client id are not secrets and are read as they are; a client secret is
+# reported only as "set" (its value never leaves the box). /opt/fleet/env
+# first, then the app's .env, where a non-empty line wins (launch.sh's order).
+BOX_OIDC_ENV=$({ ssh "$HOST" "for f in /opt/fleet/env $APP_DIR/.env; do [ -r \$f ] && cat \$f; done 2>/dev/null" || true; } | awk '
+  match($0, /^[[:space:]]*(export[[:space:]]+)?(ORANGECAT_OAUTH_ISSUER|ORANGECAT_OAUTH_CLIENT_ID|ORANGECAT_OAUTH_CLIENT_SECRET|SIGNIN_ISSUER|SIGNIN_CLIENT_ID|SIGNIN_CLIENT_SECRET)=/) {
+    line = substr($0, RSTART, RLENGTH); sub(/^[[:space:]]*(export[[:space:]]+)?/, "", line); name = substr(line, 1, length(line) - 1)
+    value = substr($0, RSTART + RLENGTH); gsub(/^["\047]|["\047][[:space:]]*$/, "", value)
+    if (value == "") next
+    if (name ~ /SECRET$/) value = "set"
+    seen[name] = value
+  }
+  END { for (n in seen) if (seen[n] ~ /^[A-Za-z0-9_.:\/-]+$/) printf "%s=%s\n", n, seen[n] }')
+echo "  box OIDC clients: $(grep -oE '^(ORANGECAT_OAUTH_CLIENT_ID|SIGNIN_CLIENT_ID)=' <<<"$BOX_OIDC_ENV" | tr -d = | tr '\n' ' ')"
+EXPECTED_PROVIDERS=$(cd "$PROJECT_DIR" && env -u ORANGECAT_OAUTH_ISSUER -u ORANGECAT_OAUTH_CLIENT_ID -u ORANGECAT_OAUTH_CLIENT_SECRET -u SIGNIN_ISSUER -u SIGNIN_CLIENT_ID -u SIGNIN_CLIENT_SECRET $BOX_OIDC_ENV AUTH_RUNTIME="$BOX_AUTH_RUNTIME" npx tsx scripts/expected-auth-providers.ts) || {
   echo "✗ could not compute expected auth providers" >&2; rollback_box "expected auth providers unknown"; exit 1
 }
 if ! ssh "$HOST" 'set -e

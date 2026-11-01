@@ -59,6 +59,8 @@ function XIcon() {
 
 export interface OAuthEnabledFlags {
   orangecatEnabled: boolean;
+  /** The shared sign-in's label when it is on (AccountKit's `withSignin`), else null. */
+  signinLabel: string | null;
   githubEnabled: boolean;
   googleEnabled: boolean;
   twitterEnabled: boolean;
@@ -66,7 +68,11 @@ export interface OAuthEnabledFlags {
 
 export function hasAnyOAuth(flags: OAuthEnabledFlags): boolean {
   return (
-    flags.orangecatEnabled || flags.githubEnabled || flags.googleEnabled || flags.twitterEnabled
+    flags.orangecatEnabled ||
+    Boolean(flags.signinLabel) ||
+    flags.githubEnabled ||
+    flags.googleEnabled ||
+    flags.twitterEnabled
   );
 }
 
@@ -113,6 +119,16 @@ export function OAuthButtons({
         >
           <OrangeCatIcon />
           {oauthLoading === "orangecat" ? "Redirecting…" : orangecatButtonLabel(intent)}
+        </AuthSecondaryButton>
+      )}
+      {flags.signinLabel && (
+        <AuthSecondaryButton
+          type="button"
+          onClick={() => handleOAuth("bitbaum-signin")}
+          disabled={oauthLoading !== null}
+          className="ui-auth-secondary-btn-strong gap-2.5"
+        >
+          {oauthLoading === "bitbaum-signin" ? "Redirecting…" : flags.signinLabel}
         </AuthSecondaryButton>
       )}
       {flags.githubEnabled && (
