@@ -6,7 +6,7 @@ import { TerminalSurface } from "@/components/terminal/TerminalSurface";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { NARROW_QUERY } from "@/hooks/use-is-narrow";
-import { useSoloWindow } from "@/hooks/use-solo-window";
+import { useWorkbenchFocus } from "@/hooks/use-workbench-focus";
 import { useWorkbenchLayout } from "@/hooks/use-workbench-layout";
 import { useWorkbenchWindows } from "@/hooks/use-workbench-windows";
 import { isPaneOpen } from "@/lib/workbench/layout";
@@ -64,7 +64,9 @@ export function WorkbenchView({
   const columns = useMediaQuery(WORKBENCH_COLUMNS_QUERY);
   const rootRef = useRef<HTMLDivElement>(null);
   const fullscreen = useFullscreen(rootRef);
-  useSoloWindow(solo !== null);
+  // One screen, nothing around it: the app's chrome leaves while the
+  // workbench is open (a phone keeps its own — the rows need its bars).
+  useWorkbenchFocus(!narrow || solo !== null);
   const { layout, close } = useWorkbenchLayout(projectId, solo);
   const windows = useWorkbenchWindows(projectId);
 

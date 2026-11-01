@@ -109,6 +109,7 @@ export function TerminalSessionBar({
   agentSwitchDisabledReason,
   view,
   onViewChange,
+  agentSwitch = true,
 }: {
   agents: AgentEntry[];
   activeAgentId: string | null;
@@ -119,6 +120,10 @@ export function TerminalSessionBar({
   view: TerminalViewMode;
   /** Omitted when the agent has no conversation view. */
   onViewChange?: (view: TerminalViewMode) => void;
+  /** The agent's name and the menu that changes it. Off on the workbench,
+   *  where the row is the view switch alone: the agent is named in the
+   *  session's own chip, and changed from its box. */
+  agentSwitch?: boolean;
 }) {
   const [agentOpen, setAgentOpen] = useState(false);
   const activeAgent = agents.find((a) => a.id === activeAgentId);
@@ -135,34 +140,36 @@ export function TerminalSessionBar({
             agentLabel={activeAgent?.label ?? null}
           />
         )}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => canSwitchAgent && setAgentOpen((open) => !open)}
-            disabled={!canSwitchAgent || switchingAgent}
-            title={agentSwitchDisabledReason ?? "Switch the agent running in this tab"}
-            aria-haspopup="menu"
-            aria-expanded={agentOpen}
-            className={cn(
-              "ui-chip-toggle inline-flex items-center gap-1",
-              !canSwitchAgent && "cursor-not-allowed opacity-50",
+        {agentSwitch && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => canSwitchAgent && setAgentOpen((open) => !open)}
+              disabled={!canSwitchAgent || switchingAgent}
+              title={agentSwitchDisabledReason ?? "Switch the agent running in this tab"}
+              aria-haspopup="menu"
+              aria-expanded={agentOpen}
+              className={cn(
+                "ui-chip-toggle inline-flex items-center gap-1",
+                !canSwitchAgent && "cursor-not-allowed opacity-50",
+              )}
+            >
+              {switchingAgent ? <Loader2 className="ui-spinner-sm" /> : null}
+              {agentLabel}
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            </button>
+            {agentOpen && (
+              <AgentSwitcherPopover
+                agents={agents}
+                activeAgentId={activeAgentId ?? ""}
+                onSwitch={(id) => {
+                  if (id) onSwitchAgent(id);
+                }}
+                onClose={() => setAgentOpen(false)}
+              />
             )}
-          >
-            {switchingAgent ? <Loader2 className="ui-spinner-sm" /> : null}
-            {agentLabel}
-            <ChevronDown className="h-3 w-3" aria-hidden="true" />
-          </button>
-          {agentOpen && (
-            <AgentSwitcherPopover
-              agents={agents}
-              activeAgentId={activeAgentId ?? ""}
-              onSwitch={(id) => {
-                if (id) onSwitchAgent(id);
-              }}
-              onClose={() => setAgentOpen(false)}
-            />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -30,9 +30,10 @@ was "tons of options … paralysis" (2026-10-31). So:
 - **The robot.** `TerminalSurface` in its quiet shape (`quiet`): no
   builder picker (which builder runs a project is a stored decision,
   `lib/execution-access`), no tab strip of other projects, no shell rows.
-  The view switch (chat | terminal) and the agent's name stay: they are
-  how the robot is seen two ways, and the people who want the raw terminal
-  are one tap from it.
+  The view switch (chat | terminal) stays: it is how the robot is seen two
+  ways, and the people who want the raw terminal are one tap from it. The
+  agent's name and the menu that changes it are off (`agentSwitch`): the
+  session's own chip names the agent, and its box changes it.
 - **One line of state** over the robot (`WorkbenchStateLine`): the
   sentence the Watch track already composes ("Pull request open",
   "Live on …", "Claude Code went quiet"), a dot for its tone, and "Watch
@@ -120,13 +121,21 @@ cache), and the window it left shows the site alone; on every way out —
 announces itself closed and the robot comes back. A window ignores its own
 announcements.
 
-## One pane, one window
+## A focus screen
 
-`?pane=session` makes the window the robot alone: the sidebar, top bar
-and bottom tabs are gone at every width (`body.fc-workbench-solo`,
-`hooks/use-solo-window.ts`), and the pane's header offers Close, which
-closes the window — or, where nobody's script opened it (a typed address)
-and `window.close()` is a no-op, leads to the whole workbench.
+While the workbench is open, the app's sidebar, top bar, bottom tabs and
+the project strip ("Profile · Chat · Home · Sessions") are gone
+(`body.fc-workbench-focus`, `hooks/use-workbench-focus.ts`). Those are for
+moving between pages, and a person on the workbench is not moving: they
+are building one thing. Three layers of navigation around two columns was
+the owner's "Frankenstein elements just thrown together" (2026-11-01).
+The one back link in the header is the way out. On a phone the workbench
+is rows and keeps the phone's own bars.
+
+`?pane=session` makes a window the robot alone, with the same focus, and
+the pane's header offers Close, which closes the window — or, where
+nobody's script opened it (a typed address) and `window.close()` is a
+no-op, leads to the whole workbench.
 
 ## Widths
 

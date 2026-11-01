@@ -140,8 +140,10 @@ src/
 │   │                 site in its own window). Right, the robot: a line of
 │   │                 state (WorkbenchStateLine: the Watch track's sentence)
 │   │                 over TerminalSurface in its quiet shape (`quiet`: no
-│   │                 builder picker, no tab strip, no shell rows) with its
-│   │                 own box. WorkbenchStrip = back, title, Open the site,
+│   │                 builder picker, no tab strip, no shell rows, no agent
+│   │                 switch) with its own box. A FOCUS screen: the sidebar,
+│   │                 top bar and project strip leave while it is open
+│   │                 (hooks/use-workbench-focus.ts). WorkbenchStrip = back, title, Open the site,
 │   │                 and ONE "⋯" (the robot in its own window / on the other
 │   │                 screen, the site on the other screen, full screen).
 │   │                 Loki's chat is NOT here (a second box), Watch's card is

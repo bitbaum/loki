@@ -859,6 +859,7 @@ export function TerminalSurface({
             agentSwitchDisabledReason={agentSwitchDisabledReason}
             view={view}
             onViewChange={chatAvailable ? termView.setView : undefined}
+            agentSwitch={!quiet}
           />
         </div>
       )}
