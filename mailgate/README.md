@@ -53,7 +53,11 @@ Then:
   comes back to the same inbox.
 - Use the delivery `id` as the primary key: a retry must not make a second row.
 
-Skif is the reference adopter: `src/server/mail.ts` and `/ops/mail/[id]`.
+Skif is the reference adopter: its
+[`src/server/mail.ts`](https://github.com/bitbaum/skif/blob/main/src/server/mail.ts)
+and the
+[`/ops/mail/[id]`](https://github.com/bitbaum/skif/blob/main/src/app/(app)/ops/mail/%5Bid%5D/page.tsx)
+page.
 
 ## Running it
 

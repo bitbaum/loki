@@ -7,12 +7,12 @@ import { denyDemoInHandler } from "@/lib/demo-guard";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
 import { passwordSchema } from "@/lib/password-schema";
-import { sharedAuthEnabled } from "@/lib/auth/shared/enabled";
-import { sharedSessionId } from "@/lib/auth/shared/session";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
+import { compat } from "@/lib/auth/shared/compat";
 
 /** The shared session making this change, kept when the others end (AccountKit runtime only). */
 const ownSession = async (req: NextRequest) =>
-  sharedAuthEnabled() ? sharedSessionId(req.headers) : null;
+  sharedRuntimeEnabled() ? compat.sessionIdFor(req.headers) : null;
 
 // Shared budget for any password mutation (change OR initial-set) per client.
 // Both paths verify or establish the account credential, so they share one

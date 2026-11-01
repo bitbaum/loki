@@ -117,7 +117,8 @@
     "check:no-experiment-litter": "bash scripts/ci/check-no-experiment-litter.sh",
     "test:experiment-litter-gate": "bash scripts/test/experiment-litter-gate.sh",
     "verify:main": "pnpm run format:check && pnpm run check:deploy-ready && pnpm run check:client-ledger && pnpm run check:no-experiment-litter && pnpm run check:telegram-registry && tsc --noEmit && pnpm run lint && pnpm run check:design",
-    "build:inspection": "esbuild scripts/inspection-worker.ts --bundle --platform=node --format=esm --external:playwright --outfile=public/inspection-worker.mjs --log-level=warning"
+    "build:inspection": "esbuild scripts/inspection-worker.ts --bundle --platform=node --format=esm --external:playwright --outfile=public/inspection-worker.mjs --log-level=warning",
+    "db:rehearse-import": "accountkit-rehearse-import scripts/db/accountkit-import.sql"
   },
   "dependencies": {
     "@auth/core": "0.41.3",
