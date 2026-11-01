@@ -75,8 +75,17 @@ morulia|SIGNIN_CLIENT_SECRET_CAUSIUS|pair:causius:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_DIPLODOCTOR|pair:diplodoctor:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_HEIDI|pair:heidi:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_HIRNLI|pair:revamp-info:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_PETVITY|pair:petvity:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_SOLON|pair:solon:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_SUBSTRATA|pair:substrata:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SURF_YOUR_LIFE|pair:surf-your-life:SIGNIN_CLIENT_SECRET
+# petvity and surf-your-life render AccountKit's own sign-in screens; these two
+# literals switch the shared sign-in on there (with the pair above). Their ids
+# are the rows in bitbaum/morulia lib/clients.ts.
+petvity|SIGNIN_ISSUER|literal:https://morulia.orangecat.ch
+petvity|SIGNIN_CLIENT_ID|literal:petvity
+surf-your-life|SIGNIN_ISSUER|literal:https://morulia.orangecat.ch
+surf-your-life|SIGNIN_CLIENT_ID|literal:surf-your-life
 REG
 )"
 
