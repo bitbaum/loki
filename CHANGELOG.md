@@ -8,6 +8,7 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-11-01 — Bots in the sidebar
 
+- **A bot can ask Loki.** {#bots-ask-loki} One of the person's OrangeCat bots can ask Loki a question, as the person, over the signed OrangeCat rail (`POST /api/orangecat/ask`). Loki answers from their own projects, dispatches and pages; the turn is read-only, so a relayed question can never dispatch, approve or spend. A person whose OrangeCat identity is not linked to a Loki account is told the one step that links it.
 - **Bots, beside Loki and Voice.** {#bots-in-sidebar} The person's bots live on OrangeCat (the Cat, the fleet's specialists, the ones they made, and their group chats) and that list is where a bot's face, price and purse are. Loki now opens that one list from its own sidebar instead of growing a second one; a bot's work, when it has hands, runs here.
 
 ## 2026-10-31 — Ask Loki, improved by two companions
