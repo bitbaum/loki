@@ -49,8 +49,21 @@ fi
 
 git fetch -q "$URL" main
 target="$(git rev-parse FETCH_HEAD)"
+# The box's checkout is a shallow clone. A fetch into it stops at its old
+# boundary, so main's new history and HEAD's never meet and every commit on
+# both sides reads as "not on the other" (2026-11-01: 335 "local" commits on a
+# HEAD that is an ancestor of main). Deepen main back past HEAD's date, then
+# ask again.
+if [ "$(git rev-parse --is-shallow-repository)" = true ] && ! git merge-base --is-ancestor HEAD "$target" 2>/dev/null; then
+  since="$(date -u -d "$(git log -1 --format=%cI HEAD) - 2 days" +%Y-%m-%d)"
+  git fetch -q --shallow-since="$since" "$URL" main
+  target="$(git rev-parse FETCH_HEAD)"
+fi
 if ! git merge-base --is-ancestor HEAD "$target"; then
   echo "the checkout has $(git rev-list --count "$target..HEAD") commit(s) main does not; refusing (not a fast-forward)" >&2
+  echo "  HEAD $(git rev-parse HEAD), main $target, merge-base $(git merge-base HEAD "$target" 2>/dev/null || echo none)" >&2
+  echo "  shallow: $(git rev-parse --is-shallow-repository); grafts: $( [ -f "$(git rev-parse --git-dir)/shallow" ] && wc -l < "$(git rev-parse --git-dir)/shallow" || echo 0)" >&2
+  echo "  oldest of those: $(git log -1 --format='%h %ad %s' --date=short "$(git rev-list "$target..HEAD" | tail -1)")" >&2
   exit 1
 fi
 

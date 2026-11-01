@@ -71,6 +71,17 @@ fresh '# header' "$A" "$B"; git -C "$TMP/box" checkout -qb side
 if follow 1; then fail "a branch other than main was followed"; fi
 grep -q "not main" "$TMP/out" && ok "a checkout on another branch refuses" || fail "branch: $(cat "$TMP/out")"
 
+# The box's checkout is a shallow clone: its HEAD and main share history only
+# once the fetch is deepened past HEAD.
+for k in 1 2 3; do echo "$k" > "$U/f$k"; git -C "$U" add "f$k"; GIT_COMMITTER_DATE="2030-01-0$k" git -C "$U" commit -qm "more $k"; done
+MAIN="$(git -C "$U" rev-parse HEAD)"
+rm -rf "$TMP/box"; git clone -q --depth 1 "file://$U" "$TMP/box"
+git -C "$TMP/box" fetch -q --depth 1 "file://$U" "$(git -C "$U" rev-parse HEAD~4)" 2>/dev/null
+git -C "$TMP/box" reset -q --hard "$(git -C "$U" rev-parse HEAD~4)"
+[ "$(git -C "$TMP/box" rev-parse --is-shallow-repository)" = true ] || fail "fixture is not shallow"
+bash "$S" "$TMP/box" 1 "file://$U" > "$TMP/out" 2>&1 || fail "shallow follow refused: $(cat "$TMP/out")"
+at_main && ok "a shallow checkout behind main is deepened and fast-forwarded" || fail "shallow: $(cat "$TMP/out")"
+
 W="$ROOT/.github/workflows/box-register.yml"
 grep -q 'bash -s -- "$BOX_LOKI" "$go" < scripts/hetzner/box-register-follow.sh' "$W" && grep -q 'default: false' "$W" \
   && ok "the workflow sends the script to the box, plan by default" || fail "workflow wiring"
