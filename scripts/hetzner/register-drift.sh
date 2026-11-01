@@ -10,7 +10,8 @@
 # main did not know the port, and #1481 gave 4038 to signin: Caddy sent
 # signin.orangecat.ch to biaslens and every "HTTP 200" check passed.
 #
-# Reported, by name and port only (rows hold no secrets; main's are public):
+# Reported by name, port and the columns that differ (rows hold names, ports,
+# paths and statuses, no secrets; main's are public):
 #   box-only   a row the box has and main does not   → exit 1
 #   differs    the same name, a different row        → exit 1
 #   main-only  a row main has and the box does not   → warning (the box's
@@ -23,6 +24,23 @@ MAIN_FILE="${2:?usage: register-drift.sh <box-apps.conf> <main-apps.conf>}"
 
 rows() { grep -vE '^[[:space:]]*(#|$)' "$1" | awk -F'|' 'NF > 5' | sort -t'|' -k1,1; }
 row_of() { awk -F'|' -v n="$1" '$1 == n { print; exit }' <<<"$2"; }
+
+# The register's columns (apps.conf header). A "differs" line naming only port
+# and status said nothing when those agreed: on 2026-11-01 biaslens, kivvi and
+# vitareba differed with the same port and status on both sides, and finding
+# out which side was right started with finding out what differed.
+COLUMNS=(name port domains repo_path app_dir db owner kind status plan price since)
+columns_differ() {
+  local -a a b
+  local i n
+  IFS='|' read -r -a a <<<"$1"
+  IFS='|' read -r -a b <<<"$2"
+  n=${#a[@]}; [ "${#b[@]}" -gt "$n" ] && n=${#b[@]}
+  for ((i = 0; i < n; i++)); do
+    [ "${a[i]:-}" = "${b[i]:-}" ] && continue
+    printf '          %s: box %s, main %s\n' "${COLUMNS[i]:-column$((i + 1))}" "${a[i]:-(none)}" "${b[i]:-(none)}"
+  done
+}
 
 box_rows="$(rows "$BOX_FILE")"
 main_rows="$(rows "$MAIN_FILE")"
@@ -37,6 +55,7 @@ while IFS= read -r line; do
     bad=1
   elif [ "$other" != "$line" ]; then
     echo "differs:  $name (box port $port, main port $(cut -d'|' -f2 <<<"$other"); box status $(cut -d'|' -f9 <<<"$line"), main status $(cut -d'|' -f9 <<<"$other"))"
+    columns_differ "$line" "$other"
     bad=1
   fi
 done <<<"$box_rows"
