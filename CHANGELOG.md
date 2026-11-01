@@ -6,6 +6,10 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-01 — Bots in the sidebar
+
+- **Bots, beside Loki and Voice.** {#bots-in-sidebar} The person's bots live on OrangeCat (the Cat, the fleet's specialists, the ones they made, and their group chats) and that list is where a bot's face, price and purse are. Loki now opens that one list from its own sidebar instead of growing a second one; a bot's work, when it has hands, runs here.
+
 ## 2026-10-31 — Ask Loki, improved by two companions
 
 Two companions on OrangeCat (one arguing for Loki, one against), briefed on

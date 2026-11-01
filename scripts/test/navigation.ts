@@ -22,7 +22,9 @@ const LOOP = [
   // Grouped by thing (2026-10-19), not by question: the work, Loki, what
   // waits for a yes, the plumbing.
   { id: "build", items: ["control", "missions", "projects", "terminal", "prompts"] },
-  { id: "ask", items: ["loki", "voice", "today", "suggestions"] },
+  // "bots" opens the one list on OrangeCat (the bot's face is OrangeCat's,
+  // its work is Loki's; one list, not two — 2026-11-01).
+  { id: "ask", items: ["loki", "voice", "bots", "today", "suggestions"] },
   { id: "review", items: ["approvals", "feedback"] },
   { id: "fleet", items: ["packages", "activity", "system"] },
 ] as const;
