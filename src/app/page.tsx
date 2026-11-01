@@ -109,9 +109,8 @@ export default async function LandingPage({
           </p>
 
           <h1 className="ui-public-hero-title">
-            {MARKETING_HERO_PRIMARY}
-            <br />
-            <span className="ui-public-hero-title-dim">{MARKETING_HERO_SECONDARY}</span>
+            <span className="block">{MARKETING_HERO_PRIMARY}</span>
+            <span className="ui-public-hero-title-dim block">{MARKETING_HERO_SECONDARY}</span>
           </h1>
 
           <p className="ui-public-hero-lede">{MARKETING_TAGLINE}</p>

@@ -97,8 +97,17 @@ morulia|SIGNIN_CLIENT_SECRET_CAUSIUS|pair:causius:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_DIPLODOCTOR|pair:diplodoctor:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_HEIDI|pair:heidi:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_HIRNLI|pair:revamp-info:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_PETVITY|pair:petvity:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_SOLON|pair:solon:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_SUBSTRATA|pair:substrata:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SURF_YOUR_LIFE|pair:surf-your-life:SIGNIN_CLIENT_SECRET
+# petvity and surf-your-life render AccountKit's own sign-in screens; these two
+# literals switch the shared sign-in on there (with the pair above). Their ids
+# are the rows in bitbaum/morulia lib/clients.ts.
+petvity|SIGNIN_ISSUER|literal:https://morulia.orangecat.ch
+petvity|SIGNIN_CLIENT_ID|literal:petvity
+surf-your-life|SIGNIN_ISSUER|literal:https://morulia.orangecat.ch
+surf-your-life|SIGNIN_CLIENT_ID|literal:surf-your-life
 # 2026-11-01: every other fleet app with a sign-in page (fleet
 # docs/auth-parity-2026-11-01.md), whatever its runtime, so the secret is in
 # place before the app wires the button. Box names are apps.conf's: AOZ is
@@ -110,11 +119,9 @@ morulia|SIGNIN_CLIENT_SECRET_EVIG|pair:evig:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_KELLER|pair:keller:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_KIVVI|pair:kivvi:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_LOKI|pair:loki:SIGNIN_CLIENT_SECRET
-morulia|SIGNIN_CLIENT_SECRET_PETVITY|pair:petvity:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_PRINTCRAFT|pair:printcraft:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_REPARATURBONUS_ZH|pair:reparaturbonus-zh:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_SKIF|pair:skif:SIGNIN_CLIENT_SECRET
-morulia|SIGNIN_CLIENT_SECRET_SURF_YOUR_LIFE|pair:surf-your-life:SIGNIN_CLIENT_SECRET
 morulia|SIGNIN_CLIENT_SECRET_VITAREBA|pair:vitareba:SIGNIN_CLIENT_SECRET
 # "Sign in with OrangeCat" for the apps that had no OrangeCat client
 # (orangecat scripts/oauth/client-specs.ts holds the rows). The hirnli client

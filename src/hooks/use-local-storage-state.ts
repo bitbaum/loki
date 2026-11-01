@@ -42,33 +42,41 @@ export function useLocalStorageState<T>(
   defaultValue: T,
   serialize: (v: T) => string,
   deserialize: (raw: string) => T,
+  /** `session`: this window's own storage, kept across its reloads and
+   *  never shared with another window — for state that IS a window's (the
+   *  workbench's panes). The default is the device's. */
+  area: "local" | "session" = "local",
 ): [T, (updater: T | ((prev: T) => T)) => void] {
   const [hydratedKey, setHydratedKey] = useState<string | null>(null);
   const [value, setValue] = useState<T>(defaultValue);
+  const store = () => (area === "session" ? sessionStorage : localStorage);
 
-  // Hydrate from localStorage on mount and whenever the key changes (client-only).
+  // Hydrate from storage on mount and whenever the key changes (client-only).
+  // `area` is fixed per call site, so the key alone decides a re-read.
   useEffect(() => {
-    setValue(readStored(localStorage, key, deserialize, defaultValue)); // eslint-disable-line react-hooks/set-state-in-effect
+    setValue(readStored(store(), key, deserialize, defaultValue)); // eslint-disable-line react-hooks/set-state-in-effect
     setHydratedKey(key);
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Write to localStorage only after this key's hydration read.
+  // Write to storage only after this key's hydration read.
   // Guard: skip write if the stored value already matches — prevents ping-pong
   // between windows when storage events cause each window to re-write the same value.
   useEffect(() => {
     if (!canPersist(hydratedKey, key)) return;
     try {
       const serialized = serialize(value);
-      if (localStorage.getItem(key) !== serialized) {
-        localStorage.setItem(key, serialized);
+      if (store().getItem(key) !== serialized) {
+        store().setItem(key, serialized);
       }
     } catch {
       /* ignore */
     }
-  }, [hydratedKey, value, key, serialize]);
+  }, [hydratedKey, value, key, serialize]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync changes from other windows.
+  // Sync changes from other windows (the device's storage; a window's own
+  // storage has no other window to hear from).
   useEffect(() => {
+    if (area === "session") return;
     const onStorage = (e: StorageEvent) => {
       if (e.key !== key) return;
       try {
@@ -79,7 +87,7 @@ export function useLocalStorageState<T>(
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [key, defaultValue, deserialize]);
+  }, [key, area, defaultValue, deserialize]);
 
   const set = useCallback((updater: T | ((prev: T) => T)) => {
     setValue(updater as Parameters<typeof setValue>[0]);
