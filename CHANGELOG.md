@@ -6,6 +6,18 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-01 — Loki first, four words
+
+- **Loki's chat is the screen that opens.** {#loki-first} Signing in, and
+  Fleet Runner starting with your computer, land on Loki — say what you
+  want before you read anything. It was Today.
+- **Three words at the top of the sidebar.** {#four-words} Loki, Home,
+  Projects — the same three as the phone's bottom bar. Everything else is
+  folded under groups that say what they answer (Waiting for you, Your day,
+  Across your projects, Under the hood), and every line says what it is for
+  when you hover. The sections used to be Build, Loki, To review and The
+  fleet, always open.
+
 ## 2026-10-31 — The workbench
 
 One project on one screen, one box.

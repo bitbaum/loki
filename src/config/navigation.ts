@@ -359,34 +359,59 @@ export type SidebarSection = {
   question: string;
   /** Hidden behind the PIN gate when configured + locked. */
   private?: boolean;
+  /** No header, never folded: the items stand on their own (the first four). */
+  bare?: boolean;
+  /** Folded until opened: there when wanted, not read every day. */
+  foldedByDefault?: boolean;
 };
 
 export const SIDEBAR_SECTIONS: SidebarSection[] = [
+  // Four words, and the same four on the phone's bottom bar: a person's
+  // questions, not the product's kinds. Loki first — it is the default
+  // screen (config/auth.ts APP_HOME): the owner's own call, 2026-11-01,
+  // "a good Loki chat … accessible really easy … the default screen that
+  // opens when people open the app, while they still are able to easily
+  // go and navigate". The sections used to be Build / Loki / To review /
+  // The fleet / Private, by kind of thing — and a newcomer does not know
+  // the kinds yet.
   {
-    id: "build",
-    label: "Build",
-    question: "What am I building?",
-    items: [NAV.control, NAV.missions, NAV.projects, NAV.terminal, NAV.prompts],
-  },
-  {
-    id: "ask",
+    id: "now",
     label: "Loki",
-    question: "What does Loki know and suggest?",
-    items: [NAV.loki, NAV.voice, NAV.today, NAV.suggestions],
+    question: "Say it, see it, build it.",
+    bare: true,
+    items: [NAV.loki, NAV.control, NAV.projects],
   },
+  // Everything else, folded until opened, in groups that each say the
+  // question they answer — never a drawer called More, which is where
+  // undecided pages went to rot once (scripts/test/navigation.ts). Each
+  // page still exists at its address, and says what it is for on hover.
   {
-    id: "review",
-    label: "To review",
+    id: "waiting",
+    label: "Waiting for you",
     question: "What is waiting for my yes?",
-    // Home lists these as they arrive; each also has a page of its own.
+    foldedByDefault: true,
     items: [NAV.approvals, NAV.feedback],
   },
   {
-    id: "fleet",
-    label: "The fleet",
-    question: "What is it all built on?",
-    // The plumbing: rarely visited, there when something is off.
-    items: [NAV.packages, NAV.activity, NAV.system],
+    id: "day",
+    label: "Your day",
+    question: "What now, beyond the box — the day, what's next, Loki read aloud.",
+    foldedByDefault: true,
+    items: [NAV.today, NAV.suggestions, NAV.voice],
+  },
+  {
+    id: "across",
+    label: "Across your projects",
+    question: "What is every project doing, and what do I tell the agents?",
+    foldedByDefault: true,
+    items: [NAV.terminal, NAV.missions, NAV.activity, NAV.prompts],
+  },
+  {
+    id: "hood",
+    label: "Under the hood",
+    question: "What is it all built on, and is it well?",
+    foldedByDefault: true,
+    items: [NAV.packages, NAV.system],
   },
   {
     id: "private",
@@ -449,4 +474,4 @@ export const FLEET_SURFACES = [
 ] as const;
 
 // Explicit order: what you open first is first.
-export const MOBILE_NAV_ITEMS: NavItem[] = [NAV.control, NAV.projects, NAV.loki];
+export const MOBILE_NAV_ITEMS: NavItem[] = [NAV.loki, NAV.control, NAV.projects];

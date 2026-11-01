@@ -87,7 +87,9 @@ assert.match(detail, /if \(!dossier\) notFound\(\)/);
 assert.match(detail, /goals reported done/);
 assert.doesNotMatch(detail, /verified complete|independently verified/i);
 assert.match(nav, /href: "\/missions"/);
-assert.match(nav, /NAV\.control, NAV\.missions, NAV\.projects/);
+// Missions is a view across projects, folded under that question since the
+// sidebar became three words + folds (2026-11-01, AGENTS.md "Why Loki exists").
+assert.match(nav, /NAV\.terminal, NAV\.missions, NAV\.activity, NAV\.prompts/);
 assert.doesNotMatch(index + detail, /export async function (POST|PATCH|PUT|DELETE)\(/);
 
 console.log("✓ Missions — real project/goal sources, reported progress, tenant-scoped reads");

@@ -19,12 +19,14 @@ import {
 // unrepresentable.
 
 const LOOP = [
-  // Grouped by thing (2026-10-19), not by question: the work, Loki, what
-  // waits for a yes, the plumbing.
-  { id: "build", items: ["control", "missions", "projects", "terminal", "prompts"] },
-  { id: "ask", items: ["loki", "voice", "today", "suggestions"] },
-  { id: "review", items: ["approvals", "feedback"] },
-  { id: "fleet", items: ["packages", "activity", "system"] },
+  // Four words first, a person's questions (2026-11-01, AGENTS.md "Why Loki
+  // exists"): Loki (the default screen), Home, Projects — bare, no header.
+  { id: "now", items: ["loki", "control", "projects"], bare: true },
+  // Everything else folded, each group one question — never a drawer.
+  { id: "waiting", items: ["approvals", "feedback"], bare: false },
+  { id: "day", items: ["today", "suggestions", "voice"], bare: false },
+  { id: "across", items: ["terminal", "missions", "activity", "prompts"], bare: false },
+  { id: "hood", items: ["packages", "system"], bare: false },
 ] as const;
 
 for (const expected of LOOP) {
@@ -40,7 +42,27 @@ for (const expected of LOOP) {
     `${expected.id} states the operator question it answers — a section that ` +
       `cannot state its question is the "More" failure starting over`,
   );
+  assert.equal(
+    Boolean(section.bare),
+    expected.bare,
+    `${expected.id} is ${expected.bare ? "the bare four" : "a folded group with a header"}`,
+  );
+  if (!expected.bare)
+    assert.ok(
+      section.foldedByDefault,
+      `${expected.id} is folded until opened — the sidebar reads as four words`,
+    );
 }
+// The bare section is exactly the phone's bottom bar: one list, two shapes.
+assert.deepEqual(
+  SIDEBAR_SECTIONS.find((s) => s.bare)?.items.map((i) => i.id),
+  MOBILE_NAV_ITEMS.map((i) => i.id),
+  "the four words and the bottom bar are the same list",
+);
+// Every folded page says what it is for on hover (SidebarNavItem title).
+for (const section of SIDEBAR_SECTIONS.filter((s) => !s.bare))
+  for (const item of section.items)
+    assert.ok(item.description.trim().length > 0, `${item.id} says what it is for`);
 
 // The landfill, by every name it might return under.
 for (const banned of ["more", "other", "misc", "site", "tools"]) {
@@ -107,8 +129,8 @@ assert.equal(
 // the bar and the sheet describe different products.
 assert.deepEqual(
   MOBILE_NAV_ITEMS.map((i) => i.id),
-  ["control", "projects", "loki"],
-  "the bottom bar carries what is opened daily — Home, Projects, Loki — and More holds the rest",
+  ["loki", "control", "projects"],
+  "the bottom bar carries what is opened daily — Loki first, Home, Projects — and More holds the rest",
 );
 assert.equal(NAV.control.label, "Home", "Control is called Home");
 for (const tab of MOBILE_NAV_ITEMS) {
@@ -118,7 +140,8 @@ for (const tab of MOBILE_NAV_ITEMS) {
 // day" over Today alone, "Build" over Terminal alone — owner, 2026-10-19).
 // On the phone the tabs are filtered out of More, so count what is left.
 const tabIds = new Set(MOBILE_NAV_ITEMS.map((i) => i.id));
-for (const section of SIDEBAR_SECTIONS.filter((s) => !s.private)) {
+// The bare three ARE the tabs, so the sheet shows nothing of theirs: skipped.
+for (const section of SIDEBAR_SECTIONS.filter((s) => !s.private && !s.bare)) {
   const inMore = section.items.filter((i) => !tabIds.has(i.id));
   assert.ok(
     inMore.length >= 2,

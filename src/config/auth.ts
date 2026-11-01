@@ -16,15 +16,16 @@ export const ROUTES = {
   VERIFY_EMAIL: "/verify-email",
   ONBOARDING: "/onboarding",
   SIGN_OUT: "/sign-out",
-  // Post-auth default
-  APP_HOME: "/today",
+  // Post-auth default: Loki's chat. The owner's call (2026-11-01): a good
+  // chat, reachable in one step, is the screen that opens when people open
+  // the app — say it, and the rest of the app is one tap away. It was
+  // /today, a page to read before a person could say anything.
+  APP_HOME: "/loki",
   // Where the Fleet Runner desktop shell lands a signed-in operator. The
   // runner opens at OS startup and points at APP_URL (no path), so without
   // this it drops the owner on the marketing hero every morning — a pitch
-  // page, not a command deck. Control is the surface that answers "what do I
-  // do now": live agent state, per-project Launch agent, and Build selected
-  // across many projects at once.
-  RUNNER_HOME: "/control",
+  // page, not a place to say something. The same screen as everyone's.
+  RUNNER_HOME: "/loki",
 } as const;
 
 /** Query flag that lets a Fleet Runner operator open the public marketing

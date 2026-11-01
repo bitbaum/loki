@@ -36,6 +36,41 @@ Operational guide for agents working in this repo; `CLAUDE.md` points here.
 Where each surface's code lives, and what each view is for, is
 [`docs/development/surfaces.md`](docs/development/surfaces.md).
 
+## Why Loki exists, and for whom
+
+The owner's words, 2026-11-01, kept here so no screen is built without them:
+
+> The best interface is a good Loki chat, accessible really easily, the
+> default screen that opens when people open the app, while they are still
+> able to easily navigate the interface. It should be interesting and
+> exciting: when they are at work doing their boring stuff, they should look
+> forward to the break when they open it and start building things and
+> getting things done. Not an employee or a group of employees — a friend,
+> someone truly on their side. People rarely love things that make them feel
+> stupid. Life is too short; we want the short period each person has to be
+> a little better, a little more eventful.
+
+What that means when you build here:
+
+- **Loki's chat is the default screen** (`config/auth.ts` `APP_HOME`,
+  `RUNNER_HOME`). A person can say what they want before they read anything.
+- **Three words at the top of the sidebar** — Loki, Home, Projects — the
+  same three as the phone's bottom bar (`config/navigation.ts`). Everything
+  else is folded under groups that each say the question they answer
+  (never a drawer called More: that is where undecided pages rot,
+  `scripts/test/navigation.ts`), and every line says what it is for on
+  hover. A new destination earns a place at the top only by answering a
+  question the three do not.
+- **One thing to do on a screen, a few things to see.** Options paralyse;
+  views do not. The workbench is the model (`docs/architecture/workbench.md`).
+- **Never make a person feel stupid.** No internal names, no state they
+  cannot act on, no empty box apologising for itself, no error without the
+  way forward on the same screen (fleet "No dead ends"). Copy says what
+  happens, in the words the person would use.
+- **Measure by effort, not by features:** the goal reached in the fewest
+  clicks, page loads and seconds of thinking. A feature that adds a choice
+  to the first screen has to pay for it.
+
 ## What this is
 
 Loki is an independent product for building and changing projects with AI

@@ -19,12 +19,16 @@ src/
 │   │                 stopped the sidebar footer becoming a second settings
 │   │                 page. Sign out, Settings, appearance and the private-zone
 │   │                 lock live in AccountMenu (top bar, every viewport).
-│   │                 Sections are SSOT in config/navigation.ts, grouped by
-│   │                 THING, not by question: Build (Home, Projects,
-│   │                 Sessions, Prompts) · Loki (chat, Voice, Today,
-│   │                 Suggestions) · To review · The fleet +
-│   │                 PIN-gated Private. The phone's bottom bar is Home ·
-│   │                 Projects · Loki · More (the rest, in those sections).
+│   │                 Sections are SSOT in config/navigation.ts: THREE WORDS
+│   │                 bare at the top — Loki (the default screen, say it) ·
+│   │                 Home (what now) · Projects (what am I building) — then
+│   │                 folded groups that each say their question (Waiting
+│   │                 for you · Your day · Across your projects · Under the
+│   │                 hood) + PIN-gated Private; every line says what it is
+│   │                 for on hover. They were Build / Loki / To review / The
+│   │                 fleet, by kind of thing, until 2026-11-01 (AGENTS.md,
+│   │                 "Why Loki exists"). The phone's bottom bar is the bare
+│   │                 three + More (the folded groups as a sheet).
 │   ├── control/   → ControlPanel = HOME (/control, labelled "Home" since
 │   │                 2026-10-19), ProjectCard, ProjectProfile.
 │   │                 There is no ProjectTile. HomeComposer = the top: what to

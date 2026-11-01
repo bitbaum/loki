@@ -33,6 +33,7 @@ export function SidebarNavItem({
       <Link
         ref={linkRef}
         href={item.href}
+        title={item.description}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={cn(
