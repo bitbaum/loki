@@ -8,7 +8,8 @@
 #   - '-', supabase:<schema>, a renamed database, an archived row, an unknown
 #     app and a non-slug input are refused before anything touches the box;
 #   - the workflow runs the gate before its SSH step, and the real register
-#     accepts signin (the app this workflow was written for).
+#     accepts morulia (the sign-in this workflow was written for, first named
+#     signin) and refuses the archived signin row.
 #
 # Run: bash scripts/hetzner/test-provision-db.sh
 set -uo pipefail
@@ -42,8 +43,10 @@ for bad in nodb sb renamed gone unknown 'Signin' 'a;rm' ''; do
 done
 ok "'-', supabase:, a renamed db, archived, unknown and non-slug inputs are refused"
 
-[ "$(bash "$HERE/provisionable-db.sh" signin 2>/dev/null)" = signin ] \
-  && ok "the real apps.conf accepts signin" || fail "real register refuses signin"
+[ "$(bash "$HERE/provisionable-db.sh" morulia 2>/dev/null)" = morulia ] \
+  && ok "the real apps.conf accepts morulia" || fail "real register refuses morulia"
+! bash "$HERE/provisionable-db.sh" signin >/dev/null 2>&1 \
+  && ok "the real apps.conf refuses the archived signin row" || fail "real register accepts archived signin"
 
 W="$ROOT/.github/workflows/provision-db.yml"
 gate_line=$(grep -n 'bash scripts/hetzner/provisionable-db.sh' "$W" | head -1 | cut -d: -f1)

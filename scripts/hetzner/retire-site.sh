@@ -92,6 +92,20 @@ if [ -z "$REPO_ACTION" ]; then
 fi
 case "$REPO_ACTION" in keep|private|archive|delete) ;; *) echo "ERROR: unknown --repo '$REPO_ACTION'" >&2; exit 2 ;; esac
 
+# A renamed repository still answers under its old name: GitHub redirects
+# repos/<owner>/<old> to the new one. Retiring the old site after a rename
+# (signin -> morulia, 2026-11-01) would then disable the NEW site's workflows,
+# delete its deploy key and archive it. So every GitHub step below is skipped
+# when the repository now belongs to another name; the box steps still run.
+# A lookup that fails (no gh, no repo) changes nothing.
+REPO_ELSEWHERE=""
+if canonical="$(gh api "repos/$GH_OWNER_PREVIEW/$SLUG" --jq .full_name 2>/dev/null)" \
+   && [[ "$canonical" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+   && [ "$(tr '[:upper:]' '[:lower:]' <<<"$canonical")" != "$(tr '[:upper:]' '[:lower:]' <<<"$GH_OWNER_PREVIEW/$SLUG")" ]; then
+  REPO_ELSEWHERE="$canonical"
+  REPO_ACTION="keep"
+fi
+
 # Deleting a repository needs GitHub's delete_repo scope, which this host's
 # token deliberately does not carry. Say so while it is still a PLAN — the
 # moment to learn that a step cannot happen is before choosing it — and refuse
@@ -109,6 +123,7 @@ fi
 
 HOST="${DOMAINS%%,*}"
 GH_OWNER="${GITHUB_REPO_OWNER:-bitbaum}"
+
 UNIT="$SLUG-app"
 VHOST="/etc/caddy/apps.d/$SLUG.caddy"
 BOX_DEV="${BOX_DEV_ROOT:-/home/ubuntu/dev}/$SLUG"
@@ -192,7 +207,11 @@ fi
 #
 # Before the repository is archived, because an archived repository refuses
 # every mutation — including this one.
-if [ "$MODE" = "delete" ]; then
+if [ -n "$REPO_ELSEWHERE" ]; then
+  plan "$GH_OWNER/$SLUG was renamed to $REPO_ELSEWHERE: no GitHub step runs (its workflows, deploy key and repository belong to that site now)"
+fi
+
+if [ "$MODE" = "delete" ] && [ -z "$REPO_ELSEWHERE" ]; then
   plan "disable the repository's GitHub Actions workflows (they would keep deploying a site that is gone)"
   if [ "$GO" = 1 ]; then
     ids=$(gh api "repos/$GH_OWNER/$SLUG/actions/workflows" --jq '.workflows[] | select(.state=="active") | .id' 2>/dev/null || true)
@@ -212,7 +231,7 @@ fi
 # (register-site.sh sets it). Nothing ever removed it, so every retired site
 # kept a working key to this box in a repository that may outlive the site —
 # and may later be made public or handed over.
-if [ "$MODE" = "delete" ] && [ "$REPO_ACTION" != "delete" ]; then
+if [ "$MODE" = "delete" ] && [ "$REPO_ACTION" != "delete" ] && [ -z "$REPO_ELSEWHERE" ]; then
   plan "remove the HETZNER_SSH_PRIVATE_KEY secret from $GH_OWNER/$SLUG (a key to this box)"
   if [ "$GO" = 1 ]; then
     gh secret delete HETZNER_SSH_PRIVATE_KEY --repo "$GH_OWNER/$SLUG" >/dev/null 2>&1 \
@@ -222,7 +241,7 @@ if [ "$MODE" = "delete" ] && [ "$REPO_ACTION" != "delete" ]; then
 fi
 
 case "$REPO_ACTION" in
-  keep)    plan "repository $GH_OWNER/$SLUG left as it is" ;;
+  keep)    plan "repository ${REPO_ELSEWHERE:-$GH_OWNER/$SLUG} left as it is" ;;
   private) plan "make $GH_OWNER/$SLUG private"
            if [ "$GO" = 1 ]; then gh api -X PATCH "repos/$GH_OWNER/$SLUG" -F private=true >/dev/null && say "repository is private"; fi ;;
   archive) plan "archive $GH_OWNER/$SLUG (read-only, recoverable)"
