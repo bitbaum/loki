@@ -1,0 +1,71 @@
+# Fleet Runner on Linux: package the AppImage and prove, on the packaged
+# build, that it runs with the Chromium sandbox on.
+#
+# Until fleet-runner v0.8.62 every Linux launch passed --no-sandbox (baked in
+# by desktop/scripts/afterPack.cjs), so the renderer sandbox that #1479
+# turned on for the window was off on Linux in practice. The launcher that
+# replaced it (desktop/scripts/linux-launcher.sh) only falls back where
+# Chromium would otherwise abort, and says so. Reading the script proves
+# neither half, so this builds the real AppImage and runs it twice: with user
+# namespaces allowed (must be sandboxed) and blocked (must still start, with
+# the notice). See desktop/scripts/ci-linux-sandbox.sh.
+#
+# The release workflow runs the same script on the Linux build it publishes;
+# this job catches a regression on the pull request instead.
+#
+# Path-filtered on purpose: unlike check:desktop (which must build on every
+# PR because desktop/ compiles code from src/), the sandbox decision lives
+# entirely in desktop/ and electron-builder's config there.
+name: Desktop Linux sandbox
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-linux-sandbox.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-linux-sandbox-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  appimage:
+    name: Packaged AppImage runs sandboxed
+    # Pinned, not -latest: the userns-blocked case needs Ubuntu 24.04's
+    # kernel.apparmor_restrict_unprivileged_userns.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # Same reason as desktop-release.yml: node-pty's rebuild needs distutils.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - uses: pnpm/action-setup@v6
+
+      # desktop/src/main compiles code from src/ and home/, which resolve
+      # their imports from the root node_modules.
+      - name: Install root deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install desktop deps
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+
+      - name: Package Linux AppImage
+        working-directory: desktop
+        run: npx electron-vite build && npx electron-builder --linux AppImage --publish=never
+
+      - name: Packaged app runs sandboxed (and falls back where it must)
+        run: desktop/scripts/ci-linux-sandbox.sh desktop/dist/Fleet-Runner-linux-x86_64.AppImage
