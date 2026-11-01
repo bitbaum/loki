@@ -22,7 +22,8 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   it. Agents build it.", and the principles open with two new ones: On
   your side, and Life is short. New projects start with "Say what you
   want. Loki sets it up and starts building." rather than talk of repos
-  and agents.
+  and agents. The mission reads "Make everything you can imagine, with
+  someone on your side."
 
 ## 2026-10-31 — The workbench
 

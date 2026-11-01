@@ -72,7 +72,9 @@ export const WHERE_IT_RUNS = {
 // Mission — one striking statement, minimal elaboration
 export const MISSION = {
   title: "Mission",
-  statement: "Direct the creation of everything you can imagine.",
+  // "Direct the creation of …" until 2026-11-01: the staff-you-manage voice
+  // the owner set aside (AGENTS.md, "Why Loki exists").
+  statement: "Make everything you can imagine, with someone on your side.",
   paragraphs: [
     "Today, a person can describe what they want and have AI agents build it, ship it and keep improving it. Loki is where that happens — one project or forty. Tomorrow, we intend the same kind of direction to reach machines that build in the physical world.",
     "The leverage shifts from companies to individuals. The bottleneck moves from raw capability to human direction.",
