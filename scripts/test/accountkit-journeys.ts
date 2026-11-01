@@ -53,6 +53,43 @@ async function main(): Promise<number> {
   const { compat } = await import("@/lib/auth/shared/compat");
   const { createCompatClient } = await import("@bitbaum/accountkit/auth/compat-testing");
   const { getEnabledAuthProviders } = await import("@/lib/auth-providers");
+  const { sharedAuth } = await import("@/lib/auth/shared/runtime");
+  const { isOpenSharedPath } = await import("@/lib/auth/shared/open-paths");
+  const { createHmac } = await import("node:crypto");
+
+  /** AccountKit itself, as the sign-in card and the settings page reach it. */
+  let directCookie = "";
+  async function direct(path: string, body: Record<string, unknown>) {
+    assert.ok(isOpenSharedPath(`/api/auth/${path.slice(1)}`) || path === "/sign-in/email", path);
+    const res = await sharedAuth.POST(
+      new Request(`${SITE}/api/auth/${path.slice(1)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: SITE, cookie: directCookie },
+        body: JSON.stringify(body),
+      }),
+    );
+    for (const value of res.headers.getSetCookie()) {
+      const pair = value.split(";")[0];
+      const name = pair.slice(0, pair.indexOf("="));
+      const rest = directCookie.split("; ").filter((c) => c && !c.startsWith(`${name}=`));
+      directCookie = [...rest, pair].join("; ");
+    }
+    return { status: res.status, body: await res.json().catch(() => null) };
+  }
+  /** RFC 6238 code for an otpauth:// URI (SHA-1, 6 digits, 30 s). */
+  function totp(uri: string): string {
+    const secret = new URL(uri).searchParams.get("secret") ?? "";
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let bits = "";
+    for (const c of secret.replace(/=+$/, "").toUpperCase())
+      bits += alphabet.indexOf(c).toString(2).padStart(5, "0");
+    const key = Buffer.from(bits.match(/.{8}/g)!.map((b) => parseInt(b, 2)));
+    const counter = Buffer.alloc(8);
+    counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+    const mac = createHmac("sha1", key).update(counter).digest();
+    const offset = mac[mac.length - 1] & 15;
+    return String((mac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+  }
   const raw = (db as unknown as { $client: import("postgres").Sql }).$client;
 
   const migration = readFileSync(resolve(root, "drizzle/0130_accountkit_staging.sql"), "utf8");
@@ -72,6 +109,7 @@ async function main(): Promise<number> {
 
   async function reset() {
     browser.cookie = "";
+    directCookie = "";
     await raw.unsafe(`SET client_min_messages = warning; DROP TRIGGER IF EXISTS loki_accountkit_from_users ON users;
       DROP TRIGGER IF EXISTS loki_accountkit_to_users ON auth_users;
       TRUNCATE auth_users, auth_accounts, auth_sessions, auth_verifications,
@@ -304,6 +342,72 @@ async function main(): Promise<number> {
             route,
           );
         }
+      },
+    ],
+    [
+      "the second factor: a password alone gets the code step, and the code signs in",
+      async () => {
+        let r = await direct("/sign-in/email", {
+          email: "person@example.test",
+          password: PASSWORD,
+        });
+        assert.equal(r.status, 200);
+        r = await direct("/two-factor/enable", { password: PASSWORD });
+        assert.equal(r.status, 200, "turning it on asks for the password, which is Loki's");
+        const uri = r.body.totpURI as string;
+        r = await direct("/two-factor/verify-totp", { code: totp(uri) });
+        assert.equal(r.status, 200, "the first code confirms it");
+        directCookie = "";
+        r = await direct("/sign-in/email", { email: "person@example.test", password: PASSWORD });
+        assert.equal(r.body?.twoFactorRedirect, true, "a password alone is not enough");
+        assert.ok(!/session_token=[^;]/.test(directCookie), "and makes no session");
+        r = await direct("/two-factor/verify-totp", { code: totp(uri) });
+        assert.equal(r.status, 200);
+        assert.ok(/session_token=[^;]/.test(directCookie), "the code makes the session");
+      },
+    ],
+    [
+      "a person AccountKit has but Loki does not gets a Loki row and a workspace at sign-in",
+      async () => {
+        // What a sign-in link to a new address leaves behind: an AccountKit
+        // person whom no sign-in method attachment introduced to Loki.
+        const id = "00000000-0000-4000-8000-0000000000aa";
+        const { hashPassword: nativeHash } = await import("better-auth/crypto");
+        await raw`INSERT INTO auth_users (id, email, name, email_verified, created_at, updated_at)
+          VALUES (${id}, 'linked@example.test', 'Linked', true, now(), now())`;
+        await raw`INSERT INTO auth_accounts (id, account_id, provider_id, user_id, password, created_at, updated_at)
+          VALUES (${"acct-" + id}, ${id}, 'credential', ${id}, ${await nativeHash(PASSWORD)}, now(), now())`;
+        assert.equal((await raw`SELECT 1 FROM users WHERE id = ${id}`).length, 0);
+        const r = await direct("/sign-in/email", {
+          email: "linked@example.test",
+          password: PASSWORD,
+        });
+        assert.equal(r.status, 200);
+        const [row] = await raw`SELECT email FROM users WHERE id = ${id}`;
+        assert.equal(row?.email, "linked@example.test");
+        const [{ count }] =
+          await raw`SELECT count(*)::int AS count FROM org_memberships WHERE user_id = ${id}`;
+        assert.equal(count, 1);
+      },
+    ],
+    [
+      "passkeys, the second factor and the sign-in link are open; password writers are not",
+      async () => {
+        for (const path of [
+          "/passkey/generate-authenticate-options",
+          "/two-factor/verify-totp",
+          "/magic-link/verify",
+        ])
+          assert.ok(isOpenSharedPath(`/api/auth/${path.slice(1)}`), path);
+        for (const path of [
+          "/sign-up/email",
+          "/change-password",
+          "/request-password-reset",
+          "/reset-password",
+          "/update-user",
+          "/delete-user",
+        ])
+          assert.ok(!isOpenSharedPath(`/api/auth/${path.slice(1)}`), path);
       },
     ],
     [

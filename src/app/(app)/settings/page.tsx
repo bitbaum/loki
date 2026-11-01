@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
+import { db } from "@/db";
+import { authUsers } from "@/db/schema/accountkit";
 import { redirect } from "next/navigation";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { listInvitations } from "@/db/queries/invitations";
@@ -33,6 +36,22 @@ export default async function SettingsPage() {
     ]);
 
   if (!user) redirect(ROUTES.SIGN_IN);
+
+  // Passkeys and the second factor exist on the AccountKit runtime only.
+  const security = getEnabledAuthProviders().passkey
+    ? {
+        twoFactorEnabled: Boolean(
+          (
+            await db
+              .select({ on: authUsers.twoFactorEnabled })
+              .from(authUsers)
+              .where(eq(authUsers.id, user.id))
+              .limit(1)
+              .catch(() => [])
+          )[0]?.on,
+        ),
+      }
+    : null;
 
   // The Bitcoin checkout per plan comes from env, so it is resolved here and
   // handed down: the tabs are a client component and cannot read it.
@@ -79,6 +98,7 @@ export default async function SettingsPage() {
         }
         invitations={invitations}
         orangecatEnabled={getEnabledAuthProviders().orangecat}
+        security={security}
       />
     </PageLayout>
   );

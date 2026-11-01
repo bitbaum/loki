@@ -66,6 +66,8 @@ type Props = {
   invitations: Invitation[];
   /** Whether the OrangeCat OIDC provider is mounted (env-gated, server-derived). */
   orangecatEnabled: boolean;
+  /** AccountKit runtime: passkeys and the second factor on the Account tab. */
+  security?: { twoFactorEnabled: boolean } | null;
 };
 
 /** Every section, with the line its row says on a phone — what is in it, in
@@ -142,6 +144,7 @@ export function SettingsTabs({
   projectLimit,
   invitations,
   orangecatEnabled,
+  security = null,
 }: Props) {
   /**
    * The open tab IS the URL hash — one source of truth, read through
@@ -239,6 +242,7 @@ export function SettingsTabs({
             <AccountSettings
               user={{ email: user.email, hasPassword: user.hasPassword }}
               orangecatEnabled={orangecatEnabled}
+              security={security}
             />
           )}
           {shown === "notifications" && (

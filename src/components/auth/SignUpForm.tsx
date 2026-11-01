@@ -13,11 +13,20 @@ import {
   AuthDivider,
 } from "@/components/auth/AuthShell";
 import { OAuthButtons, hasAnyOAuth, type OAuthEnabledFlags } from "@/components/auth/OAuthButtons";
+import { SignInLinkButton } from "@/components/auth/SharedWaysIn";
+import { DEFAULT_AUTH_LABELS } from "@bitbaum/accountkit/auth/react";
 import { postJson } from "@/lib/api/fetch";
 import { AUTH_COPY, fromSiteWidget, keepCallback, ROUTES } from "@/config/auth";
 import { goAfterSignIn } from "@/lib/auth/after-sign-in";
 
-export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
+export function SignUpForm({
+  oauthFlags,
+  magicLinkEnabled = false,
+}: {
+  oauthFlags: OAuthEnabledFlags;
+  /** AccountKit runtime with account mail: create the account by a link instead. */
+  magicLinkEnabled?: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? ROUTES.ONBOARDING;
@@ -121,6 +130,14 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
             label="Create account"
             loadingLabel="Creating account…"
           />
+          {magicLinkEnabled && (
+            <SignInLinkButton
+              email={email}
+              name={name.trim() || undefined}
+              callbackUrl={safeCallback}
+              label={DEFAULT_AUTH_LABELS.signUpWithLink}
+            />
+          )}
         </form>
       </AuthCard>
 
