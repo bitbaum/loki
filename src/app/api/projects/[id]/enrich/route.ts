@@ -7,9 +7,9 @@ import { getProjectCore } from "@/db/queries/projects";
 import { fetchAttributesByEntityIds } from "@/db/queries/utils";
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { HTTP_TIMEOUT_SHORT_MS } from "@/lib/constants/time";
-import { agentNotes } from "@/lib/agent-notes";
+import { readAgentDocs } from "@/lib/agent-notes";
 
-// Repo → profile. The project's own README (plus AGENTS.md when present)
+// Repo → profile. The project's own README (plus its agent notes, AGENTS.md first)
 // already says what the project is — websites and repos hold the context,
 // Loki profiles shouldn't be emptier than the repo. One click pulls
 // the repo docs, the model fills description/mission/vision/customers/
@@ -74,13 +74,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const [, owner, repo] = match;
 
   const token = await getGithubToken(userId);
-  const [readme, agentsMd, claudeMd] = await Promise.all([
+  // AGENTS.md first; a CLAUDE.md that only points elsewhere is followed, not read.
+  const [readme, agentDocs] = await Promise.all([
     fetchRepoFile(owner, repo, "readme", token),
-    fetchRepoFile(owner, repo, "AGENTS.md", token),
-    fetchRepoFile(owner, repo, "CLAUDE.md", token),
+    readAgentDocs((path) => fetchRepoFile(owner, repo, path, token)),
   ]);
 
-  const source = [readme, agentsMd, agentNotes(claudeMd)].filter(Boolean).join("\n\n---\n\n");
+  const source = [readme, ...agentDocs.map((d) => d.text)].filter(Boolean).join("\n\n---\n\n");
   if (!source) {
     return NextResponse.json(
       {
