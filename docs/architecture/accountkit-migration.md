@@ -1,10 +1,11 @@
-# AccountKit migration staging
+# AccountKit migration
 
-Loki still signs in through Auth.js (`src/auth.ts`). Migration
+Loki signs in through AccountKit since 2026-11-01 (`AUTH_RUNTIME=accountkit`).
+Auth.js (`src/auth.ts`) stays in the tree for a rollback. Migration
 `drizzle/0130_accountkit_staging.sql` adds AccountKit's tables beside it
 under the `auth_` prefix (`createAuthTables("auth_")` in
 `src/db/schema/accountkit.ts`), because Auth.js already owns `users`,
-`accounts` and `sessions`. Nothing reads or writes them yet. The fleet's
+`accounts` and `sessions`. The fleet's
 acceptance queue is
 [Fleet's checkpoint](https://github.com/bitbaum/fleet/blob/main/docs/remediation-resume-2026-10-29.md).
 
@@ -50,7 +51,7 @@ The import finally attaches three mirror triggers defined in migration 0130:
   its token set where publish, promote and the wallet read it. A refresh token
   is replaced, never blanked.
 
-## Shared runtime (built, off)
+## Shared runtime (on since 2026-11-01)
 
 With `AUTH_RUNTIME=accountkit` the runtime in `src/lib/auth/shared/` answers
 every sign-in; unset, Auth.js answers as today. The secret is
@@ -83,7 +84,7 @@ every sign-in; unset, Auth.js answers as today. The secret is
 runs on a fresh Postgres) runs all of this through the real handlers and the
 real import, then the rehearsal. That is not deployed evidence.
 
-## Not offered on this runtime, and why that blocks the switch
+## Not offered on this runtime
 
 AccountKit reaches Google, GitHub and X only through the shared bitbaum
 sign-in (`SIGNIN_*`). That service is live but has no provider credentials
@@ -108,22 +109,36 @@ locks, sets `AUTH_RUNTIME=accountkit`, restarts and proves sign-in on the public
 site with a throwaway account, rolling back on any failure. `rollback` returns
 the product to Auth.js.
 
-## Before switching
+## Switched (2026-11-01)
 
-1. **OrangeCat callback.** Done: client `loki` accepts
-   `/api/auth/oauth2/callback/orangecat` (orangecat#1508, live).
-2. **Social sign-in.** Either the bitbaum sign-in carries GitHub and Google
-   (owner: provider credentials), or the people who sign in only that way are
-   counted and asked to set a password first. A "Connect GitHub" step for the
-   repository token is also needed.
-3. Stop Loki's credential writes, import once under locks, then set
-   `AUTH_RUNTIME=accountkit`. Everyone signed in under Auth.js signs in again
-   once. To roll back, unset `AUTH_RUNTIME` and drop the three triggers.
-   Hashes stay in Loki's format in `users.password_hash`, so nothing needs a
-   reset.
-4. Prove the following on the deployed artifact with an approved test identity:
-   - sign-in;
-   - recovery;
-   - an invite;
-   - an OrangeCat sign-in followed by a publish;
-   - revocation.
+The switch ran from `accountkit-switch.yml`:
+
+1. A survey counted 15 accounts: 8 with a password and 8 with an OrangeCat
+   link. Nobody's only way in was GitHub, the one social sign-in Loki offered:
+   Google and X were already paused (`PAUSED_PROVIDERS`). So nobody was locked
+   out.
+2. The import ran once, under locks, and attached the three mirror triggers.
+3. `AUTH_RUNTIME=accountkit` was set and the app restarted.
+4. A live proof ran on loki.orangecat.ch. A throwaway account signed in
+   through `email-password`, read its session back, signed out, and was
+   deleted.
+
+The first switch was rolled back the same hour. OrangeCat sign-in answered
+`unavailable`, because AccountKit 0.18.0 started it through an endpoint
+better-auth 1.7 removed. AccountKit 0.18.1 (bitbaum/accountkit#55, #1511 here)
+starts it through `/sign-in/social`, and the switch ran again. The sign-in
+button now reaches OrangeCat's authorize page with the redirect
+`/api/auth/callback/orangecat`, which client `loki` accepts.
+
+Everyone signed in under Auth.js signs in again once. GitHub tokens already
+stored in `accounts` stay where the GitHub features read them. A new GitHub
+connection waits for the "Connect GitHub" step (above).
+
+To roll back, run the workflow with `rollback`. Hashes stay in Loki's format
+in `users.password_hash`, so nothing needs a reset.
+
+Still to prove with an approved test identity on the deployed artifact:
+- recovery;
+- an invite;
+- an OrangeCat sign-in followed by a publish;
+- revocation.
