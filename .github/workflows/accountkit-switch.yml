@@ -1,0 +1,75 @@
+name: AccountKit switch
+# Moves one product from Auth.js to its staged AccountKit runtime on the box —
+# or back — from GitHub, over the same SSH the deploy uses (HETZNER_SSH_KEY,
+# HETZNER_IP). scripts/hetzner/accountkit-switch.sh is the rules:
+#   survey   — counts only (accounts, passwords, OrangeCat links, people who
+#              would be locked out, the current runtime); changes nothing;
+#   switch   — imports the product's accounts under locks with its own
+#              scripts/db/accountkit-import.sql, sets AUTH_RUNTIME=accountkit,
+#              restarts, and proves sign-in on the public site with a
+#              throwaway account it deletes again; any failed step rolls back;
+#   rollback — AUTH_RUNTIME off, restart on Auth.js, mirrors dropped, shared
+#              tables emptied.
+# This repo is public, so this log is too: the script prints counts and
+# verdicts, never an address, a hash or a secret.
+#
+# Manual on purpose: it writes to the box.
+#   gh workflow run accountkit-switch.yml -f app=kivvi -f action=survey
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Product to move"
+        required: true
+        type: choice
+        options: [kivvi, petvity, surf-your-life, evig, loki]
+      action:
+        description: "survey (read only), switch, or rollback"
+        required: true
+        default: survey
+        type: choice
+        options: [survey, switch, rollback]
+
+permissions:
+  contents: read
+
+# One run per product at a time: a switch and a rollback must never interleave.
+concurrency:
+  group: accountkit-switch-${{ inputs.app }}
+  cancel-in-progress: false
+
+jobs:
+  accountkit-switch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+      # The product's own import SQL, from its default branch: the file its CI
+      # rehearses on every pull request.
+      - uses: actions/checkout@v7
+        if: inputs.app != 'loki'
+        with:
+          repository: bitbaum/${{ inputs.app }}
+          token: ${{ secrets.FLEET_PAT }}
+          path: product
+          sparse-checkout: scripts/db
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: ${{ inputs.action }} ${{ inputs.app }}
+        env:
+          APP: ${{ inputs.app }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          set -euo pipefail
+          sql=product/scripts/db/accountkit-import.sql
+          [ "$APP" = loki ] && sql=scripts/db/accountkit-import.sql
+          bash scripts/hetzner/accountkit-switch.sh "$APP" "$ACTION" "$sql"

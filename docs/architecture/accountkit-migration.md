@@ -98,6 +98,16 @@ yet. On this runtime their buttons hide (`getEnabledAuthProviders`), so:
 - An `ENABLE_OWNER_KEY` install that relies only on `LOCAL_AUTH_PASSWORD` (no
   stored hash) stays on Auth.js.
 
+## Switching (and back)
+
+`.github/workflows/accountkit-switch.yml` (`scripts/hetzner/accountkit-switch.sh`)
+moves one product at a time — kivvi, petvity, surf-your-life, evig or loki — on
+the box. `survey` counts only, including the people who would be locked out.
+`switch` refuses while that count is above zero; otherwise it imports under
+locks, sets `AUTH_RUNTIME=accountkit`, restarts and proves sign-in on the public
+site with a throwaway account, rolling back on any failure. `rollback` returns
+the product to Auth.js.
+
 ## Before switching
 
 1. **OrangeCat callback.** Done: client `loki` accepts
