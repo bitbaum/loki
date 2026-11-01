@@ -35,6 +35,22 @@ jobs:
           ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
           printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
 
+      # Context for a red run, never its verdict: which commit the box's
+      # checkout is on, how far it is from main, and which files it has
+      # changed (paths only). A register that "lags" is a checkout nobody
+      # pulled; one with local edits is why it could not be.
+      - name: The box's checkout
+        continue-on-error: true
+        run: |
+          . scripts/hetzner/_box-env.sh
+          ssh -o BatchMode=yes "$BOX_UBUNTU" bash -s -- "$BOX_LOKI" <<'BOX'
+          cd "$1" || exit 0
+          git fetch -q origin main 2>/dev/null || echo "(fetch from the box failed; counts are against its last fetch)"
+          echo "branch $(git rev-parse --abbrev-ref HEAD) at $(git rev-parse --short HEAD)"
+          echo "behind origin/main: $(git rev-list --count HEAD..origin/main), ahead: $(git rev-list --count origin/main..HEAD)"
+          echo "changed paths:"; git status --porcelain | cut -c4- | sed 's/^/  /'
+          BOX
+
       - name: Compare the box's register with main
         run: |
           . scripts/hetzner/_box-env.sh

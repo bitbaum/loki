@@ -32,6 +32,13 @@ run && ok "main-only alone warns, does not fail" || fail "main-only failed the r
 printf '%s\n' "${S/4038/4040}" > "$TMP/box"; printf '%s\n' "$S" > "$TMP/main"
 if run; then fail "a differing row passed"; fi
 grep -q '^differs:  signin (box port 4040, main port 4038' "$TMP/out" && ok "a differing row fails, both ports named" || fail "differs not named: $(cat "$TMP/out")"
+grep -q '^          port: box 4040, main 4038$' "$TMP/out" && ! grep -q 'status: box' "$TMP/out" \
+  && ok "the differing column is named with both values, and only that one" || fail "columns not named: $(cat "$TMP/out")"
+
+printf '%s\n' "${S/signin.example/signin.example,old.example}" > "$TMP/box"; printf '%s\n' "$S" > "$TMP/main"
+if run; then fail "a row differing only in domains passed"; fi
+grep -q '^          domains: box signin.example,old.example, main signin.example$' "$TMP/out" \
+  && ok "a difference outside port and status is named" || fail "domains difference not named: $(cat "$TMP/out")"
 
 W="$HERE/../../.github/workflows/register-drift.yml"
 grep -q 'bash scripts/hetzner/register-drift.sh "$RUNNER_TEMP/box-apps.conf" scripts/hetzner/apps.conf' "$W" \
