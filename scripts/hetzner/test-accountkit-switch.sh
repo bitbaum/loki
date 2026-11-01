@@ -27,6 +27,11 @@ grep -q 'printf.*PROOF_PASSWORD' "$S" && ! grep -qE 'echo .*\$(PROOF_(PASSWORD2?
   && ok "the throwaway accounts' secrets reach the box and the browser but are never echoed" \
   || no "a proof secret may be printed"
 
+sed -n '/^rollback() {/,/^}/p' "$S" | head -n 4 | grep -q 'only="$(native_only)"' \
+  && grep -q "auth_passkeys" <<< "$(sed -n '/^native_only() {/,/^}/p' "$S")" \
+  && ok "rollback first counts credentials only the shared tables hold, and refuses on any" \
+  || no "rollback can empty tables that hold the only copy of a credential"
+
 grep -q "options: \[survey, switch, rollback, prove\]" .github/workflows/accountkit-switch.yml \
   && grep -q 'survey|switch|rollback|prove)' "$S" \
   && ok "the workflow offers exactly the actions the script takes" \

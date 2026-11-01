@@ -7,7 +7,8 @@
 #
 #   accountkit-switch.sh <app> survey   <import.sql>  counts only, changes nothing
 #   accountkit-switch.sh <app> switch   <import.sql>  import, AUTH_RUNTIME=accountkit, restart, prove
-#   accountkit-switch.sh <app> rollback <import.sql>  AUTH_RUNTIME off, mirrors dropped, shared tables emptied
+#   accountkit-switch.sh <app> rollback <import.sql>  AUTH_RUNTIME off, mirrors dropped, shared tables emptied;
+#                                                     refused once they hold credentials found nowhere else
 #   accountkit-switch.sh <app> prove    <import.sql>  the account journeys, live, on a switched app
 #
 # survey reports how many people could sign in before and could not after: an
@@ -144,7 +145,29 @@ SQL
   echo "runtime=$(value AUTH_RUNTIME || true)"
 }
 
+# Credentials that exist only in the shared tables: a password set through
+# AccountKit (its native scrypt, not an imported bcrypt or $bs1$ hash), a
+# passkey, a second factor. Once a product renders AccountKit's own screens
+# these appear, and emptying the tables would lock those people out.
+native_only() {
+  q <<'SQL'
+SELECT (SELECT count(*) FROM auth_accounts WHERE provider_id = 'credential'
+          AND password IS NOT NULL AND password !~ '^[$]2[aby][$]' AND password !~ '^[$]bs1[$]')
+     + (SELECT count(*) FROM auth_passkeys)
+     + (SELECT count(*) FROM auth_two_factors);
+SQL
+}
+
 rollback() {
+  local only
+  only="$(native_only)"
+  if [ "${only:-0}" != 0 ]; then
+    echo "refused: the shared tables hold $only credential(s) that exist nowhere else" >&2
+    echo "(passwords set through AccountKit, passkeys, second factors); emptying them" >&2
+    echo "would lock those people out. Roll back the product's screens by reverting" >&2
+    echo "its pull request instead; the shared runtime keeps answering. Nothing changed." >&2
+    return 1
+  fi
   set_runtime ""
   restart
   detach_and_empty
