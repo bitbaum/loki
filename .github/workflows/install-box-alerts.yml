@@ -1,11 +1,11 @@
-# Apply the box's alerting (host sweep, ring policy, security check) from GitHub.
+# Apply the box's alerting from GitHub: lib-alert and the host sweep, the
+# security watch, and Loki's own self-heal loop (ivy-health).
 #
-# scripts/hetzner/install-host-alerts.sh and install-security-watch.sh only
-# change the box when somebody runs them, and for months nobody remembered to:
-# the fixes for "STILL FAILING: run-p…" and the deploy-edit "SENSITIVE FILE(S)
-# CHANGED" messages sat merged while the phone kept ringing (2026-11-02).
-# So a merge that touches them installs them. Both are idempotent; the
-# installers seed the new checks journal-only themselves.
+# These only change the box when somebody runs them, and nobody did: fixes for
+# "⚙️ STILL FAILING: run-p…" and "📝 SENSITIVE FILE(S) CHANGED" sat in the repo
+# while the phone kept ringing all night (2026-11-01/02). So a merge that
+# touches them installs them. All three are idempotent; the installers seed
+# their own new checks journal-only.
 #
 # Same SSH setup as box-doctor.yml (HETZNER_SSH_KEY, HETZNER_IP).
 name: Install box alerts
@@ -16,6 +16,7 @@ on:
     paths:
       - scripts/hetzner/install-host-alerts.sh
       - scripts/hetzner/install-security-watch.sh
+      - scripts/hetzner/ivy-health.sh
       - .github/workflows/install-box-alerts.yml
   workflow_dispatch: {}
 
@@ -41,9 +42,14 @@ jobs:
           ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
           printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
 
-      # Order matters: the security check needs lib-alert.sh from the first.
+      # Order matters: the security watch and ivy-health use lib-alert.sh from the first.
       - name: Install host alerts (lib-alert, sweep, OnFailure)
         run: BOX="root@$HETZNER_IP" bash scripts/hetzner/install-host-alerts.sh
 
       - name: Install security watch
         run: BOX="root@$HETZNER_IP" bash scripts/hetzner/install-security-watch.sh
+
+      - name: Install ivy-health (Loki's self-heal loop)
+        run: |
+          ssh "root@$HETZNER_IP" 'cat > /tmp/ivy-health.sh && install -m 755 /tmp/ivy-health.sh /usr/local/bin/ivy-health.sh && rm -f /tmp/ivy-health.sh' \
+            < scripts/hetzner/ivy-health.sh

@@ -100,11 +100,18 @@ export async function notifyFixShipped(input: {
             ? `✅ ${projectName}: a fix is live${byFleet ? " (merged automatically)" : ""}.`
             : `🚨 ${projectName}: a merged fix FAILED to deploy — the site still shows the old version.`,
           what,
-          ...(input.fix.pr ? [input.fix.pr.url] : []),
-          ...(input.fix.deploy?.url && !live ? [input.fix.deploy.url] : []),
-          ...(watchFix ? [`▶ Watch the fix: ${watchFix}`] : [`${APP_URL}${inboxPath}`]),
         ];
-        await sendTelegramMessage(target, lines.join("\n")).catch(() => undefined);
+        // The one tap: watch a live fix, or open the failed deploy to re-run it.
+        const primary = live
+          ? { text: "Watch the fix", url: watchFix ?? `${APP_URL}${inboxPath}` }
+          : {
+              text: "Open the failed deploy",
+              url: input.fix.deploy?.url ?? `${APP_URL}${inboxPath}`,
+            };
+        const pr = input.fix.pr ? [{ text: "Pull request", url: input.fix.pr.url }] : [];
+        await sendTelegramMessage(target, lines.join("\n"), { buttons: [[primary, ...pr]] }).catch(
+          () => undefined,
+        );
       })(),
       refreshOrInsertActiveAlert({
         userId: input.userId,

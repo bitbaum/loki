@@ -49,9 +49,12 @@ export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
       (async () => {
         const target = telegram;
         if (!target) return;
-        await sendTelegramMessage(target, message, { buttons: runCloseButtons(run) }).catch(
-          () => undefined,
-        );
+        // A success leaves nothing to do, so it is not a Telegram message: the
+        // thread that asked hears it (above) and so does push. Only an outcome
+        // with a way forward reaches the chat (owner, 2026-11-02).
+        const buttons = runCloseButtons(run);
+        if (!buttons.length) return;
+        await sendTelegramMessage(target, message, { buttons }).catch(() => undefined);
       })(),
     ]);
 

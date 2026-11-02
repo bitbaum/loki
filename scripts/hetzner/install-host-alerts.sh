@@ -75,40 +75,59 @@ ALERT_DEDUPE_SEC="${ALERT_DEDUPE_SEC:-300}"
 # of a new check and a planted zz-audit-probe.service both rang George's actual
 # phone at 22:14 — a message about nothing, which is the exact failure this
 # file exists to prevent. Testing the alerter must not page anyone.
-# THE RING POLICY. A phone that rings for everything is a phone nobody trusts:
-# on 2026-11-01 the chat held ~1,200 unread messages and woke its owner every
-# five minutes. Everything lands in the chat, SILENTLY (no sound, no vibration);
-# only a message that means "something is down or someone is in" rings:
-#   🔴 DOWN · 🚨 (deploy failed, SSH password login, …) · ☠️ suspicious process ·
-#   🔓 sshd drift · 🧱 firewall down · 🔥⚠️ Loki degraded · 🛡️ GUARD DOWN
-# Add to this list deliberately; the default is quiet. ALERT_SILENT=1 forces
-# quiet, ALERT_RING=1 forces a ring.
-_alert_silent() {  # text → prints true|false (Telegram's disable_notification)
-  [ -n "${ALERT_SILENT:-}" ] && { echo true; return; }
-  [ -n "${ALERT_RING:-}" ] && { echo false; return; }
+# WHERE A LINE GOES. Not to the phone. The owner, 2026-11-02, after a night of
+# "⚙️ STILL FAILING: run-p…" every five minutes: "If you send me something, it
+# has to be actionable — I read it and click one time. 'What exactly should I do
+# with that information?' — this question should never appear in my mind."
+#
+# Nearly every line here has no such click: a failed unit already has a fix
+# agent on it, a recovery needs nothing, a deploy edited its own files. So the
+# box hands every line to Loki (POST /api/notify/box with the box's Loki agent
+# token), which records it on /system — one row per kind of line, its count
+# rising — and puts on the phone only what has a one-tap answer
+# (src/lib/notify/box.ts + policy.ts: today, a sign that someone is IN the box).
+#
+# When Loki cannot be reached, only an intrusion goes to Telegram directly, with
+# one button: the Box doctor workflow, which works when Loki does not. Every
+# other line waits in the journal; Loki being down is reported by its own
+# watchers (ivy-health, fleet-uptime), not by every alert that could not land.
+LOKI_API_URL="${LOKI_API_URL:-http://127.0.0.1:4002}"
+LOKI_TOKEN_FILE="${LOKI_TOKEN_FILE:-/home/openclaw/.openclaw/calendar-drain.env}"
+BOX_DOCTOR_URL="${BOX_DOCTOR_URL:-https://github.com/bitbaum/loki/actions/workflows/box-doctor.yml}"
+_alert_intrusion() {
   case "$1" in
-    "🔴"*|"🚨"*|"☠️"*|"🔓"*|"🧱"*|"🔥⚠️"*|"🛡️ GUARD"*|*"SSH PASSWORD LOGIN"*) echo false ;;
-    *) echo true ;;
+    *"SSH PASSWORD LOGIN"*|"☠️"*|"🔓 SSHD"*|"🧱 FIREWALL"*|"👤 NEW PRIVILEGED"*) return 0 ;;
   esac
+  return 1
+}
+_alert_loki_token() {
+  [ -r "$LOKI_TOKEN_FILE" ] || return 1
+  grep -m1 '^LOKI_AGENT_TOKEN=' "$LOKI_TOKEN_FILE" 2>/dev/null | cut -d= -f2- | tr -d "\"'"
 }
 # The one place anything is delivered. Journal first, always — every caller,
 # every path, including the ones that decide not to deliver.
 _alert_deliver() {
-  local text="$1"
+  local text="$1" token
   logger -t watchdog "$text"
   if [ -n "${ALERT_DRY_RUN:-}" ]; then
     logger -t watchdog "ALERT dry-run, not delivered: $text"
     return 0
   fi
+  token=$(_alert_loki_token)
+  if [ -n "$token" ] && curl -fsS -m 10 -X POST "$LOKI_API_URL/api/notify/box" \
+      -H "Authorization: Bearer $token" --data-urlencode "text=${text}" -o /dev/null 2>/dev/null; then
+    return 0
+  fi
+  if ! _alert_intrusion "$text"; then
+    logger -t watchdog "ALERT held in the journal (Loki unreachable, not an intrusion) — the line above"
+    return 0
+  fi
   if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
-    # ALERT_SILENT=1 delivers without a sound or vibration: it is in the chat
-    # for whoever looks, it does not wake anyone. Used for digests and
-    # reminders; a first DOWN still rings.
     curl -fsS -m 10 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
       --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-      --data-urlencode "disable_notification=$(_alert_silent "$text")" \
-      --data-urlencode "text=${text}" -o /dev/null \
-      || logger -t watchdog "ALERT telegram send failed"
+      --data-urlencode "text=${text}" \
+      --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"Open Box doctor\",\"url\":\"${BOX_DOCTOR_URL}\"}]]}" \
+      -o /dev/null || logger -t watchdog "ALERT telegram send failed"
   fi
   # Unconditional 0, for the same reason alert_transition ends that way.
   return 0
@@ -559,7 +578,7 @@ done
 # reads as triples — 09:32, 10:02, 10:33, each three separate messages naming
 # one unit apiece. A digest carries the same facts in a single glance.
 if [ "${#announce[@]}" -gt 0 ]; then
-  ALERT_SILENT=1 _alert_deliver "⚙️ STILL FAILING: $(printf '%s; ' "${announce[@]}" | sed 's/; $//')"
+  _alert_deliver "⚙️ STILL FAILING: $(printf '%s; ' "${announce[@]}" | sed 's/; $//')"
 fi
 # Anything that was failing and is not in the current set has recovered. Without
 # this the key would stay set and its next genuine failure would be silent —
@@ -584,7 +603,7 @@ done
 # Same digest rule as the failures: closures that land on one tick are one
 # message (10:58 on 2026-08-29 was three separate RECOVERED lines for one fix).
 if [ "${#recovered[@]}" -gt 0 ]; then
-  ALERT_SILENT=1 _alert_deliver "✅ RECOVERED: $(printf '%s; ' "${recovered[@]}" | sed 's/; $//')"
+  _alert_deliver "✅ RECOVERED: $(printf '%s; ' "${recovered[@]}" | sed 's/; $//')"
 fi
 # Retire the old aggregate latch, and the previous per-unit keys whose content
 # was a bare ok/bad and whose name could not be turned back into a unit.

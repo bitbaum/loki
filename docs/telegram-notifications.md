@@ -7,18 +7,41 @@ repo sends to Telegram (directly, via `telegram-send.ts`, or via the box's
 `lib-alert.sh`) without being registered below. Adding a notification =
 adding it here in the same PR. Removing one = removing its row.
 
-The channel's contract (PR #443/#444): **a message is worth sending only if
-the operator must act on it, wants the outcome, or asked for the digest.**
-One incident is one message; reminders back off (30m → 2h → 8h → daily);
-recoveries name subjects, never keys; N events on one tick digest into one
-message; test runs (`ALERT_DRY_RUN=1`) never deliver.
+## The contract: one tap, or not at all (2026-11-02)
 
-**Ring policy** (`_alert_silent` in `lib-alert.sh`): every box alert lands in
-the chat SILENTLY; only 🔴 DOWN, 🚨, ☠️, 🔓, 🧱, 🔥⚠️, 🛡️ GUARD DOWN and an SSH
-password login make the phone ring. Digests, recoveries and file-change notes
-never do. Failed `appcron-*` oneshots are paged by the OnFailure notifier only,
-not re-announced by the sweep; files a deploy rewrites by design (app Caddy
-snippets, `*-app.service`) are journal-only in the sensitive-file check.
+The owner, after a night of `⚙️ STILL FAILING: run-p…` every five minutes:
+
+> If you send me something, it has to be important for me … and then it should
+> be actionable. I should read it and click one time, I shouldn't write
+> anything there. "What exactly should I do with that information?" — this
+> question should never appear in my mind.
+
+So, enforced in code, not in this file:
+
+1. **No button, no message.** `sendTelegramMessage` / `sendTelegramVoice`
+   (`src/lib/actions/telegram-send.ts`) refuse a message without at least one
+   URL button (`NOT_ACTIONABLE`). A button is a verb and the https link that
+   does the thing, or opens the exact screen where one tap does it.
+2. **Everything else is the list's.** What has no tap is recorded on /today or
+   /system (`alerts` rows of type `notice` / `system_event`) and never reaches
+   the phone.
+3. **One gateway for every bot.** `deliverNotice` (`src/lib/notify/deliver.ts`)
+   applies `src/lib/notify/policy.ts`: at most 3 buttons; one incident is one
+   message, reminders back off 30m → 2h → 8h → daily; at most 3 messages per
+   source per hour and 12 a day, whatever a sender's bug; only `urgency: "now"`
+   makes a sound, and never between 22:00 and 07:00 Zurich. Callers:
+   - `POST /api/notify` — anything holding a Loki agent token (OpenClaw jobs via
+     `loki.sh notify`, scripts);
+   - `POST /api/notify/box` — the box's `lib-alert.sh` (`_alert_deliver`);
+     `src/lib/notify/box.ts` decides what a box line is. Today only a sign that
+     someone is IN the box, and a Hetzner rescale window, have a button;
+   - `POST /api/orangecat/notify` — OrangeCat's bots, signed with
+     `ORANGECAT_WEBHOOK_SECRET`.
+4. **Voice notes are a paid feature.** A notice with `voice: true` arrives as a
+   voice note (Groq studio voice → OGG/Opus, `src/lib/notify/voice.ts`) for an
+   account on a paid plan; a free account gets the text, and once a month one
+   notice saying what voice notes cost, with the button to get them.
+5. Test runs (`ALERT_DRY_RUN=1`) never deliver.
 
 **Whose news.** The chat is the operator's. News about ONE account's work —
 a visitor's note on their site, their run, their fix, their night — goes to
@@ -39,29 +62,34 @@ this chat.
 | 🧾 Waitlist signup / 📬 New subscriber (source, address) | Someone joins a list via `POST /api/newsletter` — the studio site's `/hire/` waitlist sends `source: bitbaum-hire`. Only a genuinely NEW row announces; a repeat signup stays silent. The operator must act on it: the page promises a human writes back when capacity opens | `src/lib/newsletter/notify-signup.ts` |
 | 📋 Tonight's autopilot plan — needs your yes: what would be built and read, what it would cost from the owner's own last runs, with ✅ Approve / ✕ Reject buttons (no Edit — a plan is yes or no) | The `autopilot-plan` cron (19:00 UTC) finds something to run tonight and no allowance covers it. One card per night; a night with nothing to build sends nothing. Every account also gets it as a push | `src/lib/actions/notify-decision.ts` (card), `src/lib/autopilot-night.ts` (push) |
 | 🌙 Tonight runs without asking (until when, under what cap) + the same plan line | The `autopilot-plan` cron approves tonight's plan under the allowance the owner set in Settings → Autopilot — told the evening before, never the morning after | `src/lib/autopilot-night.ts` |
-| 🌙 While you were away: one line on what the autopilot night did (fixes started, site read, old reports filed away, runs used, spend where known), or that nothing was built because the plan was not approved, with a link to /feedback | The `autopilot-night` cron (02:30 UTC) finishes an account's night and it did something — a night with nothing planned and nothing filed sends nothing. Operator's own account on Telegram; every account gets the same line as a push and on /feedback | `src/lib/autopilot-night.ts` |
-| Run outcome: what an agent run concluded (root cause → action → remains) | An orchestration run with `notifyOnClose` closes — includes every incident-dispatch remediation run | `src/lib/orchestration/notify-close.ts`, `src/lib/orchestration/gate-and-close.ts` |
-| Morning brief, evening wrap, weekly reflection, Monday digest, email deadlines, financial scan, life scorecard | Loki's scheduled jobs — schedules live in their own SSOT: `/home/openclaw/.openclaw/cron/jobs.json` on bitbaum (edit via Loki, not here) | off-repo: OpenClaw cron |
+| 🌙 While you were away: what the autopilot night did, with **See what changed** — only when it started fixes; a night that built nothing is on /feedback and in the push, not Telegram | The `autopilot-night` cron (02:30 UTC) | `src/lib/autopilot-night.ts` |
+| Run outcome of a run that did NOT succeed, with **Open \<project\> on Home** (Retry and the provider switch live there). A success is posted to the thread that asked and to push, not Telegram | An orchestration run with `notifyOnClose` closes | `src/lib/orchestration/notify-close.ts`, `src/lib/orchestration/gate-and-close.ts` (⏸ goal stopped, **Decide on Control**) |
+| Morning brief (its prompt is reviewed in `scripts/openclaw/day-plan/morning-brief.md` and installed by `.github/workflows/openclaw-day-plan.yml`, which also switches off jobs that only post machine warnings), evening wrap, weekly reflection, Monday digest, email deadlines, financial scan, life scorecard | Loki's scheduled jobs — schedules live in their own SSOT: `/home/openclaw/.openclaw/cron/jobs.json` on bitbaum (edit via Loki, not here) | off-repo: OpenClaw cron |
 
 ## Incidents (something is broken; a fix agent is already dispatched)
+
+Every box row below now goes through `lib-alert.sh` → `POST /api/notify/box`:
+it is recorded on /system and reaches the phone only where this table names a
+button. When Loki itself cannot be reached, only an intrusion goes to Telegram
+directly, with an "Open Box doctor" button.
 
 | What arrives | Trigger | Source |
 |---|---|---|
 | 🔴 DOWN: \<unit\> — \<app error\> → 🤖 fix agent dispatched | A systemd unit fails and stays failed past the grace window | `scripts/hetzner/install-host-alerts.sh` (notify-failure.sh) |
-| ⚙️ STILL FAILING: a; b (digest) / ✅ RECOVERED: a; b (digest) — delivered silently (no sound), and never about transient `systemd-run` units (`run-p<pid>-i<id>`), which the sweep clears instead of announcing (2026-11-01: one every 5 min, new name each time) | The 5-min sweep sees a unit failed on two consecutive ticks / recover | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
+| ⚙️ STILL FAILING: a; b / ✅ RECOVERED: a; b — **on /system only, never the phone** (one row, count rising). Transient `systemd-run` units (`run-p<pid>-i<id>`) are cleared, never listed; `appcron-*` oneshots are the OnFailure notifier's | The 5-min sweep sees a unit failed on two consecutive ticks / recover | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
 | 🔧 FIXED (no action needed): \<what was repaired\> | host-check auto-repaired an unreadable app `.env` and restarted the app | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
 | 💾 DISK / 🧠 MEM / 🐘 POSTGRES transitions | Resource crosses its hysteresis band on the box | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
-| 🔥⚠️ Loki self-check — DEGRADED / 🔥✅ RECOVERED / 🔥 Loki auto-fixed | Every 15 min (`ivy-health.timer`): postgres or a `loki-*` unit is down and a restart did not bring it back, or loki-app stops answering `/api/health`. A heal that worked is reported once; the same failure re-pages at most every 4h | `scripts/hetzner/ivy-health.sh` (installed by hand to `/usr/local/bin`) |
+| Loki is down and restarting it did not help, with **Redeploy Loki** (the Deploy workflow). Auto-fixed / recovered go to /system via lib-alert, not the phone | Every 15 min (`ivy-health.timer`); re-pages at most every 4h. Installed by `.github/workflows/install-box-alerts.yml` | `scripts/hetzner/ivy-health.sh` |
 | 🔴 DOWN: \<app\> (\<url\>) → HTTP \<code\> / ✅ RECOVERED (on-box) | An app URL in targets.conf stops answering | `scripts/hetzner/install-watchdog.sh` (watch.sh; also the external dead-man's-switch ping) |
-| 🔴 DOWN: \<app\> (\<detail\>) / ✅ RECOVERED: \<app\> (off-box) | GitHub-side health sweep of every registered app — still reports when bitbaum itself is dead | `.github/workflows/fleet-uptime.yml` (probe: `scripts/hetzner/uptime-sweep.sh`) |
-| 🚨 Loki deploy: \<failure/rollback\> | A loki deploy fails or rolls back | `scripts/deploy-hetzner.sh` |
-| 🧩 \<app\>: \<runtime conformance finding\> | Deployed reality diverges from the register (wrong port, dead tunnel, inactive unit) | `scripts/hetzner/install-runtime-conformance.sh` |
+| Loki is not answering from outside (**Redeploy Loki**), or 3+ apps stopped answering at once (**Run Box doctor**). One app down is its GitHub issue and the on-box fix agent's, not a message | GitHub-side hourly sweep — still reports when bitbaum itself is dead | `.github/workflows/fleet-uptime.yml` (probe: `scripts/hetzner/uptime-sweep.sh`) |
+| 🚨 Loki deploy failed and the rollback failed too, with **Redeploy Loki**. A clean rollback is not paged | A loki deploy fails and cannot roll back | `scripts/deploy-hetzner.sh` |
+| 🧩 \<app\>: \<runtime conformance finding\> — on /system only. A sleeping app (wake socket listening) is not a finding | Deployed reality diverges from the register (wrong port, dead tunnel, inactive unit) | `scripts/hetzner/install-runtime-conformance.sh` |
 | 🧪 \<provider/model\>: \<n\> failure(s) in 24h | A model link keeps failing while the fallback chain hides it — Groq answered 400 to every structured Cat call for days and nothing said so | `scripts/hetzner/ai-provider-check.sh` (installed by `scripts/hetzner/install-ai-provider-watch.sh`) |
 | 🔑 \<provider/model\>: API KEY REJECTED | A model link fails with 401/403 — the key itself is revoked, so it fails every call until replaced. Replace the key in the app's env file and restart the app | `scripts/hetzner/ai-provider-check.sh` |
 | 🔑 \<vendor\>: DEAD API KEY #\<fp\> in: \<apps\> | A vendor rejects a key held by those apps (checked hourly, no tokens spent, every env file in both box layouts). Names the apps and a working key of the same vendor. orangecat's Groq key was dead for days in 2026-10 and only the mic broke visibly | `scripts/hetzner/api-key-check.sh` (installed by `scripts/hetzner/install-api-key-watch.sh`) |
 | 🧪 loki e2e FAILED: … / ✅ RECOVERED | End-to-end check of the live site as the operator, ON DEMAND only since 2026-09-25 (no timer: it sends a real chat turn, and a timer may not spend the shared free AI tier): fleet question answered from the map, map published, dispatch returns to its thread (when the builder is authenticated) | `scripts/hetzner/loki-e2e-check.sh` (installed by `scripts/hetzner/install-loki-e2e-watch.sh`; test: `scripts/test/loki-loop-e2e.ts`) |
 | Loki check: Telegram delivery works from the box | ONE test message, ON DEMAND only: someone dispatches the Box doctor workflow with `send_test` true (the default) — never scheduled, never on a push. It exists to answer "does a message from the box reach the phone at all?" when notifications stop arriving | `scripts/hetzner/doctor-messaging.sh` (run by `.github/workflows/box-doctor.yml`) |
-| 🔌 the gateway behind WhatsApp and the Telegram chat is down (why, and how to restart it) / ✅ the gateway is back | The `check-gateway` cron (every 10 min) cannot reach the OpenClaw gateway on :18789 — once per outage, with one recovery message when it answers again. WhatsApp and the Telegram chat are both carried by that gateway, so while it is down nothing sent to Loki there is read; it was down for a week (2026-10-08 → 10-15) before anyone knew | `src/app/api/crons/check-gateway/route.ts` |
+| 🔌 the gateway behind WhatsApp and the Telegram chat is down, with **Restart the gateway** (the OpenClaw gateway up workflow). Its return is not paged | The `check-gateway` cron (every 10 min) cannot reach the OpenClaw gateway on :18789 — once per outage | `src/app/api/crons/check-gateway/route.ts` |
 | 🔑 builder auth DISABLED / 🔌 builder probe got no answer / ✅ RECOVERED | Hourly probe runs Claude Code with the box-runner’s own token; the token dies with the Claude account that minted it and every dispatch then hangs silently (2026-09-14) | `scripts/hetzner/builder-auth-check.sh` (installed by `scripts/hetzner/install-builder-auth-watch.sh`) |
 | 🚫/🧟 agent-work findings | Hourly sweep finds stranded/zombie agent work on the box | `scripts/hetzner/agent-work-check.sh` (installed by `scripts/hetzner/install-agent-work-watch.sh`) |
 | 🧹/🚨 DISK GC non-routine outcome | GC ran but the disk is still above the warn mark, or nothing was reclaimable (routine success is journal-only) | `scripts/hetzner/install-disk-gc.sh` |
@@ -90,17 +118,26 @@ not a message (fail2ban `caddy-scan`, journal only).
 
 | What arrives | Trigger | Source |
 |---|---|---|
-| Telemetry stale | Runner telemetry stops arriving | `src/app/api/crons/check-telemetry/route.ts` |
-| Runner stalled / wrong version | Box-runner stops claiming or lags the shipped version | `src/app/api/crons/check-runner-stall/route.ts`, `src/app/api/crons/check-runner-version/route.ts` |
 | Approvals waiting — with one-tap ✅ Approve / ✕ Reject / ✏️ Edit buttons when exactly one item is waiting, otherwise a link to the queue | Proposed actions sit undecided for over an hour; one message per episode, never per draft | `src/app/api/crons/check-pending-approvals/route.ts` |
 | 📋 \<type\> — needs your yes (the decision itself: what, when, where, plus Approve / Reject / Edit buttons) | A draft is queued from something the operator asked for in words, and no standing approval covers it. Spontaneous proposals (check-ins, the advisor) never send this — they wait for the hourly digest above | `src/lib/actions/notify-decision.ts` |
 | 📅 Booked — \<event\>, with a link into Google Calendar | A calendar event really reaches `executed` (says so only after `gog` succeeded, which is usually minutes after approval and in a different process). Names the standing approval when one acted on the operator's behalf, so an action taken without asking is never silent | `src/lib/actions/notify-decision.ts`, called from `src/lib/actions/execute-action.ts` and `src/app/api/actions/drain-events/route.ts` |
 | ⚠️ Not booked / Not done — \<action\> (what, the details, why, and Open in Loki) | An approved calendar event failed to book `MAX_BOOKING_ATTEMPTS` (3) times in a row: Loki stops retrying, marks it expired and says so ONCE. Before 2026-10-08 a failed booking retried every 15 s forever and nobody heard | `src/lib/actions/notify-decision.ts` (`notifyActionGaveUp`, called from `src/app/api/actions/drain-events/route.ts`) |
 | Feedback needs you (stalled Implement / no agent / Check live) | A dispatched fix is stuck or live and waiting for Confirm — one ping when the flag goes up | `src/app/api/crons/check-feedback-needs-you/route.ts`, `src/lib/feedback/notify-needs-you.ts` |
-| Model id rot | A configured model id stops resolving | `src/app/api/crons/check-model-ids/route.ts` |
 | Run escalation | A run needs the operator's decision to proceed | `src/db/queries/run-escalations.ts` |
 | 📊 Ledger-ready (one-shot) | Run ledger reaches the improver threshold; self-disables after firing | `scripts/hetzner/ledger-ready-gate.sh` |
 | 🏷 Rescale window (hcloud) | A bigger Hetzner tier becomes available for migration in fsn1 | `scripts/hetzner/hcloud-availability.sh` |
+
+Telemetry stale, runner stalled / behind, and model-id rot used to ping too;
+since 2026-11-02 they are /system alerts only — none has a one-tap answer.
+
+## Every bot's way in
+
+| Who | How | Code |
+|---|---|---|
+| Any token holder (OpenClaw jobs, scripts) | `POST /api/notify` · `loki.sh notify "<title>" "<button>" "<url>"` | `src/app/api/notify/route.ts`, `scripts/openclaw/loki-skill/scripts/loki.sh` |
+| The box | `POST /api/notify/box` from `lib-alert.sh` | `src/app/api/notify/box/route.ts`, `src/lib/notify/box.ts` |
+| OrangeCat's bots | `POST /api/orangecat/notify`, signed | `src/app/api/orangecat/notify/route.ts` |
+| A notice asking for a voice note | `voice: true` — paid plans hear it; others get the text and a monthly "voice notes come with Personal" notice | `src/lib/notify/deliver.ts`, `src/lib/notify/voice.ts` |
 
 ## Off-repo senders (registered here, owned elsewhere)
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ivy-health.sh — Loki's self-heal loop for the services Loki itself runs on.
 #
-# Installed by hand at /usr/local/bin/ivy-health.sh (ivy-health.timer, every
-# 15 min, as root). It sits OUTSIDE Loki so it can restart a dead Loki and still
+# Installed at /usr/local/bin/ivy-health.sh (ivy-health.timer, every 15 min, as
+# root) by .github/workflows/install-box-alerts.yml whenever it changes on main. It sits OUTSIDE Loki so it can restart a dead Loki and still
 # reach George on Telegram directly.
 #
 #   scp scripts/hetzner/ivy-health.sh ubuntu@<box>:/tmp/ && \
@@ -61,9 +61,22 @@ check_app_http
 check_disk
 
 # ---------------- ALERT (de-duped) ----------------
+# Only DEGRADED reaches the phone, and only with its fix on a button: Loki is
+# down AND a restart did not bring it back, so the one thing to do is redeploy
+# it — the Deploy workflow, one tap to "Run workflow". "Auto-fixed" and
+# "recovered" need nothing from anyone; they go to the journal, and to Loki's
+# /system list through lib-alert when it is installed (2026-11-02: the owner
+# asked for nothing on Telegram he cannot act on in one tap).
+DEPLOY_URL="${DEPLOY_URL:-https://github.com/bitbaum/loki/actions/workflows/deploy.yml}"
 send_tg(){ [ -n "$TELEGRAM_BOT_TOKEN" ] && curl -s --max-time 15 \
   "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-  --data-urlencode "chat_id=$CHAT_ID" --data-urlencode "text=$1" >/dev/null 2>&1; }
+  --data-urlencode "chat_id=$CHAT_ID" --data-urlencode "text=$1" \
+  --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"Redeploy Loki\",\"url\":\"${DEPLOY_URL}\"}]]}" \
+  >/dev/null 2>&1; }
+to_list(){
+  logger -t ivy-health "$1"
+  if [ -r /opt/monitoring/lib-alert.sh ]; then ( MON=/opt/monitoring; . /opt/monitoring/lib-alert.sh; _alert_deliver "$1" ) >/dev/null 2>&1 || true; fi
+}
 
 now=$(date +%s)
 prev_sig=$(sed -n '1p' "$STATE_FILE" 2>/dev/null || true)
@@ -72,20 +85,17 @@ prev_time=$(sed -n '2p' "$STATE_FILE" 2>/dev/null || echo 0); prev_time=${prev_t
 if [ "${#FAILS[@]}" -gt 0 ]; then
   sig=$(printf '%s\n' "${FAILS[@]}" | cut -d'|' -f1 | sort | md5sum | cut -c1-12)
   if [ "$sig" != "$prev_sig" ] || [ $((now - prev_time)) -ge "$REALERT_SECONDS" ]; then
-    msg="🔥⚠️ Loki self-check — DEGRADED"$'\n'
+    msg="Loki is down and restarting it did not help."$'\n'
     for f in "${FAILS[@]}"; do msg+="• ${f#*|}"$'\n'; done
-    if [ "${#HEALED[@]}" -gt 0 ]; then msg+=$'\n'"auto-fixed:"$'\n'; for h in "${HEALED[@]}"; do msg+="• $h"$'\n'; done; fi
+    msg+=$'\n'"Redeploying usually fixes it."
     send_tg "$msg"
   fi
   printf '%s\n%s\n' "$sig" "$now" > "$STATE_FILE"
 else
   if [ -n "$prev_sig" ] && [ "$prev_sig" != "ALLOK" ]; then
-    m="🔥✅ Loki self-check — RECOVERED, all systems green."
-    [ "${#HEALED[@]}" -gt 0 ] && { m+=$'\n'"fixed:"$'\n'; for h in "${HEALED[@]}"; do m+="• $h"$'\n'; done; }
-    send_tg "$m"
+    to_list "🔥✅ Loki self-check — RECOVERED${HEALED[*]:+: ${HEALED[*]}}"
   elif [ "${#HEALED[@]}" -gt 0 ]; then
-    m="🔥 Loki auto-fixed:"$'\n'; for h in "${HEALED[@]}"; do m+="• $h"$'\n'; done
-    send_tg "$m"
+    to_list "🔥 Loki auto-fixed: ${HEALED[*]}"
   fi
   printf 'ALLOK\n%s\n' "$now" > "$STATE_FILE"
 fi

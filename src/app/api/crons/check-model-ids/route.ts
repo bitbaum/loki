@@ -27,7 +27,6 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { logDebug } from "@/db/queries/debug-logs";
 import { refreshOrInsertActiveAlert } from "@/db/queries/alerts";
 import { getDefaultUser } from "@/db/queries/users";
-import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
 import { checkRegisteredModels, describeRot, fetchCatalog } from "@/lib/model-check";
 
 const ALERT_TYPE = "model_rot";
@@ -53,7 +52,7 @@ export async function GET(req: NextRequest) {
     const owner = await getDefaultUser();
     if (owner) {
       const detail = describeRot(report);
-      const { created } = await refreshOrInsertActiveAlert({
+      await refreshOrInsertActiveAlert({
         userId: owner.id,
         type: ALERT_TYPE,
         severity: "urgent",
@@ -85,17 +84,8 @@ export async function GET(req: NextRequest) {
       });
       alerted = true;
       // Fire the out-of-band ping once per episode, not on every daily tick.
-      if (created) {
-        const tg = selfTelegramTarget();
-        if (tg) {
-          void sendTelegramMessage(
-            tg,
-            `🚨 Loki: ${broken} pinned AI model id(s) unusable ` +
-              `(${rotted} gone, ${refused} refusing our request).\n${detail}\n\n` +
-              `These features are dark until it is fixed.`,
-          );
-        }
-      }
+      // The alert is on /system; no Telegram — repinning a model is a code
+      // change, not a tap (owner, 2026-11-02: nothing on the phone without an action).
     }
   }
 

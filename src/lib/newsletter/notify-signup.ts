@@ -29,7 +29,11 @@ export async function notifyNewsletterSignup(email: string, source: string): Pro
       return;
     }
     const what = source.startsWith("bitbaum-hire") ? "🧾 Waitlist signup" : "📬 New subscriber";
-    const result = await sendTelegramMessage(target, `${what} — ${source}\n${email}`);
+    // The page promised a person writes back: one tap opens that email, addressed.
+    const write = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(email)}`;
+    const result = await sendTelegramMessage(target, `${what} — ${source}\n${email}`, {
+      buttons: [[{ text: "Write to them", url: write }]],
+    });
     // sendTelegramMessage REPORTS failure, it does not throw — so ignoring the
     // result swallows a dead channel silently, which is the exact failure this
     // function exists to prevent. Asked "did the signup reach anyone?", the

@@ -70,6 +70,8 @@ STUB
 chmod +x "$TMP/bin/curl"
 printf 'TELEGRAM_BOT_TOKEN=test-token\nTELEGRAM_CHAT_ID=test-chat\n' > "$TMP/telegram.env"
 export SEND_LOG="$TMP/sent.log"
+# Every box line goes to Loki's list first (lib-alert _alert_deliver).
+printf 'LOKI_AGENT_TOKEN=ck_test\n' > "$TMP/loki.env"; export LOKI_TOKEN_FILE="$TMP/loki.env"
 : > "$SEND_LOG"
 export ALERT_LOG="$TMP/alerts.log"
 
@@ -169,7 +171,7 @@ check "exhausted tiers while still full: escalates, not silent" \
 # The half that must survive quietening the routine case: an outcome the
 # operator has to act on still reaches them. Silencing everything would be the
 # worse bug of the two.
-check "…and that one DOES reach the phone" \
+check "…and that one DOES reach Loki (the list; not the phone — it has no one-tap fix)" \
   "$(grep -q 'could not free space' "$SEND_LOG" && echo 0 || echo 1)"
 
 # ── 5. safe_rm refuses to delete outside the root it was given ───────────────

@@ -67,16 +67,28 @@ jobs:
             const down = result.down || [];
             const now = new Date().toISOString();
 
-            const tg = async (text) => {
+            // The phone hears from this sweep only when the BOX is in trouble
+            // (Loki itself down, or several apps at once), and always with the
+            // button that fixes it. One app down is the on-box watchdog's and
+            // its fix agent's, and it is the issue below — not a message
+            // (owner, 2026-11-02: nothing on Telegram without a one-tap action).
+            const DEPLOY = `https://github.com/${owner}/${repo}/actions/workflows/deploy.yml`;
+            const DOCTOR = `https://github.com/${owner}/${repo}/actions/workflows/box-doctor.yml`;
+            const tg = async (text, buttons) => {
               const t = process.env.TELEGRAM_BOT_TOKEN, c = process.env.TELEGRAM_CHAT_ID;
-              if (!t || !c) return;
+              if (!t || !c || !buttons?.length) return;
               try {
                 await fetch(`https://api.telegram.org/bot${t}/sendMessage`, {
                   method: 'POST', headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify({ chat_id: c, text }),
+                  body: JSON.stringify({
+                    chat_id: c, text,
+                    reply_markup: { inline_keyboard: [buttons] },
+                    link_preview_options: { is_disabled: true },
+                  }),
                 });
               } catch (e) { core.warning(`telegram send failed: ${e}`); }
             };
+            let newlyDown = 0;
 
             // One issue per app, so a second outage cannot hide inside the
             // first app's thread and recovery is per-app rather than all-or-none.
@@ -113,9 +125,11 @@ jobs:
                     `how botsmann stayed broken unnoticed.`,
                   ].join('\n'),
                 });
-                // Same voice as the on-box watchdog ("🔴 DOWN: app (…)"), and
-                // no ISO timestamp — Telegram already stamps every message.
-                await tg(`🔴 DOWN: ${d.app} (${detail})`);
+                newlyDown += 1;
+                if (d.app === 'loki') {
+                  await tg(`Loki is not answering from outside (${detail}). Redeploying usually brings it back.`,
+                    [{ text: 'Redeploy Loki', url: DEPLOY }]);
+                }
               }
             }
 
@@ -130,7 +144,10 @@ jobs:
               await github.rest.issues.update({
                 owner, repo, issue_number: issue.number, state: 'closed',
               });
-              await tg(`✅ RECOVERED: ${app}`);
+            }
+            if (newlyDown > 0 && down.length >= 3) {
+              await tg(`${down.length} apps stopped answering at once (${down.map((d) => d.app).join(', ')}). The box itself may be in trouble.`,
+                [{ text: 'Run Box doctor', url: DOCTOR }]);
             }
 
             const c = result.counts || {};

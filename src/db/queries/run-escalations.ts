@@ -125,7 +125,10 @@ export async function advanceEscalation(input: {
         if (tg) {
           void sendTelegramMessage(
             tg,
-            `🚨 ${input.projectKey}: ${failStreak} failed runs in a row — ladder exhausted, autopilot braked. https://loki.orangecat.ch/control`,
+            `🚨 ${input.projectKey}: ${failStreak} failed runs in a row — ladder exhausted, autopilot braked.`,
+            {
+              buttons: [[{ text: "Decide on Control", url: "https://loki.orangecat.ch/control" }]],
+            },
           ).catch(() => {});
         }
       }

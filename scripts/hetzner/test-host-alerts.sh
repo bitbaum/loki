@@ -119,6 +119,13 @@ for a in "$@"; do
   prev="$a"
 done
 case "$url" in
+  *api/notify/box*)
+    printf 'loki\n' >> "${ROUTE_LOG:-/dev/null}"
+    [ -n "${LOKI_DOWN:-}" ] && exit 7
+    ;;
+  *api.telegram.org*)
+    printf 'telegram %s\n' "$*" >> "${ROUTE_LOG:-/dev/null}"
+    ;;
   *api/inject*)
     printf '%s\n' "$body" | tr '\n' ' ' >> "${DISPATCH_LOG:-/dev/null}"
     printf '\n' >> "${DISPATCH_LOG:-/dev/null}"
@@ -130,6 +137,10 @@ STUB
 # Fake creds so the delivery branch is actually entered. The curl stub above is
 # where they land, so nothing leaves this machine.
 printf 'TELEGRAM_BOT_TOKEN=test-token\nTELEGRAM_CHAT_ID=test-chat\n' > "$TMP/telegram.env"
+# The box's Loki agent token: every line goes to Loki's list first.
+printf 'LOKI_AGENT_TOKEN=ck_test\n' > "$TMP/loki.env"
+export LOKI_TOKEN_FILE="$TMP/loki.env" ROUTE_LOG="$TMP/route.log"
+: > "$ROUTE_LOG"
 # host-check asks "can this unit's User read its .env?" via sudo. Here we run as
 # ourselves, so the answer is the real filesystem's — which is the point: the
 # repair is tested against actual permission bits, not against a mock's opinion.
@@ -353,16 +364,23 @@ run_units "appcron-substrata-sweep.service"
 check "units: a failed appcron oneshot is never re-announced by the sweep (got $(unit_alerts))" \
   "$([ "$(unit_alerts)" -eq 0 ] && echo 0 || echo 1)"
 
-# ring policy: quiet by default, rings only for down/intrusion
-cat > "$TMP/ring.sh" <<'RING'
-. "$1"
-for t in "🔴 DOWN: x" "🚨 Loki deploy failed" "⚙️ STILL FAILING: a" "📝 2 SENSITIVE FILE(S) CHANGED" "✅ RECOVERED: a"; do
-  printf '%s => %s\n' "$t" "$(_alert_silent "$t")"
-done
-RING
-ring=$(MON="$TMP" bash "$TMP/ring.sh" "$TMP/lib-alert.sh" 2>/dev/null || true)
-check "ring: DOWN and deploy failure ring, digests/recoveries/file changes are silent" \
-  "$(echo "$ring" | grep -q 'DOWN: x => false' && echo "$ring" | grep -q 'deploy failed => false' && echo "$ring" | grep -q 'STILL FAILING: a => true' && echo "$ring" | grep -q 'SENSITIVE FILE(S) CHANGED => true' && echo "$ring" | grep -q 'RECOVERED: a => true' && echo 0 || echo 1)"
+# Where a line goes (2026-11-02): to Loki's list, never straight to the phone.
+cat > "$TMP/route.sh" <<'ROUTE'
+MON="$2" . "$1"
+_alert_deliver "$3"
+ROUTE
+route() { : > "$ROUTE_LOG"; LOKI_DOWN="${2:-}" bash "$TMP/route.sh" "$TMP/lib-alert.sh" "$TMP" "$1" >/dev/null 2>&1 || true; }
+route "⚙️ STILL FAILING: a"
+check "route: a line goes to Loki's list, not to Telegram" \
+  "$(grep -qx loki "$ROUTE_LOG" && ! grep -q telegram "$ROUTE_LOG" && echo 0 || echo 1)"
+route "⚙️ STILL FAILING: a" down
+check "route: Loki down — a non-intrusion waits in the journal, the phone stays quiet" \
+  "$(! grep -q telegram "$ROUTE_LOG" && echo 0 || echo 1)"
+route "🚨 SSH PASSWORD LOGIN ACCEPTED for root from 1.2.3.4" down
+check "route: Loki down — an intrusion still reaches the phone" \
+  "$(grep -q telegram "$ROUTE_LOG" && echo 0 || echo 1)"
+check "route: …with one button to the Box doctor" \
+  "$(grep -q 'Open Box doctor' "$ROUTE_LOG" && echo 0 || echo 1)"
 
 # ── 6. OnFailure notifier: one incident is ONE page, not one per restart ──────
 # On 2026-08-28 vitareba-app could not read its .env (root-owned after a
@@ -372,7 +390,7 @@ check "ring: DOWN and deploy failure ring, digests/recoveries/file changes are s
 # help: it only silences a unit that comes back, and this one never did. These
 # cases pin the per-unit cooldown that fixes it.
 notify() { : > "$ALERT_LOG"; bash "$TMP/notify-failure.sh" "$1" >/dev/null 2>&1 || true; }
-pages() { grep -c '🔴 DOWN:' "$ALERT_LOG" 2>/dev/null | tr -d "[:space:]" || true; }
+pages() { grep -c "^🔴 DOWN:" "$ALERT_LOG" 2>/dev/null | tr -d "[:space:]" || true; }
 stamp_of() { echo "$TMP/state/paged_$(printf '%s' "$1" | tr -c 'a-zA-Z0-9' '_')"; }
 rm -f "$TMP"/state/paged_*
 

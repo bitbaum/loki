@@ -286,7 +286,9 @@ async function tellOwner(userId: string, title: string, body: string, tag: strin
     (async () => {
       const target = await telegramTargetFor(userId);
       if (!target) return;
-      await sendTelegramMessage(target, `${title}\n${body}\n${url}`).catch(() => {});
+      await sendTelegramMessage(target, `${title}\n${body}`, {
+        buttons: [[{ text: "Change tonight", url }]],
+      }).catch(() => {});
     })(),
   ]);
 }
@@ -531,9 +533,15 @@ export async function runNightFor(userId: string, night: string, now = Date.now(
     await Promise.all([
       pushToUser(userId, { title: "While you were away", body: note, url, tag: "autopilot-night" }),
       (async () => {
+        // On Telegram only when the night left something to look at. "Built
+        // nothing (the plan was not approved)" has no tap to answer it; it is
+        // on /feedback and in the push (owner, 2026-11-02).
+        if (!summary.fixes.length) return;
         const target = await telegramTargetFor(userId);
         if (!target) return;
-        await sendTelegramMessage(target, `${note}\n${url}`).catch(() => {});
+        await sendTelegramMessage(target, note, {
+          buttons: [[{ text: "See what changed", url }]],
+        }).catch(() => {});
       })(),
     ]);
   }
