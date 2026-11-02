@@ -66,6 +66,13 @@ if [ "$DB" != "-" ]; then
   "$HERE/apply-schema.sh" "$NAME" "$REPO" "$DB" "$APP_DIR" \
     || { echo "ERROR: schema step failed — deploy aborted (no code shipped)"; exit 1; }
 fi
+# An app with a supabase schema may also have a host accounts database
+# (accounts-db.conf): its drizzle/ migrations go there, in their own step.
+ACCOUNTS_DB="$(accounts_db_of "$NAME")"
+if [ -n "$ACCOUNTS_DB" ]; then
+  ONLY_LAYOUT=drizzle "$HERE/apply-schema.sh" "$NAME" "$REPO" "$ACCOUNTS_DB" "$APP_DIR" \
+    || { echo "ERROR: accounts schema step failed — deploy aborted (no code shipped)"; exit 1; }
+fi
 
 echo "=== build $NAME ($SRC) ==="
 # Use the same manager as dependency installation. New sites use npm; invoking
