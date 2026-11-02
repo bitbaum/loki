@@ -2,18 +2,21 @@
  * Every new session on the shared runtime gets what a Loki sign-in always
  * gets, whichever way the person came in: password (through the compat layer
  * or the sign-in card's second-factor step), passkey, the sign-in link, or an
- * OIDC round trip: the onboarding heal and the personal org
- * (bootstrapAfterSignIn).
+ * OIDC round trip.
  *
- * The person's Loki `users` row is not made here. AccountKit's
- * `onAccountCreated` (ensureLokiUser, ./runtime) reaches every new person,
- * a first sign-in link to a new address included, before their first session.
+ * - The person has a Loki `users` row under their AccountKit id. Since
+ *   AccountKit 0.21, `onAccountCreated` (ensureLokiUser) makes it for every
+ *   new person, a first sign-in link included; this is the heal for anyone it
+ *   did not reach (a logged failure there, an AccountKit person made outside
+ *   AccountKit), checked by scripts/test/accountkit-journeys.ts.
+ * - Onboarding heal and the personal org (bootstrapAfterSignIn).
  *
- * Idempotent, and never blocks the sign-in: a throw is logged.
+ * Both are idempotent and never block the sign-in: a throw is logged.
  */
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { bootstrapAfterSignIn } from "../bootstrap";
+import { ensureLokiUser } from "./accounts";
 
 export function lokiSignInHook(): BetterAuthPlugin {
   return {
@@ -27,6 +30,18 @@ export function lokiSignInHook(): BetterAuthPlugin {
             if (!created) return;
             const { user } = created;
             try {
+              await ensureLokiUser({
+                userId: user.id,
+                providerId: "session",
+                accountId: user.id,
+                tokens: {
+                  accessToken: null,
+                  refreshToken: null,
+                  idToken: null,
+                  accessTokenExpiresAt: null,
+                  scope: null,
+                },
+              });
               const email = user.email?.endsWith(".invalid") ? null : user.email;
               await bootstrapAfterSignIn({ id: user.id, name: user.name || null, email });
             } catch (error) {
