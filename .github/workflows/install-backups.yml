@@ -31,7 +31,9 @@ permissions:
 jobs:
   install:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The installer runs one backup at once; with a slow off-box push that is
+    # most of an hour, and the check after it must still report.
+    timeout-minutes: 90
     env:
       HETZNER_IP: ${{ vars.HETZNER_IP }}
     steps:
