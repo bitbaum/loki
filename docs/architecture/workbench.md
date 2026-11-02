@@ -102,6 +102,17 @@ and on Review):
   (`RobotEnding`). Nothing found is said as the good news it is.
 - **It follows the latest walk**, so one started after the page opened
   appears too: every 5 seconds while walking, every 20 at rest.
+- **The first walk is one tap.** Before Loki has looked at a site, the
+  site region offers "Let Loki try it" (`WorkbenchSiteStart`, the "Design
+  and usability" review, every page on phone and desktop), with "Or open
+  it yourself" beside it. The same tap hands the work to the project's
+  agent, so both columns wake together. While the walk waits for a
+  builder it says so ("Waiting for Loki's builder…"), and only says
+  "Loki is opening …" once one has it — waiting in line is not opening.
+- **Measured.** The workbench reports to usage as `projects.workbench`:
+  shown, and which of its few actions were used (try-it, open-site,
+  robot-window, site-screen, fullscreen), never URLs or text — so whether
+  one screen holds what people came for is a reading, not a guess.
 - **Calm by request.** Every glide, ring and breath stops under
   `prefers-reduced-motion`.
 
