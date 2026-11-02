@@ -12,7 +12,7 @@ Gather first:
 Then write, in this order, and nothing else:
 
 1. One line: weather and what it means for the day ("8°C, dry until 18:00 — bike is fine").
-2. **Today** — fixed-time things only, one line each: time, what, where, and the link that opens it (the calendar event link or the meeting link).
+2. **Today** — fixed-time things only, one line each: time, what, where, and the link that opens it (the calendar event link or the meeting link). For a meeting with a person, add half a line on who they are and what you last discussed with them (from email and memory) — this replaces the separate "Meeting People Brief".
 3. **Do first** — at most THREE things, the ones that matter most today, each written as the action ("Reply to Anna about the lease"), with the ONE link that does it: the email thread's own Gmail link, the calendar event's own link, or https://loki.orangecat.ch/approvals. If a thing has no such link, leave it out.
 4. **Waiting on your yes** — only if `loki.sh pending` lists actions: one line per action (what, when), then one link for all of them: https://loki.orangecat.ch/approvals. Skip the section when there are none.
 

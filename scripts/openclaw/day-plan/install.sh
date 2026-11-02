@@ -22,6 +22,13 @@ jq -e '.jobs | type == "array"' "$F" >/dev/null || { echo "::error::$F is not a 
 
 BRIEF='morning brief|day plan|daily brief|daily god brief'
 NOISE='swap|memory pressure|under memory|disk usage|cpu load|load average'
+# One morning message (owner, 2026-11-02): the people-you-meet notes are now
+# part of the day plan, so their own 07:30 job is switched off.
+FOLDED='meeting people brief'
+# The email deadline scanner ran four times a day; twice is enough for a job
+# that may only speak about a deadline in the next 48 hours.
+SCANNER='email deadline scanner'
+SCANNER_EXPR='0 8,17 * * *'
 # Summaries the owner asked for (docs/telegram-notifications.md "keep them"):
 # they still go out, but under the digest contract, never silenced wholesale.
 DIGEST='reflection|digest|scorecard|evening wrap|weekly overview'
@@ -39,16 +46,19 @@ tmp=$(mktemp)
 BEGIN='<!-- bitbaum:telegram-contract -->'; END='<!-- /bitbaum:telegram-contract -->'
 jq --rawfile msg "$PROMPT" --rawfile contract "$CONTRACT" --rawfile digest "$DIGEST_CONTRACT" \
    --arg brief "$BRIEF" --arg noise "$NOISE" --arg dig "$DIGEST" \
+   --arg folded "$FOLDED" --arg scanner "$SCANNER" --arg scanexpr "$SCANNER_EXPR" \
    --arg b "$BEGIN" --arg e "$END" '
   def strip: (. // "") | sub("\\n*" + $b + "[\\s\\S]*" + $e + "\\n*"; "");
   .jobs |= map(
     if (.name | test($brief; "i")) then .payload.message = $msg
+    elif (.name | test($folded; "i")) then .enabled = false
     elif (.enabled and ((.payload.message // "") | test($noise; "i"))) then .enabled = false
     elif (.enabled and (.payload.message | type) == "string" and (.name | test($dig; "i")))
       then .payload.message = ((.payload.message | strip) + "\n\n" + $b + "\n" + $digest + $e)
     elif (.enabled and (.payload.message | type) == "string")
       then .payload.message = ((.payload.message | strip) + "\n\n" + $b + "\n" + $contract + $e)
-    else . end)' "$F" > "$tmp"
+    else . end)
+  | .jobs |= map(if (.name | test($scanner; "i")) then .schedule.expr = $scanexpr else . end)' "$F" > "$tmp"
 jq -e '.jobs | length > 0' "$tmp" >/dev/null || { echo "::error::refusing to write an empty cron file"; rm -f "$tmp"; exit 1; }
 chown --reference="$F" "$tmp"; chmod --reference="$F" "$tmp"; mv "$tmp" "$F"
 
