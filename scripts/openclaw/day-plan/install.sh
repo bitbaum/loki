@@ -97,6 +97,9 @@ else
   echo "No OpenClaw heartbeat file"
 fi
 
+# Everything below only reports. A grep that finds nothing must not fail the
+# install (it did, 2026-11-02 run 4: `set -o pipefail` + no crontab match).
+set +e +o pipefail
 # How does health-guardian run, and how does it speak? Lines only, with long
 # numbers and anything token-like redacted (this log is public).
 redact() { sed -E 's/[0-9]{6,}/<n>/g; s/((token|key|secret|password)[^ =:]*[=: ]+)[^ ]+/\1<redacted>/Ig'; }
@@ -111,3 +114,4 @@ if [ -f "$GUARD" ]; then
   echo "health-guardian's speaking lines:"
   grep -nE 'openclaw (message|send|agent)|curl|notify|echo .*(restart|running|swap|disk)' "$GUARD" | redact | sed 's/^/  /' | head -20
 fi
+exit 0
