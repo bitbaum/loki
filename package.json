@@ -124,7 +124,7 @@
     "@auth/core": "0.41.3",
     "@auth/drizzle-adapter": "^1.11.3",
     "@better-auth/passkey": "^1.7.14",
-    "@bitbaum/accountkit": "^0.20.0",
+    "@bitbaum/accountkit": "github:bitbaum/accountkit#99d43a4439da4b57a471ebceae98a1203861d070",
     "@bitbaum/ai-kit": "^1.22.0",
     "@bitbaum/chatkit": "^0.22.1",
     "@bitbaum/mail-kit": "^0.2.0",
