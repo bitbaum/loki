@@ -1,0 +1,52 @@
+name: OrangeCat passkeys
+
+# Passkeys at OrangeCat's auth server (GoTrue, /opt/supabase/docker on the
+# box): show, apply or roll back the four variables orangecat
+# docs/operations/passkeys.md names, then read `passkeys_enabled` back from the
+# public settings. scripts/hetzner/orangecat-passkeys.sh is the rules; it
+# prints names and verdicts, never a value (this repo and its logs are public).
+#
+# Manual on purpose: it writes to the box. orangecat#1533.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "show (read only), apply, or rollback"
+        required: true
+        default: show
+        type: choice
+        options: [show, apply, rollback]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  passkeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: ${{ inputs.action }}
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          set -euo pipefail
+          BOX="ubuntu@$HETZNER_IP"
+          SSH="ssh -o BatchMode=yes -i $HOME/.ssh/id_deploy"
+          $SSH "$BOX" 'sudo mkdir -p /opt/fleet/bin && sudo chown ubuntu:ubuntu /opt/fleet /opt/fleet/bin'
+          scp -q -o BatchMode=yes -i ~/.ssh/id_deploy scripts/hetzner/orangecat-passkeys.sh "$BOX:/opt/fleet/bin/"
+          $SSH "$BOX" "bash /opt/fleet/bin/orangecat-passkeys.sh $ACTION"
