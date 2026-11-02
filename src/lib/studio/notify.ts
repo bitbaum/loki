@@ -1,4 +1,4 @@
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 import { pushToUser } from "@/lib/push-fanout";
 import { PUSH_TAG_PREFIX } from "@/config/brand-storage";
@@ -50,21 +50,20 @@ export async function notifyStudioActivity(
     const where = row.website ? ` (${row.website})` : "";
     const reviewPath = `/feedback/studio?request=${encodeURIComponent(row.id)}`;
 
-    const [pushResult] = await Promise.all([
+    const [pushResult, telegram] = await Promise.all([
       pushToUser(row.userId, {
         title: `Studio · ${headline}`,
         body: excerpt,
         url: reviewPath,
         tag: `${PUSH_TAG_PREFIX}studio-${row.id}`,
       }),
-      (async () => {
-        const target = selfTelegramTarget();
-        if (!target) return;
-        const lines = [`🏛 ${headline}${where}:`, `“${excerpt}”`];
-        await sendTelegramMessage(target, lines.join("\n"), {
-          buttons: [[{ text: "Review it", url: `${APP_URL}${reviewPath}` }]],
-        }).catch(() => undefined);
-      })(),
+      notifyPerson(row.userId, {
+        source: "studio",
+        category: "people",
+        text: `🏛 ${headline}${where}:\n“${excerpt}”`,
+        buttons: [[{ text: "Review it", url: `${APP_URL}${reviewPath}` }]],
+        key: `studio:${row.id}:${kind}:${excerpt.slice(0, 40)}`,
+      }).catch(() => ({ ok: false as const })),
       refreshOrInsertActiveAlert({
         userId: row.userId,
         type: ALERT_TYPE,
@@ -77,11 +76,11 @@ export async function notifyStudioActivity(
 
     // An announcement that reached NOBODY is a product failure worth a log
     // line, not a silent no-op — a person was promised a reply.
-    if (pushResult.sent === 0 && !selfTelegramTarget()) {
+    if (pushResult.sent === 0 && !telegram.ok) {
       void logDebug({
         source: "studio/notify",
         level: "warn",
-        message: `studio request ${row.id} (${kind}) arrived with no reachable channel (push: ${pushResult.reason ?? "none"}, telegram: unconfigured)`,
+        message: `studio request ${row.id} (${kind}) arrived with no reachable channel (push: ${pushResult.reason ?? "none"}, telegram: not sent)`,
       });
     }
   } catch (e) {

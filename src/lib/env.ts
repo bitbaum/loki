@@ -33,6 +33,7 @@ const PROVIDER_PAIRS: Array<[string, string, string]> = [
   ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "GitHub login"],
   ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "Google login"],
   ["X1_CONSUMER_KEY", "X1_CONSUMER_SECRET", "X (OAuth 1.0a) login"],
+  ["TELEGRAM_NOTIFY_BOT_TOKEN", "TELEGRAM_NOTIFY_BOT_USERNAME", "Telegram for every account"],
 ];
 
 export function checkEnv(): EnvIssue[] {

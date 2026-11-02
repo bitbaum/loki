@@ -1,4 +1,4 @@
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 import { refreshOrInsertActiveAlert } from "@/db/queries/alerts";
 import { pushToUser } from "@/lib/push-fanout";
@@ -26,21 +26,20 @@ export async function notifyBuildRequest(operatorId: string, row: BuildRequest):
         : words
       : "(the consultation's fixes)";
     const headline = `Build request for ${row.website}`;
-    const [pushResult] = await Promise.all([
+    const [pushResult, telegram] = await Promise.all([
       pushToUser(operatorId, {
         title: headline,
         body: excerpt,
         url: BUILD_REQUESTS.reviewPath,
         tag: `${PUSH_TAG_PREFIX}build-request-${row.id}`,
       }),
-      (async () => {
-        const target = selfTelegramTarget();
-        if (!target) return;
-        const lines = [`🛠 ${headline}:`, `“${excerpt}”`];
-        await sendTelegramMessage(target, lines.join("\n"), {
-          buttons: [[{ text: "Review it", url: `${APP_URL}${BUILD_REQUESTS.reviewPath}` }]],
-        }).catch(() => undefined);
-      })(),
+      notifyPerson(operatorId, {
+        source: "build-requests",
+        category: "decisions",
+        text: `🛠 ${headline}:\n“${excerpt}”`,
+        buttons: [[{ text: "Review it", url: `${APP_URL}${BUILD_REQUESTS.reviewPath}` }]],
+        key: `build-request:${row.id}`,
+      }).catch(() => ({ ok: false as const })),
       refreshOrInsertActiveAlert({
         userId: operatorId,
         type: ALERT_TYPE,
@@ -50,11 +49,11 @@ export async function notifyBuildRequest(operatorId: string, row: BuildRequest):
         actionUrl: BUILD_REQUESTS.reviewPath,
       }),
     ]);
-    if (pushResult.sent === 0 && !selfTelegramTarget()) {
+    if (pushResult.sent === 0 && !telegram.ok) {
       void logDebug({
         source: "build-requests/notify",
         level: "warn",
-        message: `build request ${row.id} arrived with no reachable channel (push: ${pushResult.reason ?? "none"}, telegram: unconfigured)`,
+        message: `build request ${row.id} arrived with no reachable channel (push: ${pushResult.reason ?? "none"}, telegram: not sent)`,
       });
     }
   } catch (e) {

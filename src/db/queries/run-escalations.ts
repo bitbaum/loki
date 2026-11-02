@@ -7,8 +7,7 @@ import {
   renderEscalationBlock,
 } from "@/lib/orchestration/escalation-ladder";
 import { insertActiveAlertOnce } from "./alerts";
-import { sendTelegramMessage } from "@/lib/actions/telegram-send";
-import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "./debug-logs";
 
 /** The open (unresolved) ladder row for one project, if any. */
@@ -122,17 +121,13 @@ export async function advanceEscalation(input: {
         metadata: { projectKey: input.projectKey, runId: input.runId, failStreak },
       });
       if (created) {
-        // The operator's chat hears about the operator's own projects only.
-        const tg = await telegramTargetFor(input.userId);
-        if (tg) {
-          void sendTelegramMessage(
-            tg,
-            `🚨 ${input.projectKey}: ${failStreak} failed runs in a row — ladder exhausted, autopilot braked.`,
-            {
-              buttons: [[{ text: "Decide on Control", url: "https://loki.orangecat.ch/control" }]],
-            },
-          ).catch(() => {});
-        }
+        void notifyPerson(input.userId, {
+          source: "runs",
+          category: "results",
+          text: `🚨 ${input.projectKey}: ${failStreak} failed runs in a row — autopilot is paused until you decide.`,
+          buttons: [[{ text: "Decide on Control", url: "https://loki.orangecat.ch/control" }]],
+          key: `escalation:${input.projectKey}`,
+        }).catch(() => undefined);
       }
     }
   } catch (err) {

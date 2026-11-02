@@ -30,12 +30,8 @@
 import type { ActionRow } from "@/db/queries/actions";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 import { actionEditUrl, actionLinkUrl } from "@/lib/actions/action-link";
-import {
-  sendTelegramMessage,
-  selfTelegramTarget,
-  type TelegramKeyboard,
-  type SendResult,
-} from "@/lib/actions/telegram-send";
+import { type TelegramKeyboard, type SendResult } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
 import { resolveEventTimes } from "@/lib/actions/calendar-event";
 import { conflictsFor, conflictLine } from "@/lib/calendar/busy";
 import { getBusyAround } from "@/db/queries/calendar-busy";
@@ -178,9 +174,6 @@ export async function notifyActionNeedsDecision(
   action: ActionRow,
   reason?: string,
 ): Promise<void> {
-  const target = selfTelegramTarget();
-  if (!target) return;
-
   try {
     const tz = getActiveTimezone(await getUserPreferences(userId).catch(() => null));
     const label = TYPE_LABEL[action.type] ?? "Action";
@@ -210,7 +203,15 @@ export async function notifyActionNeedsDecision(
     ];
 
     await reportSend(
-      await sendTelegramMessage(target, lines.join("\n"), { buttons: keyboard }),
+      await notifyPerson(userId, {
+        source: "approvals",
+        category: "decisions",
+        text: lines.join("\n"),
+        buttons: keyboard,
+        // A decision someone is waiting on: it may make a sound (never at night).
+        urgency: "now",
+        key: `approval:${action.id}`,
+      }),
       action.id,
       "approval card",
     );
@@ -234,9 +235,6 @@ export async function notifyActionExecuted(
   action: ActionRow,
   opts: { htmlLink?: string | null; autoApproved?: boolean } = {},
 ): Promise<void> {
-  const target = selfTelegramTarget();
-  if (!target) return;
-
   try {
     const tz = getActiveTimezone(await getUserPreferences(userId).catch(() => null));
     const lines = [...executedHeadline(action), ...describeAction(action, tz)];
@@ -260,7 +258,13 @@ export async function notifyActionExecuted(
       : [];
 
     await reportSend(
-      await sendTelegramMessage(target, lines.join("\n"), { buttons: keyboard }),
+      await notifyPerson(userId, {
+        source: "approvals",
+        category: "decisions",
+        text: lines.join("\n"),
+        buttons: keyboard,
+        key: `executed:${action.id}`,
+      }),
       action.id,
       "execution confirmation",
     );
@@ -308,9 +312,6 @@ export async function notifyActionGaveUp(
   reason: string,
   attempts: number,
 ): Promise<void> {
-  const target = selfTelegramTarget();
-  if (!target) return;
-
   try {
     const tz = getActiveTimezone(await getUserPreferences(userId).catch(() => null));
     const isEvent = action.type === ACTION_TYPE.CREATE_EVENT;
@@ -328,8 +329,12 @@ export async function notifyActionGaveUp(
       }`,
     );
     await reportSend(
-      await sendTelegramMessage(target, lines.join("\n"), {
+      await notifyPerson(userId, {
+        source: "approvals",
+        category: "decisions",
+        text: lines.join("\n"),
         buttons: [[{ text: "Open in Loki", url: actionEditUrl(action.id) }]],
+        key: `gave-up:${action.id}`,
       }),
       action.id,
       "give-up notice",

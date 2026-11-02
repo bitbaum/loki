@@ -130,6 +130,28 @@ not a message (fail2ban `caddy-scan`, journal only).
 Telemetry stale, runner stalled / behind, and model-id rot used to ping too;
 since 2026-11-02 they are /system alerts only — none has a one-tap answer.
 
+## Per person: each account chooses (2026-11-02)
+
+Loki is multi-tenant, so Telegram is each person's own, set up in
+**Settings → Notifications → Telegram**:
+
+- **Connect Telegram** opens Loki's notification bot (`TELEGRAM_NOTIFY_BOT_TOKEN`,
+  `TELEGRAM_NOTIFY_BOT_USERNAME`) with a one-time code; pressing Start links that
+  chat (`POST /api/telegram/webhook`, `src/db/queries/telegram-links.ts`; the bot
+  itself is `src/lib/telegram/notify-bot.ts`, per-person sends
+  `src/lib/telegram/send-to-person.ts`, the Settings API
+  `src/app/api/telegram/link/route.ts`). Nobody
+  types a chat id. `/stop` or blocking the bot unlinks it.
+- Each kind of message (`src/config/notify-categories.ts`: decisions, people,
+  results, plans, other assistants, servers — the last operator-only) is on or
+  off per person.
+- Every app sender goes through `deliverNotice` (directly or via
+  `src/lib/notify/person.ts`), which applies the person's choices and sends to
+  their own linked chat. `scripts/test/one-telegram-door.ts` fails the build if
+  any app code calls Telegram another way.
+- The operator's chat from before (`APP_TELEGRAM_CHAT_ID`, the OpenClaw bot)
+  keeps receiving his notices until he connects through Settings.
+
 ## Every bot's way in
 
 | Who | How | Code |

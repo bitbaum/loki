@@ -1,4 +1,5 @@
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
+import { getDefaultUser } from "@/db/queries/users";
 import { logDebug } from "@/db/queries/debug-logs";
 
 /**
@@ -17,22 +18,18 @@ import { logDebug } from "@/db/queries/debug-logs";
  */
 export async function notifyNewsletterSignup(email: string, source: string): Promise<void> {
   try {
-    const target = selfTelegramTarget();
-    if (!target) {
-      // An announcement that reached NOBODY is worth a log line, not silence:
-      // the page promised a reply.
-      void logDebug({
-        source: "newsletter/notify-signup",
-        level: "warn",
-        message: `signup via ${source} arrived with no reachable channel (telegram: unconfigured)`,
-      });
-      return;
-    }
+    // The lists are the operator's: the person who installed this Loki.
+    const operator = await getDefaultUser();
+    if (!operator) return;
     const what = source.startsWith("bitbaum-hire") ? "🧾 Waitlist signup" : "📬 New subscriber";
     // The page promised a person writes back: one tap opens that email, addressed.
     const write = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(email)}`;
-    const result = await sendTelegramMessage(target, `${what} — ${source}\n${email}`, {
+    const result = await notifyPerson(operator.id, {
+      source: "newsletter",
+      category: "people",
+      text: `${what} — ${source}\n${email}`,
       buttons: [[{ text: "Write to them", url: write }]],
+      key: `signup:${source}:${email}`,
     });
     // sendTelegramMessage REPORTS failure, it does not throw — so ignoring the
     // result swallows a dead channel silently, which is the exact failure this

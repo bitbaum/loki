@@ -33,10 +33,22 @@
  *     arrives, silently, and the morning plan leads with it.
  */
 
+import type { NotifyCategory } from "@/config/notify-categories";
+
 export const NOTICE_URGENCIES = ["now", "today", "digest"] as const;
 export type NoticeUrgency = (typeof NOTICE_URGENCIES)[number];
 
-export type NoticeAction = { label: string; url: string };
+export type NoticeAction = {
+  label: string;
+  url: string;
+  /**
+   * Set only by Loki's own code for a link it composed from its own records
+   * (a customer's own site, a signed approval link). Never accepted over HTTP
+   * (lib/notify/schema.ts drops it), so a link chosen by an email or a bot can
+   * never skip the host allowlist.
+   */
+  trusted?: boolean;
+};
 
 export type NoticeRequest = {
   /** Which bot is speaking: "loki", "box", "orangecat-cat", … Shown on the message. */
@@ -55,7 +67,23 @@ export type NoticeRequest = {
   voice?: boolean;
   /** Deliver this key at most once, ever (until its row is closed): no reminders. */
   once?: boolean;
+  /** Which kind of message this is — each person turns kinds on or off (config/notify-categories.ts). */
+  category?: NotifyCategory;
+  /**
+   * false when the sender keeps its own row on /today (feedback, approvals…):
+   * the notice is still recorded for the caps, but hidden, so the list does
+   * not show the same thing twice.
+   */
+  listed?: boolean;
 };
+
+/** The kind of a notice: its own, else by who sent it. */
+export function categoryOf(n: Pick<NoticeRequest, "category" | "source">): NotifyCategory {
+  if (n.category) return n.category;
+  if (n.source === "box") return "servers";
+  if (n.source.startsWith("orangecat")) return "bots";
+  return "results";
+}
 
 export const MAX_ACTIONS = 3;
 export const MAX_LABEL = 24;
@@ -111,7 +139,11 @@ export function validateNotice(input: NoticeRequest): Valid | Refusal {
   const body = input.body?.trim() ? clip(input.body.trim(), MAX_BODY) : undefined;
   const actions = (input.actions ?? [])
     .filter((a) => a?.label?.trim() && a?.url?.trim())
-    .map((a) => ({ label: clip(a.label.trim(), MAX_LABEL), url: a.url.trim() }));
+    .map((a) => ({
+      label: clip(a.label.trim(), MAX_LABEL),
+      url: a.url.trim(),
+      trusted: a.trusted,
+    }));
   if (actions.length === 0) {
     return {
       ok: false,
@@ -120,7 +152,8 @@ export function validateNotice(input: NoticeRequest): Valid | Refusal {
     };
   }
   for (const a of actions) {
-    if (!isAllowedButtonUrl(a.url)) {
+    const safe = a.trusted ? /^https:\/\//.test(a.url) : isAllowedButtonUrl(a.url);
+    if (!safe) {
       return {
         ok: false,
         reason: `button "${a.label}" must open an https page on an allowed host`,

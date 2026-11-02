@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { NOTICE_URGENCIES } from "@/lib/notify/policy";
+import { NOTIFY_CATEGORY_IDS } from "@/config/notify-categories";
 
 /**
  * The wire shape every bot posts. Lenient on purpose: a notice the policy
@@ -17,6 +18,8 @@ export const NoticeBody = z.object({
   urgency: z.enum(NOTICE_URGENCIES).default("today"),
   key: z.string().trim().max(200).optional(),
   voice: z.boolean().optional(),
+  /** Which kind of message (config/notify-categories.ts); each person chooses per kind. */
+  category: z.enum(NOTIFY_CATEGORY_IDS).optional(),
   /** The incident is over: close its row, say nothing. */
   resolved: z.boolean().optional(),
 });
