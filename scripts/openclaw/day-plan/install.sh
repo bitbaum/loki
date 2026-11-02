@@ -12,8 +12,10 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 F="${OPENCLAW_CRON_FILE:-/home/openclaw/.openclaw/cron/jobs.json}"
 PROMPT="$HERE/morning-brief.md"
+CONTRACT="$HERE/contract.md"
 [ -f "$F" ] || { echo "::error::no cron file at $F"; exit 1; }
 [ -s "$PROMPT" ] || { echo "::error::missing $PROMPT"; exit 1; }
+[ -s "$CONTRACT" ] || { echo "::error::missing $CONTRACT"; exit 1; }
 jq -e '.jobs | type == "array"' "$F" >/dev/null || { echo "::error::$F is not a cron file"; exit 1; }
 
 BRIEF='morning brief|day plan|daily brief|daily god brief'
@@ -27,10 +29,16 @@ noisy=$(jq --arg re "$NOISE" '[.jobs[] | select(.enabled and ((.payload.message 
 
 cp -a "$F" "$F.bak.$(date -u +%Y%m%dT%H%M%SZ)"
 tmp=$(mktemp)
-jq --rawfile msg "$PROMPT" --arg brief "$BRIEF" --arg noise "$NOISE" '
+# Every other enabled job keeps its own prompt and gets the contract appended
+# between markers — replaced, never stacked, on every install.
+BEGIN='<!-- bitbaum:telegram-contract -->'; END='<!-- /bitbaum:telegram-contract -->'
+jq --rawfile msg "$PROMPT" --rawfile contract "$CONTRACT" --arg brief "$BRIEF" --arg noise "$NOISE" \
+   --arg b "$BEGIN" --arg e "$END" '
+  def strip: (. // "") | sub("\\n*" + $b + "[\\s\\S]*" + $e + "\\n*"; "");
   .jobs |= map(
     if (.name | test($brief; "i")) then .payload.message = $msg
     elif (.enabled and ((.payload.message // "") | test($noise; "i"))) then .enabled = false
+    elif .enabled then .payload.message = ((.payload.message | strip) + "\n\n" + $b + "\n" + $contract + $e)
     else . end)' "$F" > "$tmp"
 jq -e '.jobs | length > 0' "$tmp" >/dev/null || { echo "::error::refusing to write an empty cron file"; rm -f "$tmp"; exit 1; }
 chown --reference="$F" "$tmp"; chmod --reference="$F" "$tmp"; mv "$tmp" "$F"
@@ -38,3 +46,18 @@ chown --reference="$F" "$tmp"; chmod --reference="$F" "$tmp"; mv "$tmp" "$F"
 [ "$brief" -ge 1 ] && echo "Day plan prompt installed into $brief job(s)." \
   || echo "::warning::no job named like 'morning brief' — the prompt was not installed anywhere"
 if [ -n "$noisy" ]; then echo "Switched off (machine warnings, now on Loki's /system list):"; echo "$noisy" | sed 's/^/  /'; fi
+echo "Telegram contract on $(jq '[.jobs[] | select(.enabled)] | length' "$F") enabled job(s)."
+
+# Who else can post to the chat? Paths only (this log is public): any file on
+# the box that calls the Telegram API, and any that sends "restarted
+# automatically"-style status lines. The registry (docs/telegram-notifications.md)
+# must account for every path this prints.
+echo "Files on the box that call the Telegram API:"
+grep -rlI --exclude-dir=node_modules --exclude-dir=.git -e 'api.telegram.org' \
+  /usr/local/bin /usr/local/sbin /opt/monitoring /etc/systemd/system /etc/cron.d /etc/cron.daily /etc/cron.hourly \
+  /var/spool/cron /root/bin /home/*/bin /home/openclaw/.openclaw/workspace 2>/dev/null | sed 's/^/  /' || true
+echo "Files that say 'restarted automatically' / 'was not running':"
+grep -rlIi --exclude-dir=node_modules --exclude-dir=.git -e 'restarted automatically' -e 'was not running' \
+  /usr/local/bin /opt/monitoring /etc/systemd/system /etc/cron.d /var/spool/cron /root /home/openclaw/.openclaw 2>/dev/null \
+  | grep -v -e '/sessions/' -e '\.jsonl$' -e '/logs/' | sed 's/^/  /' || true
+[ -f /home/openclaw/.openclaw/workspace/HEARTBEAT.md ] && echo "OpenClaw heartbeat file present ($(wc -l < /home/openclaw/.openclaw/workspace/HEARTBEAT.md) lines)" || echo "No OpenClaw heartbeat file"

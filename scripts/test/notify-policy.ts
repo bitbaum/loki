@@ -117,12 +117,8 @@ check("a 'today' notice never rings", today.deliver && !today.ring);
 check("03:00 Zurich is a quiet hour, noon is not", isQuietHour(NIGHT) && !isQuietHour(NOON));
 
 check(
-  "the message names the bot speaking",
-  formatNotice(base).startsWith("box · orangecat is down"),
-);
-check(
-  "Loki's own notices are not prefixed",
-  !formatNotice({ ...base, source: "loki" }).startsWith("loki"),
+  "the message carries no machine name, only what happened",
+  formatNotice({ ...base, source: "orangecat-cat" }) === "orangecat is down",
 );
 
 if (failures) {

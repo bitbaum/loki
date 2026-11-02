@@ -163,8 +163,11 @@ export function decideDelivery(
   return { deliver: true, ring: notice.urgency === "now" && !isQuietHour(now) };
 }
 
-/** The message text: who speaks, what happened, why — nothing to decode. */
+/**
+ * The message text: what happened and why, nothing to decode. No sender tag:
+ * "orangecat-cat · …" (2026-11-02) told the owner a machine's name, not
+ * anything to do. The source stays on the list row for whoever debugs it.
+ */
 export function formatNotice(notice: NoticeRequest): string {
-  const who = notice.source === "loki" ? "" : `${notice.source} · `;
-  return [`${who}${notice.title}`, notice.body].filter(Boolean).join("\n\n");
+  return [notice.title, notice.body].filter(Boolean).join("\n\n");
 }
