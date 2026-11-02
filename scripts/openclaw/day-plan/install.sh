@@ -16,7 +16,7 @@ PROMPT="$HERE/morning-brief.md"
 [ -s "$PROMPT" ] || { echo "::error::missing $PROMPT"; exit 1; }
 jq -e '.jobs | type == "array"' "$F" >/dev/null || { echo "::error::$F is not a cron file"; exit 1; }
 
-BRIEF='morning brief|day plan|daily brief'
+BRIEF='morning brief|day plan|daily brief|daily god brief'
 NOISE='swap|memory pressure|under memory|disk usage|cpu load|load average'
 
 echo "Jobs before (name · enabled · schedule):"
