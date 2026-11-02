@@ -125,7 +125,7 @@
     "@auth/core": "0.41.3",
     "@auth/drizzle-adapter": "^1.11.3",
     "@better-auth/passkey": "^1.7.14",
-    "@bitbaum/accountkit": "^0.23.1",
+    "@bitbaum/accountkit": "^0.25.0",
     "@bitbaum/ai-kit": "^1.24.0",
     "@bitbaum/chatkit": "^0.22.1",
     "@bitbaum/mail-kit": "^0.2.0",
@@ -173,7 +173,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@bitbaum/design-tokens": "github:bitbaum/design-tokens#2b440563754018ba4e9d5273ca56cf1f9d0bde11",
+    "@bitbaum/design-tokens": "github:bitbaum/design-tokens#8b82accab3775f3e18ed2fc61de41ba2127afae7",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^9.6.0",
     "@types/libsodium-wrappers": "^0.8.2",
