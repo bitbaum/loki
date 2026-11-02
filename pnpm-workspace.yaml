@@ -79,6 +79,7 @@ minimumReleaseAgeExclude:
   - "@bitbaum/listkit"
   - "@bitbaum/searchkit"
   - "@bitbaum/whenkit"
+  - "@bitbaum/design-tokens@1.4.0"
 
 # braces GHSA-vfj7-8cjw-p6xm has NO patched release (<=3.0.3 = every version).
 # Reached only via shadcn's CLI (fast-glob > micromatch) at dev time, never at
