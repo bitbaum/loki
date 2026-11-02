@@ -17,7 +17,9 @@ out="$(bash "$S" kivvi survey /nonexistent.sql 2>&1)" && no "a missing import SQ
 out="$(HETZNER_IP=192.0.2.1 bash "$S" not-an-app survey "$sql" 2>&1)" && no "an unregistered app runs" || {
   grep -q "no AccountKit staging registered" <<< "$out" && ok "an app with no staging is refused" || no "unregistered: $out"; }
 
-registered="$(sed -n "/^REGISTRY='/,/'\$/p" "$S" | sed "s/^REGISTRY='//" | cut -d'|' -f1 | sort | tr '\n' ' ')"
+C=scripts/hetzner/accountkit-cutover.sh
+registry() { sed -n "/^REGISTRY='/,/'\$/p" "$1" | sed "s/^REGISTRY='//" | cut -d'|' -f1; }
+registered="$( { registry "$S"; registry "$C"; } | sort | tr '\n' ' ')"
 offered="$(grep -oP 'options: \[\K[^\]]*' "$W" | head -1 | tr -d ' ' | tr ',' '\n' | sort | tr '\n' ' ')"
 [ "$registered" = "$offered" ] && ok "the workflow offers exactly the registered apps ($registered)" \
   || no "workflow offers [$offered], script registers [$registered]"
@@ -34,9 +36,26 @@ sed -n '/^rollback() {/,/^}/p' "$S" | head -n 4 | grep -q 'only="$(native_only)"
   && ok "rollback first counts credentials only the shared tables hold, and refuses on any" \
   || no "rollback can empty tables that hold the only copy of a credential"
 
-grep -q "options: \[survey, switch, rollback, prove\]" .github/workflows/accountkit-switch.yml \
+grep -q "options: \[survey, rehearse, switch, rollback, prove\]" "$W" \
   && grep -q 'survey|switch|rollback|prove)' "$S" \
-  && ok "the workflow offers exactly the actions the script takes" \
-  || no "the workflow's actions and the script's differ"
+  && grep -q 'survey|rehearse|switch|rollback|prove)' "$C" \
+  && grep -q 'vitareba|aoz-begleitung)' "$W" \
+  && ok "the workflow offers exactly the actions the scripts take; rehearse only through the cutover" \
+  || no "the workflow's actions and the scripts' differ"
+
+# accountkit-cutover.sh (Vitareba, AOZ): personal data, so its own guarantees.
+out="$(bash "$C" vitareba explode "$sql" 2>&1)" && no "cutover: an unknown action runs" || {
+  grep -q "unknown action" <<< "$out" && ok "cutover: an unknown action is refused" || no "cutover unknown action: $out"; }
+out="$(HETZNER_IP=192.0.2.1 bash "$C" kivvi survey "$sql" 2>&1)" && no "cutover: an app it does not register runs" || {
+  grep -q "not registered in accountkit-cutover.sh" <<< "$out" && ok "cutover: an unregistered app is refused" || no "cutover unregistered: $out"; }
+! grep -qiE '^[^#]*\bTRUNCATE\b' "$C" \
+  && sed -n '/^rollback() {/,/^}/p' "$C" | grep -q 'set_runtime ""' \
+  && ! sed -n '/^rollback() {/,/^}/p' "$C" | grep -qE 'DELETE|DROP|proof_delete' \
+  && ok "cutover: rollback empties AUTH_RUNTIME and restarts; nothing in it empties a table" \
+  || no "cutover: rollback can remove credentials"
+grep -q 'umask 077; cat >' "$C" && grep -q 'chmod 600 "$file"' "$C" \
+  && ok "cutover: a dump is written 600 from its first byte" || no "cutover: a dump may be readable by others"
+! grep -qE 'echo .*\$(PROOF_PASSWORD|SIGNUP_PASSWORD|LEGACY_HASH|PROOF_EMAIL|SIGNUP_EMAIL)' "$C" \
+  && ok "cutover: no proof password, hash or address is echoed" || no "cutover: a proof secret may be printed"
 
 [ "$fail" = 0 ] && echo "accountkit-switch: all checks pass" || { echo "accountkit-switch: failures"; exit 1; }
