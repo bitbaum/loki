@@ -70,6 +70,7 @@ MSG=\$(echo '$b64' | base64 -d)
   "https://api.telegram.org/bot\$T/sendMessage" \
   --data-urlencode "chat_id=\$C" \
   --data-urlencode "text=🚨 Loki deploy: \$MSG" \
+  --data-urlencode "disable_notification=\$(h=\$(TZ=Europe/Zurich date +%H); h=\${h#0}; [ "\${h:-0}" -ge 22 ] || [ "\${h:-0}" -lt 7 ] && echo true || echo false)" \
   --data-urlencode 'reply_markup={"inline_keyboard":[[{"text":"Redeploy Loki","url":"https://github.com/bitbaum/loki/actions/workflows/deploy.yml"}]]}' || true
 REMOTE
 }

@@ -4,6 +4,7 @@
  *
  * Run: npx tsx scripts/test/notify-box.ts
  */
+import { readFileSync } from "node:fs";
 import { boxKey, boxNotice, isIntrusion } from "@/lib/notify/box";
 import { validateNotice } from "@/lib/notify/policy";
 
@@ -40,7 +41,39 @@ check(
   "an accepted SSH password login is actionable and urgent",
   validateNotice(intrusion).ok && intrusion.urgency === "now",
 );
-check("its button opens the evidence on /system", intrusion.actions[0]?.url === `${APP}/system`);
+check("its button opens the list it is on (/today)", intrusion.actions[0]?.url === `${APP}/today`);
+check("it names the machine", intrusion.title.startsWith("bitbaum: "));
+check(
+  "two different intrusion lines are two notices, not a held reminder",
+  boxNotice("🚨 SSH PASSWORD LOGIN ACCEPTED for root from 1.2.3.4", APP).key !==
+    boxNotice("🚨 SSH PASSWORD LOGIN ACCEPTED for root from 5.6.7.8", APP).key,
+);
+check(
+  "an SSH login from a new address is an intrusion sign",
+  isIntrusion("🔑 SSH LOGIN as root from 9.9.9.9"),
+);
+check(
+  "an edited authorized_keys is an intrusion sign; a deploy's unit file is not",
+  isIntrusion("📝 1 SENSITIVE FILE(S) CHANGED: edited /root/.ssh/authorized_keys") &&
+    !isIntrusion("📝 1 SENSITIVE FILE(S) CHANGED: edited /etc/systemd/system/x.service"),
+);
+
+// The box's own copy (used when Loki is unreachable) must say the same.
+{
+  const lib = readFileSync("scripts/hetzner/install-host-alerts.sh", "utf8");
+  const fn = lib.slice(lib.indexOf("_alert_intrusion() {"), lib.indexOf("_alert_loki_token() {"));
+  for (const probe of [
+    "SSH PASSWORD LOGIN",
+    "🔑 SSH LOGIN",
+    "☠️",
+    "🔓 SSHD",
+    "🧱 FIREWALL",
+    "👤 NEW PRIVILEGED",
+    "authorized_keys",
+  ]) {
+    check(`lib-alert's fallback list names ${probe}`, fn.includes(probe));
+  }
+}
 check("a suspicious process is an intrusion", isIntrusion("☠️ SUSPICIOUS PROCESS: /tmp/x (pid 1)"));
 check("a disk warning is not", !isIntrusion("💾 DISK 87% on / (>85%)"));
 

@@ -19,7 +19,8 @@ import type { RunClosePatch } from "@/lib/orchestration/close-from-session";
 import type { OrchestrationOutcome } from "@/db/schema/orchestration-runs";
 import { ORCHESTRATION_OUTCOME } from "@/db/schema/orchestration-runs";
 import { insertActiveAlertOnce } from "@/db/queries/alerts";
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
 import { logDebug } from "@/db/queries/debug-logs";
 
 /**
@@ -44,7 +45,8 @@ async function reportCappedGoal(input: {
       description: `The definition of done was not met and autopilot stopped re-looping. Still missing: ${input.gap}`,
     });
     if (!created) return; // already open — don't re-notify every close
-    const target = selfTelegramTarget();
+    // The operator's chat hears about the operator's own goals only.
+    const target = await telegramTargetFor(input.userId);
     if (target) {
       await sendTelegramMessage(
         target,

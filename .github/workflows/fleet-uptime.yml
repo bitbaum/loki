@@ -82,6 +82,11 @@ jobs:
                   method: 'POST', headers: { 'content-type': 'application/json' },
                   body: JSON.stringify({
                     chat_id: c, text,
+                    // Silent 22:00–07:00 Zurich: it arrives, it does not wake anyone.
+                    disable_notification: (() => {
+                      const h = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Zurich' }).format(new Date()));
+                      return h >= 22 || h < 7;
+                    })(),
                     reply_markup: { inline_keyboard: [buttons] },
                     link_preview_options: { is_disabled: true },
                   }),

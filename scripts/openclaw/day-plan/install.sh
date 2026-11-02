@@ -13,13 +13,18 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 F="${OPENCLAW_CRON_FILE:-/home/openclaw/.openclaw/cron/jobs.json}"
 PROMPT="$HERE/morning-brief.md"
 CONTRACT="$HERE/contract.md"
+DIGEST_CONTRACT="$HERE/digest-contract.md"
 [ -f "$F" ] || { echo "::error::no cron file at $F"; exit 1; }
 [ -s "$PROMPT" ] || { echo "::error::missing $PROMPT"; exit 1; }
 [ -s "$CONTRACT" ] || { echo "::error::missing $CONTRACT"; exit 1; }
+[ -s "$DIGEST_CONTRACT" ] || { echo "::error::missing $DIGEST_CONTRACT"; exit 1; }
 jq -e '.jobs | type == "array"' "$F" >/dev/null || { echo "::error::$F is not a cron file"; exit 1; }
 
 BRIEF='morning brief|day plan|daily brief|daily god brief'
 NOISE='swap|memory pressure|under memory|disk usage|cpu load|load average'
+# Summaries the owner asked for (docs/telegram-notifications.md "keep them"):
+# they still go out, but under the digest contract, never silenced wholesale.
+DIGEST='reflection|digest|scorecard|evening wrap|weekly overview'
 
 echo "Jobs before (name · enabled · schedule):"
 jq -r '.jobs[] | "  \(.name) · \(.enabled) · \(.schedule.expr) \(.schedule.tz // "")"' "$F"
@@ -32,13 +37,17 @@ tmp=$(mktemp)
 # Every other enabled job keeps its own prompt and gets the contract appended
 # between markers — replaced, never stacked, on every install.
 BEGIN='<!-- bitbaum:telegram-contract -->'; END='<!-- /bitbaum:telegram-contract -->'
-jq --rawfile msg "$PROMPT" --rawfile contract "$CONTRACT" --arg brief "$BRIEF" --arg noise "$NOISE" \
+jq --rawfile msg "$PROMPT" --rawfile contract "$CONTRACT" --rawfile digest "$DIGEST_CONTRACT" \
+   --arg brief "$BRIEF" --arg noise "$NOISE" --arg dig "$DIGEST" \
    --arg b "$BEGIN" --arg e "$END" '
   def strip: (. // "") | sub("\\n*" + $b + "[\\s\\S]*" + $e + "\\n*"; "");
   .jobs |= map(
     if (.name | test($brief; "i")) then .payload.message = $msg
     elif (.enabled and ((.payload.message // "") | test($noise; "i"))) then .enabled = false
-    elif .enabled then .payload.message = ((.payload.message | strip) + "\n\n" + $b + "\n" + $contract + $e)
+    elif (.enabled and (.payload.message | type) == "string" and (.name | test($dig; "i")))
+      then .payload.message = ((.payload.message | strip) + "\n\n" + $b + "\n" + $digest + $e)
+    elif (.enabled and (.payload.message | type) == "string")
+      then .payload.message = ((.payload.message | strip) + "\n\n" + $b + "\n" + $contract + $e)
     else . end)' "$F" > "$tmp"
 jq -e '.jobs | length > 0' "$tmp" >/dev/null || { echo "::error::refusing to write an empty cron file"; rm -f "$tmp"; exit 1; }
 chown --reference="$F" "$tmp"; chmod --reference="$F" "$tmp"; mv "$tmp" "$F"
@@ -46,7 +55,7 @@ chown --reference="$F" "$tmp"; chmod --reference="$F" "$tmp"; mv "$tmp" "$F"
 [ "$brief" -ge 1 ] && echo "Day plan prompt installed into $brief job(s)." \
   || echo "::warning::no job named like 'morning brief' — the prompt was not installed anywhere"
 if [ -n "$noisy" ]; then echo "Switched off (machine warnings, now on Loki's /system list):"; echo "$noisy" | sed 's/^/  /'; fi
-echo "Telegram contract on $(jq '[.jobs[] | select(.enabled)] | length' "$F") enabled job(s)."
+echo "Telegram contract on $(jq --arg b "$BEGIN" '[.jobs[] | select((.payload.message // "") | contains($b))] | length' "$F") job(s)."
 
 # Who else can post to the chat? Paths only (this log is public): any file on
 # the box that calls the Telegram API, and any that sends "restarted

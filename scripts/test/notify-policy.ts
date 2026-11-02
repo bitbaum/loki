@@ -54,18 +54,31 @@ check(
 );
 check(
   "a button must link to https (no javascript:, no plain http)",
-  !validateNotice({ ...base, actions: [{ label: "Open", url: "http://x" }] }).ok,
+  !validateNotice({ ...base, actions: [{ label: "Open", url: "http://loki.orangecat.ch" }] }).ok,
+);
+check(
+  "a link an email chose cannot become a button (phishing)",
+  !validateNotice({ ...base, actions: [{ label: "Verify", url: "https://evil.example/login" }] })
+    .ok,
+);
+check(
+  "Gmail, Google Calendar, GitHub and own domains are allowed",
+  [
+    "https://mail.google.com/mail/u/0/#inbox/x",
+    "https://calendar.google.com/x",
+    "https://github.com/bitbaum/loki",
+    "https://loki.orangecat.ch/a/x",
+  ].every((url) => validateNotice({ ...base, actions: [{ label: "Open", url }] }).ok),
 );
 check("an actionable notice is accepted", validateNotice(base).ok);
 
 // Rule 2 — one screen.
+const four = validateNotice({ ...base, actions: [open, open, open, open] });
+check("four buttons are cut to three, not dropped", four.ok && four.notice.actions.length === 3);
+const long = validateNotice({ ...base, actions: [{ label: "x".repeat(30), url: open.url }] });
 check(
-  "four buttons are refused",
-  !validateNotice({ ...base, actions: [open, open, open, open] }).ok,
-);
-check(
-  "a 25-character label is refused",
-  !validateNotice({ ...base, actions: [{ label: "x".repeat(25), url: open.url }] }).ok,
+  "a 30-character label is clipped, not dropped",
+  long.ok && long.notice.actions[0].label.length === 24,
 );
 
 // Rule 3 — one incident, one message, backing off.
@@ -96,16 +109,27 @@ const onceHeld = decideDelivery(
 check("a once-only notice (the voice pitch) is never repeated", !onceHeld.deliver);
 
 // Rule 4 — a looping sender cannot bombard.
-const capped = decideDelivery(base, { ...none, sourceLastHour: PER_SOURCE_PER_HOUR }, NOON);
+const capped = decideDelivery(
+  { ...base, urgency: "today" },
+  { ...none, sourceLastHour: PER_SOURCE_PER_HOUR },
+  NOON,
+);
 check(
   "a fourth message from one source in an hour goes to the list",
   !capped.deliver && capped.reason === "source-cap",
 );
-const daily = decideDelivery(base, { ...none, lastDay: PER_DAY }, NOON);
+const daily = decideDelivery({ ...base, urgency: "today" }, { ...none, lastDay: PER_DAY }, NOON);
 check(
   "past the daily cap everything goes to the list",
   !daily.deliver && daily.reason === "daily-cap",
 );
+
+const urgentCapped = decideDelivery(
+  base,
+  { ...none, sourceLastHour: PER_SOURCE_PER_HOUR, lastDay: PER_DAY },
+  NOON,
+);
+check("the caps never hold an urgent notice (a second break-in sign)", urgentCapped.deliver);
 
 // Rule 5 — sound only for "now", never at night.
 const ringNoon = decideDelivery(base, none, NOON);
