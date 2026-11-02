@@ -42,8 +42,8 @@ run() { SUPABASE_DIR="$T/sb" DOCKER="$T/bin/docker" SUDO="" SETTINGS_URL="file:/
 
 echo "orangecat-passkeys:"
 setup
-out=$(run show); echo "$out" | grep -q "auth service: auth (supabase/gotrue" && ok "finds the GoTrue service" || bad "finds the GoTrue service"
-echo "$out" | grep -q "passkeys_enabled (public settings): false" && ok "show reads the public settings" || bad "show reads settings"
+out=$(run show); grep -q "auth service: auth (supabase/gotrue" <<<"$out" && ok "finds the GoTrue service" || bad "finds the GoTrue service"
+grep -q "passkeys_enabled (public settings): false" <<<"$out" && ok "show reads the public settings" || bad "show reads settings"
 
 run apply > "$T/out" 2>&1 && ok "apply succeeds" || { bad "apply succeeds"; cat "$T/out"; }
 for k in GOTRUE_PASSKEY_ENABLED=true GOTRUE_WEBAUTHN_RP_ID=orangecat.ch GOTRUE_WEBAUTHN_RP_DISPLAY_NAME=OrangeCat GOTRUE_WEBAUTHN_RP_ORIGINS=https://orangecat.ch; do
@@ -51,7 +51,7 @@ for k in GOTRUE_PASSKEY_ENABLED=true GOTRUE_WEBAUTHN_RP_ID=orangecat.ch GOTRUE_W
 done
 auth=$(awk '/^  auth:/{on=1;next} on&&/^  [a-z]+:/{exit} on' "$T/sb/docker-compose.yml")
 [ "$(echo "$auth" | grep -c 'GOTRUE_WEBAUTHN_RP_ID: ${GOTRUE_WEBAUTHN_RP_ID}')" = 1 ] && ok "auth passes the RP id through" || bad "auth passes the RP id"
-grep -A3 '^  rest:' "$T/sb/docker-compose.yml" | grep -q PASSKEY && bad "other services untouched" || ok "other services untouched"
+rest=$(grep -A3 '^  rest:' "$T/sb/docker-compose.yml"); grep -q PASSKEY <<<"$rest" && bad "other services untouched" || ok "other services untouched"
 grep -q "up -d --no-deps --force-recreate auth" "$T/docker.log" && ok "recreates only auth" || bad "recreates only auth"
 grep -q "✓ passkeys_enabled=true" "$T/out" && ok "reads back true" || bad "reads back true"
 

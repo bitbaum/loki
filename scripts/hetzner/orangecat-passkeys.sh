@@ -79,10 +79,11 @@ show() {
   local svc; svc=$(auth_service)
   [ -n "$svc" ] || die "no GoTrue service in $COMPOSE"
   echo "auth service: $svc ($(service_block "$svc" | sed -nE 's/^    image:[[:space:]]*//p'))"
+  local block; block=$(service_block "$svc")
   for k in "${KEYS[@]}"; do
     local in_env=no in_compose=no
     env_has "$k" && in_env=yes
-    service_block "$svc" | grep -qE "^      $k:" && in_compose=yes
+    grep -qE "^      $k:" <<<"$block" && in_compose=yes
     echo "  $k: .env=$in_env compose=$in_compose"
   done
   echo "passkeys_enabled (public settings): $(passkeys_enabled)"
@@ -96,12 +97,13 @@ set_env() {  # key value: replace the line, or append it
 }
 
 wire_compose() {  # each key passed through to the auth container, once
-  local svc="$1" missing=() k
+  local svc="$1" missing=() k block
+  block=$(service_block "$svc")
   for k in "${KEYS[@]}"; do
-    service_block "$svc" | grep -qE "^      $k:" || missing+=("$k")
+    grep -qE "^      $k:" <<<"$block" || missing+=("$k")
   done
   [ ${#missing[@]} -eq 0 ] && return 0
-  service_block "$svc" | grep -qE '^    environment:[[:space:]]*$' \
+  grep -qE '^    environment:[[:space:]]*$' <<<"$block" \
     || die "the $svc service has no 'environment:' map to extend"
   $SUDO cp "$COMPOSE" "$COMPOSE.bak-passkeys-$(date +%Y%m%d%H%M%S)"
   local lines="      $MARK"
