@@ -24,6 +24,8 @@ offered="$(grep -oP 'options: \[\K[^\]]*' "$W" | head -1 | tr -d ' ' | tr ',' '\
 
 grep -q 'printf.*PROOF_PASSWORD' "$S" && ! grep -qE 'echo .*\$(PROOF_(PASSWORD2?|HASH2?|EMAIL)|OC_(EMAIL|PASSWORD))' "$S" \
   && ! grep -qE '(console\.(log|error)|step|stdout\.write)\(.*(\$\{OC_|[(,] *OC_(EMAIL|PASSWORD))' scripts/hetzner/accountkit-oidc-proof.mjs \
+  && ! grep -qE '(console\.(log|error)|step)\(.*\$\{(EMAIL|NEW_PASSWORD|MAILTM_TOKEN|link)' scripts/hetzner/accountkit-reset-proof.mjs \
+  && ! grep -qE 'echo .*\$(RESET_EMAIL|inbox_(token|password))' "$S" \
   && ok "the throwaway accounts' secrets reach the box and the browser but are never echoed" \
   || no "a proof secret may be printed"
 

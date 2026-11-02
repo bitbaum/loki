@@ -3378,9 +3378,6 @@
     stroke-dashoffset: 24;
     animation: ui-robot-draw 600ms 200ms ease-out forwards;
   }
-  .ui-workbench-site-page {
-    @apply flex min-h-0 flex-1 cursor-pointer items-start justify-center overflow-hidden rounded-lg bg-surface-page;
-  }
   .ui-workbench-site-rest {
     @apply flex h-full w-full flex-col items-center justify-center gap-2 text-sm text-text-muted;
   }

@@ -59,6 +59,16 @@ export const USAGE_SURFACES = {
     actions: ["shown", "tap"],
     target: "review action or scope only; no page URLs, screenshots or discussion text",
   },
+  // The workbench: is one screen enough? How often people let Loki try the
+  // site, open it themselves, or reach for a second window tells whether the
+  // first screen holds what they came for (AGENTS.md, "measure by effort").
+  "projects.workbench": {
+    label: "Workbench",
+    path: "/projects",
+    actions: ["shown", "tap"],
+    target:
+      "action id only (try-it, open-site, robot-window, site-screen, fullscreen); no URLs or text",
+  },
 } as const satisfies Record<string, UsageSurfaceSpec>;
 
 export type UsageSurface = keyof typeof USAGE_SURFACES;
