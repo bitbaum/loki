@@ -76,11 +76,10 @@ every sign-in; unset, Auth.js answers as today. The secret is
     redirect.
 - Every new session, whatever the way in, runs `src/lib/auth/bootstrap.ts`
   (onboarding heal, personal org), the same code the Auth.js event calls. A
-  plugin in the runtime runs it (`src/lib/auth/shared/sign-in-hook.ts`), and
-  it first gives a person AccountKit has but Loki does not (a sign-in link to
-  a new address) their `users` row.
-- A person AccountKit creates itself (a first OrangeCat sign-in) gets a Loki
-  row under the same id, without a placeholder address.
+  plugin in the runtime runs it (`src/lib/auth/shared/sign-in-hook.ts`).
+- A person AccountKit creates itself (a first OrangeCat sign-in, or a first
+  sign-in link to a new address) gets a Loki row under the same id, without a
+  placeholder address, from AccountKit's `onAccountCreated`.
 - Of AccountKit's own endpoints, the session, sign-in, sign-out and OAuth
   callback are open. So are the ones Loki's screens reach directly
   (`src/lib/auth/shared/open-paths.ts`, routed in `src/auth.ts`):

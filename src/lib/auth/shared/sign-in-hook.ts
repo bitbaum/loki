@@ -2,20 +2,18 @@
  * Every new session on the shared runtime gets what a Loki sign-in always
  * gets, whichever way the person came in: password (through the compat layer
  * or the sign-in card's second-factor step), passkey, the sign-in link, or an
- * OIDC round trip.
+ * OIDC round trip: the onboarding heal and the personal org
+ * (bootstrapAfterSignIn).
  *
- * - The person has a Loki `users` row under their AccountKit id. A sign-in
- *   link to a new address creates the AccountKit person without attaching a
- *   sign-in method, so `onAccountCreated` (ensureLokiUser) never ran for them;
- *   this is where they get their row.
- * - Onboarding heal and the personal org (bootstrapAfterSignIn).
+ * The person's Loki `users` row is not made here. AccountKit's
+ * `onAccountCreated` (ensureLokiUser, ./runtime) reaches every new person,
+ * a first sign-in link to a new address included, before their first session.
  *
- * Both are idempotent and never block the sign-in: a throw is logged.
+ * Idempotent, and never blocks the sign-in: a throw is logged.
  */
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { bootstrapAfterSignIn } from "../bootstrap";
-import { ensureLokiUser } from "./accounts";
 
 export function lokiSignInHook(): BetterAuthPlugin {
   return {
@@ -29,18 +27,6 @@ export function lokiSignInHook(): BetterAuthPlugin {
             if (!created) return;
             const { user } = created;
             try {
-              await ensureLokiUser({
-                userId: user.id,
-                providerId: "session",
-                accountId: user.id,
-                tokens: {
-                  accessToken: null,
-                  refreshToken: null,
-                  idToken: null,
-                  accessTokenExpiresAt: null,
-                  scope: null,
-                },
-              });
               const email = user.email?.endsWith(".invalid") ? null : user.email;
               await bootstrapAfterSignIn({ id: user.id, name: user.name || null, email });
             } catch (error) {
