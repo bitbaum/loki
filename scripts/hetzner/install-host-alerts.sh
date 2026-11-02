@@ -96,10 +96,14 @@ LOKI_TOKEN_FILE="${LOKI_TOKEN_FILE:-/home/openclaw/.openclaw/calendar-drain.env}
 BOX_DOCTOR_URL="${BOX_DOCTOR_URL:-https://github.com/bitbaum/loki/actions/workflows/box-doctor.yml}"
 _alert_intrusion() {
   case "$1" in
-    *"SSH PASSWORD LOGIN"*|"☠️"*|"🔓 SSHD"*|"🧱 FIREWALL"*|"👤 NEW PRIVILEGED"*) return 0 ;;
+    *"SSH PASSWORD LOGIN"*|"🔑 SSH LOGIN"*|"☠️"*|"🔓 SSHD"*|"🧱 FIREWALL"*|"👤 NEW PRIVILEGED"*) return 0 ;;
+    *"SENSITIVE FILE"*authorized_keys*|*"SENSITIVE FILE"*sudoers*|*"SENSITIVE FILE"*/shadow*|*"SENSITIVE FILE"*pam.d*|*"SENSITIVE FILE"*ld.so.preload*) return 0 ;;
   esac
   return 1
 }
+# The owner's nights are quiet for this path too (22:00–07:00 Zurich): the
+# message still arrives, without a sound.
+_alert_night() { local h; h=$(TZ=Europe/Zurich date +%H); h=${h#0}; [ "${h:-0}" -ge 22 ] || [ "${h:-0}" -lt 7 ]; }
 _alert_loki_token() {
   [ -r "$LOKI_TOKEN_FILE" ] || return 1
   grep -m1 '^LOKI_AGENT_TOKEN=' "$LOKI_TOKEN_FILE" 2>/dev/null | cut -d= -f2- | tr -d "\"'"
@@ -126,6 +130,7 @@ _alert_deliver() {
     curl -fsS -m 10 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
       --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
       --data-urlencode "text=${text}" \
+      --data-urlencode "disable_notification=$(_alert_night && echo true || echo false)" \
       --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"Open Box doctor\",\"url\":\"${BOX_DOCTOR_URL}\"}]]}" \
       -o /dev/null || logger -t watchdog "ALERT telegram send failed"
   fi

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { TerminalSurface } from "@/components/terminal/TerminalSurface";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import { useWorkbenchFocus } from "@/hooks/use-workbench-focus";
 import { useWorkbenchLayout } from "@/hooks/use-workbench-layout";
 import { useWorkbenchWindows } from "@/hooks/use-workbench-windows";
 import { isPaneOpen } from "@/lib/workbench/layout";
+import { trackUsage } from "@/lib/usage/track";
 import {
   WORKBENCH_COLUMNS_QUERY,
   WORKBENCH_SESSION_RAIL_KEY,
@@ -71,6 +72,11 @@ export function WorkbenchView({
   const { layout, close } = useWorkbenchLayout(projectId, solo);
   const windows = useWorkbenchWindows(projectId);
   const run = useRunState(projectId);
+  useEffect(() => {
+    trackUsage({ surface: "projects.workbench", action: "shown", target: solo ? "solo" : null });
+  }, [solo]);
+  const tap = (target: string) =>
+    trackUsage({ surface: "projects.workbench", action: "tap", target });
 
   // A column is half a window, so the session's Loki rail starts closed
   // there; a solo window is a whole one, where it has the room it has on
@@ -131,11 +137,19 @@ export function WorkbenchView({
       </div>
     );
 
-  const openSite = (placement: WorkbenchPlacement) =>
-    site && void windows.openSite(site.href, placement);
+  const openSite = (placement: WorkbenchPlacement) => {
+    if (!site) return;
+    tap(placement === "beside" ? "open-site" : "site-screen");
+    void windows.openSite(site.href, placement);
+  };
   // The robot in its own window leaves this one; a refused popup leaves it be.
   const openRobot = async (placement: WorkbenchPlacement) => {
+    tap("robot-window");
     if ((await windows.openPane("session", placement)).how !== "blocked") close("session");
+  };
+  const toggleFullscreen = () => {
+    tap("fullscreen");
+    fullscreen.toggle();
   };
   const robotHere = isPaneOpen(layout, "session");
 
@@ -147,7 +161,7 @@ export function WorkbenchView({
         site={site}
         onOpenSite={openSite}
         onOpenRobot={(placement) => void openRobot(placement)}
-        fullscreen={fullscreen}
+        fullscreen={{ ...fullscreen, toggle: toggleFullscreen }}
       />
       {windows.note && (
         <p className="ui-workbench-note" role="status">

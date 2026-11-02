@@ -38,6 +38,7 @@ import { ProjectsSettings } from "./ProjectsSettings";
 import { TeamSettings } from "./TeamSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { PhonePushCard } from "./PhonePushCard";
+import { TelegramSettings } from "./TelegramSettings";
 import type { UserPreferencesData } from "@/db/queries/user-preferences";
 import type { Plan } from "@/db/schema/users";
 import type { UserProject, Invitation } from "@/db/schema";
@@ -75,7 +76,7 @@ type Props = {
 const TABS = [
   { id: "profile", label: "Profile", icon: User, about: "Your name, username and photo" },
   { id: "account", label: "Account", icon: KeyRound, about: "Email, password and how you sign in" },
-  { id: "notifications", label: "Notifications", icon: Bell, about: "This phone, and digests" },
+  { id: "notifications", label: "Notifications", icon: Bell, about: "Phone, Telegram, digests" },
   { id: "appearance", label: "Appearance", icon: Palette, about: "Light, dark or automatic" },
   { id: "voice", label: "Voice", icon: Mic, about: "How Loki writes and speaks for you" },
   { id: "ai", label: "AI", icon: Sparkles, about: "Your own models and what is left today" },
@@ -248,6 +249,7 @@ export function SettingsTabs({
           {shown === "notifications" && (
             <div className="space-y-6">
               <PhonePushCard />
+              <TelegramSettings operator={user.operator} />
               <NotificationSettings />
             </div>
           )}

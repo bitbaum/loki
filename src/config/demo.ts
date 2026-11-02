@@ -135,6 +135,9 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   // The notify gateway: reaches the owner's phone and, for voice notes, a paid
   // voice API. The box and OpenClaw call it with their own tokens.
   ["/api/notify", "outbound"],
+  // Links a Telegram chat and sends to it: the shared demo account must not
+  // connect a visitor's Telegram, and the webhook is Telegram's, not a visitor's.
+  ["/api/telegram", "outbound"],
   ["/api/terminal", "terminal"],
   ["/api/command", "terminal"],
 

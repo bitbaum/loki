@@ -73,6 +73,49 @@ pointing, a voice walk, "Fix it now" — exactly as it does today. The two
 cases are different because the clicking hand is different, and each gets
 the browser that is honest for it.
 
+### Watching Loki use the site
+
+The first look at someone else's version of this (a live picture of a bot's
+browser on a phone, 2026-11-02) showed what not to do: a desktop page
+shrunk to unreadable text, a dark void above it, and no sense of what the
+bot meant to do. Loki's browser is watched like a friend using a page
+(`components/inspection/RobotBrowser.tsx`, the same view on the workbench
+and on Review):
+
+- **The press is drawn.** Before every press the worker records where it
+  lands (`ReviewFrame.target`, the element's box in the viewport's pixels;
+  optional, so older frames still play). The page draws Loki's pointer
+  there and lights the pressed thing with a ring that arrives like a tap.
+  Between frames the pointer glides; at rest it stays, dimmed, and no ring
+  is lit — a ring means a press happening now.
+- **Never a void, always readable.** One pure rule places the picture
+  (`lib/inspection/robot-view.ts` `viewOf`, tested in
+  `scripts/test/robot-view.ts`): a tall column is filled to its height
+  with a desktop page cropped at the sides; a phone page stands like a
+  phone; a page too small to read leans in; and it slides so the press
+  sits as near the middle as the page's edges allow.
+- **One sentence says what is happening**, in the frame's title bar
+  ("Following Get started"), read aloud to screen readers as it changes.
+- **An ending.** A walk that finishes while you watch says so warmly — a
+  check that draws itself, "All done. Loki looked at 3 pages and found 2
+  things worth fixing.", one button to see them — and stays until closed
+  (`RobotEnding`). Nothing found is said as the good news it is.
+- **It follows the latest walk**, so one started after the page opened
+  appears too: every 5 seconds while walking, every 20 at rest.
+- **The first walk is one tap.** Before Loki has looked at a site, the
+  site region offers "Let Loki try it" (`WorkbenchSiteStart`, the "Design
+  and usability" review, every page on phone and desktop), with "Or open
+  it yourself" beside it. The same tap hands the work to the project's
+  agent, so both columns wake together. While the walk waits for a
+  builder it says so ("Waiting for Loki's builder…"), and only says
+  "Loki is opening …" once one has it — waiting in line is not opening.
+- **Measured.** The workbench reports to usage as `projects.workbench`:
+  shown, and which of its few actions were used (try-it, open-site,
+  robot-window, site-screen, fullscreen), never URLs or text — so whether
+  one screen holds what people came for is a reading, not a guess.
+- **Calm by request.** Every glide, ring and breath stops under
+  `prefers-reduced-motion`.
+
 Everything flows through the server, which is the hub it already was: the
 site's widget → server (notes, walks, "Fix it now" become runs), the
 runner → server (the run, the track), the review worker → server

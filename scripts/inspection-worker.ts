@@ -215,7 +215,7 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
       });
       findings++;
     };
-    const frame = async (action: string, analyze: boolean) => {
+    const frame = async (action: string, analyze: boolean, target?: ReviewFrame["target"]) => {
       await checkpoint();
       const page = livePage();
       const viewport = page.viewportSize()!;
@@ -229,6 +229,7 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
         height: viewport.height,
         scrollY: await page.evaluate(() => window.scrollY),
         action,
+        ...(target ? { target } : {}),
         ...(queue[cursor + 1] ? { next: new URL(queue[cursor + 1]!).pathname.slice(0, 200) } : {}),
         progress: { done: visited.size - 1, total: Math.min(queue.length, plan.limits.pages) },
       };
@@ -271,9 +272,13 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
                 (el as HTMLElement).style.outline = "3px solid #ff5c00";
                 el.scrollIntoView({ block: "center" });
               });
+              // Where the press lands, in viewport pixels — the frame's own —
+              // so the page can show the pointer going there.
+              const box = await candidate.boundingBox().catch(() => null);
               await frame(
                 `Following ${(await candidate.innerText().then((t) => t.slice(0, 70))) || "a page link"}`,
                 false,
+                box ?? undefined,
               );
               await checkpoint();
               await candidate.click({ timeout: 5000, noWaitAfter: true });

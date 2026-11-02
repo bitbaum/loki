@@ -79,6 +79,8 @@ const GUARDS = [
  * nobody re-examined.
  */
 const PUBLIC: Record<string, string> = {
+  "telegram/webhook":
+    "Telegram calls it for Loki's notification bot; it refuses any request without Telegram's secret-token header (webhookSecret, derived from AUTH_SECRET), compared in constant time.",
   "studio-intake":
     "Public write-only Bitbaum brief intake. Fixed contract chooses the owner; strict input, exact origin and rate limit. No read capability returned beyond the caller-created request.",
   "studio-partners":

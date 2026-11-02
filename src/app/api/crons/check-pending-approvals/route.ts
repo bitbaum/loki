@@ -47,7 +47,7 @@ import {
 } from "@/db/queries/alerts";
 import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
 import { isEventSlotPassed, resolveEventTimes } from "@/lib/actions/calendar-event";
-import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 import { APP_URL } from "@/config/brand";
 import { actionEditUrl, actionLinkUrl } from "@/lib/actions/action-link";
@@ -136,8 +136,7 @@ export async function GET(req: NextRequest) {
       raised++;
       // Out-of-band ping only when the flag goes up. The operator is usually
       // not looking at the app — that is the entire failure this fixes.
-      const tg = selfTelegramTarget();
-      if (tg) {
+      {
         // The digest stays a digest (one message per episode, never per draft),
         // but it no longer ends in a chore. When the backlog is a SINGLE item,
         // the decision itself rides along as buttons — the common case by far,
@@ -165,13 +164,16 @@ export async function GET(req: NextRequest) {
               ]
             : [[{ text: `📋 Review ${s.pending} items`, url: `${APP_URL}/approvals` }]];
 
-        const sent = await sendTelegramMessage(
-          tg,
-          `🕐 Loki: ${s.pending} ${noun} waiting for your approval.\n` +
+        const sent = await notifyPerson(s.userId, {
+          source: "approvals",
+          category: "decisions",
+          text:
+            `🕐 ${s.pending} ${noun} waiting for your approval.\n` +
             `Oldest: "${s.oldestTitle}" (${waited}).\n` +
             `Nothing runs until you decide.`,
-          { buttons },
-        );
+          buttons,
+          key: `approvals-waiting:${s.oldestId}`,
+        });
         if (sent.ok) pinged++;
       }
     }

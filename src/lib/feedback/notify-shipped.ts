@@ -23,8 +23,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { entities } from "@/db/schema";
-import { sendTelegramMessage } from "@/lib/actions/telegram-send";
-import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 import { pushToUser } from "@/lib/push-fanout";
 import { PUSH_TAG_PREFIX } from "@/config/brand-storage";
@@ -84,8 +83,7 @@ export async function notifyFixShipped(input: {
         : `${byFleet ? "Merged automatically and deployed" : "Merged and deployed"}. Watch the fix and confirm: ${what}`
       : `${input.fix.deploy?.name ?? "The deploy"} failed on the merge commit, so the site still shows the old version. ${what}`;
 
-    const telegram = await telegramTargetFor(input.userId);
-    const [pushResult] = await Promise.all([
+    const [pushResult, telegram] = await Promise.all([
       pushToUser(input.userId, {
         title,
         body,
@@ -93,8 +91,6 @@ export async function notifyFixShipped(input: {
         tag: `${PUSH_TAG_PREFIX}fix-${input.projectId}`,
       }),
       (async () => {
-        const target = telegram;
-        if (!target) return;
         const lines = [
           live
             ? `✅ ${projectName}: a fix is live${byFleet ? " (merged automatically)" : ""}.`
@@ -109,9 +105,13 @@ export async function notifyFixShipped(input: {
               url: input.fix.deploy?.url ?? `${APP_URL}${inboxPath}`,
             };
         const pr = input.fix.pr ? [{ text: "Pull request", url: input.fix.pr.url }] : [];
-        await sendTelegramMessage(target, lines.join("\n"), { buttons: [[primary, ...pr]] }).catch(
-          () => undefined,
-        );
+        return notifyPerson(input.userId, {
+          source: "fixes",
+          category: "results",
+          text: lines.join("\n"),
+          buttons: [[primary, ...pr]],
+          key: `fix:${input.projectId}:${input.fix.pr?.url ?? title}`,
+        }).catch(() => ({ ok: false as const }));
       })(),
       refreshOrInsertActiveAlert({
         userId: input.userId,
@@ -124,7 +124,7 @@ export async function notifyFixShipped(input: {
 
     // Same contract as the other two notifiers: an announcement that reached
     // NOBODY is a product failure worth a log line, not a silent no-op.
-    if (pushResult.sent === 0 && !telegram) {
+    if (pushResult.sent === 0 && !telegram.ok) {
       void logDebug({
         source: "feedback/notify-shipped",
         level: "warn",

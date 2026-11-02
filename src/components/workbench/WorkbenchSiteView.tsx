@@ -1,29 +1,35 @@
 "use client";
 
-import { Globe } from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
+import { Globe } from "lucide-react";
+import { RobotBrowser } from "@/components/inspection/RobotBrowser";
+import { RobotEnding } from "@/components/inspection/RobotEnding";
 import { useFetch } from "@/hooks/use-fetch";
 import { WORKBENCH_POLL_MS } from "@/config/workbench";
 import { WorkbenchFrame } from "./WorkbenchFrame";
+import { WorkbenchSiteStart } from "./WorkbenchSiteStart";
 import { REVIEW_WALKING, type WorkbenchReview, type WorkbenchSite } from "./workbench-types";
 
-/* eslint-disable @next/next/no-img-element -- Loki's own browser evidence, already-encoded JPEG served by this app; it must not pass through a public image optimizer. */
+/** While Loki rests, ask now and then whether a new walk began. */
+const RESTING_POLL_MS = 20_000;
 
 /**
  * The site, as Loki's browser sees it.
  *
  * Every fleet site forbids being framed, so the site cannot be shown live
  * inside Loki — but Loki's OWN browser on the box can be: the review worker
- * walks the site, clicks, and keeps one frame per action with the action
- * named (lib/inspection). While it walks, this frame shows the walk, frame
- * by frame — the robot using the site, which no window of yours can show.
- * When it rests, it shows the last look it took. A tap on the picture opens
- * the real site in its own window, where you use it yourself and the widget
- * does the watching.
+ * walks the site, presses, and keeps a frame per step with the step named
+ * and, for a press, where it lands (lib/inspection). While it walks, you
+ * watch it: its pointer glides to each press and the view leans in to keep
+ * it readable (RobotBrowser). When it finishes while you watch, it says so
+ * warmly, and what it found (RobotEnding). At rest, its last look. A tap
+ * opens the real site in its own window, where you use it yourself and the
+ * widget does the watching. Before Loki has looked at all, it offers the
+ * walk itself — "Let Loki try it" (WorkbenchSiteStart).
  *
- * The bar is the site's address and what Loki is doing there, like a
- * browser's own tab; the body is the page. With no look yet, the body is
- * the address alone, waiting for a tap — never a sentence apologising.
+ * It follows the project's LATEST review, so a walk started after this
+ * page opened appears here too: briskly while walking, now and then at rest.
  */
 export function WorkbenchSiteView({
   projectId,
@@ -36,14 +42,24 @@ export function WorkbenchSiteView({
   initialReview: WorkbenchReview | null;
   onOpenSite: () => void;
 }) {
-  const walkingAtStart = initialReview ? REVIEW_WALKING.has(initialReview.status) : false;
-  const { data } = useFetch<{ review: WorkbenchReview }>(
-    walkingAtStart && initialReview ? `/api/reviews/${initialReview.id}` : null,
-    { intervalMs: WORKBENCH_POLL_MS },
+  const [walkingSeen, setWalkingSeen] = useState(
+    initialReview ? REVIEW_WALKING.has(initialReview.status) : false,
   );
-  const review = data?.review ?? initialReview;
+  const { data, refetch } = useFetch<{ review: WorkbenchReview | null }>(
+    site ? `/api/projects/${encodeURIComponent(projectId)}/reviews` : null,
+    { intervalMs: walkingSeen ? WORKBENCH_POLL_MS : RESTING_POLL_MS },
+  );
+  const review = data ? data.review : initialReview;
   const walking = review ? REVIEW_WALKING.has(review.status) : false;
+  // A walk that ends while someone watches earns an ending; one that ended
+  // before they came is simply the last look.
+  const [endedWhileWatching, setEnded] = useState<string | null>(null);
+  if (walking !== walkingSeen) {
+    setWalkingSeen(walking);
+    if (!walking && review?.status === "finished") setEnded(review.id);
+  }
   const frame = review?.frame ?? null;
+  const reviewHref = `/projects/${encodeURIComponent(projectId)}/review`;
 
   if (!site)
     return (
@@ -58,7 +74,7 @@ export function WorkbenchSiteView({
   const host = hostOf(site.url);
   const doing = frame
     ? walking
-      ? `Loki is using it: ${frame.action || pathOf(frame.url)}`
+      ? frame.action || `Loki is on ${pathOf(frame.url)}`
       : `Loki's last look: ${pathOf(frame.url)}`
     : site.kind === "preview"
       ? "Preview"
@@ -70,39 +86,48 @@ export function WorkbenchSiteView({
       title={
         <>
           <span className="text-text-primary">{host}</span>
-          <span className="text-text-muted"> · {doing}</span>
+          <span className="text-text-muted" aria-live="polite">
+            {" "}
+            · {doing}
+          </span>
         </>
       }
       aside={
-        <Link
-          href={`/projects/${encodeURIComponent(projectId)}/review`}
-          className="ui-link shrink-0 text-sm"
-        >
+        <Link href={reviewHref} className="ui-link shrink-0 text-sm">
           {walking ? "Follow" : "Review it"}
         </Link>
       }
     >
-      <button
-        type="button"
-        className="ui-workbench-site-page"
-        onClick={onOpenSite}
-        title={site.kind === "preview" ? "Open the preview" : "Open the site"}
-      >
+      <div className="relative flex min-h-0 flex-1">
         {frame ? (
-          <img
-            src={frame.image}
-            width={frame.width}
-            height={frame.height}
-            alt={`Loki's browser on ${frame.url}`}
+          <RobotBrowser
+            frame={frame}
+            live={walking}
+            fit="contain"
+            onOpen={onOpenSite}
+            label={`Loki's browser on ${host}`}
           />
         ) : (
-          <span className="ui-workbench-site-rest">
-            <Globe className="h-7 w-7" aria-hidden="true" />
-            <span className="text-text-primary">{host}</span>
-            <span className="text-text-muted">Tap to open</span>
-          </span>
+          <WorkbenchSiteStart
+            projectId={projectId}
+            host={host}
+            starting={walking ? (review?.status === "queued" ? "queued" : "opening") : null}
+            onStarted={() => {
+              setWalkingSeen(true);
+              refetch();
+            }}
+            onOpenSite={onOpenSite}
+          />
         )}
-      </button>
+        {review && endedWhileWatching === review.id && (
+          <RobotEnding
+            coverage={review.coverage}
+            findings={review.findingCount}
+            reviewHref={reviewHref}
+            onClose={() => setEnded(null)}
+          />
+        )}
+      </div>
     </WorkbenchFrame>
   );
 }
