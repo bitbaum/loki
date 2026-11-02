@@ -35,8 +35,8 @@ importers:
         specifier: ^0.23.1
         version: 0.23.1(f29ed1a3fe0155c615a3ac09d7e8240f)
       '@bitbaum/ai-kit':
-        specifier: ^1.23.0
-        version: 1.23.0(react@19.3.1)
+        specifier: ^1.24.0
+        version: 1.24.0(react@19.3.1)
       '@bitbaum/chatkit':
         specifier: ^0.22.1
         version: 0.22.1(react@19.3.1)
@@ -171,8 +171,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@bitbaum/design-tokens':
-        specifier: 1.2.0
-        version: 1.2.0
+        specifier: github:bitbaum/design-tokens#2b440563754018ba4e9d5273ca56cf1f9d0bde11
+        version: https://codeload.github.com/bitbaum/design-tokens/tar.gz/2b440563754018ba4e9d5273ca56cf1f9d0bde11
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
@@ -562,8 +562,8 @@ packages:
       next:
         optional: true
 
-  '@bitbaum/ai-kit@1.23.0':
-    resolution: {integrity: sha512-PFSdiWYJ3TMsXPlV11yZEMoZBELNvxT39s0EITYX8nJTS3d8PIjitHWNWTbmvpPA1QwEg2L0/WSlsa4tN3wqfg==}
+  '@bitbaum/ai-kit@1.24.0':
+    resolution: {integrity: sha512-fP5PFQijF+XWi8lT8zJEFJfC/Y6/SvzCT/nw04EvI+jXhVDdKdoPq5KKiGlFqR/SvkwiBJLCW35xiKkFysj3dw==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
@@ -578,9 +578,11 @@ packages:
     peerDependencies:
       react: '>=18'
 
-  '@bitbaum/design-tokens@1.2.0':
-    resolution: {integrity: sha512-13TSrgYbEzSqt5FNfW3HSJIFcenUto8nKlk4J4IUsepL0gsTBoZ0YDMiJTaJKmR8sPPmcCS94Z/xgUBQW43itw==}
+  '@bitbaum/design-tokens@https://codeload.github.com/bitbaum/design-tokens/tar.gz/2b440563754018ba4e9d5273ca56cf1f9d0bde11':
+    resolution: {gitHosted: true, integrity: sha512-gpRSiKv53UjyPHTmvECkkUWShx8gBebS6YSZyxmsoSLYXM19ORLpG0VrVu/fN29XRXrDKpHCbSc00QAKLw7LJA==, tarball: https://codeload.github.com/bitbaum/design-tokens/tar.gz/2b440563754018ba4e9d5273ca56cf1f9d0bde11}
+    version: 1.3.0
     engines: {node: '>=20'}
+    hasBin: true
 
   '@bitbaum/listkit@0.2.2':
     resolution: {integrity: sha512-MS7SpPodTaxXYccXW565M3sIYaDCHSpWFlJB77FdkE/fM7uktxn0u25p0BSWC97i4U6uCqPedYVt1xV34sGXnQ==}
@@ -5989,7 +5991,7 @@ snapshots:
       drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
       next: 16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
-  '@bitbaum/ai-kit@1.23.0(react@19.3.1)':
+  '@bitbaum/ai-kit@1.24.0(react@19.3.1)':
     dependencies:
       '@mozilla/readability': 0.6.0
       ai-forms: 0.1.3(react@19.3.1)
@@ -6004,7 +6006,7 @@ snapshots:
       pdfjs-dist: 6.4.299
       react: 19.3.1
 
-  '@bitbaum/design-tokens@1.2.0': {}
+  '@bitbaum/design-tokens@https://codeload.github.com/bitbaum/design-tokens/tar.gz/2b440563754018ba4e9d5273ca56cf1f9d0bde11': {}
 
   '@bitbaum/listkit@0.2.2': {}
 

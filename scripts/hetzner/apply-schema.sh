@@ -180,17 +180,30 @@ if [ -n "${APPLY_SCHEMA_LIB_ONLY:-}" ]; then return 0; fi
 #   packages/database/drizzle      kivvi (monorepo)
 #   <app_dir>/drizzle              vitareba, petvity, surf-your-life (root apps)
 #   <app_dir>/src/lib/db/migrations  revamp-info
+#
+# ONLY_LAYOUT (drizzle | supabase) restricts the probe to one layout. An app
+# with a supabase schema AND an accounts database (accounts-db.conf) carries
+# both drizzle/ and supabase/migrations; deploy.sh calls this twice, and each
+# call must find only its own directory. A `supabase:<schema>` db never takes
+# drizzle/: those migrations belong to the accounts database, and applying
+# them inside the supabase-db container would put the tables where the app
+# cannot reach them.
+ONLY_LAYOUT="${ONLY_LAYOUT:-}"
+[ -n "${DECLARED_SUPABASE:-}" ] && ONLY_LAYOUT=supabase
+case "$ONLY_LAYOUT" in ""|drizzle|supabase) ;; *) echo "[schema] $NAME: ONLY_LAYOUT must be drizzle or supabase"; exit 1 ;; esac
 shopt -s nullglob
 MIG_DIR=""
-while IFS= read -r cand; do
-  probe=("$cand"/[0-9]*.sql)
-  [ "${#probe[@]}" -gt 0 ] && { MIG_DIR="$cand"; break; }
-done < <(migration_dirs drizzle "$REPO" "$APP_DIR")
+if [ "$ONLY_LAYOUT" != supabase ]; then
+  while IFS= read -r cand; do
+    probe=("$cand"/[0-9]*.sql)
+    [ "${#probe[@]}" -gt 0 ] && { MIG_DIR="$cand"; break; }
+  done < <(migration_dirs drizzle "$REPO" "$APP_DIR")
+fi
 # Prisma apps: no drizzle dir, but prisma/migrations exists → use Prisma's own
 # forward-only applier (its _prisma_migrations history table, native guardrails).
 # Needs DATABASE_URL (deploy.sh calls us with it tunneled to the box); a
 # standalone invocation without it skips with a warning rather than guessing.
-if [ -z "$MIG_DIR" ] && [ -d "$(migration_dirs prisma "$REPO" "$APP_DIR")" ]; then
+if [ -z "$MIG_DIR" ] && [ -z "$ONLY_LAYOUT" ] && [ -d "$(migration_dirs prisma "$REPO" "$APP_DIR")" ]; then
   if [ -z "${DATABASE_URL:-}" ]; then
     echo "[schema] $NAME: prisma app but DATABASE_URL unset (standalone run?) — skipping"
     exit 0
@@ -220,7 +233,7 @@ fi
 # transactional batch, over `docker exec` instead of host psql.
 SQL_TARGET="${DECLARED_SUPABASE:+supabase}"
 SQL_TARGET="${SQL_TARGET:-host}"
-if [ -z "$MIG_DIR" ]; then
+if [ -z "$MIG_DIR" ] && [ "$ONLY_LAYOUT" != drizzle ]; then
   while IFS= read -r cand; do
     probe=("$cand"/[0-9]*.sql)
     [ "${#probe[@]}" -gt 0 ] && { MIG_DIR="$cand"; SQL_TARGET="supabase"; break; }

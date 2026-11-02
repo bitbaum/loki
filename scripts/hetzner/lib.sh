@@ -12,6 +12,15 @@ BOX="$BOX_UBUNTU"
 # never been committed. CI still judges the working tree, which is correct
 # there — in CI the working tree IS the commit under review.
 MANIFEST="${MANIFEST:-$HERE/apps.conf}"
+# Accounts databases beside a supabase schema (accounts-db.conf): app|database.
+ACCOUNTS_DB_REGISTER="${ACCOUNTS_DB_REGISTER:-$HERE/accounts-db.conf}"
+
+# accounts_db_of <app> — the host accounts database registered for <app>, or
+# nothing. Never fails: an app with no row has none.
+accounts_db_of() {
+  [ -f "$ACCOUNTS_DB_REGISTER" ] || return 0
+  grep -v '^#' "$ACCOUNTS_DB_REGISTER" | awk -F'|' -v a="$1" '$1 == a { print $2; exit }'
+}
 
 # default_branch [repo_dir] — the remote's default branch name, resolved not guessed.
 #

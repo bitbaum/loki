@@ -52,6 +52,10 @@ cat > /opt/backups/pg-backup.sh <<'SH'
 # exists — pushes encrypted snapshots off-box via restic.
 set -uo pipefail
 export LC_ALL=C
+# Every dump holds every row of a product (patients' and residents' data among
+# them): readable by root only, from its first byte. /opt/backups is 700, but
+# the files were 644 inside it (seen 2026-11-02: vitareba-…-023004.dump).
+umask 077
 STAMP="$(date +%Y%m%d-%H%M%S)"
 DEST=/opt/backups/pg
 KEEP_DAYS="${KEEP_DAYS:-14}"
