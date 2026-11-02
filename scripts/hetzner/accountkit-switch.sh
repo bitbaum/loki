@@ -381,8 +381,16 @@ mailtm() { curl -s --max-time 20 -H 'content-type: application/json' "$@"; }
 domain="$(mailtm https://api.mail.tm/domains | python3 -c 'import json,sys; print(json.load(sys.stdin)["hydra:member"][0]["domain"])')"
 RESET_EMAIL="accountkit-proof-$(openssl rand -hex 6)@$domain"
 inbox_password="$(openssl rand -hex 18)"
-inbox_id="$(mailtm -X POST https://api.mail.tm/accounts \
-  --data "{\"address\":\"$RESET_EMAIL\",\"password\":\"$inbox_password\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+# mail.tm limits how fast inboxes are made; several proofs at once wait their turn.
+inbox_id=""
+for wait in 0 5 10 20 40; do
+  sleep "$wait"
+  inbox_id="$(mailtm -X POST https://api.mail.tm/accounts \
+    --data "{\"address\":\"$RESET_EMAIL\",\"password\":\"$inbox_password\"}" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id", ""))' 2>/dev/null || true)"
+  [ -n "$inbox_id" ] && break
+done
+[ -n "$inbox_id" ] || { echo "reset: mail.tm made no inbox"; exit 1; }
 inbox_token="$(mailtm -X POST https://api.mail.tm/token \
   --data "{\"address\":\"$RESET_EMAIL\",\"password\":\"$inbox_password\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
 product_user=""

@@ -289,6 +289,36 @@ async function main(): Promise<number> {
       },
     ],
     [
+      "a GitHub link made under Auth.js is imported, so GitHub signs the same person in; its token stays Loki's",
+      async () => {
+        await raw`INSERT INTO accounts (user_id, type, provider, provider_account_id, access_token, scope)
+          VALUES (${PERSON}, 'oauth', 'github', '4242', 'gh-old', 'repo')`;
+        await importAccounts();
+        const [link] =
+          await raw`SELECT user_id, access_token FROM auth_accounts WHERE provider_id = 'github' AND account_id = '4242'`;
+        assert.deepEqual([link.user_id, link.access_token], [PERSON, null]);
+        const { ensureLokiUser } = await import("@/lib/auth/shared/accounts");
+        await ensureLokiUser({
+          userId: PERSON,
+          providerId: "github",
+          accountId: "4242",
+          tokens: {
+            accessToken: "gh-new",
+            refreshToken: null,
+            idToken: null,
+            accessTokenExpiresAt: null,
+            scope: "read:user,user:email,repo,workflow",
+          },
+        });
+        const [row] =
+          await raw`SELECT access_token, scope FROM accounts WHERE provider = 'github' AND provider_account_id = '4242'`;
+        assert.deepEqual(
+          [row.access_token, row.scope],
+          ["gh-new", "read:user,user:email,repo,workflow"],
+        );
+      },
+    ],
+    [
       "a person AccountKit creates itself gets a Loki row, a personal org, and no placeholder address",
       async () => {
         const { ensureLokiUser } = await import("@/lib/auth/shared/accounts");
@@ -313,19 +343,23 @@ async function main(): Promise<number> {
       },
     ],
     [
-      "GitHub, Google, X and the env owner key are not offered on this runtime",
+      "GitHub signs in through Loki's own app; Google, X and the env owner key are not offered on this runtime",
       async () => {
         process.env.GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_SECRET = "set";
+        process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_SECRET = "set";
         const enabled = getEnabledAuthProviders();
         assert.deepEqual(
           [enabled.github, enabled.google, enabled.x, enabled.localOwnerKeyTab],
-          [false, false, false, false],
+          [true, false, false, false],
         );
         assert.deepEqual(Object.keys(compat.providers()), [
+          "github",
           "email-password",
           "user-password",
           "local",
         ]);
+        delete process.env.GOOGLE_CLIENT_ID;
+        delete process.env.GOOGLE_CLIENT_SECRET;
         const res = await answer(request("/signin"));
         assert.equal(res.status, 302);
         delete process.env.GITHUB_CLIENT_ID;

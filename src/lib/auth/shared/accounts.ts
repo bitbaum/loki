@@ -2,10 +2,10 @@
  * A person AccountKit created itself (a first OrangeCat or bitbaum sign-in)
  * gets Loki's `users` row under the same id and their personal org, so every
  * Loki table can reference them. Linking OrangeCat to an existing person
- * records the actor id, as the Auth.js signIn event does, and OrangeCat's
- * tokens go to Loki's `accounts`, where publish, promote and the wallet read
- * them (AccountKit itself stores no provider token). Idempotent: AccountKit may
- * call this more than once for one person.
+ * records the actor id, as the Auth.js signIn event does. OrangeCat's and
+ * GitHub's tokens go to Loki's `accounts`, where publish, promote, the wallet
+ * and the GitHub features read them (AccountKit itself stores no provider
+ * token). Idempotent: AccountKit may call this more than once for one person.
  */
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { CreatedAccount } from "@bitbaum/accountkit/auth/server";
@@ -18,7 +18,7 @@ import { bootstrapAfterSignIn } from "../bootstrap";
 
 export async function ensureLokiUser(account: CreatedAccount): Promise<void> {
   await ensureRow(account);
-  await keepOrangecatTokens(account);
+  await keepProviderTokens(account);
 }
 
 async function ensureRow(account: CreatedAccount): Promise<void> {
@@ -63,12 +63,19 @@ async function ensureRow(account: CreatedAccount): Promise<void> {
   await bootstrapAfterSignIn({ id: account.userId, name: shared.name, email });
 }
 
+/** The Auth.js account type each provider whose token Loki acts with was stored under. */
+const TOKEN_PROVIDERS: Record<string, "oidc" | "oauth"> = {
+  [ORANGECAT_PROVIDER_ID]: "oidc",
+  github: "oauth",
+};
+
 /**
- * OrangeCat's token set, as the Auth.js adapter kept it. A refresh token is
+ * A provider's token set, as the Auth.js adapter kept it. A refresh token is
  * replaced, never blanked.
  */
-async function keepOrangecatTokens({ userId, providerId, accountId, tokens }: CreatedAccount) {
-  if (providerId !== ORANGECAT_PROVIDER_ID || !tokens?.accessToken) return;
+async function keepProviderTokens({ userId, providerId, accountId, tokens }: CreatedAccount) {
+  const type = TOKEN_PROVIDERS[providerId];
+  if (!type || !tokens?.accessToken) return;
   const expiresAt = tokens.accessTokenExpiresAt
     ? Math.floor(tokens.accessTokenExpiresAt.getTime() / 1000)
     : null;
@@ -76,8 +83,8 @@ async function keepOrangecatTokens({ userId, providerId, accountId, tokens }: Cr
     .insert(accounts)
     .values({
       userId,
-      type: "oidc",
-      provider: ORANGECAT_PROVIDER_ID,
+      type,
+      provider: providerId,
       providerAccountId: accountId,
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,

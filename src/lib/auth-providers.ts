@@ -67,13 +67,13 @@ export const PAUSED_PROVIDERS: Partial<Record<"github" | "google" | "x", string>
 };
 
 export function getEnabledAuthProviders(): EnabledAuthProviders {
-  // On the staged AccountKit runtime (AUTH_RUNTIME=accountkit) GitHub, Google
-  // and X are not mounted: AccountKit reaches them only through the bitbaum
-  // sign-in, and the owner key accepts only a stored hash there
-  // (docs/architecture/accountkit-migration.md).
+  // On AccountKit (AUTH_RUNTIME=accountkit) GitHub signs in through Loki's own
+  // GitHub app, as on Auth.js. Google and X are not mounted there (AccountKit
+  // reaches them only through the bitbaum sign-in), and the owner key accepts
+  // only a stored hash (docs/architecture/accountkit-migration.md).
   const shared = sharedRuntimeEnabled();
   return {
-    github: !shared && Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+    github: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
     google:
       !shared &&
       !PAUSED_PROVIDERS.google &&

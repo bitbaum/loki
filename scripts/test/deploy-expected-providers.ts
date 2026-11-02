@@ -58,6 +58,18 @@ ok(
   ]),
 );
 ok(
+  "AccountKit with Loki's own GitHub app: GitHub is expected",
+  same(
+    expectedAuthProviders({
+      AUTH_RUNTIME: "accountkit",
+      ...ORANGECAT,
+      GITHUB_CLIENT_ID: "loki",
+      GITHUB_CLIENT_SECRET: "set",
+    }),
+    ["github", "email-password", "orangecat"],
+  ),
+);
+ok(
   "AccountKit, shared sign-in without its secret: not expected",
   same(expectedAuthProviders({ AUTH_RUNTIME: "accountkit", ...SIGNIN, SIGNIN_CLIENT_SECRET: "" }), [
     "email-password",
