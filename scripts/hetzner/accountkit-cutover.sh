@@ -16,7 +16,9 @@
 #                                                      Nothing else: no table is emptied
 #   accountkit-cutover.sh <app> prove    <import.sql>  on a switched app with AccountKit's own
 #                                                      screens: sign up, sign out, a wrong
-#                                                      password refused, sign in, delete
+#                                                      password refused, sign in, the person's
+#                                                      own deletion refused (both keep
+#                                                      accounts), then the account deleted
 #
 # The imported-account proof never uses a person's password. Before the import
 # a throwaway legacy account at an `.invalid` address is written the way the
@@ -319,13 +321,19 @@ prove_journey() {
   r="$(ak "$jar" /sign-in/email "{\"email\":\"$SIGNUP_EMAIL\",\"password\":\"$SIGNUP_PASSWORD\"}")"
   [ "$(status_of "$r")" = 200 ] && session_has "$jar" "$SIGNUP_EMAIL" || { rm -f "$jar"; fail "signing in again was refused"; return 1; }
   echo "journey: signed in with the right password"
+  # Both products keep accounts (accountDeletion: false): a person asks, an
+  # admin acts. So the person's own deletion must be refused with the account
+  # intact, and the throwaway account is then removed here, from both tables.
   r="$(ak "$jar" /delete-user "{\"password\":\"$SIGNUP_PASSWORD\"}")"
-  [ "$(status_of "$r")" = 200 ] || { rm -f "$jar"; fail "deleting the account was refused ($(status_of "$r"))"; return 1; }
-  ! session_has "$jar" "$SIGNUP_EMAIL" || { rm -f "$jar"; fail "deleting the account did not end its session"; return 1; }
+  [ "$(status_of "$r")" = 404 ] || { rm -f "$jar"; fail "self-service deletion was not refused ($(status_of "$r"))"; return 1; }
+  session_has "$jar" "$SIGNUP_EMAIL" || { rm -f "$jar"; fail "a refused deletion ended the session"; return 1; }
+  echo "journey: deleting one's own account is refused; the account and its session stay"
+  ak "$jar" /sign-out '{}' >/dev/null
+  proof_delete "$SIGNUP_EMAIL"
   [ "$(q -c "SELECT count(*) FROM $SHARED_USERS WHERE email = '$SIGNUP_EMAIL'")" = 0 ] && [ "$(product_rows "$SIGNUP_EMAIL")" = 0 ] \
-    || { rm -f "$jar"; fail "the deleted account left rows behind"; return 1; }
+    || { rm -f "$jar"; fail "the throwaway account left rows behind"; return 1; }
   rm -f "$jar"
-  echo "journey: deleted; no row of the person remains"
+  echo "journey: the throwaway account is deleted; no row of it remains"
 }
 
 rollback() {
