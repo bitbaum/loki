@@ -33,6 +33,8 @@ YML
   cat > "$T/bin/docker" <<SH
 #!/usr/bin/env bash
 v=\$(sed -nE 's/^GOTRUE_PASSKEY_ENABLED=//p' "$T/sb/.env" | tail -1)
+# "$T/slow": the server is unreadable for a few seconds after a restart.
+if [ -f "$T/slow" ]; then rm -f "$T/settings.json"; ( sleep 4; echo "{\"passkeys_enabled\":\${v:-false}}" > "$T/settings.json" ) & exit 0; fi
 echo "{\"passkeys_enabled\":\${v:-false}}" > "$T/settings.json"
 echo "\$*" >> "$T/docker.log"
 SH
@@ -46,7 +48,7 @@ out=$(run show); grep -q "auth service: auth (supabase/gotrue" <<<"$out" && ok "
 grep -q "passkeys_enabled (public settings): false" <<<"$out" && ok "show reads the public settings" || bad "show reads settings"
 
 run apply > "$T/out" 2>&1 && ok "apply succeeds" || { bad "apply succeeds"; cat "$T/out"; }
-for k in GOTRUE_PASSKEY_ENABLED=true GOTRUE_WEBAUTHN_RP_ID=orangecat.ch GOTRUE_WEBAUTHN_RP_DISPLAY_NAME=OrangeCat GOTRUE_WEBAUTHN_RP_ORIGINS=https://orangecat.ch; do
+for k in GOTRUE_PASSKEY_ENABLED=true GOTRUE_WEBAUTHN_RP_ID=orangecat.ch GOTRUE_WEBAUTHN_RP_DISPLAY_NAME=OrangeCat GOTRUE_WEBAUTHN_RP_ORIGINS=https://orangecat.ch,https://www.orangecat.ch; do
   [ "$(grep -c "^${k%%=*}=" "$T/sb/.env")" = 1 ] && grep -qx "$k" "$T/sb/.env" && ok ".env has $k once" || bad ".env has $k once"
 done
 auth=$(awk '/^  auth:/{on=1;next} on&&/^  [a-z]+:/{exit} on' "$T/sb/docker-compose.yml")
@@ -65,5 +67,9 @@ setup; echo GOTRUE_WEBAUTHN_RP_ID=supabase.orangecat.ch >> "$T/sb/.env"
 if run apply > "$T/out" 2>&1; then bad "refuses to move an RP id someone set"; else grep -q "stranded" "$T/out" && ok "refuses to move an RP id someone set" || bad "refusal reason"; fi
 grep -q "GOTRUE_PASSKEY_ENABLED" "$T/sb/docker-compose.yml" && bad "refusal changes nothing" || ok "refusal changes nothing"
 
+# The auth server restarting (settings unreadable for a moment) is waited out.
+setup; touch "$T/slow"
+run apply > "$T/out" 2>&1 && grep -q "✓ passkeys_enabled=true" "$T/out" && ok "a restarting server is waited out" || { bad "a restarting server is waited out"; cat "$T/out"; }
+rm -f "$T/slow"
 grep -q "anon-test" <(run show 2>&1) && bad "never prints a value from .env" || ok "never prints a value from .env"
 [ $fail = 0 ] && echo "✓ orangecat-passkeys tests passed" || { echo "✗ orangecat-passkeys tests failed"; exit 1; }
