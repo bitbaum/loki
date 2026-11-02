@@ -17,6 +17,9 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   column instead of shrinking, a phone page stands like a phone, and on a
   small screen the view leans in and slides so the press stays in sight.
   No dark empty band, no squinting.
+- **Let Loki try it.** {#robot-try} On the workbench, a site Loki hasn't
+  looked at yet offers one button: Loki opens it and uses it while you
+  watch, and its agent starts in the next column at the same moment.
 - **An ending.** {#robot-ending} When a walk finishes while you watch,
   Loki says so: "All done. Loki looked at 3 pages and found 2 things
   worth fixing." with one button to see them — or, when nothing needs you,

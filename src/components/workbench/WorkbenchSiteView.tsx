@@ -8,6 +8,7 @@ import { RobotEnding } from "@/components/inspection/RobotEnding";
 import { useFetch } from "@/hooks/use-fetch";
 import { WORKBENCH_POLL_MS } from "@/config/workbench";
 import { WorkbenchFrame } from "./WorkbenchFrame";
+import { WorkbenchSiteStart } from "./WorkbenchSiteStart";
 import { REVIEW_WALKING, type WorkbenchReview, type WorkbenchSite } from "./workbench-types";
 
 /** While Loki rests, ask now and then whether a new walk began. */
@@ -24,7 +25,8 @@ const RESTING_POLL_MS = 20_000;
  * it readable (RobotBrowser). When it finishes while you watch, it says so
  * warmly, and what it found (RobotEnding). At rest, its last look. A tap
  * opens the real site in its own window, where you use it yourself and the
- * widget does the watching.
+ * widget does the watching. Before Loki has looked at all, it offers the
+ * walk itself — "Let Loki try it" (WorkbenchSiteStart).
  *
  * It follows the project's LATEST review, so a walk started after this
  * page opened appears here too: briskly while walking, now and then at rest.
@@ -43,7 +45,7 @@ export function WorkbenchSiteView({
   const [walkingSeen, setWalkingSeen] = useState(
     initialReview ? REVIEW_WALKING.has(initialReview.status) : false,
   );
-  const { data } = useFetch<{ review: WorkbenchReview | null }>(
+  const { data, refetch } = useFetch<{ review: WorkbenchReview | null }>(
     site ? `/api/projects/${encodeURIComponent(projectId)}/reviews` : null,
     { intervalMs: walkingSeen ? WORKBENCH_POLL_MS : RESTING_POLL_MS },
   );
@@ -106,13 +108,16 @@ export function WorkbenchSiteView({
             label={`Loki's browser on ${host}`}
           />
         ) : (
-          <button type="button" className="ui-workbench-site-page" onClick={onOpenSite}>
-            <span className="ui-workbench-site-rest">
-              <Globe className="h-7 w-7" aria-hidden="true" />
-              <span className="text-text-primary">{host}</span>
-              <span className="text-text-muted">Tap to open</span>
-            </span>
-          </button>
+          <WorkbenchSiteStart
+            projectId={projectId}
+            host={host}
+            starting={walking ? (review?.status === "queued" ? "queued" : "opening") : null}
+            onStarted={() => {
+              setWalkingSeen(true);
+              refetch();
+            }}
+            onOpenSite={onOpenSite}
+          />
         )}
         {review && endedWhileWatching === review.id && (
           <RobotEnding
