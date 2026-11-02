@@ -39,7 +39,30 @@ bounded pass follows up to 40 discovered URLs, at 390px and 1440px, up to six
 viewport positions per page, for at most two hours. It reports unfinished
 coverage. This is not a claim to inspect an unknown site's every possible
 route, state, language, role or interactive flow. It does not provide continuous
-video, remote input, voice commentary or authenticated browser handoff.
+video, voice commentary or authenticated browser handoff.
+
+## Take over
+
+While a browser review runs, **Take over** gives the person the browser.
+Loki pauses at its next checkpoint; the person's clicks on the picture, wheel
+scrolls, typed text, Enter and Back reach the same page, and each one answers
+with a fresh picture of what it did (the screen polls faster while they
+drive). **Hand back to Loki** returns it: Loki goes back to the page and
+scroll position it was on, finishes that page so what it reports stays about
+the right page, then reviews the page the person left open before its own
+next one. The browser's limits do not change for the person: the same guard
+refuses every request that is not a read and every navigation off the site,
+so a button that would send a form sends nothing, and the screen says so.
+
+Inputs are data, never commands: a click is two coordinates inside the
+captured viewport, typing is at most 200 characters, a key is one of ten named
+keys (`REVIEW_INPUT_KEYS`). There is no input that carries a URL or a script.
+They wait in `site_reviews.control` (at most `REVIEW_INPUT_QUEUE` at once,
+added atomically while the person still holds the browser) and the worker
+takes them all at its next checkpoint in one statement, so none is lost or
+applied twice. While the person drives, the picture under the controls always
+says who has the browser; while Loki drives, it says what Loki is doing now,
+which page comes next and how many are done.
 
 ## Separation of responsibilities
 
@@ -74,7 +97,8 @@ snapshot also catches up the preview_code field already added by migration
 ## Verification
 
 - `scripts/test/inspection-worker-browser.ts`: real Chromium navigation at phone/desktop widths, scrolling, pause/resume, stop, image events and network guard rejection.
-- `scripts/test/inspection-workspace-browser.ts`: actual component and stylesheet at 320/390/768/1440px, both themes, scopes, discussion draft, pause/resume, fix handoff and no horizontal overflow.
+- `scripts/test/inspection-takeover-browser.ts`: real Chromium take over: a click opens the page the person chose, a form button sends nothing, hand-back returns Loki to its page and reviews the person's page next; refused input shapes.
+- `scripts/test/inspection-workspace-browser.ts`: actual component and stylesheet at 320/390/768/1440px, both themes, scopes, discussion draft, pause/resume, the "next · done" line, take over (a click on the scaled picture lands at the same page point; typing; back), hand back, fix handoff and no horizontal overflow.
 - `scripts/integration/site-review-db.ts`: disposable Postgres, tenant isolation, scoped tickets, exclusive claim, active uniqueness, pause races, private evidence links and atomic finding cap. Requires an explicitly named `*_test` database in TEST_DATABASE_URL. It creates minimal referenced tables; never use a production database.
 - Public matcher regression checks keep review feeds and screenshots private.
 

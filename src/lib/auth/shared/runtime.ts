@@ -41,8 +41,10 @@ export const sharedAuth = createAuthRuntime({
   // users.id is a uuid that every Loki table references.
   ids: "uuid",
   onAccountCreated: ensureLokiUser,
-  // GitHub through Loki's own app, with the grant "Start a new project" and
-  // the repository features act with (see the GitHub provider in src/auth.ts).
+  // GitHub signs in through Loki's own app, as it did on Auth.js (the owner
+  // chose to keep it, 2026-11-02), with the grant "Start a new project" and the
+  // repository features act with (see the GitHub provider in src/auth.ts).
+  githubSignIn: true,
   githubScopes: ["repo", "workflow"],
   // Loki's row and bootstrap after every new session, whatever the way in.
   plugins: [lokiSignInHook()],

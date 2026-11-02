@@ -19,9 +19,8 @@
  *   compat layer lists GitHub through Loki's own app (GITHUB_CLIENT_*,
  *   productGithubApp), the password form, and every OIDC client AccountKit
  *   mounts from env — `orangecat` with ORANGECAT_OAUTH_*, `bitbaum-signin`
- *   with SIGNIN_* (oidcClients). Google and X are not mounted there. Expecting GitHub there failed every deploy after the
- *   switch with "auth provider missing: github" and rolled back a good build;
- *   not expecting OrangeCat let it vanish unnoticed.
+ *   with SIGNIN_* (oidcClients). Google and X are not mounted there. Not
+ *   expecting what the runtime mounts let OrangeCat vanish unnoticed once.
  */
 import { oidcClients, productGithubApp } from "@bitbaum/accountkit/auth";
 import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
@@ -38,7 +37,8 @@ const CONFIGURED = [
 export function expectedAuthProviders(env: NodeJS.ProcessEnv = process.env): string[] {
   if (sharedRuntimeEnabled(env)) {
     return [
-      ...(productGithubApp(env) ? ["github"] : []),
+      // Loki opts its own GitHub app in (githubSignIn: true in its runtime).
+      ...(productGithubApp(env, true) ? ["github"] : []),
       "email-password",
       ...oidcClients(env).map((client) => client.providerId),
     ];

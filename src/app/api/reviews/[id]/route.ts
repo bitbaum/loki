@@ -10,8 +10,9 @@ import {
   reviewEvents,
   updateSiteReview,
   addReviewEvent,
+  queueReviewInput,
 } from "@/db/queries/site-reviews";
-import { reviewIsActive } from "@/lib/inspection/contract";
+import { ReviewInput, reviewIsActive } from "@/lib/inspection/contract";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
 import { callTextDetailed } from "@/lib/groq";
@@ -22,7 +23,8 @@ import { db } from "@/db";
 import { siteReviewEvents } from "@/db/schema/site-reviews";
 
 const Body = z.discriminatedUnion("action", [
-  z.object({ action: z.enum(["pause", "resume", "stop"]) }),
+  z.object({ action: z.enum(["pause", "resume", "stop", "takeover", "handback"]) }),
+  z.object({ action: z.literal("input"), input: ReviewInput }),
   z.object({ action: z.literal("discuss"), text: z.string().trim().min(1).max(4000) }),
   z.object({ action: z.literal("fix"), eventId: z.string().uuid() }),
 ]);
@@ -48,18 +50,51 @@ export async function POST(req: NextRequest, ctx: Context) {
   if (!row) return jsonError("Not found", 404);
   const body = await readJsonBody(req, Body);
   if (body instanceof NextResponse) return body;
-  if (body.action === "pause" || body.action === "resume" || body.action === "stop") {
+  if (body.action === "input") {
+    if (!checkRateLimit(`review-input:${userId}`, 240, 60000))
+      return jsonError("That was a lot at once. Wait a moment, then carry on.", 429);
+    if (row.control?.by !== "you") return jsonError("Take over first; Loki has the browser.", 409);
+    if (!(await queueReviewInput(row, body.input)))
+      return jsonError("The browser is catching up. Try again in a moment.", 429);
+    return jsonOk();
+  }
+  if (
+    body.action === "pause" ||
+    body.action === "resume" ||
+    body.action === "stop" ||
+    body.action === "takeover" ||
+    body.action === "handback"
+  ) {
     if (!reviewIsActive(row.status))
       return jsonError("This review has ended. Start another to inspect again.", 409);
+    // Take over pauses Loki and gives the person the browser; Hand back (or
+    // Resume) returns it, and Loki carries on from the page they left it on.
+    const toLoki = body.action === "resume" || body.action === "handback";
     const status =
-      body.action === "pause"
+      body.action === "pause" || body.action === "takeover"
         ? "paused"
-        : body.action === "resume"
+        : toLoki
           ? row.workerId
             ? "running"
             : "queued"
           : "stopped";
-    await updateSiteReview(row, { status });
+    const control =
+      body.action === "takeover"
+        ? { by: "you" as const, since: new Date().toISOString(), inputs: [] }
+        : body.action === "pause"
+          ? row.control
+          : null;
+    await updateSiteReview(row, { status, control });
+    if (body.action === "takeover")
+      await addReviewEvent(row, {
+        kind: "observation",
+        text: "You have the browser. Click, scroll or type on the page; Loki waits until you hand it back.",
+      });
+    if (body.action === "handback" && row.control?.by === "you")
+      await addReviewEvent(row, {
+        kind: "observation",
+        text: "You handed the browser back. Loki looks at the page you left open first, then carries on.",
+      });
     return jsonOk();
   }
   if (!checkRateLimit(`review-talk:${userId}`, 60, 3600000))

@@ -105,12 +105,14 @@ real import, then the rehearsal. That is not deployed evidence.
 
 GitHub signs in through Loki's own GitHub app, as it did on Auth.js:
 `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, at its existing callback
-`/api/auth/callback/github` (AccountKit 0.22, `productGithubApp`).
+`/api/auth/callback/github` (AccountKit 0.22, `productGithubApp`). It is
+opt-in since AccountKit 0.23 (`githubSignIn: true`), and the owner chose to keep
+it on 2026-11-02.
 `githubScopes` asks for `repo` and `workflow` beside the identity scopes, which
 are what "Start a new project" and the repository features act with.
 
 - A GitHub link made under Auth.js is recorded in AccountKit's table (the
-  import, and migration 0133 on the switched box), so GitHub signs that
+  import, and migration 0134 on the switched box), so GitHub signs that
   person in as themselves.
 - A signed-in person who presses GitHub links it to their account. That is
   "Connect GitHub".
@@ -129,6 +131,14 @@ OrangeCat.
 
 An `ENABLE_OWNER_KEY` install that relies only on `LOCAL_AUTH_PASSWORD` (no
 stored hash) stays on Auth.js.
+
+AccountKit 0.23 can also sign people in through a product's own GitHub app,
+but only when the product asks for it (`githubSignIn: true` on
+`createAuthRuntime`, bitbaum/accountkit#61). Loki does not ask: its
+`GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are the app it acts on
+repositories with, not a way in. The journey "GitHub, Google, X and the env
+owner key are not offered on this runtime" (`scripts/test/accountkit-journeys.ts`)
+sets both variables and holds that.
 
 ## Switching (and back)
 

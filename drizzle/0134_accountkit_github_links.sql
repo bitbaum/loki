@@ -1,5 +1,5 @@
 -- GitHub signs people in on AccountKit through Loki's own GitHub app
--- (AccountKit 0.20, src/lib/auth/shared/runtime.ts). A person who linked
+-- (AccountKit 0.22, src/lib/auth/shared/runtime.ts). A person who linked
 -- GitHub under Auth.js must arrive as themselves, so their link is recorded
 -- in AccountKit's table as the import now does (scripts/db/accountkit-import.sql).
 -- Only where AccountKit holds the person: before a switch this copies nothing.
