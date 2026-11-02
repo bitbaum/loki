@@ -3,12 +3,15 @@ name: Provision analysis beta on studio box
 # A narrowly scoped, idempotent bootstrap through Loki's canonical
 # register-site.sh. No new deploy implementation, hardcoded port or manual
 # apps.conf row. CI on main must be green before touching the box.
+#
+# Manual only. biaslens was registered by this workflow on 2026-10-22 and has
+# deployed through its own deploy.yml (loki selfhost-deploy.yml, behind the
+# fleet rollout gate) ever since. Running this after every loki CI redeployed
+# biaslens out of band through the older deploy.sh path, which no longer finds
+# the runtime files it expects, so it failed on every main commit. Dispatch it
+# only to re-bootstrap a box that lost the app.
 on:
   workflow_dispatch: {}
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
 
 permissions:
   contents: read
@@ -19,11 +22,6 @@ concurrency:
 
 jobs:
   register:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
