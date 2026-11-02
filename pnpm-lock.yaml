@@ -32,11 +32,11 @@ importers:
         specifier: ^1.7.14
         version: 1.7.14(@better-auth/core@1.7.14(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(@opentelemetry/api@1.9.1)(better-call@1.4.4(zod@4.6.7))(jose@6.2.14)(kysely@0.29.7)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-auth@1.7.14(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(better-call@1.4.4(zod@4.6.7))(nanostores@1.5.5)
       '@bitbaum/accountkit':
-        specifier: ^0.23.0
-        version: 0.23.0(f29ed1a3fe0155c615a3ac09d7e8240f)
+        specifier: ^0.23.1
+        version: 0.23.1(f29ed1a3fe0155c615a3ac09d7e8240f)
       '@bitbaum/ai-kit':
-        specifier: ^1.22.0
-        version: 1.22.0(react@19.3.1)
+        specifier: ^1.23.0
+        version: 1.23.0(react@19.3.1)
       '@bitbaum/chatkit':
         specifier: ^0.22.1
         version: 0.22.1(react@19.3.1)
@@ -539,8 +539,8 @@ packages:
   '@better-fetch/fetch@1.3.3':
     resolution: {integrity: sha512-U6SlDt/GUWtK2JAxS/NhdoYTEim+EL1G5byz2TUj83KjLZBUpYzb5SmX0aXaCnbGkAjFKnV/o/0+cyXMbEcqqg==}
 
-  '@bitbaum/accountkit@0.23.0':
-    resolution: {integrity: sha512-22pEJo/6j1RkvibTlrGSjaonqSSgdu1amC2mRdtxkZEPOldZpLIdihcCYzpxRuUl9ZqlEiOSAK/DdkRcKePJ1w==}
+  '@bitbaum/accountkit@0.23.1':
+    resolution: {integrity: sha512-wElIAimG0u5mTtS54/04VAXJ81lvMhbuNxwxhl5NNVJIIkESJYlPcdew7UKVhTRvRM8wImJIyXMz7VxfeGKkxQ==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -562,8 +562,8 @@ packages:
       next:
         optional: true
 
-  '@bitbaum/ai-kit@1.22.0':
-    resolution: {integrity: sha512-IfebEXcs+mbpK0jrrGpSJg2WPWq0VKMDuKYRoB5yMni+uZ4wRWfKOwS+DlUmgDfWmVWMAQzXDbQSawANbHbeYg==}
+  '@bitbaum/ai-kit@1.23.0':
+    resolution: {integrity: sha512-PFSdiWYJ3TMsXPlV11yZEMoZBELNvxT39s0EITYX8nJTS3d8PIjitHWNWTbmvpPA1QwEg2L0/WSlsa4tN3wqfg==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
@@ -5977,7 +5977,7 @@ snapshots:
 
   '@better-fetch/fetch@1.3.3': {}
 
-  '@bitbaum/accountkit@0.23.0(f29ed1a3fe0155c615a3ac09d7e8240f)':
+  '@bitbaum/accountkit@0.23.1(f29ed1a3fe0155c615a3ac09d7e8240f)':
     dependencies:
       limitkit: 0.2.1
       react: 19.3.1
@@ -5989,7 +5989,7 @@ snapshots:
       drizzle-orm: 0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
       next: 16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
-  '@bitbaum/ai-kit@1.22.0(react@19.3.1)':
+  '@bitbaum/ai-kit@1.23.0(react@19.3.1)':
     dependencies:
       '@mozilla/readability': 0.6.0
       ai-forms: 0.1.3(react@19.3.1)
