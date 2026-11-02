@@ -1,0 +1,67 @@
+name: AccountKit import (supabase apps)
+# Moves the people of an app that signed in against OrangeCat's GoTrue
+# (auth.users) onto AccountKit in its host accounts database
+# (scripts/hetzner/accounts-db.conf), from GitHub, over the deploy's SSH.
+# scripts/hetzner/accountkit-supabase.sh is the rules:
+#   survey   — counts only: people who own rows, how many have an OrangeCat
+#              actor, what the accounts database holds; changes nothing;
+#   rehearse — the app's import in one transaction that always rolls back;
+#              counts only;
+#   import   — the same import, committed. Each person gets an AccountKit
+#              account under their old user id, linked to OrangeCat by actor
+#              id (never by an address).
+# Nothing here empties a table: the rollback for an app is reverting its pull
+# request. This repo is public, so this log is too: counts and verdicts only.
+#
+#   gh workflow run accountkit-supabase.yml -f app=printcraft -f action=survey
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "App (a row in scripts/hetzner/accounts-db.conf)"
+        required: true
+        type: choice
+        options: [printcraft, botsmann]
+      action:
+        description: "survey (read only), rehearse (always rolled back), or import"
+        required: true
+        default: survey
+        type: choice
+        options: [survey, rehearse, import]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accountkit-supabase-${{ inputs.app }}
+  cancel-in-progress: false
+
+jobs:
+  accountkit-supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+      # The app's own SQL, from its default branch: the files its CI rehearses.
+      - uses: actions/checkout@v7
+        with:
+          repository: bitbaum/${{ inputs.app }}
+          token: ${{ secrets.FLEET_PAT }}
+          path: product
+          sparse-checkout: scripts/db
+      - name: SSH setup
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: ${{ inputs.action }} ${{ inputs.app }}
+        env:
+          APP: ${{ inputs.app }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          bash scripts/hetzner/accountkit-supabase.sh "$APP" "$ACTION" \
+            product/scripts/db/accountkit-people.sql product/scripts/db/accountkit-import.sql

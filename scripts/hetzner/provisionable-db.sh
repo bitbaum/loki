@@ -10,7 +10,8 @@
 #   - the app must have an apps.conf row;
 #   - its `db` column must be a HOST database name — not '-' (no database) and
 #     not `supabase:<schema>` (that lives in the supabase-db container, which
-#     this script does not touch);
+#     this script does not touch), unless accounts-db.conf gives that app a
+#     host accounts database beside its schema: then that one is provisioned;
 #   - that name must be the one the script derives from the slug. A row like
 #     `revamp-info|…|hirnli` is provisioned under another name; running the
 #     script for it would make a second, empty `revamp_info` database next to
@@ -30,7 +31,14 @@ app_lookup "$APP" || exit 1
 
 case "$DB" in
   ""|-)       echo "$APP has no database in apps.conf (db column '-'); nothing to provision" >&2; exit 1 ;;
-  supabase:*) echo "$APP lives in the supabase-db container ($DB); provision-db-on-box.sh is for host databases only" >&2; exit 1 ;;
+  supabase:*)
+    # Its data stays in the supabase-db container. A row in accounts-db.conf
+    # gives it a host database for its accounts beside that schema; without
+    # one there is nothing here to provision.
+    accounts="$(accounts_db_of "$APP")"
+    [ -n "$accounts" ] || {
+      echo "$APP lives in the supabase-db container ($DB) and has no accounts database in accounts-db.conf; provision-db-on-box.sh is for host databases only" >&2; exit 1; }
+    DB="$accounts" ;;
 esac
 [[ "$DB" =~ ^[a-z][a-z0-9_]{0,62}$ ]] || {
   echo "$APP's db column '$DB' is not a plain host database name" >&2; exit 1; }
