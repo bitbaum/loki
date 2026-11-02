@@ -40,7 +40,9 @@ declare -A WANT=(
   [GOTRUE_PASSKEY_ENABLED]=true
   [GOTRUE_WEBAUTHN_RP_ID]=orangecat.ch
   [GOTRUE_WEBAUTHN_RP_DISPLAY_NAME]=OrangeCat
-  [GOTRUE_WEBAUTHN_RP_ORIGINS]=https://orangecat.ch
+  # www.orangecat.ch serves the site too (200, no redirect, 2026-11-02), and a
+  # ceremony there needs its origin listed; the RP id covers the subdomain.
+  [GOTRUE_WEBAUTHN_RP_ORIGINS]=https://orangecat.ch,https://www.orangecat.ch
 )
 
 die() { echo "✗ $*" >&2; exit 1; }
@@ -70,8 +72,11 @@ passkeys_enabled() {
   local key
   key=$($SUDO sed -nE 's/^ANON_KEY=["'\'']?([^"'\'']+).*/\1/p' "$ENV_FILE" | head -1)
   [ -n "$key" ] || { echo "unknown"; return; }
-  curl -fsS -m 15 "$SETTINGS_URL" -H "apikey: $key" 2>/dev/null \
-    | sed -nE 's/.*"passkeys_enabled":(true|false).*/\1/p' | head -1
+  # A restarting auth server answers 5xx for a few seconds: that is "not yet",
+  # never a reason to stop (set -e and pipefail would otherwise end the run).
+  local body
+  body=$(curl -fsS -m 15 "$SETTINGS_URL" -H "apikey: $key" 2>/dev/null) || body=""
+  sed -nE 's/.*"passkeys_enabled":(true|false).*/\1/p' <<<"$body" | head -1
 }
 
 show() {
