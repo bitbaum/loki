@@ -15,7 +15,7 @@ assert.match(authShell, /cloneElement/);
 assert.match(authShell, /id=\{id\}/);
 
 assert.match(signIn, /<AuthInput\s+id="email"/);
-assert.match(signIn, /<AuthField label="Password" htmlFor="password">/);
+assert.match(signIn, /<AuthField label=\{L.password\} htmlFor="password">/);
 assert.match(signIn, /<AuthInput\s+id="owner-password"/);
 
 assert.match(onboarding, /<AuthField label="Username" htmlFor="onboarding-username">/);

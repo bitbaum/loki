@@ -25,6 +25,7 @@ import {
   signInWithPassword,
 } from "@/components/auth/SharedWaysIn";
 import Link from "next/link";
+import { DEFAULT_AUTH_LABELS as L } from "@bitbaum/accountkit/auth/react";
 
 type Mode = "email" | "owner";
 
@@ -148,7 +149,7 @@ function FormInner({
 
   return (
     <AuthShell>
-      <AuthHeading title={AUTH_COPY.signIn.title} />
+      <AuthHeading title={L.signIn} />
       {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signIn}</p>}
 
       {/* Mode tabs — only show owner key tab when LOCAL_AUTH_PASSWORD is configured */}
@@ -181,12 +182,12 @@ function FormInner({
                 <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} />
                 {passkeyEnabled && <PasskeyButton onSignedIn={signedIn} />}
               </div>
-              <AuthDivider label="or email" />
+              <AuthDivider label={L.orEmail} />
             </>
           )}
 
           <form onSubmit={handleEmailPassword} className="space-y-3">
-            <AuthField label="Email">
+            <AuthField label={L.email}>
               <AuthInput
                 id="email"
                 type="email"
@@ -197,41 +198,32 @@ function FormInner({
                 required
               />
             </AuthField>
-            <AuthField label="Password" htmlFor="password">
-              <div className="space-y-1">
-                <AuthInput
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  autoComplete="current-password"
-                  required
-                />
-                {/* ui-tap + inline-flex, not a bare inline link: this is a
-                    standalone row, and it measured 16px tall — the smallest
-                    real target on the whole signed-out surface, sitting one
-                    line above the password field people mistype into. */}
-                <div className="flex justify-end">
-                  <Link
-                    href={ROUTES.FORGOT_PASSWORD}
-                    className="ui-tap inline-flex items-center text-xs text-text-muted underline underline-offset-2 hover:text-text-secondary"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              </div>
+            <AuthField label={L.password} htmlFor="password">
+              <AuthInput
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
+                autoComplete="current-password"
+                required
+              />
             </AuthField>
             {error && <p className="ui-error">{error}</p>}
-            <AuthSubmitButton loading={loading} label="Sign in" loadingLabel="Signing in…" />
+            <AuthSubmitButton loading={loading} label={L.signIn} loadingLabel="Signing in…" />
             {magicLinkEnabled && <SignInLinkButton email={email} callbackUrl={safeCallback} />}
+            {/* AccountKit's order on every fleet app: password, the sign-in
+                link, then recovery, each a full-width quiet row (44px). */}
+            <Link href={ROUTES.FORGOT_PASSWORD} className="ui-auth-secondary-btn">
+              {L.recovery?.forgot ?? "Forgot your password?"}
+            </Link>
             <p className="ui-auth-hint">
-              No account?{" "}
+              {L.noAccount}{" "}
               <Link
                 href={keepCallback(ROUTES.SIGN_UP, safeCallback, ROUTES.APP_HOME)}
                 className="ui-auth-hint-link"
               >
-                Create one free →
+                {L.createAccount}
               </Link>
             </p>
           </form>
