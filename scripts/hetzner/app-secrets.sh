@@ -58,11 +58,13 @@
 #   bash scripts/hetzner/app-secrets.sh signin-on heidi   # or: signin-on all
 #
 # signin-on turns the shared sign-in's button on in an app (accountkit shows
-# "Continue with Google, Apple, GitHub, X or Facebook" once SIGNIN_ISSUER,
+# "Continue with <the providers Morulia publishes>" once SIGNIN_ISSUER,
 # SIGNIN_CLIENT_ID and SIGNIN_CLIENT_SECRET are all set). It adds the first
 # two beside the secret `ensure morulia` paired, and restarts the app. It
 # REFUSES while Morulia's /api/health lists no provider: a button that leads
-# to a page with no provider on it is worse than no button. The client id is
+# to a page with no provider on it is worse than no button. It also skips an
+# app whose AccountKit predates SIGNIN_MIN_ACCOUNTKIT, whose button would name
+# a fixed list of providers. Re-running is safe: what is set is kept. The client id is
 # read from the morulia pair rows below, so there is one list, not two.
 # Rolling back is a deliberate edit of the app's env, like any rotation.
 set -euo pipefail
@@ -141,6 +143,10 @@ signin_client_of() {  # never fails: no row prints nothing
   { grep -E "^morulia\|SIGNIN_CLIENT_SECRET_[A-Z0-9_]+\|pair:$1:SIGNIN_CLIENT_SECRET\$" <<< "$REGISTRY" \
     || true; } | head -n 1 | cut -d'|' -f2 | sed 's/^SIGNIN_CLIENT_SECRET_//' | tr 'A-Z_' 'a-z-'
 }
+# The first AccountKit whose button names only the providers Morulia publishes
+# (bitbaum/accountkit, "signinProviders"). signin-on leaves an app on an older
+# one alone.
+SIGNIN_MIN_ACCOUNTKIT="0.24.0"
 if [ "$ACTION" = signin-on ]; then
   issuer="$(grep -E '^morulia\|SIGNIN_URL\|literal:' <<< "$REGISTRY" | cut -d'|' -f3)"
   issuer="${issuer#literal:}"
@@ -172,6 +178,7 @@ OPT=$(printf %q "${APP_SECRETS_OPT:-/opt}")
 APP=$(printf %q "$target")
 ISSUER=$(printf %q "$issuer")
 CLIENT=$(printf %q "$client")
+MIN_AK=$(printf %q "$SIGNIN_MIN_ACCOUNTKIT")
 ENVF=""
 for cand in "\$OPT/\$APP/shared/.env" "\$OPT/\$APP/app/.env"; do [ -f "\$cand" ] && { ENVF="\$cand"; break; }; done
 [ -n "\$ENVF" ] || { echo "\$APP: no env file on the box — nothing written"; exit 0; }
@@ -179,6 +186,18 @@ has() { grep -qE "^(export[[:space:]]+)?\$1=.+" "\$ENVF"; }
 value() { grep -E "^(export[[:space:]]+)?\$1=" "\$ENVF" | tail -n 1 | cut -d= -f2-; }
 if ! has SIGNIN_CLIENT_SECRET; then
   echo "\$APP: no SIGNIN_CLIENT_SECRET yet — run 'ensure morulia' first; nothing written"
+  exit 0
+fi
+# An AccountKit older than \$MIN_AK labels the button with a fixed list of
+# providers ("Google, Apple, GitHub, X or Facebook") whatever Morulia has on.
+# Switching it on there would name providers that lead nowhere, so such an app
+# waits; the next run (after its AccountKit bump) switches it on. Every copy of
+# the package in the running release counts, so the oldest one decides.
+oldest="\$(find "\$OPT/\$APP/app/" -maxdepth 12 -path '*/@bitbaum/accountkit/package.json' 2>/dev/null \\
+  | xargs -r -I{} node -e 'process.stdout.write(require(process.argv[1]).version+"\\n")' {} 2>/dev/null \\
+  | sort -V | head -n 1 || true)"
+if [ -n "\$oldest" ] && [ "\$(printf '%s\\n%s\\n' "\$MIN_AK" "\$oldest" | sort -V | head -n 1)" != "\$MIN_AK" ]; then
+  echo "\$APP: runs AccountKit \$oldest, which names providers Morulia may not have on — waits for \$MIN_AK; nothing written"
   exit 0
 fi
 added=0

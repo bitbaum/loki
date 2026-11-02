@@ -10,7 +10,8 @@
 #   - an OrangeCat client (oc-client) ends with the app's secret and the row's
 #     sha256 agreeing, and a row that holds a secret the app lacks is left alone;
 #   - signin-on refuses while Morulia has no provider, and then only adds
-#     SIGNIN_ISSUER and SIGNIN_CLIENT_ID beside a secret that is already there.
+#     SIGNIN_ISSUER and SIGNIN_CLIENT_ID beside a secret that is already there,
+#     and never in an app whose AccountKit names a fixed list of providers.
 #
 # `ssh` and `systemctl` are stubbed on PATH: ssh runs the heredoc with local
 # bash, and APP_SECRETS_OPT points the remote half at a temp dir for /opt.
@@ -163,7 +164,23 @@ OUT10="$(run signin-on heidi)" && fail "signin-on ran with no provider: $OUT10"
   && ok "signin-on: refused while Morulia lists no provider, nothing written" || fail "signin-on no provider: $OUT10"
 
 echo '{"ok":true,"providers":["google","github"]}' > "$HEALTH"
+# causius runs an AccountKit whose button names a fixed list of providers;
+# heidi one that names only what Morulia publishes (the oldest copy in a
+# release decides); the other apps have no release on this "box" at all.
+ak() { mkdir -p "$OPT/$1/app/$2/@bitbaum/accountkit"; printf '{"name":"@bitbaum/accountkit","version":"%s"}\n' "$3" > "$OPT/$1/app/$2/@bitbaum/accountkit/package.json"; }
+ak causius node_modules 0.23.1
+ak heidi node_modules 0.24.0
+ak heidi node_modules/.pnpm/x/node_modules 0.24.2
 OUT11="$(run signin-on all)" || fail "signin-on all failed: $OUT11"
+! grep -q SIGNIN_ISSUER "$OPT/causius/shared/.env" && grep -q "causius: runs AccountKit 0.23.1" <<<"$OUT11" \
+  && ok "signin-on: an app on an AccountKit that names fixed providers waits, nothing written" || fail "signin-on causius: $OUT11"
+[ "$(val SIGNIN_CLIENT_ID "$OPT/heidi/shared/.env")" = heidi ] \
+  && ok "signin-on: an app on AccountKit 0.24 or later is switched on" || fail "signin-on heidi: $OUT11"
+ak substrata node_modules 0.24.0
+ak substrata node_modules/.pnpm/y/node_modules 0.19.0
+OUT11b="$(run signin-on substrata)" || fail "signin-on substrata failed: $OUT11b"
+grep -q "substrata: runs AccountKit 0.19.0" <<<"$OUT11b" \
+  && ok "signin-on: an older copy anywhere in the release holds the app back" || fail "signin-on substrata: $OUT11b"
 H="$OPT/heidi/shared/.env"
 [ "$(val SIGNIN_ISSUER "$H")" = "https://morulia.orangecat.ch" ] && [ "$(val SIGNIN_CLIENT_ID "$H")" = heidi ] \
   && [ "$(val SIGNIN_CLIENT_ID "$OPT/revamp-info/shared/.env")" = hirnli ] \
