@@ -23,7 +23,6 @@ import {
 } from "@/db/queries/pending-commands";
 import { insertActiveAlertOnce } from "@/db/queries/alerts";
 import { getFleetAutopilotUserIds } from "@/db/queries/beacon-settings";
-import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
 
 export async function GET(req: NextRequest) {
   const denied = requireCronAuth(req);
@@ -62,17 +61,9 @@ export async function GET(req: NextRequest) {
       actionUrl: "/control",
       metadata: { stalledCount: stall.stalledCount, oldestSeconds: stall.oldestSeconds },
     });
-    if (created) {
-      alertsCreated++;
-      const tg = selfTelegramTarget();
-      if (tg) {
-        void sendTelegramMessage(
-          tg,
-          `⚠️ Loki: runner stalled — ${stall.stalledCount} command(s) waited ${stall.oldestSeconds}s with no runner executing. ` +
-            `Reclaimed stuck claims for retry; check the runner.`,
-        );
-      }
-    }
+    // Not sent to Telegram: the stuck claims were reclaimed for retry and the
+    // alert above is on /system — there is nothing to tap (owner, 2026-11-02).
+    if (created) alertsCreated++;
   }
 
   // 3. Heartbeat + audit — a healthy tick logs too, so the janitor's own

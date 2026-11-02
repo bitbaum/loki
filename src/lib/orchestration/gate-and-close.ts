@@ -9,6 +9,7 @@
  * 2026-07-14 diagnosis: 14 days of autopilot, zero recorded successes, all of
  * them real work reaped as failures).
  */
+import { APP_URL } from "@/config/brand";
 import { getProjectGoalConfig } from "@/db/queries/project-context";
 import { updateOrchestrationRun } from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
@@ -48,6 +49,7 @@ async function reportCappedGoal(input: {
       await sendTelegramMessage(
         target,
         `⏸ ${input.projectKey}: goal stopped after ${input.attempts} attempts.\nStill missing: ${input.gap}`,
+        { buttons: [[{ text: "Decide on Control", url: `${APP_URL}/control` }]] },
       ).catch(() => {});
     }
   } catch (e) {

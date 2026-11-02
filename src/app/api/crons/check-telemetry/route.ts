@@ -28,7 +28,6 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { logDebug } from "@/db/queries/debug-logs";
 import { refreshOrInsertActiveAlert, dismissActiveAlertsByType } from "@/db/queries/alerts";
 import { getDefaultUser } from "@/db/queries/users";
-import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
 import { checkTelemetryFreshness, describeBroken, humanizeAge } from "@/lib/telemetry-freshness";
 
 const ALERT_TYPE = "telemetry_stale";
@@ -46,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   if (broken > 0 && owner) {
     const detail = describeBroken(report);
-    const { created } = await refreshOrInsertActiveAlert({
+    await refreshOrInsertActiveAlert({
       userId: owner.id,
       type: ALERT_TYPE,
       severity: "urgent",
@@ -73,15 +72,8 @@ export async function GET(req: NextRequest) {
     alerted = true;
     // Out-of-band ping once per episode, not on every daily tick — a repeated
     // alarm for a known condition is trained-out noise within a week.
-    if (created) {
-      const tg = selfTelegramTarget();
-      if (tg) {
-        void sendTelegramMessage(
-          tg,
-          `🚨 Loki: ${broken} telemetry path(s) stopped recording.\n${detail}`,
-        );
-      }
-    }
+    // The alert is on /system; no Telegram — there is nothing to tap
+    // (owner, 2026-11-02: nothing on the phone without an action).
   } else if (broken === 0 && unchecked === 0 && owner) {
     // Auto-resolve. Without this the alert outlives the fault and the operator
     // learns that alerts on this surface do not mean anything current.

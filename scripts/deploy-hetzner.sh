@@ -53,7 +53,8 @@ if [ -n "$REF" ]; then
     || { echo "✗ --ref does not resolve to a commit: $REF" >&2; exit 1; }
 fi
 
-# Alert the operator (Telegram) when a deploy fails or rolls back. A silently
+# Alert the operator (Telegram) when a deploy fails AND cannot roll back — with
+# one button, the Deploy workflow. A clean rollback is not paged. A silently
 # broken ship + a silent rollback both left the box in an unknown state with
 # nobody told; this closes that loop. Reads the box's own bot creds and sends
 # from the box. Best-effort — a failed alert never affects the deploy. The
@@ -68,7 +69,8 @@ MSG=\$(echo '$b64' | base64 -d)
 [ -n "\$T" ] && [ -n "\$C" ] && curl -s -m 10 -o /dev/null \
   "https://api.telegram.org/bot\$T/sendMessage" \
   --data-urlencode "chat_id=\$C" \
-  --data-urlencode "text=🚨 Loki deploy: \$MSG" || true
+  --data-urlencode "text=🚨 Loki deploy: \$MSG" \
+  --data-urlencode 'reply_markup={"inline_keyboard":[[{"text":"Redeploy Loki","url":"https://github.com/bitbaum/loki/actions/workflows/deploy.yml"}]]}' || true
 REMOTE
 }
 
@@ -240,10 +242,12 @@ rollback_box() {
     && systemctl restart loki-app && sleep 3 \
     && systemctl is-active loki-app >/dev/null"; then
     echo "  ✓ rolled back to previous build" >&2
-    deploy_alert "❌ $why — auto-rolled back to the previous build. Box is serving the last-good version; the ship was aborted."
+    # Rolled back cleanly: the box serves the last-good build and CI already
+    # shows the failed ship. Nothing for the owner to do, so nothing on his phone.
+    echo "  (not paged: rolled back cleanly — $why)" >&2
   else
     echo "  ✗ ROLLBACK FAILED — box needs manual attention" >&2
-    deploy_alert "🔥 $why AND ROLLBACK FAILED — the box needs manual attention NOW ($APP_DIR may be in a torn state)."
+    deploy_alert "$why, and the rollback failed too. Loki may be half-installed. Redeploying puts a whole build back."
   fi
 }
 

@@ -18,6 +18,15 @@ name: OpenClaw media understanding
 
 on:
   workflow_dispatch: {}
+  # Applied on merge too: a config that only lands when someone remembers to
+  # run it is a config the box may not have (2026-11-02 — photos, voice and
+  # video are part of the one chat every bot uses to reach the owner).
+  push:
+    branches: [main]
+    paths:
+      - scripts/openclaw/media-understanding.json
+      - scripts/openclaw/install-media-understanding.sh
+      - .github/workflows/openclaw-media.yml
 
 concurrency:
   group: openclaw-media

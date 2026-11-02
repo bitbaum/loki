@@ -47,6 +47,7 @@ const OTHER = "999999";
 
 // ── Child mode: report what this configuration does ──────────────────────────
 if (process.env.__TG_PROBE === "1") {
+  const BUTTON = { text: "Open", url: "https://loki.orangecat.ch/" };
   const run = async () => {
     const out = {
       self: selfTelegramTarget(),
@@ -57,7 +58,8 @@ if (process.env.__TG_PROBE === "1") {
       allowChannel: isAllowedTelegramTarget("@somechannel"),
       sendOther: (await sendTelegramMessage(OTHER, "x")).error ?? "",
       sendChannel: (await sendTelegramMessage("@somechannel", "x")).error ?? "",
-      sendSelf: (await sendTelegramMessage(SELF, "x")).error ?? "",
+      sendSelf: (await sendTelegramMessage(SELF, "x", { buttons: [[BUTTON]] })).error ?? "",
+      sendSelfNoButton: (await sendTelegramMessage(SELF, "x")).error ?? "",
     };
     console.log(JSON.stringify(out));
   };
@@ -121,6 +123,10 @@ if (process.env.__TG_PROBE === "1") {
   ok(
     /TELEGRAM_BOT_TOKEN/.test(on.sendSelf),
     `an ALLOWED recipient gets past the guard to the transport (${on.sendSelf})`,
+  );
+  ok(
+    /not actionable/.test(on.sendSelfNoButton),
+    `a message with no button is refused before the transport (${on.sendSelfNoButton})`,
   );
 
   // ── Unconfigured: fail closed, never guess a destination ───────────────────
