@@ -14,8 +14,10 @@ name: AccountKit switch
 #              throwaway accounts it deletes again: two sessions, a change to
 #              the person read on the next request, a password write ending
 #              every session, old password refused and new one accepted,
-#              sign-out, deletion; and where the app offers OrangeCat, a real
-#              browser sign-in with a throwaway OrangeCat account.
+#              sign-out, deletion; a real password reset through the
+#              product's pages and a real inbox; and where the app offers
+#              OrangeCat, a real browser sign-in with a throwaway OrangeCat
+#              account (on Loki, its stored token checked against OrangeCat).
 # This repo is public, so this log is too: the script prints counts and
 # verdicts, never an address, a hash or a secret.
 #
@@ -64,7 +66,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
-      # prove's OrangeCat sign-in runs in a real browser.
+      # prove's password reset and OrangeCat sign-in run in a real browser.
       - name: Browser for prove
         if: inputs.action == 'prove'
         run: |

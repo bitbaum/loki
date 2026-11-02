@@ -31,10 +31,16 @@
 #     writers do) ends both sessions; the old password is refused, the new one
 #     signs in;
 #   - sign-out ends a session, and deleting the person ends theirs;
+#   - a real password reset: the product's forgot-password page, the mail in a
+#     real inbox (a throwaway mail.tm address), its link, a new password set on
+#     the product's reset page, and that password signing in
+#     (scripts/hetzner/accountkit-reset-proof.mjs);
 #   - where the product offers OrangeCat, a real browser sign-in with a
 #     throwaway OrangeCat account: the product's OrangeCat button, OrangeCat's
 #     sign-in and consent, back into the product signed in
-#     (scripts/hetzner/accountkit-oidc-proof.mjs).
+#     (scripts/hetzner/accountkit-oidc-proof.mjs); on Loki, the token that
+#     sign-in left in Loki's `accounts` is then accepted by OrangeCat, as
+#     publish needs.
 #
 # This repo is public, so the log is too: it prints counts and verdicts only.
 set -euo pipefail
@@ -45,15 +51,15 @@ SQL="${3:?usage: accountkit-switch.sh <app> survey|switch|rollback <import.sql>}
 case "$ACTION" in survey|switch|rollback|prove) ;; *) echo "unknown action $ACTION" >&2; exit 2 ;; esac
 [ -f "$SQL" ] || { echo "no import SQL at $SQL" >&2; exit 2; }
 
-# app|database|unit|domain|password column|OrangeCat column|credentials provider|social providers offered today
-REGISTRY='kivvi|kivvi|kivvi-app|kivvi.orangecat.ch|password_hash|-|credentials|-
-petvity|petvity|petvity-app|petvity.orangecat.ch|password|orangecat_sub|credentials|-
-surf-your-life|surf_your_life|surf-your-life-app|surf-your-life.orangecat.ch|password|orangecat_sub|credentials|-
-evig|revampit|evig-app|evig.orangecat.ch|password_hash|orangecat_actor_id|credentials|-
-loki|loki|loki-app|loki.orangecat.ch|password_hash|orangecat_actor_id|email-password|github'
+# app|database|unit|domain|password column|OrangeCat column|credentials provider|social providers offered today|forgot-password page
+REGISTRY='kivvi|kivvi|kivvi-app|kivvi.orangecat.ch|password_hash|-|credentials|-|/forgot-password
+petvity|petvity|petvity-app|petvity.orangecat.ch|password|orangecat_sub|credentials|-|/forgot-password
+surf-your-life|surf_your_life|surf-your-life-app|surf-your-life.orangecat.ch|password|orangecat_sub|credentials|-|/de/forgot-password
+evig|revampit|evig-app|evig.orangecat.ch|password_hash|orangecat_actor_id|credentials|-|/auth/forgot-password
+loki|loki|loki-app|loki.orangecat.ch|password_hash|orangecat_actor_id|email-password|github|/forgot-password'
 ROW="$(grep -E "^${APP}\|" <<< "$REGISTRY" || true)"
 [ -n "$ROW" ] || { echo "$APP has no AccountKit staging registered here" >&2; exit 2; }
-IFS='|' read -r _ DB UNIT DOMAIN PWCOL OCCOL PROVIDER SOCIAL <<< "$ROW"
+IFS='|' read -r _ DB UNIT DOMAIN PWCOL OCCOL PROVIDER SOCIAL FORGOT <<< "$ROW"
 
 : "${HETZNER_IP:?HETZNER_IP required}"
 BOX="ubuntu@$HETZNER_IP"
@@ -79,13 +85,15 @@ PROOF_PASSWORD2="$(openssl rand -hex 24)"
 PROOF_HASH2="$(native_hash "$PROOF_PASSWORD2")"
 OC_EMAIL="accountkit-proof-$(openssl rand -hex 6)@example.invalid"
 OC_PASSWORD="Ak-$(openssl rand -hex 18)"
+# prove's password reset goes to a real inbox (mail.tm); set below when proving.
+RESET_EMAIL=""
 
 remote() {  # remote <step> [PRODUCT_USER_ID]
 {
   printf 'APP=%q DB=%q UNIT=%q DOMAIN=%q PWCOL=%q OCCOL=%q PROVIDER=%q SOCIAL=%q ACTION=%q PRODUCT_USER_ID=%q\n' \
     "$APP" "$DB" "$UNIT" "$DOMAIN" "$PWCOL" "$OCCOL" "$PROVIDER" "$SOCIAL" "$1" "${2:-}"
   printf 'PROOF_EMAIL=%q PROOF_PASSWORD=%q PROOF_HASH=%q\n' "$PROOF_EMAIL" "$PROOF_PASSWORD" "$PROOF_HASH"
-  printf 'PROOF_PASSWORD2=%q PROOF_HASH2=%q OC_EMAIL=%q OC_PASSWORD=%q\n' "$PROOF_PASSWORD2" "$PROOF_HASH2" "$OC_EMAIL" "$OC_PASSWORD"
+  printf 'PROOF_PASSWORD2=%q PROOF_HASH2=%q OC_EMAIL=%q OC_PASSWORD=%q RESET_EMAIL=%q\n' "$PROOF_PASSWORD2" "$PROOF_HASH2" "$OC_EMAIL" "$OC_PASSWORD" "$RESET_EMAIL"
   printf 'IMPORT_SQL=%q\n' "$(cat "$SQL")"
   cat <<'REMOTE'
 set -euo pipefail
@@ -250,6 +258,28 @@ journeys() {
   echo "journey: sign-out ends a session; deleting the person ends theirs"
 }
 
+# The reset proof's person, at a real inbox.
+reset_create() {
+  q -c "INSERT INTO users (email, name, $PWCOL) VALUES ('$RESET_EMAIL', 'AccountKit reset proof', '$PROOF_HASH')" >/dev/null \
+    || fail "could not create the reset proof's account" || return 1
+  echo "reset: a throwaway account at a real inbox exists"
+}
+reset_cleanup() {
+  q -c "DELETE FROM users WHERE email = '$RESET_EMAIL'" >/dev/null 2>&1 || true
+  q -c "DELETE FROM auth_users WHERE email = '$RESET_EMAIL'" >/dev/null 2>&1 || true
+  echo "reset: the throwaway account is deleted"
+}
+
+# Loki acts at OrangeCat with the token a sign-in left in its `accounts`.
+oc_token() {
+  local token code
+  token="$(q -c "SELECT access_token FROM accounts WHERE provider = 'orangecat' AND user_id::text = '$PRODUCT_USER_ID'" | head -n 1)"
+  [ -n "$token" ] || fail "the OrangeCat sign-in left no token in Loki's accounts" || return 1
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -H "Authorization: Bearer $token" https://orangecat.ch/oauth/userinfo)"
+  [ "$code" = 200 ] || fail "OrangeCat refused the token Loki kept ($code)" || return 1
+  echo "oidc: the token Loki kept is accepted by OrangeCat, as publish needs"
+}
+
 # OrangeCat's own Supabase, for a throwaway OrangeCat account.
 oc_credentials() {  # "<url> <service key>", from OrangeCat's env on this box
   local envf
@@ -307,6 +337,9 @@ case "$ACTION" in
   journeys) journeys ;;
   oc-create) oc_create ;;
   oc-cleanup) oc_cleanup ;;
+  oc-token) oc_token ;;
+  reset-create) reset_create ;;
+  reset-cleanup) reset_cleanup ;;
   switch)
     s="$(survey)"; echo "$s"
     case "$s" in *runtime=accountkit*) echo "$APP already runs on AccountKit; nothing to do"; exit 0 ;; esac
@@ -342,14 +375,35 @@ if [ "$ACTION" != prove ]; then
 fi
 
 remote journeys
+
+# The password reset, through the product's own pages and a real inbox.
+mailtm() { curl -s --max-time 20 -H 'content-type: application/json' "$@"; }
+domain="$(mailtm https://api.mail.tm/domains | python3 -c 'import json,sys; print(json.load(sys.stdin)["hydra:member"][0]["domain"])')"
+RESET_EMAIL="accountkit-proof-$(openssl rand -hex 6)@$domain"
+inbox_password="$(openssl rand -hex 18)"
+inbox_id="$(mailtm -X POST https://api.mail.tm/accounts \
+  --data "{\"address\":\"$RESET_EMAIL\",\"password\":\"$inbox_password\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+inbox_token="$(mailtm -X POST https://api.mail.tm/token \
+  --data "{\"address\":\"$RESET_EMAIL\",\"password\":\"$inbox_password\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
+product_user=""
+cleanup() {
+  remote reset-cleanup || true
+  mailtm -X DELETE -H "authorization: Bearer $inbox_token" "https://api.mail.tm/accounts/$inbox_id" >/dev/null || true
+  if [ "$OCCOL" != - ]; then remote oc-cleanup "$product_user" || true; fi
+}
+trap cleanup EXIT
+remote reset-create
+DOMAIN="$DOMAIN" FORGOT_PATH="$FORGOT" PROVIDER="$PROVIDER" EMAIL="$RESET_EMAIL" \
+  NEW_PASSWORD="$PROOF_PASSWORD2" MAILTM_TOKEN="$inbox_token" \
+  node "$(dirname "$0")/accountkit-reset-proof.mjs"
+echo "reset: forgot-password page, a real inbox, the link, a new password, signed in"
+
 if [ "$OCCOL" = - ]; then
   echo "oidc: $APP offers no OrangeCat sign-in; nothing to prove"
   exit 0
 fi
 remote oc-create
-product_user=""
-cleanup() { remote oc-cleanup "$product_user" || true; }
-trap cleanup EXIT
 product_user="$(DOMAIN="$DOMAIN" OC_EMAIL="$OC_EMAIL" OC_PASSWORD="$OC_PASSWORD" \
   node "$(dirname "$0")/accountkit-oidc-proof.mjs")"
 echo "oidc: OrangeCat's button, OrangeCat's sign-in and consent, back into $APP signed in"
+if [ "$APP" = loki ]; then remote oc-token "$product_user"; fi
