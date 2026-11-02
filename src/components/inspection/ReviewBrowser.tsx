@@ -1,10 +1,16 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- Private, already-compressed browser evidence. */
+
 import { useState } from "react";
 import type { ReviewFrame } from "@/lib/inspection/contract";
+import { RobotBrowser } from "./RobotBrowser";
 
-/** Keep the actual page readable on a phone; expansion is optional. */
-export function ReviewBrowser({ frame }: { frame: ReviewFrame }) {
+/**
+ * Loki's browser on the Review page: where it is and what it is doing over
+ * the picture, the picture watched as RobotBrowser draws it (the pointer,
+ * the press, leaning in on a phone). The same view the workbench shows —
+ * one shape for one thing. Expanding lets a tall page run its full height.
+ */
+export function ReviewBrowser({ frame, live }: { frame: ReviewFrame; live: boolean }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="ui-inspection-browser">
@@ -13,7 +19,9 @@ export function ReviewBrowser({ frame }: { frame: ReviewFrame }) {
           <a href={frame.url} target="_blank" rel="noreferrer" className="ui-link block break-all">
             {new URL(frame.url).pathname}
           </a>
-          <span className="mt-1 block">{frame.action}</span>
+          <span className="mt-1 block" aria-live="polite">
+            {frame.action}
+          </span>
         </div>
         <button
           type="button"
@@ -28,14 +36,13 @@ export function ReviewBrowser({ frame }: { frame: ReviewFrame }) {
         className="ui-inspection-viewport"
         data-expanded={expanded || undefined}
         tabIndex={0}
-        aria-label="Captured browser viewport"
+        aria-label="Loki's browser"
       >
-        <img
-          src={frame.image}
-          width={frame.width}
-          height={frame.height}
-          alt={`Browser view of ${frame.url} at ${frame.width}px, scrolled ${Math.round(frame.scrollY)}px`}
-          className="mx-auto block h-auto w-full"
+        <RobotBrowser
+          frame={frame}
+          live={live}
+          fit="width"
+          label={`Browser view of ${frame.url} at ${frame.width}px, scrolled ${Math.round(frame.scrollY)}px`}
         />
       </div>
     </div>
