@@ -12,7 +12,7 @@ for (const cadence of DIGEST_CADENCES) {
 assert.ok(MAIL_KINDS.includes("digest"));
 assert.match(mailSubject("verify"), /email/i);
 assert.match(mailSubject("feedback_shipped", "kivvi"), /kivvi/);
-assert.equal(AUTH_COPY.signIn.title, "Welcome back");
+assert.ok(AUTH_COPY.forgot.title, "auth copy has the recovery title");
 assert.equal(NAV.prompts.label, "Prompts");
 
 assert.equal(EMAIL_THEME.header, PALETTE.dark.surfacePage);

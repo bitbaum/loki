@@ -59,12 +59,6 @@ export const AUTH_COPY = {
     signUp:
       "New to Loki? Create an account and you go straight back to the site. If the site is someone else's, ask them to share it with you in Loki (Project → People) — until then you can still talk to Loki there as a visitor.",
   },
-  signIn: {
-    title: "Welcome back",
-  },
-  signUp: {
-    title: "Create your account",
-  },
   forgot: {
     title: "Reset your password",
     sentTitle: "Check your email",

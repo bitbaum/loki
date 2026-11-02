@@ -8,13 +8,13 @@ import {
   AuthCard,
   CreateAccountFields,
   AuthSubmitButton,
-  AuthFooterLink,
   AuthHeading,
   AuthDivider,
 } from "@/components/auth/AuthShell";
 import { OAuthButtons, hasAnyOAuth, type OAuthEnabledFlags } from "@/components/auth/OAuthButtons";
 import { SignInLinkButton } from "@/components/auth/SharedWaysIn";
 import { DEFAULT_AUTH_LABELS } from "@bitbaum/accountkit/auth/react";
+import Link from "next/link";
 import { postJson } from "@/lib/api/fetch";
 import { AUTH_COPY, fromSiteWidget, keepCallback, ROUTES } from "@/config/auth";
 import { goAfterSignIn } from "@/lib/auth/after-sign-in";
@@ -82,7 +82,7 @@ export function SignUpForm({
 
   return (
     <AuthShell>
-      <AuthHeading title={AUTH_COPY.signUp.title} />
+      <AuthHeading title={DEFAULT_AUTH_LABELS.createAccount} />
       {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signUp}</p>}
 
       <AuthCard>
@@ -127,7 +127,7 @@ export function SignUpForm({
 
           <AuthSubmitButton
             loading={loading}
-            label="Create account"
+            label={DEFAULT_AUTH_LABELS.createAccount}
             loadingLabel="Creating account…"
           />
           {magicLinkEnabled && (
@@ -141,9 +141,15 @@ export function SignUpForm({
         </form>
       </AuthCard>
 
-      <AuthFooterLink href={keepCallback(ROUTES.SIGN_IN, safeCallback, ROUTES.ONBOARDING)}>
-        Already have an account? Sign in →
-      </AuthFooterLink>
+      <p className="ui-auth-hint">
+        {DEFAULT_AUTH_LABELS.haveAccount}{" "}
+        <Link
+          href={keepCallback(ROUTES.SIGN_IN, safeCallback, ROUTES.ONBOARDING)}
+          className="ui-auth-hint-link"
+        >
+          {DEFAULT_AUTH_LABELS.signIn}
+        </Link>
+      </p>
     </AuthShell>
   );
 }
