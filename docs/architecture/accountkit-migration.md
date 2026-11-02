@@ -207,7 +207,16 @@ That proof found two defects, fixed in AccountKit 0.19.0 and #1528 here:
 
 The invite flow (`user-password`) runs in `test:db` on every pull request.
 
-Not proven by a machine:
+On 2026-11-02 `prove` also covered the rest:
 
-- a reset mail arriving in a real inbox;
-- a publish to OrangeCat with a token that a real sign-in stored.
+- **A real password reset.** Loki's forgot-password page sent the mail to a
+  throwaway real inbox. Its link set a new password, and that password signed
+  in.
+- **OrangeCat's token.** The token a real OrangeCat sign-in left in Loki's
+  `accounts` is accepted by OrangeCat's `/oauth/userinfo`, which is what
+  publish needs.
+- **GitHub, by hand.** The live GitHub button reaches GitHub with Loki's app
+  (GitHub names it on its sign-in page), the callback
+  `/api/auth/callback/github` and the `repo workflow` scopes. No machine signs
+  in to GitHub as a person, so the round-trip itself runs in AccountKit's
+  journey against a stubbed GitHub.
