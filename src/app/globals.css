@@ -9183,6 +9183,54 @@
 .ui-inspection-viewport[data-expanded] {
   max-height: none;
 }
+/* "Live" while the review browser runs; "You" while the person drives it. */
+.ui-inspection-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.ui-inspection-live::before {
+  content: "";
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 999px;
+  background: var(--status-positive);
+}
+.ui-inspection-browser[data-driving] {
+  outline: 2px solid var(--border-strong);
+  outline-offset: -2px;
+}
+/* While the person drives, the whole captured screen fits: every point of it
+   is clickable without scrolling the frame, and the typing row stays in reach. */
+.ui-inspection-viewport[data-driving] {
+  max-height: none;
+  overflow: visible;
+}
+.ui-inspection-drive-picture {
+  display: block;
+  margin-inline: auto;
+  inline-size: auto;
+  max-inline-size: 100%;
+  block-size: auto;
+  max-block-size: 58dvh;
+  cursor: pointer;
+}
+/* Where the person clicked, until the next picture shows what it did. */
+.ui-inspection-click {
+  position: absolute;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  margin: -0.875rem 0 0 -0.875rem;
+  border: 2px solid var(--text-primary);
+  border-radius: 999px;
+  pointer-events: none;
+}
 @media (min-width: 1024px) {
   .ui-inspection-viewport {
     max-height: 65dvh;

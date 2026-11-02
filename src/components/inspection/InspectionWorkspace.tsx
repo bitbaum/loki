@@ -9,7 +9,12 @@ import { trackUsage } from "@/lib/usage/track";
 import { useFetch } from "@/hooks/use-fetch";
 import { postJson, throwApiError } from "@/lib/api/fetch";
 import { Composer } from "@/components/composer/Composer";
-import { REVIEW_MODES, reviewIsActive, type ReviewMode } from "@/lib/inspection/contract";
+import {
+  REVIEW_MODES,
+  reviewIsActive,
+  type ReviewInput,
+  type ReviewMode,
+} from "@/lib/inspection/contract";
 import type { publicReview } from "@/db/queries/site-reviews";
 import type { SiteReviewEvent } from "@/db/schema/site-reviews";
 
@@ -37,12 +42,14 @@ export function InspectionWorkspace({
   const [paths, setPaths] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // While the person drives, the picture answers each input: poll faster.
+  const [drivingHint, setDrivingHint] = useState(initialReview?.control?.by === "you");
   const {
     data,
     error: fetchError,
     refetch,
   } = useFetch<Feed>(reviewId ? `/api/reviews/${reviewId}` : null, {
-    intervalMs: reviewId ? 1500 : undefined,
+    intervalMs: reviewId ? (drivingHint ? 500 : 1500) : undefined,
     timeoutMs: 12000,
   });
   const review =
@@ -63,6 +70,19 @@ export function InspectionWorkspace({
         45000);
   const currentComment = events.filter((e) => e.kind === "assistant").at(-1)?.text;
   const paused = review?.status === "paused";
+  const driving = paused && review?.control?.by === "you";
+  if (driving !== drivingHint) setDrivingHint(driving);
+  const live = !!review && review.status === "running" && !waiting;
+  /** One input from the person who has the browser; a refusal shows as an error. */
+  const sendInput = async (input: ReviewInput) => {
+    try {
+      const response = await postJson(`/api/reviews/${reviewId}`, { action: "input", input });
+      if (!response.ok) await throwApiError(response, "That did not reach the browser. Try again.");
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not connect");
+    }
+  };
   useEffect(() => {
     trackUsage({ surface: "projects.review", action: "shown", target: "workspace" });
   }, []);
@@ -228,37 +248,62 @@ export function InspectionWorkspace({
               <div className="min-w-0">
                 <h2 className="font-semibold">{REVIEW_MODES[review.mode].label}</h2>
                 <p role="status" className="mt-1 text-sm text-text-secondary">
-                  {paused
-                    ? review.workerState === "paused"
-                      ? "Paused · ready to discuss"
-                      : "Pause requested"
-                    : waiting
-                      ? review.workerState === "queued"
-                        ? "Waiting for the engineer to open the browser"
-                        : "No recent update · last saved view"
-                      : review.status === "running"
-                        ? "Reviewing"
-                        : review.status === "finished"
-                          ? "Review ended · see coverage below"
-                          : review.status === "failed"
-                            ? "Review interrupted · coverage is incomplete"
-                            : review.status === "stopped"
-                              ? "Review stopped · progress saved"
-                              : "Queued"}
+                  {driving
+                    ? "You have the browser · Loki waits until you hand it back"
+                    : paused
+                      ? review.workerState === "paused"
+                        ? "Paused · ready to discuss"
+                        : "Pause requested"
+                      : waiting
+                        ? review.workerState === "queued"
+                          ? "Waiting for the engineer to open the browser"
+                          : "No recent update · last saved view"
+                        : review.status === "running"
+                          ? "Reviewing"
+                          : review.status === "finished"
+                            ? "Review ended · see coverage below"
+                            : review.status === "failed"
+                              ? "Review interrupted · coverage is incomplete"
+                              : review.status === "stopped"
+                                ? "Review stopped · progress saved"
+                                : "Queued"}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 {active ? (
                   <>
-                    <button
-                      className="ui-btn-primary min-h-11"
-                      disabled={!!pending}
-                      onClick={() =>
-                        action(paused ? "resume" : "pause", { action: paused ? "resume" : "pause" })
-                      }
-                    >
-                      {paused ? "Resume" : "Pause"}
-                    </button>
+                    {driving ? (
+                      <button
+                        className="ui-btn-primary min-h-11"
+                        disabled={!!pending}
+                        onClick={() => action("handback", { action: "handback" })}
+                      >
+                        Hand back to Loki
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="ui-btn-primary min-h-11"
+                          disabled={!!pending}
+                          onClick={() =>
+                            action(paused ? "resume" : "pause", {
+                              action: paused ? "resume" : "pause",
+                            })
+                          }
+                        >
+                          {paused ? "Resume" : "Pause"}
+                        </button>
+                        {review.mode !== "code" && review.frame && (
+                          <button
+                            className="ui-btn-secondary min-h-11"
+                            disabled={!!pending}
+                            onClick={() => action("takeover", { action: "takeover" })}
+                          >
+                            Take over
+                          </button>
+                        )}
+                      </>
+                    )}
                     <button
                       className="ui-btn-ghost min-h-11"
                       disabled={!!pending}
@@ -285,7 +330,12 @@ export function InspectionWorkspace({
             <div className="ui-inspection-layout">
               <section className="min-w-0" aria-label="Browser view">
                 {review.frame ? (
-                  <ReviewBrowser frame={review.frame} live={review.status === "running"} />
+                  <ReviewBrowser
+                    frame={review.frame}
+                    live={live}
+                    driving={driving}
+                    onInput={(input) => void sendInput(input)}
+                  />
                 ) : (
                   <div className="ui-inspection-empty">
                     <h3 className="text-lg font-medium">

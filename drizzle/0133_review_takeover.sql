@@ -1,0 +1,1 @@
+ALTER TABLE "site_reviews" ADD COLUMN "control" jsonb;

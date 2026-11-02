@@ -77,7 +77,10 @@ async function main() {
           height: 760,
           scrollY: 0,
           action: "Checking the home page on phone",
+          next: "/pricing",
+          progress: { done: 1, total: 6 },
         },
+        control: null as null | { by: "you"; since: string; inputs: unknown[] },
         coverage: [
           {
             url: "https://example.orangecat.ch/",
@@ -87,6 +90,7 @@ async function main() {
           },
         ],
       };
+      const inputs: Array<Record<string, unknown>> = [];
       const events: Array<Record<string, unknown>> = [
         {
           id: eventId,
@@ -124,10 +128,17 @@ async function main() {
               review.status = "paused";
               review.workerState = "paused";
             }
-            if (body.action === "resume") {
+            if (body.action === "resume" || body.action === "handback") {
               review.status = "running";
               review.workerState = "running";
+              review.control = null;
             }
+            if (body.action === "takeover") {
+              review.status = "paused";
+              review.workerState = "paused";
+              review.control = { by: "you", since: new Date().toISOString(), inputs: [] };
+            }
+            if (body.action === "input") inputs.push(body.input);
             if (body.action === "discuss")
               events.push(
                 { id: "question", kind: "user", text: body.text },
@@ -179,6 +190,43 @@ async function main() {
       assert.equal(await textbox.inputValue(), "");
       await page.getByRole("button", { name: "Resume", exact: true }).click();
       await page.getByRole("button", { name: "Pause", exact: true }).waitFor();
+      // Led: what is happening now, what comes next, how far along.
+      await page.getByText("Next: /pricing · 1 of 6 pages done", { exact: true }).waitFor();
+      // Take over: the picture takes clicks, the line types, Hand back returns it.
+      await page.getByRole("button", { name: "Take over", exact: true }).click();
+      await page.getByRole("button", { name: "Hand back to Loki", exact: true }).waitFor();
+      await page
+        .getByText("You have the browser · Loki waits until you hand it back", { exact: true })
+        .waitFor();
+      const picture = page.getByRole("img", { name: /Browser view of/ });
+      const box = (await picture.boundingBox())!;
+      await picture.click({ position: { x: box.width / 2, y: box.height / 4 } });
+      await page.getByRole("textbox", { name: "Type into the page" }).fill("hello");
+      await page.getByRole("button", { name: "Type", exact: true }).click();
+      await page.getByRole("button", { name: "Back", exact: true }).click();
+      await page.waitForTimeout(300);
+      const click = inputs.find((i) => i.type === "click") as { x: number; y: number } | undefined;
+      assert(click, `${width}: a click on the picture reaches the browser`);
+      // The picture is scaled to the screen; the click lands at the same spot of the page.
+      assert(Math.abs(click.x - 195) <= 4 && Math.abs(click.y - 190) <= 4, JSON.stringify(click));
+      assert.deepEqual(
+        inputs.slice(1),
+        [{ type: "type", text: "hello" }, { type: "back" }],
+        `${width}: typing and back reach the browser`,
+      );
+      assert(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+        `${width}: no horizontal overflow while driving`,
+      );
+      await page.screenshot({ path: `${out}/${width}-driving.png`, fullPage: true });
+      await picture.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${out}/${width}-driving-picture.png` });
+      const typeRow = page.getByRole("textbox", { name: "Type into the page" });
+      await typeRow.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${out}/${width}-driving-type.png` });
+      await page.getByRole("button", { name: "Hand back to Loki", exact: true }).click();
+      await page.getByRole("button", { name: "Pause", exact: true }).waitFor();
+      inputs.length = 0;
       for (const dark of [false, true]) {
         await page.evaluate(
           (value) => document.documentElement.classList.toggle("dark", value),
@@ -208,7 +256,7 @@ async function main() {
       assert.deepEqual(errors, []);
       await page.close();
       console.log(
-        `Inspection workspace ${width}px: scope, pause, discussion, resume, fix handoff and both themes passed`,
+        `Inspection workspace ${width}px: scope, pause, discussion, resume, take over, hand back, fix handoff and both themes passed`,
       );
     }
   } finally {

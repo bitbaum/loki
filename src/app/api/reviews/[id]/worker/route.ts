@@ -45,6 +45,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       url: row.url,
       paths: row.paths,
       limits: REVIEW_LIMITS,
+      // Who has the browser, and what the person did since the last checkpoint.
+      control: updated.control?.by === "you" ? "you" : "loki",
+      inputs: updated.inputs ?? [],
     });
   } catch (error) {
     console.error("[site-review:worker]", error instanceof Error ? error.message : error);
