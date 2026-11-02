@@ -167,8 +167,10 @@ FROM users u;"
   'hashes_unreadable=' || (SELECT count(*) FROM accounts WHERE provider_id = 'credential'
       AND password !~ '^[\$]2[aby][\$]' AND password !~ '^[\$]bs1[\$]')
 FROM aoz_accountkit_source;"
-    # No staff or resident link: the proof account opens nobody's file.
-    proof_insert() { q -c "INSERT INTO \"Account\" (id, email, \"passwordHash\", \"updatedAt\") VALUES ('akproof-$(openssl rand -hex 8)', '$PROOF_EMAIL', '$LEGACY_HASH', now())" >/dev/null; }
+    # No staff or resident link: the proof account opens nobody's file. Its
+    # address is confirmed, as a claimed account's is: AOZ refuses an
+    # unconfirmed address at sign-in when mail is configured.
+    proof_insert() { q -c "INSERT INTO \"Account\" (id, email, \"passwordHash\", \"emailVerifiedAt\", \"updatedAt\") VALUES ('akproof-$(openssl rand -hex 8)', '$PROOF_EMAIL', '$LEGACY_HASH', now(), now())" >/dev/null; }
     proof_hash_sql="SELECT password FROM accounts c JOIN users u ON u.id = c.user_id WHERE u.email = '$PROOF_EMAIL' AND c.provider_id = 'credential'"
     proof_delete() {
       q -c "DELETE FROM users WHERE email = '$1';
@@ -310,8 +312,19 @@ prove_journey() {
   jar="$(mktemp)"
   r="$(ak "$jar" /sign-up/email "{\"email\":\"$SIGNUP_EMAIL\",\"password\":\"$SIGNUP_PASSWORD\",\"name\":\"AccountKit proof\"}")"
   [ "$(status_of "$r")" = 200 ] || { rm -f "$jar"; fail "sign-up refused ($(status_of "$r"))"; return 1; }
-  session_has "$jar" "$SIGNUP_EMAIL" || { rm -f "$jar"; fail "sign-up did not sign the person in"; return 1; }
-  echo "journey: signed up, signed in at once"
+  if session_has "$jar" "$SIGNUP_EMAIL"; then
+    echo "journey: signed up, signed in at once"
+  else
+    # A product that asks for the address first (AOZ, with mail): no session
+    # until the mailed link is used. An .invalid address receives no mail, so
+    # the address is confirmed here, as that link would, and sign-in goes on.
+    [ "$(q -c "SELECT count(*) FROM $SHARED_USERS WHERE email = '$SIGNUP_EMAIL' AND NOT email_verified")" = 1 ] \
+      || { rm -f "$jar"; fail "sign-up neither signed the person in nor waits for a confirmation"; return 1; }
+    q -c "UPDATE $SHARED_USERS SET email_verified = true WHERE email = '$SIGNUP_EMAIL'" >/dev/null
+    echo "journey: signed up; the address waits for confirmation (confirmed here, as the mailed link would)"
+    r="$(ak "$jar" /sign-in/email "{\"email\":\"$SIGNUP_EMAIL\",\"password\":\"$SIGNUP_PASSWORD\"}")"
+    [ "$(status_of "$r")" = 200 ] && session_has "$jar" "$SIGNUP_EMAIL" || { rm -f "$jar"; fail "the confirmed account could not sign in"; return 1; }
+  fi
   ak "$jar" /sign-out '{}' >/dev/null
   ! session_has "$jar" "$SIGNUP_EMAIL" || { rm -f "$jar"; fail "sign-out did not end the session"; return 1; }
   echo "journey: signed out"
