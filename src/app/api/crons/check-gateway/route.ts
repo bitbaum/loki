@@ -59,16 +59,7 @@ export async function GET(req: NextRequest) {
         actionUrl: "/system",
         metadata: { detail: probe.detail },
       });
-      if (created) {
-        raised++;
-        // One tap restarts it: the gateway-up workflow, which works while the
-        // gateway (and so the Telegram chat itself) is down.
-        if (tg) {
-          void sendTelegramMessage(tg, c.downTelegram(probe.detail), {
-            buttons: [[{ text: "Restart the gateway", url: GATEWAY_UP_URL }]],
-          });
-        }
-      }
+      if (created) raised++;
     } else if (move === "clear") {
       const n = await dismissActiveAlertsByType(userId, ALERT_TYPE);
       if (n > 0) {
@@ -76,6 +67,16 @@ export async function GET(req: NextRequest) {
         // Back up: nothing to do, so nothing on the phone (owner, 2026-11-02).
       }
     }
+  }
+
+  // ONE message per outage, not one per account: the loop above raises a row
+  // for every fleet user, and the chat is a single person's. One tap restarts
+  // it: the gateway-up workflow, which works while the gateway (and so the
+  // Telegram chat itself) is down.
+  if (raised > 0 && tg) {
+    void sendTelegramMessage(tg, c.downTelegram(probe.detail), {
+      buttons: [[{ text: "Restart the gateway", url: GATEWAY_UP_URL }]],
+    });
   }
 
   // Heartbeat: a healthy tick logs too, so this janitor's silence is

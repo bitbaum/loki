@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { alerts } from "@/db/schema";
 import type { Alert } from "@/db/schema/alerts";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 /**
  * Storage for the notify gateway (lib/notify/deliver.ts). A notice is an
@@ -60,7 +60,6 @@ export async function countDeliveries(
         eq(alerts.userId, userId),
         sql`(${alerts.metadata}->>'deliveredAt')::bigint >= ${since.getTime()}`,
         source ? sql`${alerts.metadata}->>'source' = ${source}` : undefined,
-        gte(alerts.createdAt, new Date(since.getTime() - 7 * 24 * 3600_000)),
       ),
     );
   return row?.n ?? 0;

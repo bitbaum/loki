@@ -19,7 +19,10 @@ set -uo pipefail
 # The bot token still lives in the old OpenClaw env file; it is the same bot.
 ENV_FILE=/home/openclaw/.openclaw/.env
 STATE_DIR=/var/lib/ivy-health; STATE_FILE="$STATE_DIR/state"; LOG="$STATE_DIR/health.log"
-CHAT_ID=575014778
+# The chat id is the box's one Telegram target (install-watchdog.sh writes it
+# from Loki's APP_TELEGRAM_CHAT_ID); the old literal stays only as a fallback.
+CHAT_ID=$(grep -E '^TELEGRAM_CHAT_ID=' /opt/monitoring/telegram.env 2>/dev/null | cut -d= -f2- | tr -d "\"' ")
+CHAT_ID=${CHAT_ID:-575014778}
 APP_PORT=4002                 # loki-app
 SERVICES=(postgresql loki-app.service loki-bridge.service loki-box-runner.service)
 DISK_WARN=88
@@ -68,10 +71,15 @@ check_disk
 # /system list through lib-alert when it is installed (2026-11-02: the owner
 # asked for nothing on Telegram he cannot act on in one tap).
 DEPLOY_URL="${DEPLOY_URL:-https://github.com/bitbaum/loki/actions/workflows/deploy.yml}"
-send_tg(){ [ -n "$TELEGRAM_BOT_TOKEN" ] && curl -s --max-time 15 \
+BOX_DOCTOR_URL="${BOX_DOCTOR_URL:-https://github.com/bitbaum/loki/actions/workflows/box-doctor.yml}"
+# Silent 22:00–07:00 Zurich: it still arrives, it does not wake anyone.
+night(){ local h; h=$(TZ=Europe/Zurich date +%H); h=${h#0}; [ "${h:-0}" -ge 22 ] || [ "${h:-0}" -lt 7 ]; }
+send_tg(){  # $1 text, $2 button label, $3 button url
+  [ -n "$TELEGRAM_BOT_TOKEN" ] && curl -s --max-time 15 \
   "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   --data-urlencode "chat_id=$CHAT_ID" --data-urlencode "text=$1" \
-  --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"Redeploy Loki\",\"url\":\"${DEPLOY_URL}\"}]]}" \
+  --data-urlencode "disable_notification=$(night && echo true || echo false)" \
+  --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"$2\",\"url\":\"$3\"}]]}" \
   >/dev/null 2>&1; }
 to_list(){
   logger -t ivy-health "$1"
@@ -85,10 +93,15 @@ prev_time=$(sed -n '2p' "$STATE_FILE" 2>/dev/null || echo 0); prev_time=${prev_t
 if [ "${#FAILS[@]}" -gt 0 ]; then
   sig=$(printf '%s\n' "${FAILS[@]}" | cut -d'|' -f1 | sort | md5sum | cut -c1-12)
   if [ "$sig" != "$prev_sig" ] || [ $((now - prev_time)) -ge "$REALERT_SECONDS" ]; then
-    msg="Loki is down and restarting it did not help."$'\n'
+    # Say what broke, and offer the fix that fits it: a redeploy brings back
+    # Loki's own app, not Postgres or the box; for those, Box doctor shows why.
+    msg="Restarting did not bring these back:"$'\n'
     for f in "${FAILS[@]}"; do msg+="• ${f#*|}"$'\n'; done
-    msg+=$'\n'"Redeploying usually fixes it."
-    send_tg "$msg"
+    if grep -Eq '^(loki-http|svc:loki-app)' <<<"$(printf '%s\n' "${FAILS[@]}")"; then
+      send_tg "$msg" "Redeploy Loki" "$DEPLOY_URL"
+    else
+      send_tg "$msg" "Run Box doctor" "$BOX_DOCTOR_URL"
+    fi
   fi
   printf '%s\n%s\n' "$sig" "$now" > "$STATE_FILE"
 else

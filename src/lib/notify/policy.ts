@@ -72,15 +72,46 @@ export const OWNER_TIME_ZONE = "Europe/Zurich";
 export type Refusal = { ok: false; reason: string };
 export type Valid = { ok: true; notice: NoticeRequest };
 
-/** Shape rules (1, 2). Returns the cleaned notice or why it is refused. */
+/**
+ * Hosts a button may open. A button in the owner's own bot is trusted by
+ * reflex, so it must never point anywhere a sender's input chose: an email
+ * that says "verify at https://evil…" read by the day-plan agent must not
+ * become a one-tap phishing link. Own domains and the few services whose
+ * pages are the action (mail, calendar, GitHub, Hetzner) only.
+ */
+export const ALLOWED_BUTTON_HOSTS = [
+  /(^|\.)orangecat\.ch$/,
+  /(^|\.)bitbaum\.(ch|com)$/,
+  /^mail\.google\.com$/,
+  /^calendar\.google\.com$/,
+  /^github\.com$/,
+  /^console\.hetzner\.cloud$/,
+];
+
+export function isAllowedButtonUrl(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  return u.protocol === "https:" && ALLOWED_BUTTON_HOSTS.some((re) => re.test(u.hostname));
+}
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+/**
+ * Shape rules (1, 2). Returns the cleaned notice or why it is refused. Only a
+ * missing or unsafe action refuses: a long title or label is clipped, never
+ * a reason to drop a real notice into the list.
+ */
 export function validateNotice(input: NoticeRequest): Valid | Refusal {
-  const title = input.title?.trim() ?? "";
+  const title = clip(input.title?.trim() ?? "", MAX_TITLE);
   if (!title) return { ok: false, reason: "a notice needs a title" };
-  if (title.length > MAX_TITLE) return { ok: false, reason: `title over ${MAX_TITLE} characters` };
-  const body = input.body?.trim() || undefined;
-  if (body && body.length > MAX_BODY)
-    return { ok: false, reason: `body over ${MAX_BODY} characters` };
-  const actions = (input.actions ?? []).filter((a) => a?.label?.trim() && a?.url?.trim());
+  const body = input.body?.trim() ? clip(input.body.trim(), MAX_BODY) : undefined;
+  const actions = (input.actions ?? [])
+    .filter((a) => a?.label?.trim() && a?.url?.trim())
+    .map((a) => ({ label: clip(a.label.trim(), MAX_LABEL), url: a.url.trim() }));
   if (actions.length === 0) {
     return {
       ok: false,
@@ -88,13 +119,12 @@ export function validateNotice(input: NoticeRequest): Valid | Refusal {
         "not actionable: a notice needs at least one button (a verb and a link). It was recorded in the list instead",
     };
   }
-  if (actions.length > MAX_ACTIONS) return { ok: false, reason: `at most ${MAX_ACTIONS} buttons` };
   for (const a of actions) {
-    if (a.label.trim().length > MAX_LABEL) {
-      return { ok: false, reason: `button "${a.label}" is over ${MAX_LABEL} characters` };
-    }
-    if (!/^https:\/\//.test(a.url.trim())) {
-      return { ok: false, reason: `button "${a.label}" must link to an https URL` };
+    if (!isAllowedButtonUrl(a.url)) {
+      return {
+        ok: false,
+        reason: `button "${a.label}" must open an https page on an allowed host`,
+      };
     }
   }
   if (!NOTICE_URGENCIES.includes(input.urgency)) return { ok: false, reason: "unknown urgency" };
@@ -105,7 +135,7 @@ export function validateNotice(input: NoticeRequest): Valid | Refusal {
       source: input.source.trim().slice(0, 40) || "loki",
       title,
       body,
-      actions: actions.map((a) => ({ label: a.label.trim(), url: a.url.trim() })),
+      actions: actions.slice(0, MAX_ACTIONS),
     },
   };
 }
@@ -157,14 +187,21 @@ export function decideDelivery(
     const age = now - history.lastForKey.at;
     if (age < wait) return { deliver: false, reason: "held-reminder", retryAfterMs: wait - age };
   }
-  if (history.sourceLastHour >= PER_SOURCE_PER_HOUR)
-    return { deliver: false, reason: "source-cap" };
-  if (history.lastDay >= PER_DAY) return { deliver: false, reason: "daily-cap" };
+  // The caps stop a looping sender, never an urgent one: a second break-in
+  // attempt in the same hour is not noise.
+  if (notice.urgency !== "now") {
+    if (history.sourceLastHour >= PER_SOURCE_PER_HOUR)
+      return { deliver: false, reason: "source-cap" };
+    if (history.lastDay >= PER_DAY) return { deliver: false, reason: "daily-cap" };
+  }
   return { deliver: true, ring: notice.urgency === "now" && !isQuietHour(now) };
 }
 
-/** The message text: who speaks, what happened, why — nothing to decode. */
+/**
+ * The message text: what happened and why, nothing to decode. No sender tag:
+ * "orangecat-cat · …" (2026-11-02) told the owner a machine's name, not
+ * anything to do. The source stays on the list row for whoever debugs it.
+ */
 export function formatNotice(notice: NoticeRequest): string {
-  const who = notice.source === "loki" ? "" : `${notice.source} · `;
-  return [`${who}${notice.title}`, notice.body].filter(Boolean).join("\n\n");
+  return [notice.title, notice.body].filter(Boolean).join("\n\n");
 }
