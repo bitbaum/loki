@@ -1,4 +1,5 @@
 import { TELEGRAM_CHAT_ID } from "@/lib/constants";
+import { isQuietHour } from "@/lib/notify/policy";
 
 export type SendResult = { ok: boolean; messageId?: string; error?: string };
 
@@ -35,6 +36,15 @@ export type SendOptions = {
 };
 
 const TELEGRAM_API = "https://api.telegram.org";
+
+/**
+ * Quiet nights for every sender, not only the notify gateway's: a caller that
+ * says nothing about sound is silent between 22:00 and 07:00 in the owner's
+ * zone (lib/notify/policy). It still arrives; it just does not wake anyone.
+ */
+function silentNow(requested: boolean | undefined, now = Date.now()): boolean {
+  return requested ?? isQuietHour(now);
+}
 
 /** Why a message without a button was not sent. */
 export const NOT_ACTIONABLE = "not actionable — a Telegram message needs at least one button";
@@ -113,7 +123,7 @@ export async function sendTelegramMessage(
         text,
         reply_markup: { inline_keyboard: keyboard },
         link_preview_options: { is_disabled: true },
-        ...(options?.silent ? { disable_notification: true } : {}),
+        ...(silentNow(options?.silent) ? { disable_notification: true } : {}),
       }),
       signal: AbortSignal.timeout(15000),
     });
@@ -156,7 +166,7 @@ export async function sendTelegramVoice(
   form.set("caption", options.caption.slice(0, 1024));
   form.set("voice", new Blob([new Uint8Array(ogg)], { type: "audio/ogg" }), "notice.ogg");
   form.set("reply_markup", JSON.stringify({ inline_keyboard: keyboard }));
-  if (options.silent) form.set("disable_notification", "true");
+  if (silentNow(options.silent)) form.set("disable_notification", "true");
   try {
     const res = await fetch(`${TELEGRAM_API}/bot${token}/sendVoice`, {
       method: "POST",
