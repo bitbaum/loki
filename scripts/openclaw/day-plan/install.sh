@@ -79,4 +79,35 @@ echo "Files that say 'restarted automatically' / 'was not running':"
 grep -rlIi --exclude-dir=node_modules --exclude-dir=.git -e 'restarted automatically' -e 'was not running' \
   /usr/local/bin /opt/monitoring /etc/systemd/system /etc/cron.d /var/spool/cron /root /home/openclaw/.openclaw 2>/dev/null \
   | grep -v -e '/sessions/' -e '\.jsonl$' -e '/logs/' | sed 's/^/  /' || true
-[ -f /home/openclaw/.openclaw/workspace/HEARTBEAT.md ] && echo "OpenClaw heartbeat file present ($(wc -l < /home/openclaw/.openclaw/workspace/HEARTBEAT.md) lines)" || echo "No OpenClaw heartbeat file"
+# The heartbeat is OpenClaw's other way to speak unprompted: an agent turn on a
+# timer that reads HEARTBEAT.md. The same contract goes there, between the same
+# markers, so "Gateway was not running. Restarted automatically. All good now."
+# (health-guardian.sh's status line, relayed by the agent) stays silent too.
+HB=/home/openclaw/.openclaw/workspace/HEARTBEAT.md
+if [ -f "$HB" ]; then
+  cp -a "$HB" "$HB.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+  hb_tmp=$(mktemp)
+  awk -v b="$BEGIN" -v e="$END" 'index($0,b){skip=1} !skip{print} index($0,e){skip=0}' "$HB" \
+    | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > "$hb_tmp"
+  { cat "$hb_tmp"; printf '\n%s\n' "$BEGIN"; cat "$CONTRACT"; printf '%s\n' "$END"; } > "$HB"
+  rm -f "$hb_tmp"
+  chown openclaw:openclaw "$HB" 2>/dev/null || true
+  echo "Telegram contract on the OpenClaw heartbeat ($(wc -l < "$HB") lines)."
+else
+  echo "No OpenClaw heartbeat file"
+fi
+
+# How does health-guardian run, and how does it speak? Lines only, with long
+# numbers and anything token-like redacted (this log is public).
+redact() { sed -E 's/[0-9]{6,}/<n>/g; s/((token|key|secret|password)[^ =:]*[=: ]+)[^ ]+/\1<redacted>/Ig'; }
+GUARD=/home/openclaw/.openclaw/workspace/tools/health-guardian.sh
+if [ -f "$GUARD" ]; then
+  echo "health-guardian is started by:"
+  { crontab -l -u openclaw 2>/dev/null | grep -n health-guardian | sed 's/^/  crontab:/'
+    grep -n health-guardian "$HB" 2>/dev/null | sed 's/^/  HEARTBEAT.md:/'
+    grep -rln health-guardian /etc/systemd /home/openclaw/.config/systemd 2>/dev/null | sed 's/^/  unit: /'
+    jq -r '.jobs[] | select((.payload.message // "") | test("health-guardian")) | "  cron job: \(.name) · \(.enabled)"' "$F"
+  } | redact
+  echo "health-guardian's speaking lines:"
+  grep -nE 'openclaw (message|send|agent)|curl|notify|echo .*(restart|running|swap|disk)' "$GUARD" | redact | sed 's/^/  /' | head -20
+fi

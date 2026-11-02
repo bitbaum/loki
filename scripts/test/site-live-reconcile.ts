@@ -15,9 +15,11 @@ assert.match(lib, /result\.deploymentStatus !== "live"\) return "not_live"/);
 // Only projects that still lack a live URL; writing it is what ends the check,
 // so the announcement cannot repeat.
 assert.match(lib, /isNull\(userProjects\.liveUrl\)/);
-// The owner's link carries their pass; Telegram is the operator's own chat.
+// The owner's link carries their pass, so it goes only to that owner's own
+// chat: through the gateway as that person, never to a chat chosen here.
 assert.match(lib, /ownerSiteUrl\(liveUrl, createOwnerPass\(entityProjectId, userId\)\)/);
-assert.match(lib, /!\(await isSiteOperator\(userId\)/);
+assert.match(lib, /notifyPerson\(userId,/);
+assert.doesNotMatch(lib, /selfTelegramTarget|sendTelegramMessage\(/);
 
 const crons = readFileSync("scripts/install-hetzner-crons.sh", "utf8");
 assert.match(crons, /\[check-site-live\]="\*:25"/, "the cron has a timer");

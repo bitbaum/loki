@@ -25,7 +25,8 @@ import {
   getUserIdsWithActiveAlertType,
   insertActiveAlertOnce,
 } from "@/db/queries/alerts";
-import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
+import { getDefaultUser } from "@/db/queries/users";
 import { gatewayTransition, probeGateway } from "@/lib/gateway-health";
 
 const GATEWAY_UP_URL = "https://github.com/bitbaum/loki/actions/workflows/openclaw-gateway-up.yml";
@@ -40,7 +41,6 @@ export async function GET(req: NextRequest) {
   const probe = await probeGateway(OPENCLAW_GATEWAY_URL);
   const users = await getFleetAutopilotUserIds();
   const flagged = new Set(await getUserIdsWithActiveAlertType(ALERT_TYPE));
-  const tg = selfTelegramTarget();
   const c = COMMS_COPY.gateway;
   let raised = 0;
   let cleared = 0;
@@ -73,10 +73,15 @@ export async function GET(req: NextRequest) {
   // for every fleet user, and the chat is a single person's. One tap restarts
   // it: the gateway-up workflow, which works while the gateway (and so the
   // Telegram chat itself) is down.
-  if (raised > 0 && tg) {
-    void sendTelegramMessage(tg, c.downTelegram(probe.detail), {
+  const operator = raised > 0 ? await getDefaultUser() : null;
+  if (operator) {
+    void notifyPerson(operator.id, {
+      source: "gateway",
+      category: "servers",
+      text: c.downTelegram(probe.detail),
       buttons: [[{ text: "Restart the gateway", url: GATEWAY_UP_URL }]],
-    });
+      key: "gateway-down",
+    }).catch(() => undefined);
   }
 
   // Heartbeat: a healthy tick logs too, so this janitor's silence is

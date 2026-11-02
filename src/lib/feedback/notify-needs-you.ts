@@ -5,8 +5,7 @@
  * Boss channel: Telegram (plus in-app alert). Same contract as
  * check-pending-approvals — one ping when the flag goes up, not per tick.
  */
-import { sendTelegramMessage } from "@/lib/actions/telegram-send";
-import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 import {
   refreshOrInsertActiveAlert,
@@ -95,24 +94,21 @@ export async function syncFeedbackNeedsYou(): Promise<{
 
     if (created) {
       raised++;
-      const tg = await telegramTargetFor(userId);
-      if (tg) {
-        const lines = [
-          `🧭 Loki: ${title}`,
-          `${project}: ${first.label}${first.detail ? ` — ${first.detail}` : ""}`.slice(0, 320),
-        ];
-        const sent = await sendTelegramMessage(tg, lines.join("\n"), {
-          buttons: [
-            [
-              {
-                text: "Open Feedback",
-                url: `${APP_URL}/feedback?project=${encodeURIComponent(project)}`,
-              },
-            ],
+      const sent = await notifyPerson(userId, {
+        source: "feedback",
+        category: "results",
+        text: `🧭 ${title}\n${`${project}: ${first.label}${first.detail ? ` — ${first.detail}` : ""}`.slice(0, 320)}`,
+        buttons: [
+          [
+            {
+              text: "Open Feedback",
+              url: `${APP_URL}/feedback?project=${encodeURIComponent(project)}`,
+            },
           ],
-        });
-        if (sent.ok) pinged++;
-      }
+        ],
+        key: `needs-you:${project}`,
+      });
+      if (sent.ok) pinged++;
     }
   }
 

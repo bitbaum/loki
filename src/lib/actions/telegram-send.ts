@@ -197,7 +197,9 @@ export async function sendTelegramVoice(
  * buttons. A message that arrives with fewer buttons is degraded; a message
  * that does not arrive is the failure this guards against.
  */
-function normalizeKeyboard(buttons: TelegramKeyboard | undefined): TelegramKeyboard | undefined {
+export function normalizeKeyboard(
+  buttons: TelegramKeyboard | undefined,
+): TelegramKeyboard | undefined {
   if (!buttons?.length) return undefined;
   const rows = buttons
     .map((row) => row.filter((b) => b?.text?.trim() && b?.url?.trim()))

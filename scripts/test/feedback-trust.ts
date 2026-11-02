@@ -95,7 +95,22 @@ for (const f of [
     /selfTelegramTarget\(/,
     `${f}: per-account news never goes to the box-wide chat`,
   );
-  assert.match(src, /telegramTargetFor\(/, `${f}: Telegram only for the operator's own work`);
+  // Per-account news goes to THAT account's own Telegram: through the gateway
+  // as that person (lib/notify/person.ts), never to a chat chosen here.
+  assert.match(
+    src,
+    /notifyPerson\(/,
+    `${f}: Telegram only through the gateway, as the account's person`,
+  );
+  assert.doesNotMatch(src, /sendTelegramMessage\(/, `${f}: no direct Telegram send`);
 }
+// And the gateway falls back to the operator's old chat for the operator only.
+const deliver = read("src/lib/notify/deliver.ts");
+assert.match(
+  deliver,
+  /telegramTargetFor\(userId\)/,
+  "legacy chat only via telegramTargetFor (operator-only)",
+);
+assert.match(deliver, /getTelegramTarget\(userId\)/, "a linked chat is the person's own");
 
 console.log("✓ feedback trust: source, night, claim link, Telegram");
