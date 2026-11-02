@@ -157,13 +157,16 @@ find "$DEST" -type f \( -name '*.dump' -o -name '*.sql.gz' \) -mtime "+$KEEP_DAY
 # config/secret snapshot ($CFG) in one encrypted snapshot.
 if [ -f /opt/backups/restic.env ]; then
   set -a; . /opt/backups/restic.env; set +a
-  if restic snapshots >/dev/null 2>&1 || restic init >/dev/null 2>&1; then
+  # Bounded: an unreachable target (seen 2026-11-02) held the run for 29
+  # minutes before failing. Reachable is answered in seconds; the push of a
+  # night's dumps and uploads gets an hour.
+  if timeout 120 restic snapshots >/dev/null 2>&1 || timeout 120 restic init >/dev/null 2>&1; then
     # DB dumps + config/secrets + USER UPLOADS (medical docs, pet photos — on
     # local disk, previously NOT in any backup).
     BPATHS=("$DEST" "$CFG"); for u in /opt/*/uploads; do [ -d "$u" ] && BPATHS+=("$u"); done
-    if restic backup "${BPATHS[@]}" --tag pg --host bitbaum >/dev/null 2>&1; then
+    if timeout 3600 restic backup "${BPATHS[@]}" --tag pg --host bitbaum >/dev/null 2>&1; then
       log "restic push ok → $RESTIC_REPOSITORY"
-      restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune >/dev/null 2>&1 || true
+      timeout 1800 restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune >/dev/null 2>&1 || true
     else
       log "ERROR: restic push failed — local dump kept"; fail=1
     fi
