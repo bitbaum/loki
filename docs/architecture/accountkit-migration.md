@@ -122,6 +122,14 @@ so:
 - An `ENABLE_OWNER_KEY` install that relies only on `LOCAL_AUTH_PASSWORD` (no
   stored hash) stays on Auth.js.
 
+AccountKit 0.23 can also sign people in through a product's own GitHub app,
+but only when the product asks for it (`githubSignIn: true` on
+`createAuthRuntime`, bitbaum/accountkit#61). Loki does not ask: its
+`GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are the app it acts on
+repositories with, not a way in. The journey "GitHub, Google, X and the env
+owner key are not offered on this runtime" (`scripts/test/accountkit-journeys.ts`)
+sets both variables and holds that.
+
 ## Switching (and back)
 
 `.github/workflows/accountkit-switch.yml` (`scripts/hetzner/accountkit-switch.sh`)
