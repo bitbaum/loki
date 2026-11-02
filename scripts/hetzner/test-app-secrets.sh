@@ -217,4 +217,22 @@ OUT14="$(run ensure heidi)" || fail "ensure on a stopped unit failed: $OUT14"
 [ ! -e "$TMP/restarts" ] && grep -q "heidi-app is not running" <<<"$OUT14" \
   && ok "a unit that is not running is left alone, and the run succeeds" || fail "stopped unit: $OUT14"
 
+# ── lightning-on: one flag, only where AccountKit 0.26.1+ runs ──────────────
+rm -f "$TMP/restarts"
+ak diplodoctor node_modules 0.26.1
+ak solon node_modules 0.26.1
+echo "ACCOUNTKIT_LIGHTNING=0" >> "$OPT/solon/shared/.env"
+OUT15="$(run lightning-on all)" || fail "lightning-on all failed: $OUT15"
+[ "$(count ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env")" = 1 ] && [ "$(val ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env")" = 1 ] \
+  && ok "lightning-on all: an app on AccountKit 0.26.1 gets ACCOUNTKIT_LIGHTNING=1 once" || fail "lightning-on diplodoctor: $OUT15"
+! grep -q ACCOUNTKIT_LIGHTNING "$OPT/heidi/shared/.env" && grep -q "heidi: runs AccountKit 0.24.0 — waits for 0.26.1" <<<"$OUT15" \
+  && ok "lightning-on: an older AccountKit waits, nothing written" || fail "lightning-on heidi: $OUT15"
+[ "$(val ACCOUNTKIT_LIGHTNING "$OPT/solon/shared/.env")" = 0 ] && grep -q "solon: ACCOUNTKIT_LIGHTNING already set — kept" <<<"$OUT15" \
+  && ok "lightning-on: a value someone set is kept" || fail "lightning-on solon: $OUT15"
+! grep -q "morulia:" <<<"$OUT15" \
+  && ok "lightning-on all: apps without AccountKit in their release are not touched" || fail "lightning-on morulia: $OUT15"
+OUT16="$(run lightning-on diplodoctor)" || fail "lightning-on again failed: $OUT16"
+[ "$(count ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env")" = 1 ] && grep -q "already set" <<<"$OUT16" \
+  && ok "lightning-on: running it again changes nothing" || fail "lightning-on again: $OUT16"
+
 echo "app-secrets: $PASSED passed"

@@ -56,6 +56,14 @@
 #   bash scripts/hetzner/app-secrets.sh show   heidi
 #   bash scripts/hetzner/app-secrets.sh ensure heidi
 #   bash scripts/hetzner/app-secrets.sh signin-on heidi   # or: signin-on all
+#   bash scripts/hetzner/app-secrets.sh lightning-on biaslens   # or: lightning-on all
+#
+# lightning-on turns on Lightning login (LNURL-auth, AccountKit 0.26.1+:
+# ACCOUNTKIT_LIGHTNING=1) in one app, or in every app on the box whose running
+# release carries AccountKit (`all`). Free, no key, no third party, so there
+# is nothing to pair. An app whose oldest AccountKit copy predates
+# LIGHTNING_MIN_ACCOUNTKIT waits (the flag would mount nothing, or a broken
+# client type); the next run after its bump switches it on.
 #
 # signin-on turns the shared sign-in's button on in an app (accountkit shows
 # "Continue with <the providers Morulia publishes>" once SIGNIN_ISSUER,
@@ -71,9 +79,9 @@ set -euo pipefail
 
 . "$(dirname "${BASH_SOURCE[0]}")/_box-env.sh"   # SSOT: HETZNER_IP, BOX_UBUNTU
 
-ACTION="${1:?usage: app-secrets.sh show|ensure|signin-on <app>}"
-APP="${2:?usage: app-secrets.sh show|ensure|signin-on <app>}"
-case "$ACTION" in show|ensure|signin-on) ;; *) echo "unknown action: $ACTION (show|ensure|signin-on)" >&2; exit 2 ;; esac
+ACTION="${1:?usage: app-secrets.sh show|ensure|signin-on|lightning-on <app>}"
+APP="${2:?usage: app-secrets.sh show|ensure|signin-on|lightning-on <app>}"
+case "$ACTION" in show|ensure|signin-on|lightning-on) ;; *) echo "unknown action: $ACTION (show|ensure|signin-on|lightning-on)" >&2; exit 2 ;; esac
 case "$APP" in *[!a-z0-9-]*|"") echo "app name must be [a-z0-9-]: $APP" >&2; exit 2 ;; esac
 
 REGISTRY="$(cat <<'REG'
@@ -224,6 +232,55 @@ fi
 REMOTE
   done
   exit "$failed"
+fi
+
+# lightning-on: one flag, ACCOUNTKIT_LIGHTNING=1, for apps on AccountKit 0.26.1+.
+LIGHTNING_MIN_ACCOUNTKIT="0.26.1"
+if [ "$ACTION" = lightning-on ]; then
+  ssh -o BatchMode=yes "$BOX_UBUNTU" 'bash -s' <<REMOTE
+set -euo pipefail
+OPT=$(printf %q "${APP_SECRETS_OPT:-/opt}")
+ONE=$(printf %q "$APP")
+MIN_AK=$(printf %q "$LIGHTNING_MIN_ACCOUNTKIT")
+oldest_ak() {  # the oldest AccountKit copy in an app's running release, or nothing
+  find "\$OPT/\$1/app/" -maxdepth 12 -path '*/@bitbaum/accountkit/package.json' 2>/dev/null \\
+    | xargs -r -I{} node -e 'process.stdout.write(require(process.argv[1]).version+"\\n")' {} 2>/dev/null \\
+    | sort -V | head -n 1 || true
+}
+if [ "\$ONE" = all ]; then
+  targets=""
+  for dir in "\$OPT"/*/; do
+    name="\$(basename "\$dir")"
+    [ -n "\$(oldest_ak "\$name")" ] && targets="\$targets \$name"
+  done
+else
+  targets="\$ONE"
+fi
+for APP in \$targets; do
+  ENVF=""
+  for cand in "\$OPT/\$APP/shared/.env" "\$OPT/\$APP/app/.env"; do [ -f "\$cand" ] && { ENVF="\$cand"; break; }; done
+  [ -n "\$ENVF" ] || { echo "\$APP: no env file on the box — nothing written"; continue; }
+  oldest="\$(oldest_ak "\$APP")"
+  if [ -z "\$oldest" ]; then
+    echo "\$APP: no AccountKit in its release — nothing written"; continue
+  fi
+  if [ "\$(printf '%s\\n%s\\n' "\$MIN_AK" "\$oldest" | sort -V | head -n 1)" != "\$MIN_AK" ]; then
+    echo "\$APP: runs AccountKit \$oldest — waits for \$MIN_AK; nothing written"; continue
+  fi
+  if grep -qE "^(export[[:space:]]+)?ACCOUNTKIT_LIGHTNING=" "\$ENVF"; then
+    echo "\$APP: ACCOUNTKIT_LIGHTNING already set — kept"; continue
+  fi
+  printf 'ACCOUNTKIT_LIGHTNING=1\\n' >> "\$ENVF"; chmod 600 "\$ENVF"
+  echo "\$APP: ACCOUNTKIT_LIGHTNING added"
+  if systemctl is-active --quiet "\$APP-app" 2>/dev/null; then
+    sudo systemctl restart "\$APP-app"; sleep 3
+    echo "\$APP: restarted \$APP-app: \$(systemctl is-active "\$APP-app" || true)"
+  else
+    echo "\$APP: \$APP-app is not running — its next start reads the flag"
+  fi
+done
+REMOTE
+  exit 0
 fi
 
 rows() { grep -E "^${APP}\|" <<< "$REGISTRY" || true; }
