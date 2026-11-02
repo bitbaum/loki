@@ -6,6 +6,22 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+
+## 2026-11-02 — Watch Loki use your site
+
+- **See where Loki presses.** {#robot-pointer} While Loki reviews your
+  site, its pointer glides to whatever it is about to press and the thing
+  lights up, with one line saying what it is doing. On the workbench and
+  on Review alike.
+- **Readable on any screen.** {#robot-readable} A desktop page fills a tall
+  column instead of shrinking, a phone page stands like a phone, and on a
+  small screen the view leans in and slides so the press stays in sight.
+  No dark empty band, no squinting.
+- **An ending.** {#robot-ending} When a walk finishes while you watch,
+  Loki says so: "All done. Loki looked at 3 pages and found 2 things
+  worth fixing." with one button to see them — or, when nothing needs you,
+  that it looks good.
+
 ## 2026-11-01 — Loki first, four words
 
 - **Loki's chat is the screen that opens.** {#loki-first} Signing in, and

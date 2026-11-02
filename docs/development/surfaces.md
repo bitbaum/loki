@@ -165,6 +165,13 @@ src/
 │   │                 (lib/workbench/bus.ts). The site is a PICTURE, not a
 │   │                 frame: fleet sites forbid framing and sever
 │   │                 window.opener (docs/architecture/workbench.md).
+│   ├── inspection/ → InspectionWorkspace (/projects/[id]/review), ReviewBrowser,
+│   │                 and RobotBrowser — Loki's browser WATCHED, the one view
+│   │                 the workbench and Review share: the pointer glides to
+│   │                 each press (ReviewFrame.target), the press lights up
+│   │                 while live, the picture fills its box and slides to
+│   │                 keep the press in sight (lib/inspection/robot-view
+│   │                 viewOf). RobotEnding = the warm end of a walk watched.
 │   ├── activity/  → ActivityView (scope menus, the answer as a sentence, NeedsYouCard
 │   │                 and EventStream as ListRows), ActivityReport (the written
 │   │                 report, the page's one action, in a sheet)
