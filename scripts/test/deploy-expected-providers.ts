@@ -4,6 +4,7 @@
 // Run: npx tsx scripts/test/deploy-expected-providers.ts
 import { expectedAuthProviders } from "../expected-auth-providers";
 import { getEnabledAuthProviders, PAUSED_PROVIDERS, sharedSigninLabel } from "@/lib/auth-providers";
+import { DEFAULT_AUTH_LABELS } from "@bitbaum/accountkit/auth/react";
 
 let pass = 0,
   fail = 0;
@@ -85,7 +86,8 @@ const enabled = getEnabledAuthProviders();
 ok("AccountKit with SIGNIN_*: the shared sign-in button shows", enabled.signin);
 ok(
   "the button uses AccountKit's own words",
-  sharedSigninLabel(enabled) === "Continue with Google, Apple, GitHub, X or Facebook",
+  // AccountKit's own words, whatever the release says (0.23.1 dropped Apple and X).
+  sharedSigninLabel(enabled) === DEFAULT_AUTH_LABELS.withSignin,
 );
 process.env.SIGNIN_CLIENT_SECRET = "";
 ok("a missing secret hides it", sharedSigninLabel(getEnabledAuthProviders()) === null);
