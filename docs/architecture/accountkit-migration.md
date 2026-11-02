@@ -32,8 +32,9 @@ What the import carries:
 - A linked OrangeCat actor becomes an `orangecat` account row.
 - A person with no address (an X sign-in) gets a `loki-<id>@users.invalid`
   placeholder that AccountKit needs and Loki never shows.
-- GitHub, Google and X links stay in Auth.js's `accounts`, where the GitHub
-  features read their tokens.
+- A GitHub link also becomes a `github` account row, so GitHub signs the same
+  person in. Its token, and Google and X links, stay in `accounts`, where the
+  GitHub features read them.
 
 Address collisions once lower-cased, drift between runs, or an already-used
 shared runtime fail the transaction.
@@ -100,27 +101,36 @@ every sign-in; unset, Auth.js answers as today. The secret is
 runs on a fresh Postgres) runs all of this through the real handlers and the
 real import, then the rehearsal. That is not deployed evidence.
 
-## Not offered on this runtime
+## GitHub, Google and X on this runtime
 
-AccountKit reaches Google, GitHub and X only through the shared bitbaum
-sign-in (`SIGNIN_*`). That service is live but has no provider credentials
-yet. Once `SIGNIN_ISSUER`, `SIGNIN_CLIENT_ID` and `SIGNIN_CLIENT_SECRET` are
-set, AccountKit mounts it as `bitbaum-signin`, and the sign-in and sign-up
-pages show "Continue with Google, Apple, GitHub, X or Facebook"
-(`getEnabledAuthProviders().signin`). The compat layer starts it like
-OrangeCat. The deploy then expects it in `/api/auth/providers`
-(`scripts/expected-auth-providers.ts` reads the box's OIDC env). Until
-then, the separate GitHub, Google and X buttons stay hidden on this runtime,
-so:
+GitHub signs in through Loki's own GitHub app, as it did on Auth.js:
+`GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, at its existing callback
+`/api/auth/callback/github` (AccountKit 0.22, `productGithubApp`). It is
+opt-in since AccountKit 0.23 (`githubSignIn: true`), and the owner chose to keep
+it on 2026-11-02.
+`githubScopes` asks for `repo` and `workflow` beside the identity scopes, which
+are what "Start a new project" and the repository features act with.
 
-- A person whose only way in is GitHub, Google or X, with no password and no
-  OrangeCat link, cannot sign in until the broker carries that provider or
-  they set a password first.
-- GitHub sign-in also granted the `repo` and `workflow` scopes that the
-  "Start a new project" flow uses. On this runtime that token has to come from
-  a separate "Connect GitHub" step, which does not exist yet.
-- An `ENABLE_OWNER_KEY` install that relies only on `LOCAL_AUTH_PASSWORD` (no
-  stored hash) stays on Auth.js.
+- A GitHub link made under Auth.js is recorded in AccountKit's table (the
+  import, and migration 0134 on the switched box), so GitHub signs that
+  person in as themselves.
+- A signed-in person who presses GitHub links it to their account. That is
+  "Connect GitHub".
+- The token of a new link goes to `onAccountCreated`, which keeps it in Loki's
+  `accounts`, where the GitHub features read it.
+- An address is never an identity. A GitHub account whose address matches an
+  existing Loki account that never linked GitHub is refused. The person signs
+  in with their password and connects GitHub from there.
+
+Google and X are reached only through the shared bitbaum sign-in
+(`SIGNIN_*`). Both were already paused on Auth.js (`PAUSED_PROVIDERS`). That
+service is live, but it has no provider credentials yet. Once
+`SIGNIN_ISSUER`, `SIGNIN_CLIENT_ID` and `SIGNIN_CLIENT_SECRET` are set,
+AccountKit mounts it as `bitbaum-signin`, and the compat layer starts it like
+OrangeCat.
+
+An `ENABLE_OWNER_KEY` install that relies only on `LOCAL_AUTH_PASSWORD` (no
+stored hash) stays on Auth.js.
 
 AccountKit 0.23 can also sign people in through a product's own GitHub app,
 but only when the product asks for it (`githubSignIn: true` on
@@ -173,8 +183,8 @@ button now reaches OrangeCat's authorize page with the redirect
 `/api/auth/callback/orangecat`, which client `loki` accepts.
 
 Everyone signed in under Auth.js signs in again once. GitHub tokens already
-stored in `accounts` stay where the GitHub features read them. A new GitHub
-connection waits for the "Connect GitHub" step (above).
+stored in `accounts` stay where the GitHub features read them. GitHub sign-in
+and "Connect GitHub" run through Loki's own GitHub app (above).
 
 To roll back, run the workflow with `rollback`. Hashes stay in Loki's format
 in `users.password_hash`, so nothing needs a reset.

@@ -8,9 +8,10 @@
 -- Password hashes are copied as they are (Loki's scrypt `hex.salt`, read by
 -- AccountKit's legacyPassword). A linked OrangeCat actor becomes an
 -- `orangecat` account row. A person with no address (an X sign-in) gets a
--- placeholder AccountKit needs and Loki never shows. GitHub, Google and X
--- links stay in Auth.js's `accounts`, where the product's GitHub features read
--- their tokens.
+-- placeholder AccountKit needs and Loki never shows. A GitHub link becomes a
+-- `github` account row too, so GitHub signs the same person in through Loki's
+-- own GitHub app on AccountKit; its token stays in `accounts`, where the GitHub
+-- features read it. Google and X links stay in `accounts` alone.
 LOCK TABLE users, auth_users, auth_accounts, auth_sessions,
   auth_passkeys, auth_two_factors, auth_verifications IN SHARE ROW EXCLUSIVE MODE;
 
@@ -46,6 +47,11 @@ ON CONFLICT DO NOTHING;
 INSERT INTO auth_accounts (id, account_id, provider_id, user_id)
 SELECT 'loki-orangecat:' || orangecat_actor_id, orangecat_actor_id, 'orangecat', id
 FROM loki_accountkit_users WHERE orangecat_actor_id IS NOT NULL
+ON CONFLICT DO NOTHING;
+INSERT INTO auth_accounts (id, account_id, provider_id, user_id)
+SELECT 'loki-github:' || a.provider_account_id, a.provider_account_id, 'github', s.id
+FROM accounts a JOIN loki_accountkit_users s ON s.id = a.user_id::text
+WHERE a.provider = 'github'
 ON CONFLICT DO NOTHING;
 
 DO $$ BEGIN

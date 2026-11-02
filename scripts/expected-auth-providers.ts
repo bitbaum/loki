@@ -15,15 +15,14 @@
  *
  * - Auth.js runtime: GitHub, Google and X when not paused (PAUSED_PROVIDERS in
  *   src/lib/auth-providers.ts), plus the password form.
- * - AccountKit runtime (AUTH_RUNTIME=accountkit, live since 2026-11-01):
- *   GitHub, Google and X are not mounted by design; the compat layer lists the
- *   password form and every OIDC client AccountKit mounts from env —
- *   `orangecat` with ORANGECAT_OAUTH_*, `bitbaum-signin` with SIGNIN_*
- *   (oidcClients). Expecting GitHub there failed every deploy after the
- *   switch with "auth provider missing: github" and rolled back a good build;
- *   not expecting OrangeCat let it vanish unnoticed.
+ * - AccountKit runtime (AUTH_RUNTIME=accountkit, live since 2026-11-01): the
+ *   compat layer lists GitHub through Loki's own app (GITHUB_CLIENT_*,
+ *   productGithubApp), the password form, and every OIDC client AccountKit
+ *   mounts from env — `orangecat` with ORANGECAT_OAUTH_*, `bitbaum-signin`
+ *   with SIGNIN_* (oidcClients). Google and X are not mounted there. Not
+ *   expecting what the runtime mounts let OrangeCat vanish unnoticed once.
  */
-import { oidcClients } from "@bitbaum/accountkit/auth";
+import { oidcClients, productGithubApp } from "@bitbaum/accountkit/auth";
 import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 
 import { PAUSED_PROVIDERS } from "../src/lib/auth-providers";
@@ -37,7 +36,12 @@ const CONFIGURED = [
 
 export function expectedAuthProviders(env: NodeJS.ProcessEnv = process.env): string[] {
   if (sharedRuntimeEnabled(env)) {
-    return ["email-password", ...oidcClients(env).map((client) => client.providerId)];
+    return [
+      // Loki opts its own GitHub app in (githubSignIn: true in its runtime).
+      ...(productGithubApp(env, true) ? ["github"] : []),
+      "email-password",
+      ...oidcClients(env).map((client) => client.providerId),
+    ];
   }
   return [
     ...CONFIGURED.filter(({ key }) => !PAUSED_PROVIDERS[key]).map(({ id }) => id),
