@@ -1,0 +1,67 @@
+# Apply the box's Postgres backups from GitHub: scripts/hetzner/install-backups.sh
+# installs the nightly runner and its timer, then runs one backup at once.
+#
+# The installer only reached the box when a person ran it over SSH, so a fix to
+# it sat in the repo: dumps holding every row of a product (patients' and
+# residents' data among them) were still written 644 after #1564 made the
+# runner write them 600. A merge that touches it now installs it, as
+# install-box-alerts.yml does for the alerting. After installing, the dumps
+# already on disk are tightened to 600, and the log counts the files per mode,
+# so "every dump is 600" is read off the run, not assumed.
+#
+# Names and modes only in the log: this repo is public. Same SSH setup as
+# install-box-alerts.yml (HETZNER_SSH_KEY, HETZNER_IP).
+name: Install backups
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/hetzner/install-backups.sh
+      - .github/workflows/install-backups.yml
+  workflow_dispatch: {}
+
+concurrency:
+  group: install-backups
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      # Installs the runner and the timer, then runs one backup now: its files
+      # are written by the new runner.
+      - name: Install the backup runner and run it once
+        run: bash scripts/hetzner/install-backups.sh
+
+      - name: Dumps already on disk are readable by root only
+        run: |
+          ssh -o BatchMode=yes "root@$HETZNER_IP" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          DEST=/opt/backups/pg
+          chmod 700 /opt/backups "$DEST"
+          find "$DEST" -maxdepth 1 -type f \( -name '*.dump' -o -name '*.sql.gz' \) ! -perm 600 -exec chmod 600 {} +
+          echo "files per mode in $DEST:"
+          find "$DEST" -maxdepth 1 -type f -printf '%m\n' | sort | uniq -c
+          newest="$(find "$DEST" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %m\n' | sort -rn | head -n 1 | cut -d' ' -f2)"
+          echo "newest dump's mode: ${newest:-none}"
+          other="$(find "$DEST" -maxdepth 1 -type f ! -perm 600 | wc -l)"
+          [ "$other" = 0 ] || { echo "::error::$other file(s) in $DEST are not 600"; exit 1; }
+          REMOTE
