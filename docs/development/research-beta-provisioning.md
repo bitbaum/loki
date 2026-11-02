@@ -16,10 +16,18 @@ reusable deploy secret and box-owned runtime environment.
 
 The restricted bootstrap workflow
 `.github/workflows/provision-analysis-beta.yml` has a fixed target:
-`bitbaum/biaslens` at `biaslens.orangecat.ch`. It only runs after green
-Loki CI on main (or explicit manual dispatch). It does not allow arbitrary
-repository/host inputs. It checks existing registration before making
-changes, and calls the existing rollback-aware deploy.
+`bitbaum/biaslens` at `biaslens.orangecat.ch`. It runs only by manual
+dispatch. It does not allow arbitrary repository/host inputs. It checks
+existing registration before making changes, and calls the existing
+rollback-aware deploy.
+
+It registered biaslens on 2026-10-22. Since then biaslens has deployed itself
+through its own `deploy.yml` (loki `selfhost-deploy.yml`, behind the fleet
+rollout gate, where it is AccountKit's canary). Until 2026-11-02 this workflow
+also ran after every green Loki CI on main. That redeployed biaslens out of
+band through `scripts/hetzner/deploy.sh`, which fails without the CI runtime
+files, so it failed on every main commit. Dispatch it only to re-bootstrap a
+box that has lost the app.
 
 ## Acceptance
 
