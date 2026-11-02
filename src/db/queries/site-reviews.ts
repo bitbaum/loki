@@ -7,7 +7,12 @@ import {
   type SiteReview,
   type SiteReviewEvent,
 } from "@/db/schema/site-reviews";
-import { REVIEW_LIMITS } from "@/lib/inspection/contract";
+import {
+  REVIEW_INPUT_QUEUE,
+  REVIEW_LIMITS,
+  type ReviewControl,
+  type ReviewInput,
+} from "@/lib/inspection/contract";
 
 export const reviewTokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 export async function getSiteReview(userId: string, id: string) {
@@ -54,7 +59,10 @@ export async function reviewEvents(userId: string, reviewId: string) {
 export async function updateSiteReview(
   row: SiteReview,
   patch: Partial<
-    Pick<SiteReview, "status" | "workerId" | "workerState" | "heartbeatAt" | "frame" | "coverage">
+    Pick<
+      SiteReview,
+      "status" | "workerId" | "workerState" | "heartbeatAt" | "frame" | "coverage" | "control"
+    >
   >,
 ) {
   return (
@@ -104,6 +112,49 @@ export async function addReviewEvent(
         .returning()
     )[0];
   });
+}
+/**
+ * Queue one input from the person who has the browser. Atomic: it lands only
+ * while they still hold it and the queue has room, so a hand-back or a full
+ * queue in between can never be overwritten by a stale read. False = refused.
+ */
+export async function queueReviewInput(row: SiteReview, input: ReviewInput) {
+  const added = await db
+    .update(siteReviews)
+    .set({
+      control: sql`jsonb_set(${siteReviews.control}, '{inputs}', (${siteReviews.control}->'inputs') || ${JSON.stringify([input])}::jsonb)`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(siteReviews.id, row.id),
+        eq(siteReviews.userId, row.userId),
+        sql`${siteReviews.control}->>'by' = 'you'`,
+        sql`jsonb_array_length(${siteReviews.control}->'inputs') < ${REVIEW_INPUT_QUEUE}`,
+      ),
+    )
+    .returning({ id: siteReviews.id });
+  return added.length > 0;
+}
+/**
+ * The worker takes every waiting input at once and leaves the queue empty, in
+ * one statement, so an input queued meanwhile is either taken now or waits
+ * for the next checkpoint; never lost, never applied twice.
+ */
+export async function takeReviewInputs(reviewId: string): Promise<ReviewInput[]> {
+  const result = await db.execute(sql`
+    WITH old AS (
+      SELECT control FROM site_reviews WHERE id = ${reviewId} FOR UPDATE
+    )
+    UPDATE site_reviews s
+       SET control = jsonb_set(s.control, '{inputs}', '[]'::jsonb)
+      FROM old
+     WHERE s.id = ${reviewId} AND s.control->>'by' = 'you'
+    RETURNING old.control AS control`);
+  const rows =
+    (result as unknown as { rows?: Array<{ control: ReviewControl | null }> }).rows ??
+    (result as unknown as Array<{ control: ReviewControl | null }>);
+  return rows?.[0]?.control?.inputs ?? [];
 }
 /** Strip the worker capability before anything reaches the browser. */
 export function publicReview(row: SiteReview) {

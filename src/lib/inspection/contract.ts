@@ -44,8 +44,74 @@ export const ReviewFrame = z.object({
   height: z.number().int().min(400).max(1200),
   action: z.string().max(200),
   scrollY: z.number().nonnegative(),
+  /** What Loki opens after this view; absent while the person has the browser. */
+  next: z.string().max(200).optional(),
+  /** Pages finished out of those planned so far (the plan grows as links are found). */
+  progress: z
+    .object({ done: z.number().int().nonnegative(), total: z.number().int().nonnegative() })
+    .optional(),
 });
 export type ReviewFrame = z.infer<typeof ReviewFrame>;
+
+/**
+ * Take over: the person drives the review's browser and hands it back.
+ *
+ * The owner, 2026-11-02, with Grok Bot's live Handler beside him: "I want to
+ * see how the machine is being used and click through", and to be "led
+ * through the whole experience and made to feel in control … and it should be
+ * objectively so". Taking over is that, for the browser Loki already runs:
+ * the person's clicks, scrolls and typing reach the same page Loki was on.
+ *
+ * Nothing about the browser's limits changes. The same guard refuses every
+ * request that is not a read (GET/HEAD) and every navigation off the site, so
+ * a click on a submit button sends nothing; the screen says so. Inputs are
+ * coordinates in the captured viewport, a short text, or one named key: no
+ * script, no URL, nothing the worker would execute.
+ */
+export const REVIEW_INPUT_KEYS = [
+  "Enter",
+  "Tab",
+  "Backspace",
+  "Escape",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "PageUp",
+  "PageDown",
+] as const;
+export const ReviewInput = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("click"),
+    x: z.number().int().min(0).max(1920),
+    y: z.number().int().min(0).max(1200),
+  }),
+  z.object({ type: z.literal("scroll"), dy: z.number().int().min(-3000).max(3000) }),
+  z.object({ type: z.literal("type"), text: z.string().min(1).max(200) }),
+  z.object({ type: z.literal("key"), key: z.enum(REVIEW_INPUT_KEYS) }),
+  z.object({ type: z.literal("back") }),
+]);
+export type ReviewInput = z.infer<typeof ReviewInput>;
+/** Who has the browser. Null is Loki; inputs wait for the worker's next checkpoint. */
+export type ReviewControl = { by: "you"; since: string; inputs: ReviewInput[] };
+/** Inputs waiting at once; a person faster than the browser waits a moment. */
+export const REVIEW_INPUT_QUEUE = 20;
+
+/** What the screen says one input did, in the person's words. */
+export function describeInput(input: ReviewInput): string {
+  switch (input.type) {
+    case "click":
+      return "You clicked";
+    case "scroll":
+      return input.dy > 0 ? "You scrolled down" : "You scrolled up";
+    case "type":
+      return "You typed";
+    case "key":
+      return `You pressed ${input.key}`;
+    case "back":
+      return "You went back";
+  }
+}
 export const ReviewFinding = z.object({
   title: z.string().trim().min(1).max(160),
   detail: z.string().trim().min(1).max(2000),

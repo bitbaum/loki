@@ -1,8 +1,14 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { siteReviews, type SiteReview } from "@/db/schema/site-reviews";
-import { addReviewEvent, updateSiteReview } from "@/db/queries/site-reviews";
-import { REVIEW_LIMITS, ReviewFinding, type ReviewWorkerEvent, reviewUrl } from "./contract";
+import { addReviewEvent, takeReviewInputs, updateSiteReview } from "@/db/queries/site-reviews";
+import {
+  REVIEW_LIMITS,
+  ReviewFinding,
+  type ReviewInput,
+  type ReviewWorkerEvent,
+  reviewUrl,
+} from "./contract";
 import { analyzeImages } from "@/lib/vision";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
 import { parseModelJson } from "@/lib/ai/model-json";
@@ -21,11 +27,15 @@ const Critique = z.object({
     )
     .max(2),
 });
+/** True while the person has the browser: Loki waits, their inputs drive it. */
+export const takenOver = (row: Pick<SiteReview, "status" | "control">) =>
+  row.status === "paused" && row.control?.by === "you";
+
 /** Checkpoints are the execution boundary: a worker cannot publish after pause/stop. */
 export async function handleReviewWorker(
   row: SiteReview,
   event: z.infer<typeof ReviewWorkerEvent>,
-) {
+): Promise<(SiteReview & { inputs?: ReviewInput[] }) | null> {
   if (event.kind === "checkpoint") {
     const [claimed] = await db
       .update(siteReviews)
@@ -44,7 +54,27 @@ export async function handleReviewWorker(
         ),
       )
       .returning();
-    return claimed ?? null;
+    if (!claimed) return null;
+    // While the person drives, each checkpoint carries what they did since.
+    return takenOver(claimed) ? { ...claimed, inputs: await takeReviewInputs(row.id) } : claimed;
+  }
+  // The one exception to "nothing after a pause": the picture of what the
+  // person's own input did, while they hold the browser. Never analyzed.
+  if (event.kind === "frame" && takenOver(row)) {
+    if (!reviewUrl(event.frame.url, row.url))
+      throw new Error("The browser left this review's site.");
+    const [saved] = await db
+      .update(siteReviews)
+      .set({ frame: event.frame, heartbeatAt: new Date() })
+      .where(
+        and(
+          eq(siteReviews.id, row.id),
+          eq(siteReviews.status, "paused"),
+          sql`${siteReviews.control}->>'by' = 'you'`,
+        ),
+      )
+      .returning();
+    return saved ?? null;
   }
   if (row.status !== "running") return null;
   if (event.kind === "frame") {

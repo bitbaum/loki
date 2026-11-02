@@ -6,6 +6,19 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-02 — Take over the browser
+
+- **You can take over Loki's browser.** {#review-take-over} In a project
+  review, **Take over** gives you the browser Loki is using: click on the
+  picture to click on the page, scroll, type, press Enter or go back, and
+  each step answers with a fresh picture. **Hand back to Loki** returns it;
+  Loki finishes the page it was on, then looks at the page you opened before
+  its own next one. The browser still only reads: a button that would send a
+  form sends nothing, and the screen says so.
+- **The review says what comes next.** {#review-next} Under the picture: what
+  Loki is doing now, the next page it will open, and how many pages are done;
+  a Live badge while it runs, and You while the browser is yours.
+
 ## 2026-11-01 — Loki first, four words
 
 - **Loki's chat is the screen that opens.** {#loki-first} Signing in, and

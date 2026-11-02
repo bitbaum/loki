@@ -4,10 +4,12 @@ import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { pathToFileURL } from "node:url";
-import type { Browser, Request } from "playwright";
+import type { Browser, Page, Request } from "playwright";
 import {
+  describeInput,
   reviewUrl,
   type ReviewFrame,
+  type ReviewInput,
   type ReviewWorkerEvent,
   type ReviewStatus,
 } from "../src/lib/inspection/contract";
@@ -21,7 +23,31 @@ type Reply = {
   url: string;
   paths: string[];
   limits: { pages: number; scrolls: number; findings: number; lifetimeMs: number };
+  /** Who has the browser; "you" while the person has taken over. */
+  control?: "you" | "loki";
+  /** What the person did since the last checkpoint, oldest first. */
+  inputs?: ReviewInput[];
 };
+/**
+ * Apply the person's inputs to the page, each on its own: a click that lands
+ * on nothing, or a back with no history, is skipped rather than ending the
+ * review. The request guard still decides what any of them may load or send.
+ */
+export async function applyInputs(page: Page, inputs: ReviewInput[]) {
+  for (const input of inputs) {
+    try {
+      if (input.type === "click") await page.mouse.click(input.x, input.y);
+      else if (input.type === "scroll") await page.mouse.wheel(0, input.dy);
+      else if (input.type === "type") await page.keyboard.type(input.text, { delay: 15 });
+      else if (input.type === "key") await page.keyboard.press(input.key);
+      else await page.goBack({ timeout: 8000 });
+    } catch {
+      // The page did not take this one; the next picture shows what happened.
+    }
+  }
+  await page.waitForLoadState("domcontentloaded", { timeout: 5000 }).catch(() => undefined);
+  await page.waitForTimeout(450);
+}
 export class ReviewStopped extends Error {}
 export async function reviewRequestAllowed(
   request: Pick<Request, "url" | "method" | "isNavigationRequest">,
@@ -64,18 +90,75 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
     return response.json();
   };
   const started = Date.now();
+  // Set once the browser is open: what the person drives when they take over.
+  let page: Page | undefined;
+  let siteOrigin = "";
+  // The page the person left open when they handed back, for Loki to look at next.
+  let detour: string | null = null;
+  /** A picture of what the person's input did. No viewing interval, no commentary. */
+  const takeoverFrame = async (action: string) => {
+    if (!page) return;
+    const viewport = page.viewportSize()!;
+    const image = (
+      await page.screenshot({ type: "jpeg", quality: 48, animations: "disabled", timeout: 10000 })
+    ).toString("base64");
+    await send({
+      kind: "frame",
+      frame: {
+        url: page.url(),
+        image: `data:image/jpeg;base64,${image}`,
+        width: viewport.width,
+        height: viewport.height,
+        scrollY: await page.evaluate(() => window.scrollY),
+        action,
+      },
+      text: action,
+      analyze: false,
+    });
+  };
   const checkpoint = async (): Promise<Reply> => {
+    // Where Loki was when the person took over, so it can return there after.
+    let before: { url: string; scrollY: number } | null = null;
+    let drove = false;
     for (;;) {
       const reply = await send({ kind: "checkpoint", workerId: config.workerId! });
       if (!reply.accepted || ["stopped", "finished", "failed"].includes(reply.status))
         throw new ReviewStopped("Review ended");
       if (Date.now() - started > reply.limits.lifetimeMs)
         throw new Error("Review time limit reached");
-      if (reply.status !== "paused") return reply;
+      if (reply.status !== "paused") {
+        if (drove && page && before) {
+          const theirs = page.url();
+          if (theirs !== before.url) {
+            if (reviewUrl(theirs, siteOrigin)) detour = theirs;
+            await page.goto(before.url, { waitUntil: "domcontentloaded", timeout: 20000 });
+          }
+          await page.evaluate((y) => window.scrollTo(0, y), before.scrollY);
+        }
+        return reply;
+      }
+      if (reply.control === "you" && page) {
+        if (!before) {
+          before = { url: page.url(), scrollY: await page.evaluate(() => window.scrollY) };
+          await takeoverFrame("You have the browser");
+        }
+        const inputs = reply.inputs ?? [];
+        if (inputs.length) {
+          drove = true;
+          await applyInputs(page, inputs);
+          // The guard keeps navigation on the site; this keeps the picture there too.
+          if (!reviewUrl(page.url(), siteOrigin)) await page.goBack().catch(() => undefined);
+          await takeoverFrame(describeInput(inputs.at(-1)!));
+          continue;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        continue;
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   };
   const plan = await checkpoint();
+  siteOrigin = plan.url;
   if (plan.mode === "code") {
     await send({
       kind: "message",
@@ -97,7 +180,9 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
       if (await requestAllowed(route.request(), plan.url)) return route.continue();
       return route.abort();
     });
-    const page = await context.newPage();
+    page = await context.newPage();
+    const opened = page;
+    const livePage = () => opened;
     page.setDefaultTimeout(12000);
     await page.addInitScript(() => {
       // Show where the reviewer navigates without modifying the site's application state.
@@ -114,6 +199,8 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
       ]),
     ];
     const visited = new Set<string>();
+    // Which planned page is open, for the "now · next" line under the picture.
+    let cursor = 0;
     const recordFinding = async (
       title: string,
       detail: string,
@@ -130,6 +217,7 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
     };
     const frame = async (action: string, analyze: boolean) => {
       await checkpoint();
+      const page = livePage();
       const viewport = page.viewportSize()!;
       const image = (
         await page.screenshot({ type: "jpeg", quality: 48, animations: "disabled", timeout: 10000 })
@@ -141,6 +229,8 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
         height: viewport.height,
         scrollY: await page.evaluate(() => window.scrollY),
         action,
+        ...(queue[cursor + 1] ? { next: new URL(queue[cursor + 1]!).pathname.slice(0, 200) } : {}),
+        progress: { done: visited.size - 1, total: Math.min(queue.length, plan.limits.pages) },
       };
       await send({ kind: "frame", frame: data, text: action, analyze });
       // A deliberate viewing interval, interruptible on the next checkpoint.
@@ -150,6 +240,12 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
       }
     };
     for (let index = 0; index < queue.length && visited.size < plan.limits.pages; index++) {
+      // A page the person opened while they had the browser comes first.
+      if (detour) {
+        if (!visited.has(detour)) queue.splice(index, 0, detour);
+        detour = null;
+      }
+      cursor = index;
       const url = reviewUrl(queue[index]!, plan.url);
       if (!url || visited.has(url)) continue;
       visited.add(url);

@@ -17,6 +17,7 @@ import type {
   ReviewFrame,
   ReviewCoverage,
   ReviewFinding,
+  ReviewControl,
 } from "@/lib/inspection/contract";
 
 export const siteReviews = pgTable(
@@ -38,6 +39,8 @@ export const siteReviews = pgTable(
     workerState: text("worker_state").notNull().default("queued"),
     heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
     frame: jsonb("frame").$type<ReviewFrame>(),
+    /** Set while the person has the browser (take over); null while Loki does. */
+    control: jsonb("control").$type<ReviewControl>(),
     coverage: jsonb("coverage").$type<ReviewCoverage[]>().notNull().default([]),
     findingCount: integer("finding_count").notNull().default(0),
     eventCount: integer("event_count").notNull().default(0),
