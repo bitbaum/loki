@@ -10,6 +10,9 @@ name: AccountKit switch
 #              throwaway account it deletes again; any failed step rolls back;
 #   rollback — AUTH_RUNTIME off, restart on Auth.js, mirrors dropped, shared
 #              tables emptied;
+#   rehearse — (Vitareba, AOZ) last night's dump restored into a temporary
+#              database, the import run there and rolled back, counts printed,
+#              the database dropped: the import rehearsal and the restore proof;
 #   prove    — on a switched app, the account journeys on the public site with
 #              throwaway accounts it deletes again: two sessions, a change to
 #              the person read on the next request, a password write ending
@@ -18,6 +21,9 @@ name: AccountKit switch
 #              product's pages and a real inbox; and where the app offers
 #              OrangeCat, a real browser sign-in with a throwaway OrangeCat
 #              account (on Loki, its stored token checked against OrangeCat).
+# Vitareba and AOZ go through scripts/hetzner/accountkit-cutover.sh: their own
+# tables, a fresh backup rehearsed before a switch, and a rollback that only
+# empties AUTH_RUNTIME and restarts.
 # This repo is public, so this log is too: the script prints counts and
 # verdicts, never an address, a hash or a secret.
 #
@@ -30,13 +36,13 @@ on:
         description: "Product to move"
         required: true
         type: choice
-        options: [kivvi, petvity, surf-your-life, evig, loki]
+        options: [kivvi, petvity, surf-your-life, evig, loki, vitareba, aoz-begleitung]
       action:
-        description: "survey (read only), switch, rollback, or prove (journeys on a switched app)"
+        description: "survey (read only), rehearse (Vitareba, AOZ: restored dump, rolled back), switch, rollback, or prove (journeys on a switched app)"
         required: true
         default: survey
         type: choice
-        options: [survey, switch, rollback, prove]
+        options: [survey, rehearse, switch, rollback, prove]
 
 permissions:
   contents: read
@@ -72,6 +78,10 @@ jobs:
         run: |
           npm install --no-save --no-package-lock --prefix scripts/hetzner playwright@1
           npx --prefix scripts/hetzner playwright install --with-deps chromium
+      # The cutover's throwaway legacy account is a bcrypt hash made here.
+      - name: bcrypt for the cutover's proof account
+        if: inputs.app == 'vitareba' || inputs.app == 'aoz-begleitung'
+        run: npm install --no-save --no-package-lock --prefix scripts/hetzner bcryptjs@2
       - name: SSH setup
         run: |
           mkdir -p ~/.ssh
@@ -86,4 +96,9 @@ jobs:
           set -euo pipefail
           sql=product/scripts/db/accountkit-import.sql
           [ "$APP" = loki ] && sql=scripts/db/accountkit-import.sql
+          case "$APP" in
+            vitareba|aoz-begleitung)
+              exec bash scripts/hetzner/accountkit-cutover.sh "$APP" "$ACTION" "$sql" ;;
+          esac
+          [ "$ACTION" != rehearse ] || { echo "rehearse is for vitareba and aoz-begleitung"; exit 2; }
           bash scripts/hetzner/accountkit-switch.sh "$APP" "$ACTION" "$sql"
