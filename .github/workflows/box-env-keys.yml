@@ -1,0 +1,121 @@
+name: Box env keys
+
+# Reusable: vendor keys a person pasted ONCE as secrets of an app's
+# repository, written into that app's env on the box
+# (scripts/hetzner/box-env-keys.sh is the rules: only the names listed, a value
+# set in GitHub wins, a name GitHub does not hold is left alone, names only in
+# the log). The caller passes `secrets: inherit`; only the names in `names`
+# are ever read from them.
+#
+# With `signin-on: true` (Morulia's caller), it then switches the shared
+# sign-in on in every client app as soon as Morulia publishes a provider:
+# app-secrets.sh signin-on all, which keeps what is set, skips an app whose
+# AccountKit would name providers that are not on, and refuses while Morulia
+# lists none. So after pasting a provider's keys the owner has nothing more
+# to do.
+#
+# Caller (bitbaum/morulia .github/workflows/provider-keys.yml):
+#   jobs:
+#     keys:
+#       uses: bitbaum/loki/.github/workflows/box-env-keys.yml@main
+#       with: { app: morulia, names: "GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET", signin-on: true }
+#       secrets: inherit
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "Box name of the app (apps.conf), e.g. morulia"
+        required: true
+        type: string
+      names:
+        description: "Space-separated env names to copy from the caller's secrets"
+        required: true
+        type: string
+      signin-on:
+        description: "Then run app-secrets.sh signin-on all once Morulia lists a provider"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: box-env-keys-${{ inputs.app }}
+      cancel-in-progress: false
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - name: Require deploy key
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+        run: |
+          [ -n "$SSH_KEY" ] || { echo "::error::HETZNER_SSH_PRIVATE_KEY is not set on the calling repository"; exit 1; }
+
+      # The rules are loki's scripts, not anything in the caller's tree.
+      - name: Fetch fleet tooling
+        run: git clone --quiet --depth 1 https://github.com/bitbaum/loki.git "$RUNNER_TEMP/fleet-tooling"
+
+      - name: SSH setup
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          . "$RUNNER_TEMP/fleet-tooling/scripts/hetzner/_box-env.sh"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Keys → ${{ inputs.app }} env on the box
+        id: keys
+        env:
+          APP: ${{ inputs.app }}
+          NAMES: ${{ inputs.names }}
+          # Every secret the caller holds, as JSON; only NAMES are taken from it
+          # below, and GitHub masks each value in the log regardless.
+          CALLER_SECRETS: ${{ toJSON(secrets) }}
+        run: |
+          set -euo pipefail
+          for name in $NAMES; do
+            [[ "$name" =~ ^[A-Z][A-Z0-9_]*$ ]] || { echo "::error::bad name in names: $name"; exit 1; }
+            value="$(NAME="$name" node -e 'const s=JSON.parse(process.env.CALLER_SECRETS||"{}");process.stdout.write(String(s[process.env.NAME]??""))')"
+            export "$name=$value"
+          done
+          unset CALLER_SECRETS
+          # shellcheck disable=SC2086
+          bash "$RUNNER_TEMP/fleet-tooling/scripts/hetzner/box-env-keys.sh" "$APP" $NAMES | tee "$RUNNER_TEMP/keys.log"
+          echo "changed=$(sed -nE 's/^changed=([0-9]+)$/\1/p' "$RUNNER_TEMP/keys.log" | tail -n 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Switch the shared sign-in on in every client app
+        if: ${{ inputs.signin-on }}
+        env:
+          CHANGED: ${{ steps.keys.outputs.changed }}
+        run: |
+          set -euo pipefail
+          tooling="$RUNNER_TEMP/fleet-tooling/scripts/hetzner"
+          issuer="$(grep -E '^morulia\|SIGNIN_URL\|literal:' "$tooling/app-secrets.sh" | cut -d'|' -f3)"
+          issuer="${issuer#literal:}"
+          providers() {
+            curl -fsS --max-time 20 "$issuer/api/health" \
+              | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const p=JSON.parse(s).providers;process.stdout.write(Array.isArray(p)?p.join(","):"")}catch{}})' \
+              || true
+          }
+          # Morulia was just restarted with new keys: give it a minute to answer.
+          list="$(providers)"
+          if [ "${CHANGED:-0}" -gt 0 ]; then
+            for _ in $(seq 1 12); do
+              list="$(providers)"; [ -n "$list" ] && break; sleep 5
+            done
+          fi
+          if [ -z "$list" ]; then
+            echo "Morulia lists no provider yet — nothing to switch on. Paste a provider's keys (bitbaum/morulia docs/providers.md)."
+            exit 0
+          fi
+          echo "Morulia providers on: $list"
+          bash "$tooling/app-secrets.sh" signin-on all
