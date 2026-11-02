@@ -289,12 +289,12 @@ const iso = (daysFromNow: number) => new Date(NOW.getTime() + daysFromNow * DAY_
     assert.ok(s.label.length <= 44, `${s.id}: label fits a phone row`);
     assert.ok(Boolean(s.prompt) !== Boolean(s.href), `${s.id}: exactly one of prompt / href`);
   }
-  // Loki's own section: suggestions are what the assistant proposes, next
-  // to talking to it and the day it keeps (2026-10-19).
-  const loki = SIDEBAR_SECTIONS.find((s) => s.id === "ask")!;
+  // Your day: what Loki proposes sits with the day it keeps, folded under
+  // the three words (2026-11-01, AGENTS.md "Why Loki exists").
+  const day = SIDEBAR_SECTIONS.find((s) => s.id === "day")!;
   assert.ok(
-    loki.items.some((i) => i.id === "suggestions"),
-    "Suggestions sits in Loki's section, with what Loki proposes",
+    day.items.some((i) => i.id === "suggestions"),
+    "Suggestions sits in Your day, with Today",
   );
 }
 

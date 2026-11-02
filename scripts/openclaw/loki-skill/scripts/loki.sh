@@ -170,6 +170,18 @@ case "$cmd" in
   pending)
     api GET /api/actions/pending | jq '.pending'
     ;;
+  notify)
+    # notify "<title>" "<button label>" "<https url>" [body] [now|today]
+    # The one way a job or agent reaches George's phone. No button, no message:
+    # Loki's gateway refuses it and keeps it on /today instead.
+    title=${2:?usage: loki.sh notify "<title>" "<button>" "<https-url>" [body] [now|today]}
+    label=${3:?usage: loki.sh notify "<title>" "<button>" "<https-url>" [body] [now|today]}
+    url=${4:?usage: loki.sh notify "<title>" "<button>" "<https-url>" [body] [now|today]}
+    body=${5:-}; urgency=${6:-today}
+    payload=$(jq -n --arg t "$title" --arg l "$label" --arg u "$url" --arg b "$body" --arg g "$urgency" \
+      '{source:"loki", title:$t, actions:[{label:$l, url:$u}], urgency:$g} + (if $b == "" then {} else {body:$b} end)')
+    api POST /api/notify "$payload" | jq '{sent, rang, why}'
+    ;;
   decide)
     prefix=${2:?usage: loki.sh decide <id-or-prefix> approve|reject}
     decision=${3:?usage: loki.sh decide <id-or-prefix> approve|reject}
@@ -184,5 +196,6 @@ case "$cmd" in
     echo "       loki.sh note \"<text>\"                 (a sticky note on Today)"
     echo "       loki.sh agenda [days]                   (read the calendar)"
     echo "       loki.sh pending | decide <id> approve|reject"
+    echo "       loki.sh notify \"<title>\" \"<button>\" \"<https-url>\" [body] [now|today]"
     ;;
 esac

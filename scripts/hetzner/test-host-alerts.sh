@@ -119,6 +119,13 @@ for a in "$@"; do
   prev="$a"
 done
 case "$url" in
+  *api/notify/box*)
+    printf 'loki\n' >> "${ROUTE_LOG:-/dev/null}"
+    [ -n "${LOKI_DOWN:-}" ] && exit 7
+    ;;
+  *api.telegram.org*)
+    printf 'telegram %s\n' "$*" >> "${ROUTE_LOG:-/dev/null}"
+    ;;
   *api/inject*)
     printf '%s\n' "$body" | tr '\n' ' ' >> "${DISPATCH_LOG:-/dev/null}"
     printf '\n' >> "${DISPATCH_LOG:-/dev/null}"
@@ -130,6 +137,10 @@ STUB
 # Fake creds so the delivery branch is actually entered. The curl stub above is
 # where they land, so nothing leaves this machine.
 printf 'TELEGRAM_BOT_TOKEN=test-token\nTELEGRAM_CHAT_ID=test-chat\n' > "$TMP/telegram.env"
+# The box's Loki agent token: every line goes to Loki's list first.
+printf 'LOKI_AGENT_TOKEN=ck_test\n' > "$TMP/loki.env"
+export LOKI_TOKEN_FILE="$TMP/loki.env" ROUTE_LOG="$TMP/route.log"
+: > "$ROUTE_LOG"
 # host-check asks "can this unit's User read its .env?" via sudo. Here we run as
 # ourselves, so the answer is the real filesystem's — which is the point: the
 # repair is tested against actual permission bits, not against a mock's opinion.
@@ -333,6 +344,44 @@ check "units: the unit NAME is alerted, not systemd's bullet" \
 check "units: the state key is derived from the name, not the bullet" \
   "$([ -e "$TMP/state/host_failed_z_service" ] && echo 0 || echo 1)"
 
+# ── transient systemd-run units are never incidents ---------------------------
+# 2026-11-01: "STILL FAILING: run-p3527451-i229931606" every five minutes, a new
+# name each time, so no per-unit cooldown ever held.
+rm -f "$TMP"/state/host_failed_* "$TMP"/state/paged_*
+run_units "run-p3527451-i229931606.service run-p4142870-i347955354.service"
+run_units "run-p3527451-i229931606.service run-p4142870-i347955354.service"
+check "units: transient run-p<pid>-i<id> units never page (got $(unit_alerts))" \
+  "$([ "$(unit_alerts)" -eq 0 ] && echo 0 || echo 1)"
+run_units "run-p1-i2.service real.service"
+run_units "run-p1-i2.service real.service"
+check "units: a real unit still pages beside a transient one, without naming it" \
+  "$(grep -q 'STILL FAILING: real' "$ALERT_LOG" && ! grep -q 'run-p' "$ALERT_LOG" && echo 0 || echo 1)"
+
+# appcron oneshots belong to the OnFailure notifier, not the sweep
+rm -f "$TMP"/state/host_failed_* "$TMP"/state/paged_*
+run_units "appcron-substrata-sweep.service"
+run_units "appcron-substrata-sweep.service"
+check "units: a failed appcron oneshot is never re-announced by the sweep (got $(unit_alerts))" \
+  "$([ "$(unit_alerts)" -eq 0 ] && echo 0 || echo 1)"
+
+# Where a line goes (2026-11-02): to Loki's list, never straight to the phone.
+cat > "$TMP/route.sh" <<'ROUTE'
+MON="$2" . "$1"
+_alert_deliver "$3"
+ROUTE
+route() { : > "$ROUTE_LOG"; LOKI_DOWN="${2:-}" bash "$TMP/route.sh" "$TMP/lib-alert.sh" "$TMP" "$1" >/dev/null 2>&1 || true; }
+route "⚙️ STILL FAILING: a"
+check "route: a line goes to Loki's list, not to Telegram" \
+  "$(grep -qx loki "$ROUTE_LOG" && ! grep -q telegram "$ROUTE_LOG" && echo 0 || echo 1)"
+route "⚙️ STILL FAILING: a" down
+check "route: Loki down — a non-intrusion waits in the journal, the phone stays quiet" \
+  "$(! grep -q telegram "$ROUTE_LOG" && echo 0 || echo 1)"
+route "🚨 SSH PASSWORD LOGIN ACCEPTED for root from 1.2.3.4" down
+check "route: Loki down — an intrusion still reaches the phone" \
+  "$(grep -q telegram "$ROUTE_LOG" && echo 0 || echo 1)"
+check "route: …with one button to the Box doctor" \
+  "$(grep -q 'Open Box doctor' "$ROUTE_LOG" && echo 0 || echo 1)"
+
 # ── 6. OnFailure notifier: one incident is ONE page, not one per restart ──────
 # On 2026-08-28 vitareba-app could not read its .env (root-owned after a
 # `chown --reference`). Restart=on-failure + RestartSec=3 restarted it 18 times
@@ -341,7 +390,7 @@ check "units: the state key is derived from the name, not the bullet" \
 # help: it only silences a unit that comes back, and this one never did. These
 # cases pin the per-unit cooldown that fixes it.
 notify() { : > "$ALERT_LOG"; bash "$TMP/notify-failure.sh" "$1" >/dev/null 2>&1 || true; }
-pages() { grep -c '🔴 DOWN:' "$ALERT_LOG" 2>/dev/null | tr -d "[:space:]" || true; }
+pages() { grep -c "^🔴 DOWN:" "$ALERT_LOG" 2>/dev/null | tr -d "[:space:]" || true; }
 stamp_of() { echo "$TMP/state/paged_$(printf '%s' "$1" | tr -c 'a-zA-Z0-9' '_')"; }
 rm -f "$TMP"/state/paged_*
 

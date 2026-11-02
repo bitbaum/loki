@@ -1,5 +1,10 @@
 import NextAuth from "next-auth";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { authConfig } from "@/auth.config";
+import { ROUTES } from "@/config/auth";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
+import { siteUrl } from "@/lib/auth/shared/runtime";
+import { compat } from "@/lib/auth/shared/compat";
 
 // Edge-safe auth middleware — uses only the JWT session and the authorized()
 // callback from auth.config.ts. No DB adapter, no Node.js crypto.
@@ -12,7 +17,36 @@ import { authConfig } from "@/auth.config";
 // The matcher intentionally excludes public routes so they stay accessible
 // without a session. Protected pages that need a userId also call
 // requirePageUserId() as a belt-and-suspenders check.
-export default NextAuth(authConfig).auth;
+const authJsProxy = NextAuth(authConfig).auth as unknown as (
+  req: NextRequest,
+  ev: NextFetchEvent,
+) => Promise<Response>;
+
+/**
+ * With AUTH_RUNTIME=accountkit the session is a database row read through
+ * AccountKit (docs/architecture/accountkit-migration.md), and the same
+ * authorized() decides; a refusal goes to sign-in with callbackUrl, as Auth.js
+ * sends it. Otherwise the Auth.js JWT, exactly as before.
+ */
+export default async function proxy(req: NextRequest, ev: NextFetchEvent) {
+  if (!sharedRuntimeEnabled()) return authJsProxy(req, ev);
+  const session = await compat.sessionFor(req.headers);
+  const verdict = await authConfig.callbacks.authorized({
+    auth: session,
+    request: req,
+  } as Parameters<typeof authConfig.callbacks.authorized>[0]);
+  if (verdict instanceof Response) return verdict;
+  // authorized() answers true or a redirect today; a plain false is Auth.js's "sign in".
+  if ((verdict as unknown) === false) {
+    const signIn = new URL(ROUTES.SIGN_IN, siteUrl());
+    signIn.searchParams.set(
+      "callbackUrl",
+      `${siteUrl()}${req.nextUrl.pathname}${req.nextUrl.search}`,
+    );
+    return NextResponse.redirect(signIn);
+  }
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [

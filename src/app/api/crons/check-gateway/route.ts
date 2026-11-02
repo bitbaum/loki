@@ -27,6 +27,8 @@ import {
 } from "@/db/queries/alerts";
 import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
 import { gatewayTransition, probeGateway } from "@/lib/gateway-health";
+
+const GATEWAY_UP_URL = "https://github.com/bitbaum/loki/actions/workflows/openclaw-gateway-up.yml";
 import { COMMS_COPY } from "@/config/comms";
 
 const ALERT_TYPE = "gateway_down";
@@ -59,13 +61,19 @@ export async function GET(req: NextRequest) {
       });
       if (created) {
         raised++;
-        if (tg) void sendTelegramMessage(tg, c.downTelegram(probe.detail));
+        // One tap restarts it: the gateway-up workflow, which works while the
+        // gateway (and so the Telegram chat itself) is down.
+        if (tg) {
+          void sendTelegramMessage(tg, c.downTelegram(probe.detail), {
+            buttons: [[{ text: "Restart the gateway", url: GATEWAY_UP_URL }]],
+          });
+        }
       }
     } else if (move === "clear") {
       const n = await dismissActiveAlertsByType(userId, ALERT_TYPE);
       if (n > 0) {
         cleared++;
-        if (tg) void sendTelegramMessage(tg, c.upTelegram);
+        // Back up: nothing to do, so nothing on the phone (owner, 2026-11-02).
       }
     }
   }

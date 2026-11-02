@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useBodyClass } from "@/hooks/use-body-class";
 
 const BODY_CLASS = "fc-chat-immersive";
 
@@ -16,9 +16,5 @@ const BODY_CLASS = "fc-chat-immersive";
  * so a laptop keeps its sidebar and top bar.
  */
 export function useImmersiveChat(active: boolean) {
-  useEffect(() => {
-    if (!active) return;
-    document.body.classList.add(BODY_CLASS);
-    return () => document.body.classList.remove(BODY_CLASS);
-  }, [active]);
+  useBodyClass(BODY_CLASS, active);
 }

@@ -21,8 +21,11 @@
 # - A VAPID pair is one unit: both keys or neither. Half a pair is reported,
 #   not patched — the browsers already subscribed hold the old public key.
 # - Restarts <app>-app only when something was added to ITS file and the unit
-#   exists (launch.sh sources .env at start; nothing is baked into the build).
-#   An app not deployed yet has no unit; its first deploy starts it with these.
+#   is RUNNING (launch.sh sources .env at start; nothing is baked into the
+#   build). A unit that exists but is not running is left alone: an app that
+#   is registered but was never deployed (keller, 2026-11-01) has a unit and
+#   no release, so restarting it only fails the run. Its next start, the
+#   first deploy, reads the new values.
 # - A pair is one value in TWO apps' env files (a client secret both ends of an
 #   OIDC client must hold). Generated once, written to both; when only one side
 #   has it, it is copied ON THE BOX to the other, so the value never travels or
@@ -36,17 +39,39 @@
 #   literal:<value>  a constant (a mailto: subject, say)
 #   pair:<app2>:<VAR2>  hex32, the same value as <VAR2> in <app2>'s env
 #                       (<app2> is the box name, /opt/<app2>)
+#   oc-client:<id>   "Sign in with OrangeCat" for this app: VAR is the prefix,
+#                    VAR_ID=<id> and VAR_SECRET=hex32 in the app's env, and the
+#                    secret's sha256 in OrangeCat's public.oauth_clients row
+#                    <id> (the hash is all OrangeCat keeps; register-client.ts
+#                    stores it the same way). The row comes from orangecat
+#                    scripts/oauth/client-specs.ts, created switched off and
+#                    without a secret by orangecat's deploy; this enables it.
+#                    The app's env is written FIRST, so a failure between the
+#                    two leaves the app holding a secret the next run copies
+#                    into the row, never a row nobody can match. A row that
+#                    already holds a secret this app lacks is reported, never
+#                    replaced: rotating is register-client.ts --rotate, by hand.
 #
 # Usage (from a laptop or the workflow; needs ssh to the box as ubuntu):
 #   bash scripts/hetzner/app-secrets.sh show   heidi
 #   bash scripts/hetzner/app-secrets.sh ensure heidi
+#   bash scripts/hetzner/app-secrets.sh signin-on heidi   # or: signin-on all
+#
+# signin-on turns the shared sign-in's button on in an app (accountkit shows
+# "Continue with Google, Apple, GitHub, X or Facebook" once SIGNIN_ISSUER,
+# SIGNIN_CLIENT_ID and SIGNIN_CLIENT_SECRET are all set). It adds the first
+# two beside the secret `ensure morulia` paired, and restarts the app. It
+# REFUSES while Morulia's /api/health lists no provider: a button that leads
+# to a page with no provider on it is worse than no button. The client id is
+# read from the morulia pair rows below, so there is one list, not two.
+# Rolling back is a deliberate edit of the app's env, like any rotation.
 set -euo pipefail
 
 . "$(dirname "${BASH_SOURCE[0]}")/_box-env.sh"   # SSOT: HETZNER_IP, BOX_UBUNTU
 
-ACTION="${1:?usage: app-secrets.sh show|ensure <app>}"
-APP="${2:?usage: app-secrets.sh show|ensure <app>}"
-case "$ACTION" in show|ensure) ;; *) echo "unknown action: $ACTION (show|ensure)" >&2; exit 2 ;; esac
+ACTION="${1:?usage: app-secrets.sh show|ensure|signin-on <app>}"
+APP="${2:?usage: app-secrets.sh show|ensure|signin-on <app>}"
+case "$ACTION" in show|ensure|signin-on) ;; *) echo "unknown action: $ACTION (show|ensure|signin-on)" >&2; exit 2 ;; esac
 case "$APP" in *[!a-z0-9-]*|"") echo "app name must be [a-z0-9-]: $APP" >&2; exit 2 ;; esac
 
 REGISTRY="$(cat <<'REG'
@@ -56,29 +81,131 @@ REGISTRY="$(cat <<'REG'
 heidi|CRON_SECRET|hex32
 heidi|VAPID|vapid
 heidi|VAPID_SUBJECT|literal:mailto:cato@orangecat.ch
-# signin: the shared sign-in (bitbaum/signin .env.example). SIGNIN_URL is the
+# morulia: the shared sign-in (bitbaum/morulia .env.example; first named signin). SIGNIN_URL is the
 # OIDC issuer, byte for byte, so no trailing slash. SIGNIN_PAIRWISE_SECRET
 # derives every person's subject in every app: it is NEVER rotated, and this
 # script never overwrites a value — that rule is what makes it safe here.
 # BETTER_AUTH_SECRET may already be there from provision-db-on-box.sh; then it
 # is kept.
-signin|SIGNIN_URL|literal:https://signin.orangecat.ch
-signin|BETTER_AUTH_SECRET|hex32
-signin|SIGNIN_PAIRWISE_SECRET|hex32
-# One row per client in bitbaum/signin lib/clients.ts: SIGNIN_CLIENT_SECRET_<ID>
+morulia|SIGNIN_URL|literal:https://morulia.orangecat.ch
+morulia|BETTER_AUTH_SECRET|hex32
+morulia|SIGNIN_PAIRWISE_SECRET|hex32
+# One row per client in bitbaum/morulia lib/clients.ts: SIGNIN_CLIENT_SECRET_<ID>
 # here equals SIGNIN_CLIENT_SECRET in that app. The hirnli client is served by
 # the revamp-info app (apps.conf), so its env is /opt/revamp-info. The secret
 # alone switches nothing on in an app: accountkit shows the button only once
 # SIGNIN_ISSUER and SIGNIN_CLIENT_ID are set too.
-signin|SIGNIN_CLIENT_SECRET_BIASLENS|pair:biaslens:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_CAUSIUS|pair:causius:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_DIPLODOCTOR|pair:diplodoctor:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_HEIDI|pair:heidi:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_HIRNLI|pair:revamp-info:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_SOLON|pair:solon:SIGNIN_CLIENT_SECRET
-signin|SIGNIN_CLIENT_SECRET_SUBSTRATA|pair:substrata:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_BIASLENS|pair:biaslens:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_CAUSIUS|pair:causius:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_DIPLODOCTOR|pair:diplodoctor:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_HEIDI|pair:heidi:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_HIRNLI|pair:revamp-info:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_PETVITY|pair:petvity:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SOLON|pair:solon:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SUBSTRATA|pair:substrata:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SURF_YOUR_LIFE|pair:surf-your-life:SIGNIN_CLIENT_SECRET
+# 2026-11-01: every other fleet app with a sign-in page (fleet
+# docs/auth-parity-2026-11-01.md), whatever its runtime, so the secret is in
+# place before the app wires the button. Box names are apps.conf's: AOZ is
+# aoz-wohnen, DataCat datacat-web; loki's env is /opt/loki/app/.env.
+morulia|SIGNIN_CLIENT_SECRET_AOZ_BEGLEITUNG|pair:aoz-wohnen:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_BOTSMANN|pair:botsmann:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_DATACAT|pair:datacat-web:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_EVIG|pair:evig:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_KELLER|pair:keller:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_KIVVI|pair:kivvi:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_LOKI|pair:loki:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_PRINTCRAFT|pair:printcraft:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_REPARATURBONUS_ZH|pair:reparaturbonus-zh:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_SKIF|pair:skif:SIGNIN_CLIENT_SECRET
+morulia|SIGNIN_CLIENT_SECRET_VITAREBA|pair:vitareba:SIGNIN_CLIENT_SECRET
+# "Sign in with OrangeCat" for the apps that had no OrangeCat client
+# (orangecat scripts/oauth/client-specs.ts holds the rows). The hirnli client
+# is served by revamp-info, as above; AOZ's box name is aoz-wohnen.
+aoz-wohnen|ORANGECAT_OAUTH_CLIENT|oc-client:aoz-begleitung
+biaslens|ORANGECAT_OAUTH_CLIENT|oc-client:biaslens
+botsmann|ORANGECAT_OAUTH_CLIENT|oc-client:botsmann
+diplodoctor|ORANGECAT_OAUTH_CLIENT|oc-client:diplodoctor
+keller|ORANGECAT_OAUTH_CLIENT|oc-client:keller
+kivvi|ORANGECAT_OAUTH_CLIENT|oc-client:kivvi
+printcraft|ORANGECAT_OAUTH_CLIENT|oc-client:printcraft
+reparaturbonus-zh|ORANGECAT_OAUTH_CLIENT|oc-client:reparaturbonus-zh
+revamp-info|ORANGECAT_OAUTH_CLIENT|oc-client:hirnli
+vitareba|ORANGECAT_OAUTH_CLIENT|oc-client:vitareba
 REG
 )"
+
+# signin-on: the morulia pair rows are the list of clients. SIGNIN_CLIENT_SECRET_<ID>
+# names the client id (lowercase, _ for -), the pair's peer is the box app.
+signin_client_of() {  # never fails: no row prints nothing
+  { grep -E "^morulia\|SIGNIN_CLIENT_SECRET_[A-Z0-9_]+\|pair:$1:SIGNIN_CLIENT_SECRET\$" <<< "$REGISTRY" \
+    || true; } | head -n 1 | cut -d'|' -f2 | sed 's/^SIGNIN_CLIENT_SECRET_//' | tr 'A-Z_' 'a-z-'
+}
+if [ "$ACTION" = signin-on ]; then
+  issuer="$(grep -E '^morulia\|SIGNIN_URL\|literal:' <<< "$REGISTRY" | cut -d'|' -f3)"
+  issuer="${issuer#literal:}"
+  # The health check names the providers that are switched on (names only).
+  providers="$(curl -fsS --max-time 20 "$issuer/api/health" \
+    | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).providers;process.stdout.write(Array.isArray(p)?p.join(","):"")})')" \
+    || { echo "could not read $issuer/api/health — nothing changed" >&2; exit 1; }
+  if [ -z "$providers" ]; then
+    echo "Morulia has no provider switched on yet ($issuer/api/health lists none)." >&2
+    echo "The button would lead to a page with nothing on it — refused, nothing changed." >&2
+    exit 1
+  fi
+  echo "Morulia providers on: $providers"
+  if [ "$APP" = all ]; then
+    targets="$(grep -oE "\|pair:[a-z0-9-]+:SIGNIN_CLIENT_SECRET\$" <<< "$REGISTRY" | cut -d: -f2)"
+  else
+    targets="$APP"
+  fi
+  failed=0
+  for target in $targets; do
+    client="$(signin_client_of "$target")"
+    if [ -z "$client" ]; then
+      echo "$target: not a Morulia client (no morulia pair row here, nor in bitbaum/morulia lib/clients.ts)" >&2
+      failed=1; continue
+    fi
+    ssh -o BatchMode=yes "$BOX_UBUNTU" 'bash -s' <<REMOTE || failed=1
+set -euo pipefail
+OPT=$(printf %q "${APP_SECRETS_OPT:-/opt}")
+APP=$(printf %q "$target")
+ISSUER=$(printf %q "$issuer")
+CLIENT=$(printf %q "$client")
+ENVF=""
+for cand in "\$OPT/\$APP/shared/.env" "\$OPT/\$APP/app/.env"; do [ -f "\$cand" ] && { ENVF="\$cand"; break; }; done
+[ -n "\$ENVF" ] || { echo "\$APP: no env file on the box — nothing written"; exit 0; }
+has() { grep -qE "^(export[[:space:]]+)?\$1=.+" "\$ENVF"; }
+value() { grep -E "^(export[[:space:]]+)?\$1=" "\$ENVF" | tail -n 1 | cut -d= -f2-; }
+if ! has SIGNIN_CLIENT_SECRET; then
+  echo "\$APP: no SIGNIN_CLIENT_SECRET yet — run 'ensure morulia' first; nothing written"
+  exit 0
+fi
+added=0
+for pair in "SIGNIN_ISSUER=\$ISSUER" "SIGNIN_CLIENT_ID=\$CLIENT"; do
+  name="\${pair%%=*}"; want="\${pair#*=}"
+  if ! has "\$name"; then
+    printf '%s=%s\n' "\$name" "\$want" >> "\$ENVF"; added=\$((added+1))
+    echo "\$APP: \$name added"
+  elif [ "\$(value "\$name")" = "\$want" ]; then
+    echo "\$APP: \$name kept"
+  else
+    echo "\$APP: \$name is set to something else — left alone; fix by hand"
+  fi
+done
+if [ "\$added" -gt 0 ]; then
+  chmod 600 "\$ENVF"
+  if systemctl is-active --quiet "\$APP-app" 2>/dev/null; then
+    sudo systemctl restart "\$APP-app"; sleep 3
+    echo "\$APP: restarted \$APP-app: \$(systemctl is-active "\$APP-app" || true)"
+  else
+    echo "\$APP: \$APP-app is not running — its next start reads the new values"
+  fi
+fi
+REMOTE
+  done
+  exit "$failed"
+fi
 
 rows() { grep -E "^${APP}\|" <<< "$REGISTRY" || true; }
 if [ -z "$(rows)" ]; then
@@ -124,6 +251,13 @@ while IFS='|' read -r app var kind; do
       v="$(openssl rand -hex 32)"
       ASSIGN+="WANT_${var}=$(printf %q "$v")"$'\n'
       PLAN+="${var}|pair|${peer}|${pvar}"$'\n' ;;
+    oc-client:*)
+      id="${kind#oc-client:}"
+      [[ "$id" =~ ^[a-z0-9][a-z0-9-]*$ && "$var" =~ ^[A-Z][A-Z0-9_]*$ ]] \
+        || { echo "bad oc-client for $var: $kind" >&2; exit 2; }
+      v="$(openssl rand -hex 32)"
+      ASSIGN+="WANT_${var}_SECRET=$(printf %q "$v")"$'\n'
+      PLAN+="${var}|oc-client|${id}"$'\n' ;;
     *) echo "unknown kind for $var: $kind" >&2; exit 2 ;;
   esac
 done < <(rows)
@@ -135,6 +269,7 @@ set -euo pipefail
 OPT=$(printf %q "${APP_SECRETS_OPT:-/opt}")
 APP=$(printf %q "$APP")
 ACTION=$(printf %q "$ACTION")
+OC_DB=$(printf %q "${OC_DB_CONTAINER:-supabase-db}")
 $ASSIGN
 PLAN=$(printf %q "$PLAN")
 
@@ -187,6 +322,46 @@ while IFS='|' read -r var kind peer pvar; do
         add "\$var" "\${!w}"; add "\$pvar" "\${!w}" "\$PEERF"; chmod 600 "\$PEERF"
         printf '%s: added to both (%s takes it at its next start)\n' "\$label" "\$peer"; added=\$((added+1))
       fi ;;
+    oc-client)
+      id="\$peer"; idv="\${var}_ID"; sv="\${var}_SECRET"; label="\$var (OrangeCat client \$id)"
+      # OrangeCat's database, in the supabase-db container (as orangecat's
+      # deploy reaches it). Only the sha256 of the secret goes in; the hash is
+      # computed here, never printed.
+      ocsql() { docker exec -i "\$OC_DB" psql -U postgres -d postgres -qtA -v ON_ERROR_STOP=1; }
+      sha() { printf %s "\$1" | sha256sum | cut -d' ' -f1; }
+      if ! row="\$(printf "SELECT coalesce(client_secret_hash, '') || '|' || (disabled_at IS NULL)::text FROM public.oauth_clients WHERE client_id = '%s';\n" "\$id" | ocsql)"; then
+        printf '%s: OrangeCat database not reachable — nothing written\n' "\$label"; continue
+      fi
+      rowhash="\${row%%|*}"
+      if [ "\$ACTION" = show ]; then
+        printf '%-20s %s\n' "\$idv" "\$(state "\$idv")"
+        printf '%-20s %s\n' "\$sv" "\$(state "\$sv")"
+        if [ -z "\$row" ]; then rs="no row"; elif [ -z "\$rowhash" ]; then rs="row, no secret (switched off)"; else rs="row with a secret, \$( [ "\${row#*|}" = true ] && echo on || echo off)"; fi
+        printf '%-20s %s\n' "  orangecat \$id" "\$rs"
+        continue
+      fi
+      if [ -z "\$row" ]; then
+        printf '%s: no such row in OrangeCat yet (orangecat client-specs.ts, created by its deploy) — nothing written\n' "\$label"; continue
+      fi
+      if ! has "\$sv" && [ -n "\$rowhash" ]; then
+        printf '%s: OrangeCat holds a secret this app lacks — left alone; rotate on purpose (register-client.ts --rotate)\n' "\$label"; continue
+      fi
+      if has "\$sv" && [ -n "\$rowhash" ] && [ "\$(sha "\$(value "\$sv")")" != "\$rowhash" ]; then
+        printf '%s: MISMATCH — app and OrangeCat hold different secrets; left alone; fix by hand\n' "\$label"; continue
+      fi
+      # The app's env first: a failure after it leaves a secret the next run
+      # copies into the row, never a row whose secret nobody holds.
+      if ! has "\$sv"; then w="WANT_\$sv"; add "\$sv" "\${!w}"; added=\$((added+1)); fresh=1; else fresh=0; fi
+      if ! has "\$idv"; then add "\$idv" "\$id"; added=\$((added+1)); fi
+      h="\$(sha "\$(value "\$sv")")"
+      done_id="\$(printf "UPDATE public.oauth_clients SET client_secret_hash = '%s', disabled_at = NULL WHERE client_id = '%s' AND (client_secret_hash IS NULL OR client_secret_hash = '%s') RETURNING client_id;\n" "\$h" "\$id" "\$h" | ocsql)" || done_id=""
+      if [ "\$done_id" = "\$id" ]; then
+        if [ "\$fresh" = 1 ]; then printf '%s: added to the app and switched on in OrangeCat\n' "\$label"
+        elif [ -z "\$rowhash" ]; then printf '%s: the app'"'"'s secret copied into OrangeCat; switched on\n' "\$label"
+        else printf '%s: kept (app and OrangeCat agree; on)\n' "\$label"; fi
+      else
+        printf '%s: OrangeCat row not updated — the app holds the secret; re-run to finish\n' "\$label"
+      fi ;;
     vapid)
       pubv="\${var}_PUBLIC_KEY"; prvv="\${var}_PRIVATE_KEY"
       if [ "\$ACTION" = show ]; then
@@ -215,12 +390,12 @@ done <<< "\$PLAN"
 
 if [ "\$ACTION" = ensure ] && [ "\$added" -gt 0 ]; then
   chmod 600 "\$ENVF"
-  if systemctl cat "\$APP-app" >/dev/null 2>&1; then
+  if systemctl is-active --quiet "\$APP-app" 2>/dev/null; then
     sudo systemctl restart "\$APP-app"
     sleep 3
     echo "restarted \$APP-app: \$(systemctl is-active "\$APP-app" || true) (\$added values added to \$ENVF)"
   else
-    echo "\$added values added to \$ENVF; no \$APP-app unit yet — its first deploy starts with them"
+    echo "\$added values added to \$ENVF; \$APP-app is not running — its next start reads them"
   fi
 elif [ "\$ACTION" = ensure ]; then
   echo "nothing to add for \$APP; not restarted"

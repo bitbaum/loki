@@ -16,12 +16,12 @@ name: Provision DB
 # create under that same name are accepted (scripts/hetzner/provisionable-db.sh).
 #
 # Manual on purpose: it writes to the box.
-#   gh workflow run provision-db.yml -f app=signin
+#   gh workflow run provision-db.yml -f app=morulia
 on:
   workflow_dispatch:
     inputs:
       app:
-        description: "Register name of the app (apps.conf) whose db column is a host database, e.g. signin"
+        description: "Register name of the app (apps.conf) whose db column is a host database, e.g. morulia"
         required: true
 
 permissions:

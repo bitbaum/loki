@@ -104,6 +104,13 @@ for u in /etc/systemd/system/*-app.service; do
     *) continue ;;
   esac
   state="$(systemctl is-active "$unit" 2>/dev/null)"
+  # An app that sleeps when idle (lib.sh sleep-when-idle) is inactive BY DESIGN
+  # while its wake socket listens: the first request starts it. On 2026-11-02
+  # at 03:02 this line sent fifteen "🧩 <app>: unit is enabled but inactive"
+  # messages at once — every sleeping app, none of them broken.
+  if [ "$state" != "active" ] && systemctl is-active --quiet "${app}-wake.socket" 2>/dev/null; then
+    state="active"
+  fi
   [ "$state" = "active" ] || finding "$app" "unit is enabled but $state"
 
   # A rename moves the unit file; it does NOT move the .service.d/ drop-ins

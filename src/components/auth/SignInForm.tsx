@@ -18,6 +18,12 @@ import {
   AuthSecondaryButton,
 } from "@/components/auth/AuthShell";
 import { OAuthButtons, hasAnyOAuth } from "@/components/auth/OAuthButtons";
+import {
+  PasskeyButton,
+  SignInLinkButton,
+  TwoFactorStep,
+  signInWithPassword,
+} from "@/components/auth/SharedWaysIn";
 import Link from "next/link";
 
 type Mode = "email" | "owner";
@@ -27,6 +33,9 @@ function FormInner({
   googleEnabled,
   twitterEnabled,
   orangecatEnabled,
+  signinLabel,
+  passkeyEnabled,
+  magicLinkEnabled,
   localAuthEnabled,
   demoEnabled,
 }: {
@@ -34,6 +43,11 @@ function FormInner({
   googleEnabled: boolean;
   twitterEnabled: boolean;
   orangecatEnabled: boolean;
+  signinLabel: string | null;
+  /** AccountKit runtime: passkeys and the second-factor step on this card. */
+  passkeyEnabled: boolean;
+  /** AccountKit runtime with account mail: the sign-in link. */
+  magicLinkEnabled: boolean;
   localAuthEnabled: boolean;
   demoEnabled: boolean;
 }) {
@@ -47,11 +61,13 @@ function FormInner({
   const urlErrorMsg =
     urlError === "OAuthAccountNotLinked"
       ? "This email is already registered with a different sign-in method. Sign in with that method first, then connect OrangeCat under Settings → Account."
-      : urlError === "AccessDenied"
-        ? "Access was denied. Please try again."
-        : urlError
-          ? "Sign-in failed. Please try again."
-          : "";
+      : urlError === "link"
+        ? "That sign-in link has expired or was already used. Ask for a new one below."
+        : urlError === "AccessDenied"
+          ? "Access was denied. Please try again."
+          : urlError
+            ? "Sign-in failed. Please try again."
+            : "";
 
   const [mode, setMode] = useState<Mode>("email");
   const [email, setEmail] = useState("");
@@ -61,11 +77,23 @@ function FormInner({
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoError, setDemoError] = useState("");
+  const [twoFactor, setTwoFactor] = useState(false);
+  const signedIn = () => goAfterSignIn(router.push, safeCallback);
 
   async function handleEmailPassword(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
+    if (passkeyEnabled) {
+      // AccountKit runtime: straight to AccountKit, so the second factor can
+      // follow on this card (the compat layer has no step for it).
+      const outcome = await signInWithPassword(email, password);
+      setLoading(false);
+      if (outcome === "signed-in") signedIn();
+      else if (outcome === "two-factor") setTwoFactor(true);
+      else setError(outcome);
+      return;
+    }
     const res = await signIn("email-password", { email, password, redirect: false });
     setLoading(false);
     if (res?.ok) {
@@ -110,7 +138,13 @@ function FormInner({
     setError("");
   }
 
-  const oauthFlags = { orangecatEnabled, githubEnabled, googleEnabled, twitterEnabled };
+  const oauthFlags = {
+    orangecatEnabled,
+    signinLabel,
+    githubEnabled,
+    googleEnabled,
+    twitterEnabled,
+  };
 
   return (
     <AuthShell>
@@ -129,11 +163,24 @@ function FormInner({
         />
       )}
 
-      {mode === "email" ? (
+      {mode === "email" && twoFactor ? (
         <AuthCard>
-          {hasAnyOAuth(oauthFlags) && (
+          <TwoFactorStep
+            onSignedIn={signedIn}
+            onBack={() => {
+              setTwoFactor(false);
+              setPassword("");
+            }}
+          />
+        </AuthCard>
+      ) : mode === "email" ? (
+        <AuthCard>
+          {(hasAnyOAuth(oauthFlags) || passkeyEnabled) && (
             <>
-              <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} />
+              <div className="space-y-2">
+                <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} />
+                {passkeyEnabled && <PasskeyButton onSignedIn={signedIn} />}
+              </div>
               <AuthDivider label="or email" />
             </>
           )}
@@ -177,6 +224,7 @@ function FormInner({
             </AuthField>
             {error && <p className="ui-error">{error}</p>}
             <AuthSubmitButton loading={loading} label="Sign in" loadingLabel="Signing in…" />
+            {magicLinkEnabled && <SignInLinkButton email={email} callbackUrl={safeCallback} />}
             <p className="ui-auth-hint">
               No account?{" "}
               <Link
@@ -242,6 +290,9 @@ export function SignInForm({
   googleEnabled,
   twitterEnabled,
   orangecatEnabled,
+  signinLabel,
+  passkeyEnabled,
+  magicLinkEnabled,
   localAuthEnabled,
   demoEnabled,
 }: {
@@ -249,6 +300,11 @@ export function SignInForm({
   googleEnabled: boolean;
   twitterEnabled: boolean;
   orangecatEnabled: boolean;
+  signinLabel: string | null;
+  /** AccountKit runtime: passkeys and the second-factor step on this card. */
+  passkeyEnabled: boolean;
+  /** AccountKit runtime with account mail: the sign-in link. */
+  magicLinkEnabled: boolean;
   localAuthEnabled: boolean;
   demoEnabled: boolean;
 }) {
@@ -259,6 +315,9 @@ export function SignInForm({
         googleEnabled={googleEnabled}
         twitterEnabled={twitterEnabled}
         orangecatEnabled={orangecatEnabled}
+        signinLabel={signinLabel}
+        passkeyEnabled={passkeyEnabled}
+        magicLinkEnabled={magicLinkEnabled}
         localAuthEnabled={localAuthEnabled}
         demoEnabled={demoEnabled}
       />

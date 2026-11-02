@@ -31,20 +31,29 @@
 # default on purpose: every other script here defaults to doing the thing, and
 # every other script here is additive.
 #
+# --no-github   no GitHub step at all: the repository is kept, its workflows
+#               stay enabled and its secrets stay. For a site that is only to
+#               leave the box (orangecat-2, 2026-11-01).
+# --keep-data   with delete: keep /opt/<slug> and the checkout; everything
+#               that serves it (unit, wake socket, vhost, row) still goes.
+#
 # Usage:
 #   retire-site.sh <slug> --mode offline|private|restore|delete [--go]
 #                         [--repo keep|private|archive|delete] [--force-client]
+#                         [--no-github] [--keep-data]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-SLUG=""; MODE=""; GO=0; REPO_ACTION=""; FORCE_CLIENT=0
+SLUG=""; MODE=""; GO=0; REPO_ACTION=""; FORCE_CLIENT=0; NO_GITHUB=0; KEEP_DATA=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --mode)         MODE="${2:-}"; shift 2 ;;
     --repo)         REPO_ACTION="${2:-}"; shift 2 ;;
     --go)           GO=1; shift ;;
     --force-client) FORCE_CLIENT=1; shift ;;
-    -h|--help)      sed -n '2,36p' "$0"; exit 0 ;;
+    --no-github)    NO_GITHUB=1; shift ;;
+    --keep-data)    KEEP_DATA=1; shift ;;
+    -h|--help)      sed -n '2,45p' "$0"; exit 0 ;;
     -*)             echo "ERROR: unknown flag $1" >&2; exit 2 ;;
     *)              [ -z "$SLUG" ] && SLUG="$1" || { echo "ERROR: one slug at a time" >&2; exit 2; }; shift ;;
   esac
@@ -91,6 +100,23 @@ if [ -z "$REPO_ACTION" ]; then
   esac
 fi
 case "$REPO_ACTION" in keep|private|archive|delete) ;; *) echo "ERROR: unknown --repo '$REPO_ACTION'" >&2; exit 2 ;; esac
+if [ "$NO_GITHUB" = 1 ] && [ "$REPO_ACTION" != keep ]; then
+  echo "ERROR: --no-github keeps the repository as it is; --repo $REPO_ACTION contradicts it" >&2; exit 2
+fi
+
+# A renamed repository still answers under its old name: GitHub redirects
+# repos/<owner>/<old> to the new one. Retiring the old site after a rename
+# (signin -> morulia, 2026-11-01) would then disable the NEW site's workflows,
+# delete its deploy key and archive it. So every GitHub step below is skipped
+# when the repository now belongs to another name; the box steps still run.
+# A lookup that fails (no gh, no repo) changes nothing.
+REPO_ELSEWHERE=""
+if [ "$NO_GITHUB" != 1 ] && canonical="$(gh api "repos/$GH_OWNER_PREVIEW/$SLUG" --jq .full_name 2>/dev/null)" \
+   && [[ "$canonical" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+   && [ "$(tr '[:upper:]' '[:lower:]' <<<"$canonical")" != "$(tr '[:upper:]' '[:lower:]' <<<"$GH_OWNER_PREVIEW/$SLUG")" ]; then
+  REPO_ELSEWHERE="$canonical"
+  REPO_ACTION="keep"
+fi
 
 # Deleting a repository needs GitHub's delete_repo scope, which this host's
 # token deliberately does not carry. Say so while it is still a PLAN — the
@@ -109,9 +135,20 @@ fi
 
 HOST="${DOMAINS%%,*}"
 GH_OWNER="${GITHUB_REPO_OWNER:-bitbaum}"
+
 UNIT="$SLUG-app"
+# A site that sleeps when idle (lib.sh) is woken by $SLUG-wake.socket, which
+# holds its port and starts the app on the first connection. Stopping only the
+# app left the socket listening: the port stayed taken, and any local request
+# brought the "offline" app back up.
+WAKE="$SLUG-wake.socket $SLUG-wake.service"
 VHOST="/etc/caddy/apps.d/$SLUG.caddy"
 BOX_DEV="${BOX_DEV_ROOT:-/home/ubuntu/dev}/$SLUG"
+# The box's own register (register-site.sh writes there first). Run from a
+# workflow, $MANIFEST is the runner's copy of main's, so removing the row there
+# alone left it on the box: orangecat-2 was retired on 2026-10-17 and was still
+# in the box's register, holding 4035, two weeks later.
+BOX_REGISTER="${BOX_LOKI:-/home/ubuntu/dev/loki}/scripts/hetzner/apps.conf"
 
 say() { printf '  %s\n' "$*"; }
 plan() { printf '  %s %s\n' "$( [ "$GO" = 1 ] && echo '→' || echo 'PLAN' )" "$*"; }
@@ -123,10 +160,22 @@ echo "mode     $MODE   repository: $REPO_ACTION"
 [ "$GO" = 1 ] || echo "         DRY RUN — nothing below has happened. Add --go to do it."
 echo
 
+# RETIRE_LOOK=1 (the workflow sets it): say what is on the box before
+# planning to remove it. Read-only; names and states only.
+if [ "${RETIRE_LOOK:-0}" = 1 ]; then
+  echo "on the box now:"
+  box "for u in $UNIT $WAKE; do printf '  %-34s %s, %s\\n' \"\$u\" \"\$(systemctl is-enabled \$u 2>/dev/null; true)\" \"\$(systemctl is-active \$u 2>/dev/null; true)\"; done
+    for p in /etc/systemd/system/$UNIT.service $VHOST /opt/$SLUG $BOX_DEV; do [ -e \"\$p\" ] && echo \"  present  \$p\" || echo \"  absent   \$p\"; done
+    grep -q '^$SLUG|' '$BOX_REGISTER' 2>/dev/null && echo '  row      in the box register' || echo '  row      not in the box register'
+    ss -Hltn 'sport = :$PORT' 2>/dev/null | grep -q . && echo '  port     $PORT has a listener' || echo '  port     $PORT is free'" \
+    || say "(could not look at the box)"
+  echo
+fi
+
 case "$MODE" in
   offline|delete)
-    plan "stop and disable $UNIT (the app stops answering)"
-    run "sudo systemctl disable --now $UNIT 2>/dev/null || true"
+    plan "stop and disable $UNIT and its wake socket, if any (the app stops answering, the port is let go)"
+    run "sudo systemctl disable --now $SLUG-wake.socket 2>/dev/null || true; sudo systemctl stop $SLUG-wake.service 2>/dev/null || true; sudo systemctl disable --now $UNIT 2>/dev/null || true"
     plan "remove $VHOST and reload Caddy ($HOST stops being served)"
     run "sudo rm -f $VHOST && sudo caddy validate --config /etc/caddy/Caddyfile >/dev/null && sudo systemctl reload caddy"
     ;;
@@ -168,12 +217,18 @@ sudo caddy validate --config /etc/caddy/Caddyfile >/dev/null && sudo systemctl r
 esac
 
 if [ "$MODE" = "delete" ]; then
-  plan "remove the unit file and reload systemd"
-  run "sudo rm -f /etc/systemd/system/$UNIT.service && sudo systemctl daemon-reload && sudo systemctl reset-failed $UNIT 2>/dev/null || true"
-  plan "remove /opt/$SLUG (app, releases, shared/.env, uploads)"
-  run "sudo rm -rf /opt/$SLUG"
-  plan "remove the checkout at $BOX_DEV"
-  run "rm -rf $BOX_DEV"
+  plan "remove the unit files ($UNIT, $SLUG-wake.socket/.service) and reload systemd"
+  run "sudo rm -f /etc/systemd/system/$UNIT.service /etc/systemd/system/$SLUG-wake.socket /etc/systemd/system/$SLUG-wake.service && sudo systemctl daemon-reload && sudo systemctl reset-failed $UNIT $WAKE 2>/dev/null || true"
+  if [ "$KEEP_DATA" = 1 ]; then
+    plan "keep /opt/$SLUG and the checkout at $BOX_DEV (--keep-data)"
+  else
+    plan "remove /opt/$SLUG (app, releases, shared/.env, uploads)"
+    run "sudo rm -rf /opt/$SLUG"
+    plan "remove the checkout at $BOX_DEV"
+    run "rm -rf $BOX_DEV"
+  fi
+  plan "remove the row from the box's register ($BOX_REGISTER)"
+  run "exec 9>/tmp/loki-register-site.lock; flock -w 60 -x 9 && [ -f '$BOX_REGISTER' ] && sed -i '/^$SLUG|/d' '$BOX_REGISTER' || true"
   plan "remove the apps.conf row, freeing port $PORT"
   if [ "$GO" = 1 ]; then
     tmp="$(mktemp)"; grep -v "^$SLUG|" "$MANIFEST" > "$tmp" && mv "$tmp" "$MANIFEST"
@@ -192,7 +247,15 @@ fi
 #
 # Before the repository is archived, because an archived repository refuses
 # every mutation — including this one.
-if [ "$MODE" = "delete" ]; then
+if [ -n "$REPO_ELSEWHERE" ]; then
+  plan "$GH_OWNER/$SLUG was renamed to $REPO_ELSEWHERE: no GitHub step runs (its workflows, deploy key and repository belong to that site now)"
+fi
+
+if [ "$NO_GITHUB" = 1 ]; then
+  plan "no GitHub step (--no-github): $GH_OWNER/$SLUG, its workflows and its secrets are left as they are"
+fi
+
+if [ "$MODE" = "delete" ] && [ -z "$REPO_ELSEWHERE" ] && [ "$NO_GITHUB" != 1 ]; then
   plan "disable the repository's GitHub Actions workflows (they would keep deploying a site that is gone)"
   if [ "$GO" = 1 ]; then
     ids=$(gh api "repos/$GH_OWNER/$SLUG/actions/workflows" --jq '.workflows[] | select(.state=="active") | .id' 2>/dev/null || true)
@@ -212,7 +275,7 @@ fi
 # (register-site.sh sets it). Nothing ever removed it, so every retired site
 # kept a working key to this box in a repository that may outlive the site —
 # and may later be made public or handed over.
-if [ "$MODE" = "delete" ] && [ "$REPO_ACTION" != "delete" ]; then
+if [ "$MODE" = "delete" ] && [ "$REPO_ACTION" != "delete" ] && [ -z "$REPO_ELSEWHERE" ] && [ "$NO_GITHUB" != 1 ]; then
   plan "remove the HETZNER_SSH_PRIVATE_KEY secret from $GH_OWNER/$SLUG (a key to this box)"
   if [ "$GO" = 1 ]; then
     gh secret delete HETZNER_SSH_PRIVATE_KEY --repo "$GH_OWNER/$SLUG" >/dev/null 2>&1 \
@@ -222,7 +285,7 @@ if [ "$MODE" = "delete" ] && [ "$REPO_ACTION" != "delete" ]; then
 fi
 
 case "$REPO_ACTION" in
-  keep)    plan "repository $GH_OWNER/$SLUG left as it is" ;;
+  keep)    plan "repository ${REPO_ELSEWHERE:-$GH_OWNER/$SLUG} left as it is" ;;
   private) plan "make $GH_OWNER/$SLUG private"
            if [ "$GO" = 1 ]; then gh api -X PATCH "repos/$GH_OWNER/$SLUG" -F private=true >/dev/null && say "repository is private"; fi ;;
   archive) plan "archive $GH_OWNER/$SLUG (read-only, recoverable)"
@@ -242,7 +305,11 @@ case "$MODE" in
     echo "Reversible. Put it back with:"
     echo "    bash scripts/hetzner/retire-site.sh $SLUG --mode restore --go" ;;
   delete)
-    echo "NOT reversible on the box: /opt, the unit, the vhost and the row are gone for good."
+    if [ "$KEEP_DATA" = 1 ]; then
+      echo "NOT reversible on the box: the unit, the vhost and the row are gone. /opt/$SLUG and its checkout are kept."
+    else
+      echo "NOT reversible on the box: /opt, the unit, the vhost and the row are gone for good."
+    fi
     case "$REPO_ACTION" in
       archive) echo "The repository is only archived, so the code survives — unarchive it to rebuild." ;;
       delete)  echo "The repository is deleted too. Nothing of this site survives anywhere." ;;

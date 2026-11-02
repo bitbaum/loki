@@ -74,6 +74,20 @@ export type AlertTypeSpec = {
 export const ALERT_FRESH_DAYS = 7;
 
 export const ALERT_TYPES = {
+  notice: {
+    label: "A bot asked for one tap",
+    audience: "operator",
+    action: "Open",
+    freshForDays: 2,
+    producer: "src/lib/notify/deliver.ts",
+  },
+  system_event: {
+    label: "Something the box or a bot noticed (no action needed from you)",
+    audience: "system",
+    action: "Open",
+    freshForDays: 2,
+    producer: "src/lib/notify/deliver.ts",
+  },
   telemetry_stale: {
     label: "A telemetry path stopped recording",
     audience: "system",

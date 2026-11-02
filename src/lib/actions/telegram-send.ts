@@ -1,4 +1,5 @@
 import { TELEGRAM_CHAT_ID } from "@/lib/constants";
+import { isQuietHour } from "@/lib/notify/policy";
 
 export type SendResult = { ok: boolean; messageId?: string; error?: string };
 
@@ -27,9 +28,26 @@ export type SendOptions = {
    * which defeats the point of sending buttons.
    */
   disablePreview?: boolean;
+  /**
+   * Deliver without sound or vibration. The notify gateway (lib/notify) sets
+   * it for everything that is not "now", and for everything at night.
+   */
+  silent?: boolean;
 };
 
 const TELEGRAM_API = "https://api.telegram.org";
+
+/**
+ * Quiet nights for every sender, not only the notify gateway's: a caller that
+ * says nothing about sound is silent between 22:00 and 07:00 in the owner's
+ * zone (lib/notify/policy). It still arrives; it just does not wake anyone.
+ */
+function silentNow(requested: boolean | undefined, now = Date.now()): boolean {
+  return requested ?? isQuietHour(now);
+}
+
+/** Why a message without a button was not sent. */
+export const NOT_ACTIONABLE = "not actionable — a Telegram message needs at least one button";
 
 /**
  * the operator's own Telegram chat id — the ONLY allowed recipient in the self-only phase.
@@ -84,11 +102,18 @@ export async function sendTelegramMessage(
   if (!isAllowedTelegramTarget(chatId)) {
     return { ok: false, error: "recipient not allowed — self-only allowlist" };
   }
+  // NO BUTTON, NO MESSAGE. The owner, 2026-11-02, after a night of messages he
+  // could do nothing with: "I should read it and click one time … 'what
+  // exactly should I do with that information?' should never appear in my
+  // mind." Enforced here, where every app message passes, not in a docblock
+  // callers may skip. A notice with no action belongs in the list
+  // (lib/notify/deliver.ts records it there), never in the chat.
+  const keyboard = normalizeKeyboard(options?.buttons);
+  if (!keyboard) return { ok: false, error: NOT_ACTIONABLE };
   // Safe after the guard: it only admits the self target or an empty string.
   const target = chatId.trim() || (selfTelegramTarget() as string);
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token) return { ok: false, error: "no TELEGRAM_BOT_TOKEN configured" };
-  const keyboard = normalizeKeyboard(options?.buttons);
   try {
     const res = await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
       method: "POST",
@@ -96,10 +121,9 @@ export async function sendTelegramMessage(
       body: JSON.stringify({
         chat_id: target,
         text,
-        ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
-        ...(keyboard || options?.disablePreview
-          ? { link_preview_options: { is_disabled: true } }
-          : {}),
+        reply_markup: { inline_keyboard: keyboard },
+        link_preview_options: { is_disabled: true },
+        ...(silentNow(options?.silent) ? { disable_notification: true } : {}),
       }),
       signal: AbortSignal.timeout(15000),
     });
@@ -111,6 +135,51 @@ export async function sendTelegramMessage(
     if (!res.ok || !data?.ok) {
       return { ok: false, error: data?.description ?? `telegram api ${res.status}` };
     }
+    const id = data.result?.message_id;
+    return { ok: true, messageId: id != null ? String(id) : undefined };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * A voice note (OGG/Opus, which is what Telegram draws as a voice bubble) with
+ * the text as its caption and the same URL buttons. Same self-only allowlist
+ * and fail-closed token rules as sendTelegramMessage. The caption keeps the
+ * message readable without playing it.
+ */
+export async function sendTelegramVoice(
+  chatId: string,
+  ogg: Buffer,
+  options: { caption: string; buttons?: TelegramKeyboard; silent?: boolean },
+): Promise<SendResult> {
+  if (!isAllowedTelegramTarget(chatId)) {
+    return { ok: false, error: "recipient not allowed — self-only allowlist" };
+  }
+  const target = chatId.trim() || (selfTelegramTarget() as string);
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!token) return { ok: false, error: "no TELEGRAM_BOT_TOKEN configured" };
+  const keyboard = normalizeKeyboard(options.buttons);
+  if (!keyboard) return { ok: false, error: NOT_ACTIONABLE };
+  const form = new FormData();
+  form.set("chat_id", target);
+  form.set("caption", options.caption.slice(0, 1024));
+  form.set("voice", new Blob([new Uint8Array(ogg)], { type: "audio/ogg" }), "notice.ogg");
+  form.set("reply_markup", JSON.stringify({ inline_keyboard: keyboard }));
+  if (silentNow(options.silent)) form.set("disable_notification", "true");
+  try {
+    const res = await fetch(`${TELEGRAM_API}/bot${token}/sendVoice`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      description?: string;
+      result?: { message_id?: number };
+    };
+    if (!res.ok || !data?.ok)
+      return { ok: false, error: data?.description ?? `telegram api ${res.status}` };
     const id = data.result?.message_id;
     return { ok: true, messageId: id != null ? String(id) : undefined };
   } catch (err) {

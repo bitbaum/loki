@@ -38,7 +38,6 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { logDebug } from "@/db/queries/debug-logs";
 import { refreshOrInsertActiveAlert, dismissActiveAlertsByType } from "@/db/queries/alerts";
 import { getDefaultUser } from "@/db/queries/users";
-import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
 import { getRuntimeSnapshots } from "@/db/queries/runtime-snapshots";
 import { runnerVersionStatus } from "@/lib/runner-version";
 
@@ -80,7 +79,7 @@ export async function GET(req: NextRequest) {
     const detail = behind
       .map((r) => `${r.channel}: ${r.normalized} (published ${r.latest}, ${r.behindBy} behind)`)
       .join("\n");
-    const { created } = await refreshOrInsertActiveAlert({
+    await refreshOrInsertActiveAlert({
       userId: owner.id,
       type: ALERT_TYPE,
       severity: "warning",
@@ -104,12 +103,8 @@ export async function GET(req: NextRequest) {
     alerted = true;
     // Once per episode, not per tick — a daily ping about a known condition is
     // trained-out within a week, and then the surface is dead for real faults.
-    if (created) {
-      const tg = selfTelegramTarget();
-      if (tg) {
-        void sendTelegramMessage(tg, `⚠️ Loki: runner behind published release.\n${detail}`);
-      }
-    }
+    // The alert is on /system; no Telegram — updating a runner is not one tap
+    // (owner, 2026-11-02: nothing on the phone without an action).
   } else if (unknown.length === 0) {
     // Auto-resolve only when every runner is genuinely accounted for. Clearing
     // it while some runner is UNKNOWN would turn "we cannot tell" into "fixed".

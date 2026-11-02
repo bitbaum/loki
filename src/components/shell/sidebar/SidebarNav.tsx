@@ -91,7 +91,7 @@ export function SidebarNav({ pathname, collapsed }: { pathname: string; collapse
         }
         // Icon-only sidebar shows every remaining item regardless of section
         // expansion (toggling has no visual meaning without labels).
-        const isExpanded = collapsed || expanded[section.id] !== false;
+        const isExpanded = collapsed || (expanded[section.id] ?? !section.foldedByDefault);
         return (
           <SidebarNavSection
             key={section.id}
@@ -124,6 +124,22 @@ function SidebarNavSection({
   onToggle: () => void;
 }) {
   const isLocked = Boolean(section.private && privateLocked);
+
+  // The first four stand on their own: no header to read, nothing to fold.
+  if (section.bare) {
+    return (
+      <div className="space-y-0.5">
+        {section.items.map((item) => (
+          <SidebarNavItem
+            key={item.id}
+            item={item}
+            current={isCurrentPath(pathname, item.href)}
+            collapsed={collapsed}
+          />
+        ))}
+      </div>
+    );
+  }
 
   // When the private zone is locked, the section is not expandable — its
   // header is the unlock affordance itself. There's nothing meaningful to

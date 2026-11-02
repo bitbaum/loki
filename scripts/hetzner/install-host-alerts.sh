@@ -75,20 +75,59 @@ ALERT_DEDUPE_SEC="${ALERT_DEDUPE_SEC:-300}"
 # of a new check and a planted zz-audit-probe.service both rang George's actual
 # phone at 22:14 — a message about nothing, which is the exact failure this
 # file exists to prevent. Testing the alerter must not page anyone.
+# WHERE A LINE GOES. Not to the phone. The owner, 2026-11-02, after a night of
+# "⚙️ STILL FAILING: run-p…" every five minutes: "If you send me something, it
+# has to be actionable — I read it and click one time. 'What exactly should I do
+# with that information?' — this question should never appear in my mind."
+#
+# Nearly every line here has no such click: a failed unit already has a fix
+# agent on it, a recovery needs nothing, a deploy edited its own files. So the
+# box hands every line to Loki (POST /api/notify/box with the box's Loki agent
+# token), which records it on /system — one row per kind of line, its count
+# rising — and puts on the phone only what has a one-tap answer
+# (src/lib/notify/box.ts + policy.ts: today, a sign that someone is IN the box).
+#
+# When Loki cannot be reached, only an intrusion goes to Telegram directly, with
+# one button: the Box doctor workflow, which works when Loki does not. Every
+# other line waits in the journal; Loki being down is reported by its own
+# watchers (ivy-health, fleet-uptime), not by every alert that could not land.
+LOKI_API_URL="${LOKI_API_URL:-http://127.0.0.1:4002}"
+LOKI_TOKEN_FILE="${LOKI_TOKEN_FILE:-/home/openclaw/.openclaw/calendar-drain.env}"
+BOX_DOCTOR_URL="${BOX_DOCTOR_URL:-https://github.com/bitbaum/loki/actions/workflows/box-doctor.yml}"
+_alert_intrusion() {
+  case "$1" in
+    *"SSH PASSWORD LOGIN"*|"☠️"*|"🔓 SSHD"*|"🧱 FIREWALL"*|"👤 NEW PRIVILEGED"*) return 0 ;;
+  esac
+  return 1
+}
+_alert_loki_token() {
+  [ -r "$LOKI_TOKEN_FILE" ] || return 1
+  grep -m1 '^LOKI_AGENT_TOKEN=' "$LOKI_TOKEN_FILE" 2>/dev/null | cut -d= -f2- | tr -d "\"'"
+}
 # The one place anything is delivered. Journal first, always — every caller,
 # every path, including the ones that decide not to deliver.
 _alert_deliver() {
-  local text="$1"
+  local text="$1" token
   logger -t watchdog "$text"
   if [ -n "${ALERT_DRY_RUN:-}" ]; then
     logger -t watchdog "ALERT dry-run, not delivered: $text"
     return 0
   fi
+  token=$(_alert_loki_token)
+  if [ -n "$token" ] && curl -fsS -m 10 -X POST "$LOKI_API_URL/api/notify/box" \
+      -H "Authorization: Bearer $token" --data-urlencode "text=${text}" -o /dev/null 2>/dev/null; then
+    return 0
+  fi
+  if ! _alert_intrusion "$text"; then
+    logger -t watchdog "ALERT held in the journal (Loki unreachable, not an intrusion) — the line above"
+    return 0
+  fi
   if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
     curl -fsS -m 10 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
       --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-      --data-urlencode "text=${text}" -o /dev/null \
-      || logger -t watchdog "ALERT telegram send failed"
+      --data-urlencode "text=${text}" \
+      --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"Open Box doctor\",\"url\":\"${BOX_DOCTOR_URL}\"}]]}" \
+      -o /dev/null || logger -t watchdog "ALERT telegram send failed"
   fi
   # Unconditional 0, for the same reason alert_transition ends that way.
   return 0
@@ -484,8 +523,28 @@ fi
 # whichever detector notices first speaks, the other finds the claim already
 # taken and goes to the journal. Neither has to know the other exists.
 UNIT_COOLDOWN=${NOTIFY_COOLDOWN_SEC:-1800}
+# TRANSIENT `systemd-run` COMMANDS ARE NOT SERVICES. Anything started with a bare
+# `systemd-run` (an agent running a shell command, a one-off build step) gets an
+# auto-named unit `run-p<pid>-i<id>.service`; when its command exits non-zero the
+# unit lingers as `failed`. Every one has a fresh name, so the per-unit
+# cooldown never matches and each one paged as its own incident: on 2026-11-01 the
+# phone got "⚙️ STILL FAILING: run-p3527451-i229931606" every five minutes, a new
+# name each time, all night. A failed one-off command already reported to
+# whoever ran it; it is never an outage. Clear it from the failed set (so
+# `systemctl --failed` keeps meaning "something is wrong") and never announce it.
+systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
+  | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '^run-p[0-9]+-i[0-9]+\.service$' \
+  | xargs -r systemctl reset-failed >/dev/null 2>&1 || true
 mapfile -t failed_units < <(systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
-  | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '\.service$' | grep -v '^notify-failure@')
+  | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '\.service$' | grep -v '^notify-failure@' \
+  | grep -vE '^run-p[0-9]+-i[0-9]+\.service$' \
+  | grep -v '^appcron-')
+# appcron-* are oneshot jobs. A failed oneshot STAYS failed until its next run
+# (a day, for most), so a sweep over the failed set re-announced one failure for
+# hours — "STILL FAILING: appcron-substrata-sweep" at 00:01, "…auto-updates" at
+# 00:06, both a curl connection reset while substrata was mid-deploy. The OnFailure
+# notifier already looked again after a grace window and pages a job that is
+# still failing; the sweep adds only repeats.
 declare -A unit_now=()
 announce=()
 for u in ${failed_units[@]+"${failed_units[@]}"}; do

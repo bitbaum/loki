@@ -72,9 +72,10 @@ export async function notifyFeedbackReceived(row: SiteFeedback): Promise<void> {
         const lines = [
           `📨 New feedback on ${projectName}${where ? ` (${where})` : ""}:`,
           `“${excerpt}”`,
-          `${APP_URL}${inboxPath}`,
         ];
-        await sendTelegramMessage(target, lines.join("\n")).catch(() => undefined);
+        await sendTelegramMessage(target, lines.join("\n"), {
+          buttons: [[{ text: "Triage it", url: `${APP_URL}${inboxPath}` }]],
+        }).catch(() => undefined);
       })(),
       (async () => {
         await refreshOrInsertActiveAlert({

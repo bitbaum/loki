@@ -191,6 +191,9 @@ write_units() {
 
   # The GPU flags are not cosmetic: this box's GPU process aborts (SIGABRT)
   # under Wayland, so software rendering is what keeps the runner alive.
+  # No --no-sandbox: the app's own launcher (desktop/scripts/linux-launcher.sh)
+  # keeps the Chromium sandbox on where the kernel allows it and falls back,
+  # with a message in the journal, where it does not.
   cat > "$UNIT_DIR/$SERVICE" <<EOF
 [Unit]
 Description=Fleet Runner (Loki local executor) — supervised
@@ -203,7 +206,7 @@ Type=simple
 # STABLE path — a symlink, never a versioned directory. The updater flips the
 # symlink, so this line survives every upgrade untouched. Baking a version in
 # here is what pinned this box to 0.8.11 while the app kept announcing 0.8.12.
-ExecStart=${CURRENT_LINK}/fleet-runner --no-sandbox --disable-gpu --disable-gpu-compositing
+ExecStart=${CURRENT_LINK}/fleet-runner --disable-gpu --disable-gpu-compositing
 Environment=WAYLAND_DISPLAY=wayland-0
 Environment=DISPLAY=:0
 Environment=ELECTRON_OZONE_PLATFORM_HINT=auto

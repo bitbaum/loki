@@ -100,9 +100,17 @@ export async function syncFeedbackNeedsYou(): Promise<{
         const lines = [
           `🧭 Loki: ${title}`,
           `${project}: ${first.label}${first.detail ? ` — ${first.detail}` : ""}`.slice(0, 320),
-          `${APP_URL}/feedback?project=${encodeURIComponent(project)}`,
         ];
-        const sent = await sendTelegramMessage(tg, lines.join("\n"));
+        const sent = await sendTelegramMessage(tg, lines.join("\n"), {
+          buttons: [
+            [
+              {
+                text: "Open Feedback",
+                url: `${APP_URL}/feedback?project=${encodeURIComponent(project)}`,
+              },
+            ],
+          ],
+        });
         if (sent.ok) pinged++;
       }
     }

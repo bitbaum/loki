@@ -87,12 +87,8 @@ async function announceSiteLive(
   if (!target || !(await isSiteOperator(userId).catch(() => false))) return;
   await sendTelegramMessage(
     target,
-    [
-      `🌐 ${name} is live: ${liveUrl}`,
-      "",
-      "Open it from here and say what to change in the widget — it gets built:",
-      link,
-    ].join("\n"),
+    `🌐 ${name} is live: ${liveUrl}\n\nOpen it and say what to change in the widget — it gets built.`,
+    { buttons: [[{ text: `Open ${name}`.slice(0, 24), url: link }]] },
   ).catch(() => undefined);
 }
 

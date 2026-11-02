@@ -36,8 +36,10 @@ export async function notifyBuildRequest(operatorId: string, row: BuildRequest):
       (async () => {
         const target = selfTelegramTarget();
         if (!target) return;
-        const lines = [`🛠 ${headline}:`, `“${excerpt}”`, `${APP_URL}${BUILD_REQUESTS.reviewPath}`];
-        await sendTelegramMessage(target, lines.join("\n")).catch(() => undefined);
+        const lines = [`🛠 ${headline}:`, `“${excerpt}”`];
+        await sendTelegramMessage(target, lines.join("\n"), {
+          buttons: [[{ text: "Review it", url: `${APP_URL}${BUILD_REQUESTS.reviewPath}` }]],
+        }).catch(() => undefined);
       })(),
       refreshOrInsertActiveAlert({
         userId: operatorId,

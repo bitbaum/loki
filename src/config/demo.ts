@@ -132,6 +132,9 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   // Makes a folder on the box and sends an agent to build a prospect preview.
   ["/api/previews", "dispatch"],
   ["/api/inject", "terminal"],
+  // The notify gateway: reaches the owner's phone and, for voice notes, a paid
+  // voice API. The box and OpenClaw call it with their own tokens.
+  ["/api/notify", "outbound"],
   ["/api/terminal", "terminal"],
   ["/api/command", "terminal"],
 

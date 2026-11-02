@@ -5,7 +5,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { startWatcher } from '@home/watcher'
 import { writeFileSync, readFileSync, existsSync } from 'fs'
-import { execSync } from 'child_process'
+import { execFileSync, execSync } from 'child_process'
 import { homedir } from 'os'
 import { APP_URL } from '@/config/brand'
 import {
@@ -22,6 +22,7 @@ import { dispatchAutopilot } from './dispatch'
 import { peekPtyBuffer } from './pty-runtime'
 import { loadToken, saveToken, clearToken, tokenDir } from './token-store'
 import { ensureCaptureHook } from './capture-hook'
+import { openWorkbenchWindow, workbenchPreloadPath } from './workbench-windows'
 
 // v0.7.4 — bundled renderer removed; one UI surface only.
 //
@@ -70,14 +71,15 @@ const TRAY_ICON_PATH = resourcePath('tray-icon.png')
 // endsWith check below.
 const OAUTH_PROVIDER_HOSTS = ['github.com', 'accounts.google.com', 'x.com', 'twitter.com']
 
-// Chromium SUID sandbox on Linux AppImage is handled at the AppRun wrapper
-// level via `linux.executableArgs: ["--no-sandbox"]` in package.json's
-// electron-builder config. We can't fix it here — chrome-sandbox aborts
-// the process at FATAL *before* Electron's main.ts ever loads, so any
-// app.commandLine.appendSwitch() called here runs too late. The flag
-// must be on the kernel-exec'd argv before chrome-sandbox is invoked.
-// .deb installs handle this differently: dpkg's postinst chmod 4755's
-// the chrome-sandbox helper, so the sandbox works the normal way there.
+// Linux sandbox: the Chromium sandbox decision is made before this file
+// loads, by desktop/scripts/linux-launcher.sh (installed in front of the
+// Electron binary by scripts/afterPack.cjs). It keeps the sandbox on wherever
+// unprivileged user namespaces or a setuid chrome-sandbox exist, and adds
+// --no-sandbox only where Chromium would otherwise abort at startup. When it
+// does, it sets FLEET_RUNNER_SANDBOX_OFF to the reason, and
+// warnIfSandboxOff() below says so in the app instead of leaving it silent.
+// app.commandLine.appendSwitch() could not do any of this: chrome-sandbox
+// aborts the process before main.ts runs.
 
 let mainWindow: BrowserWindow | null = null
 let stopWatcher: (() => void) | null = null
@@ -691,6 +693,20 @@ function createWindow(): void {
     }
   })
 
+  // Workbench windows: the web shell asks, this process places (see
+  // workbench-windows.ts for why the shell cannot open one itself). The
+  // caller is whichever window asked — a popped-out pane may ask too.
+  ipcMain.handle('open-workbench-window', async (event, url: unknown, placement: unknown) => {
+    if (typeof url !== 'string') return { ok: false, error: 'no url' }
+    return openWorkbenchWindow({
+      caller: BrowserWindow.fromWebContents(event.sender),
+      url,
+      placement: placement === 'other-screen' ? 'other-screen' : 'beside',
+      shellUrl: WEB_SHELL_URL,
+      preloadPath: workbenchPreloadPath(__dirname),
+    })
+  })
+
   // Reload the web shell from the offline page's retry button. Posts a
   // simple "retry" message via window.postMessage that the offline.html
   // listens for via the preload bridge.
@@ -810,6 +826,21 @@ app.on('open-url', (event, url) => {
   else pendingDeepLink = url
 })
 
+/** The Linux launcher started Electron with --no-sandbox as a fallback (see
+ *  linux-launcher.sh). Say so in the app, once per start: stderr alone is
+ *  invisible when the AppImage is opened from a file manager. */
+function warnIfSandboxOff(): void {
+  const reason = process.env.FLEET_RUNNER_SANDBOX_OFF
+  if (!reason) return
+  console.warn(`[desktop] Chromium sandbox OFF: ${reason}`)
+  if (!Notification.isSupported()) return
+  new Notification({
+    title: 'Fleet Runner is running without the Chromium sandbox',
+    body: `Because ${reason}. Install the .deb, or allow unprivileged user namespaces, to turn it on.`,
+    silent: true,
+  }).show()
+}
+
 // Linux/Windows: only one Fleet Runner should run. A second invocation (from
 // a loki:// click after the app is already up) triggers second-instance
 // with the new argv; we scan it for the deep-link URL and surface the window.
@@ -820,7 +851,13 @@ app.on('open-url', (event, url) => {
 function terminateStaleRunnerInstances(): void {
   const myPid = process.pid
   try {
-    const out = execSync('pgrep -f "fleet-runner-bin --no-sandbox" || true', { encoding: 'utf8' })
+    // No --no-sandbox in the pattern: the launcher only adds it as a fallback,
+    // so a sandboxed instance would be missed. No shell either, so the pattern
+    // cannot match the shell that runs it. Child processes are skipped below.
+    let out = ''
+    try {
+      out = execFileSync('pgrep', ['-u', String(process.getuid?.() ?? process.pid), '-f', 'fleet-runner-bin'], { encoding: 'utf8' })
+    } catch { /* exit 1 = no match */ }
     for (const line of out.trim().split('\n')) {
       const pid = Number.parseInt(line.trim(), 10)
       if (!pid || pid === myPid) continue
@@ -921,6 +958,7 @@ app.whenReady().then(async () => {
   })
 
   createWindow()
+  warnIfSandboxOff()
   createTray()
 
   // Apply any deep-link captured before the window existed (mac open-url
@@ -1071,7 +1109,10 @@ app.whenReady().then(async () => {
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    // The shell window, not any window: a workbench window (the site, a
+    // pane) may be open with the shell closed, and the dock click must
+    // bring the shell back.
+    if (!mainWindow || mainWindow.isDestroyed()) createWindow()
   })
 })
 

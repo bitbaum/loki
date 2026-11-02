@@ -1,5 +1,5 @@
 import { isDemoEmail } from "@/config/demo";
-import NextAuth from "next-auth";
+import NextAuth, { type Session } from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { ROUTES } from "@/config/auth";
 import Google from "next-auth/providers/google";
@@ -18,9 +18,15 @@ import {
   setUserOrangeCatActorId,
   type UpdateUserInput,
 } from "@/db/queries/users";
-import { getOrgMembershipCount, createPersonalOrg } from "@/db/queries/orgs";
 import { logDebug } from "@/db/queries/debug-logs";
 import { healReturningUserOnboarding, onboardingCompleteFlag } from "@/lib/onboarding-heal";
+import { bootstrapAfterSignIn } from "@/lib/auth/bootstrap";
+import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
+import { compat } from "@/lib/auth/shared/compat";
+import { isOpenSharedPath } from "@/lib/auth/shared/open-paths";
+import { sharedAuth } from "@/lib/auth/shared/runtime";
+import type { NextRequest } from "next/server";
+import { redirect } from "next/navigation";
 import { isValidUuid } from "@/lib/utils";
 import { verifyTicket } from "@/lib/x-oauth1";
 import { findOrCreateTwitterUser } from "@/db/queries/oauth-x";
@@ -103,7 +109,7 @@ declare module "@auth/core/jwt" {
   }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+const nextAuth = NextAuth({
   // An OrangeCat sign-in resolves its user by the OIDC `sub` alone — never by
   // email (lib/auth/orangecat-store.ts). keepTokens: the accounts row still
   // stores the OrangeCat token set, which powers publish/promote/wallet.
@@ -236,9 +242,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       try {
         if (message.user?.id) {
           const existing = await getUserById(message.user.id);
-          if (existing) {
-            await healReturningUserOnboarding(existing);
-          }
 
           // Cross-product identity bridge: on an OrangeCat OIDC sign-in the
           // providerAccountId IS the OrangeCat actor_id (id_token.sub). Persist
@@ -305,11 +308,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               );
           }
 
-          const memberCount = await getOrgMembershipCount(message.user.id);
-          if (memberCount === 0) {
-            const displayName = message.user.name ?? message.user.email?.split("@")[0] ?? "user";
-            await createPersonalOrg(message.user.id, displayName);
-          }
+          await bootstrapAfterSignIn(
+            message.user as { id: string; name?: string | null; email?: string | null },
+          );
         }
       } catch (e) {
         // Org bootstrap failures must not block sign-in. They'll surface in
@@ -618,3 +619,48 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+export const { signOut } = nextAuth;
+
+/**
+ * Who is signed in. One reader for both runtimes: AccountKit's shared session
+ * with AUTH_RUNTIME=accountkit, the Auth.js JWT otherwise. Same shape either
+ * way (docs/architecture/accountkit-migration.md).
+ */
+export async function auth(): Promise<Session | null> {
+  return sharedRuntimeEnabled() ? compat.currentSession() : nextAuth.auth();
+}
+
+/**
+ * Server-side sign-in (the studio's "Continue with OrangeCat"). On the shared
+ * runtime the round-trip starts at the bridge's GET entry, which signs in or,
+ * for a signed-in person, links.
+ */
+export async function signIn(
+  provider: string,
+  options: { redirectTo?: string } = {},
+): Promise<never | void> {
+  if (!sharedRuntimeEnabled()) return nextAuth.signIn(provider, options);
+  const next = encodeURIComponent(options.redirectTo ?? "/");
+  redirect(`/api/auth/signin/${provider}?callbackUrl=${next}`);
+}
+
+/**
+ * /api/auth/*: AccountKit answers when the shared runtime is on — through the
+ * compat layer, except passkeys, the second factor and the sign-in link, which
+ * Loki's screens reach directly (src/lib/auth/shared/open-paths.ts).
+ */
+export const handlers = {
+  GET: async (request: NextRequest) =>
+    !sharedRuntimeEnabled()
+      ? nextAuth.handlers.GET(request)
+      : isOpenSharedPath(request.nextUrl.pathname)
+        ? sharedAuth.GET(request)
+        : compat.route.GET(request),
+  POST: async (request: NextRequest) =>
+    !sharedRuntimeEnabled()
+      ? nextAuth.handlers.POST(request)
+      : isOpenSharedPath(request.nextUrl.pathname)
+        ? sharedAuth.POST(request)
+        : compat.route.POST(request),
+};

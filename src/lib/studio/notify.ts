@@ -60,8 +60,10 @@ export async function notifyStudioActivity(
       (async () => {
         const target = selfTelegramTarget();
         if (!target) return;
-        const lines = [`🏛 ${headline}${where}:`, `“${excerpt}”`, `${APP_URL}${reviewPath}`];
-        await sendTelegramMessage(target, lines.join("\n")).catch(() => undefined);
+        const lines = [`🏛 ${headline}${where}:`, `“${excerpt}”`];
+        await sendTelegramMessage(target, lines.join("\n"), {
+          buttons: [[{ text: "Review it", url: `${APP_URL}${reviewPath}` }]],
+        }).catch(() => undefined);
       })(),
       refreshOrInsertActiveAlert({
         userId: row.userId,
