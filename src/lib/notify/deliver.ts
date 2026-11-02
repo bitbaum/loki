@@ -20,7 +20,12 @@ import { getUserById } from "@/db/queries/users";
 import { logDebug } from "@/db/queries/debug-logs";
 import { sendTelegramMessage, sendTelegramVoice } from "@/lib/actions/telegram-send";
 import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
+import { getTelegramTarget } from "@/db/queries/telegram-links";
+import { isCategoryOn } from "@/config/notify-categories";
+import { notifyBotConfigured } from "@/lib/telegram/notify-bot";
+import { sendToLinkedChat, sendVoiceToLinkedChat } from "@/lib/telegram/send-to-person";
 import {
+  categoryOf,
   decideDelivery,
   formatNotice,
   validateNotice,
@@ -87,17 +92,27 @@ async function deliver(userId: string, input: NoticeRequest, now: number): Promi
     severity: notice.urgency === "now" ? "urgent" : "info",
     actionUrl: notice.actions?.[0]?.url ?? null,
   };
+  const hidden = notice.listed === false;
   const alertId = open
     ? (await updateNotice(open.id, { ...row, metadata: meta }), open.id)
-    : ((await insertNotice({ userId, type, ...row, metadata: meta }))?.id ?? null);
+    : ((
+        await insertNotice({
+          userId,
+          type,
+          ...row,
+          metadata: meta,
+          ...(hidden ? { dismissed: true, dismissedAt: new Date(now) } : {}),
+        })
+      )?.id ?? null);
 
   if (!valid.ok) {
     if (alertId) await updateNotice(alertId, { metadata: { ...meta, heldBecause: valid.reason } });
     return { alertId, sent: false, rang: false, why: valid.reason };
   }
 
-  const chat = await telegramTargetFor(userId);
-  if (!chat) return { alertId, sent: false, rang: false, why: "this account has no Telegram chat" };
+  // WHERE, and whether at all: the person's own choices first.
+  const target = await resolveTarget(userId, categoryOf(valid.notice));
+  if ("why" in target) return { alertId, sent: false, rang: false, why: target.why };
 
   const hourAgo = new Date(now - 3600_000);
   const dayAgo = new Date(now - 24 * 3600_000);
@@ -123,11 +138,11 @@ async function deliver(userId: string, input: NoticeRequest, now: number): Promi
     const user = await getUserById(userId);
     const voice = await voiceNoteFor(text, user?.plan ?? "free");
     if (voice.audio) {
-      const r = await sendTelegramVoice(chat, voice.audio, {
-        caption: text,
-        buttons,
-        silent: !decision.ring,
-      });
+      const opts = { caption: text, buttons, silent: !decision.ring };
+      const r =
+        target.kind === "linked"
+          ? await sendVoiceToLinkedChat(userId, voice.audio, opts)
+          : await sendTelegramVoice(target.chat, voice.audio, opts);
       sent = r.ok;
     } else if (voice.pitch) {
       // Not entitled: the text still goes out, and once a month the owner of
@@ -136,7 +151,10 @@ async function deliver(userId: string, input: NoticeRequest, now: number): Promi
     }
   }
   if (!sent) {
-    const r = await sendTelegramMessage(chat, text, { buttons, silent: !decision.ring });
+    const r =
+      target.kind === "linked"
+        ? await sendToLinkedChat(userId, text, { buttons, silent: !decision.ring })
+        : await sendTelegramMessage(target.chat, text, { buttons, silent: !decision.ring });
     sent = r.ok;
     if (!r.ok) {
       void logDebug({
@@ -157,6 +175,29 @@ async function deliver(userId: string, input: NoticeRequest, now: number): Promi
     });
   }
   return { alertId, sent, rang: sent && decision.ring };
+}
+
+type Target = { kind: "linked" } | { kind: "legacy"; chat: string } | { why: string };
+
+/**
+ * Where a person's notices go on Telegram:
+ *  1. the kind is turned off in their Settings → nowhere;
+ *  2. they connected Telegram (Settings → Notifications) → their own chat,
+ *     through Loki's notification bot;
+ *  3. the operator's chat from before per-person links (APP_TELEGRAM_CHAT_ID)
+ *     → that chat, through the old bot, until he connects;
+ *  4. otherwise nowhere — they hear through push and the list.
+ */
+async function resolveTarget(
+  userId: string,
+  category: ReturnType<typeof categoryOf>,
+): Promise<Target> {
+  const { chatId, choices } = await getTelegramTarget(userId);
+  if (!isCategoryOn(choices, category)) return { why: `${category} is turned off in Settings` };
+  if (chatId && notifyBotConfigured()) return { kind: "linked" };
+  const legacy = await telegramTargetFor(userId);
+  if (legacy) return { kind: "legacy", chat: legacy };
+  return { why: "this person has not connected Telegram" };
 }
 
 /** The incident is over: close its row so the next occurrence is news again. Says nothing. */

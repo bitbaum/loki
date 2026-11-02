@@ -925,6 +925,13 @@
       "when": 1793558378669,
       "tag": "0131_accountkit_tokens_in_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1793604990127,
+      "tag": "0132_telegram_per_person",
+      "breakpoints": true
     }
   ]
 }

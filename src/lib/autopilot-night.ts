@@ -86,8 +86,7 @@ import { rerouteQueuedToCloud } from "@/lib/reroute-queue";
 import { enqueueAction } from "@/lib/actions/enqueue-action";
 import { finalizeApproved } from "@/lib/actions/finalize-approved";
 import { pushToUser } from "@/lib/push-fanout";
-import { sendTelegramMessage } from "@/lib/actions/telegram-send";
-import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
+import { notifyPerson } from "@/lib/notify/person";
 import { APP_URL } from "@/config/brand";
 
 /** A project with a run this recent is awake; the night leaves it alone. */
@@ -284,11 +283,13 @@ async function tellOwner(userId: string, title: string, body: string, tag: strin
   await Promise.all([
     pushToUser(userId, { title, body, url, tag }).catch(() => {}),
     (async () => {
-      const target = await telegramTargetFor(userId);
-      if (!target) return;
-      await sendTelegramMessage(target, `${title}\n${body}`, {
+      await notifyPerson(userId, {
+        source: "autopilot",
+        category: "decisions",
+        text: `${title}\n${body}`,
         buttons: [[{ text: "Change tonight", url }]],
-      }).catch(() => {});
+        key: `autopilot-tonight:${tag}`,
+      }).catch(() => undefined);
     })(),
   ]);
 }
@@ -537,9 +538,11 @@ export async function runNightFor(userId: string, night: string, now = Date.now(
         // nothing (the plan was not approved)" has no tap to answer it; it is
         // on /feedback and in the push (owner, 2026-11-02).
         if (!summary.fixes.length) return;
-        const target = await telegramTargetFor(userId);
-        if (!target) return;
-        await sendTelegramMessage(target, note, {
+        await notifyPerson(userId, {
+          source: "autopilot",
+          category: "plans",
+          text: note,
+          key: `autopilot-night:${night}`,
           buttons: [[{ text: "See what changed", url }]],
         }).catch(() => {});
       })(),

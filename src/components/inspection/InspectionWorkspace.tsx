@@ -285,7 +285,7 @@ export function InspectionWorkspace({
             <div className="ui-inspection-layout">
               <section className="min-w-0" aria-label="Browser view">
                 {review.frame ? (
-                  <ReviewBrowser frame={review.frame} />
+                  <ReviewBrowser frame={review.frame} live={review.status === "running"} />
                 ) : (
                   <div className="ui-inspection-empty">
                     <h3 className="text-lg font-medium">

@@ -9,8 +9,11 @@ import { getApiUserId } from "@/lib/session";
 import { readJsonBody } from "@/lib/api/route-helpers";
 import { deliverNotice, resolveNotice } from "@/lib/notify/deliver";
 import { NoticeBody } from "@/lib/notify/schema";
+import { hasBearerToken } from "@/lib/notify/bearer-only";
 
 export async function POST(req: NextRequest) {
+  if (!(await hasBearerToken()))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = await getApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await readJsonBody(req, NoticeBody);

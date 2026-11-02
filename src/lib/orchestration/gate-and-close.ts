@@ -19,7 +19,7 @@ import type { RunClosePatch } from "@/lib/orchestration/close-from-session";
 import type { OrchestrationOutcome } from "@/db/schema/orchestration-runs";
 import { ORCHESTRATION_OUTCOME } from "@/db/schema/orchestration-runs";
 import { insertActiveAlertOnce } from "@/db/queries/alerts";
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 
 /**
@@ -44,14 +44,13 @@ async function reportCappedGoal(input: {
       description: `The definition of done was not met and autopilot stopped re-looping. Still missing: ${input.gap}`,
     });
     if (!created) return; // already open — don't re-notify every close
-    const target = selfTelegramTarget();
-    if (target) {
-      await sendTelegramMessage(
-        target,
-        `⏸ ${input.projectKey}: goal stopped after ${input.attempts} attempts.\nStill missing: ${input.gap}`,
-        { buttons: [[{ text: "Decide on Control", url: `${APP_URL}/control` }]] },
-      ).catch(() => {});
-    }
+    await notifyPerson(input.userId, {
+      source: "runs",
+      category: "results",
+      text: `⏸ ${input.projectKey}: goal stopped after ${input.attempts} attempts.\nStill missing: ${input.gap}`,
+      buttons: [[{ text: "Decide on Control", url: `${APP_URL}/control` }]],
+      key: `goal-capped:${input.projectKey}`,
+    }).catch(() => undefined);
   } catch (e) {
     void logDebug({
       source: "orchestration/gate-and-close",

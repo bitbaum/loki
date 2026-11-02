@@ -44,6 +44,17 @@ export const ReviewFrame = z.object({
   height: z.number().int().min(400).max(1200),
   action: z.string().max(200),
   scrollY: z.number().nonnegative(),
+  /** What Loki is about to press, in the frame's own pixels (the viewport),
+   *  so the page can draw the pointer and lean in to it. Absent on a frame
+   *  that only looks (and on every frame recorded before it existed). */
+  target: z
+    .object({
+      x: z.number().finite(),
+      y: z.number().finite(),
+      width: z.number().nonnegative().finite(),
+      height: z.number().nonnegative().finite(),
+    })
+    .optional(),
 });
 export type ReviewFrame = z.infer<typeof ReviewFrame>;
 export const ReviewFinding = z.object({

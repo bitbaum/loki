@@ -2,8 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { entities } from "@/db/schema";
 import type { SiteFeedback } from "@/db/schema";
-import { sendTelegramMessage } from "@/lib/actions/telegram-send";
-import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 import { pushToUser } from "@/lib/push-fanout";
 import { PUSH_TAG_PREFIX } from "@/config/brand-storage";
@@ -57,26 +56,20 @@ export async function notifyFeedbackReceived(row: SiteFeedback): Promise<void> {
         : row.suggestion;
     const where = row.page ?? row.url;
     const inboxPath = `/feedback?project=${encodeURIComponent(projectName)}`;
-    const telegram = await telegramTargetFor(row.userId);
-
-    const [pushResult] = await Promise.all([
+    const [pushResult, telegram] = await Promise.all([
       pushToUser(row.userId, {
         title: `${projectName} · new feedback`,
         body: excerpt,
         url: inboxPath,
         tag: `${PUSH_TAG_PREFIX}feedback-${row.projectId}`,
       }),
-      (async () => {
-        const target = telegram;
-        if (!target) return;
-        const lines = [
-          `📨 New feedback on ${projectName}${where ? ` (${where})` : ""}:`,
-          `“${excerpt}”`,
-        ];
-        await sendTelegramMessage(target, lines.join("\n"), {
-          buttons: [[{ text: "Triage it", url: `${APP_URL}${inboxPath}` }]],
-        }).catch(() => undefined);
-      })(),
+      notifyPerson(row.userId, {
+        source: "feedback",
+        category: "people",
+        text: `📨 New feedback on ${projectName}${where ? ` (${where})` : ""}:\n“${excerpt}”`,
+        buttons: [[{ text: "Triage it", url: `${APP_URL}${inboxPath}` }]],
+        key: `feedback:${row.id}`,
+      }).catch(() => ({ ok: false as const })),
       (async () => {
         await refreshOrInsertActiveAlert({
           userId: row.userId,
@@ -91,11 +84,11 @@ export async function notifyFeedbackReceived(row: SiteFeedback): Promise<void> {
 
     // Same contract as notify-close: an announcement that reached NOBODY is a
     // product failure worth a log line, not a silent no-op.
-    if (pushResult.sent === 0 && !telegram) {
+    if (pushResult.sent === 0 && !telegram.ok) {
       void logDebug({
         source: "feedback/notify-new",
         level: "warn",
-        message: `feedback ${row.id} arrived with no reachable channel (push: ${pushResult.reason ?? "none"}, telegram: unconfigured)`,
+        message: `feedback ${row.id} arrived with no reachable channel (push: ${pushResult.reason ?? "none"}, telegram: not sent)`,
       });
     }
   } catch (e) {

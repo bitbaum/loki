@@ -9,10 +9,24 @@
  * that someone may be IN the box is worth a sound, and its button opens the
  * evidence.
  */
+import { createHash } from "node:crypto";
 import type { NoticeRequest } from "@/lib/notify/policy";
 
-/** Lines that mean "someone may be in the box". Everything else is the list's. */
-const INTRUSION = [/SSH PASSWORD LOGIN/, /^☠️/, /^🔓 SSHD/, /^🧱 FIREWALL/, /^👤 NEW PRIVILEGED/];
+/**
+ * Lines that mean "someone may be in the box". Everything else is the list's.
+ * Kept in step with `_alert_intrusion` in lib-alert.sh (install-host-alerts.sh),
+ * which uses the same list when Loki itself cannot be reached;
+ * scripts/test/notify-box.ts checks both.
+ */
+export const INTRUSION = [
+  /SSH PASSWORD LOGIN/,
+  /^🔑 SSH LOGIN/,
+  /^☠️/,
+  /^🔓 SSHD/,
+  /^🧱 FIREWALL/,
+  /^👤 NEW PRIVILEGED/,
+  /SENSITIVE FILE.*(authorized_keys|sudoers|\/shadow|pam\.d|ld\.so\.preload)/,
+];
 
 export function isIntrusion(text: string): boolean {
   return INTRUSION.some((re) => re.test(text.trim()));
@@ -49,13 +63,17 @@ export function boxNotice(text: string, appUrl: string): NoticeRequest {
   const title = (rest.length ? head : t).slice(0, 140);
   const body = rest.length ? rest.join(": ").slice(0, 600) : undefined;
   if (isIntrusion(t)) {
+    // Keyed on the whole line: a second login from another address, or a
+    // second suspicious process, is a new sign, not a reminder of the first.
+    const id = createHash("sha256").update(t).digest("hex").slice(0, 16);
     return {
       source: "box",
-      title,
+      title: `bitbaum: ${title}`.slice(0, 140),
       body,
-      actions: [{ label: "See what happened", url: `${appUrl}/system` }],
+      // The notice is an operator row, so it is listed on /today.
+      actions: [{ label: "See what happened", url: `${appUrl}/today` }],
       urgency: "now",
-      key: boxKey(t),
+      key: `box:intrusion:${id}`,
     };
   }
   return { source: "box", title, body, actions: [], urgency: "today", key: boxKey(t) };

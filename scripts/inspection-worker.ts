@@ -128,7 +128,7 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
       });
       findings++;
     };
-    const frame = async (action: string, analyze: boolean) => {
+    const frame = async (action: string, analyze: boolean, target?: ReviewFrame["target"]) => {
       await checkpoint();
       const viewport = page.viewportSize()!;
       const image = (
@@ -141,6 +141,7 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
         height: viewport.height,
         scrollY: await page.evaluate(() => window.scrollY),
         action,
+        ...(target ? { target } : {}),
       };
       await send({ kind: "frame", frame: data, text: action, analyze });
       // A deliberate viewing interval, interruptible on the next checkpoint.
@@ -175,9 +176,13 @@ export async function runInspection(configPath: string, requestAllowed = reviewR
                 (el as HTMLElement).style.outline = "3px solid #ff5c00";
                 el.scrollIntoView({ block: "center" });
               });
+              // Where the press lands, in viewport pixels — the frame's own —
+              // so the page can show the pointer going there.
+              const box = await candidate.boundingBox().catch(() => null);
               await frame(
                 `Following ${(await candidate.innerText().then((t) => t.slice(0, 70))) || "a page link"}`,
                 false,
+                box ?? undefined,
               );
               await checkpoint();
               await candidate.click({ timeout: 5000, noWaitAfter: true });

@@ -3306,11 +3306,80 @@
   }
   /* The site's page: the picture fills the frame, top-aligned like a
      browser; a tap opens the real site. At rest, the address alone. */
+  /* Loki's browser, watched (components/inspection/RobotBrowser.tsx). The
+     stage is the picture's own shape; the lens leans in toward a press; the
+     ring is the press; the pointer is Loki's hand. Monochrome on purpose:
+     the site under it is the colour. */
+  .ui-robot {
+    @apply flex w-full min-w-0;
+  }
+  .ui-robot-fill {
+    @apply min-h-0 flex-1;
+  }
+  .ui-robot-open {
+    @apply flex w-full min-w-0 cursor-pointer;
+  }
+  .ui-robot-box {
+    @apply relative w-full overflow-hidden rounded-lg bg-surface-page;
+  }
+  .ui-robot-box-fill {
+    @apply h-full;
+  }
+  /* The picture: sized and placed in px by viewOf, gliding between frames. */
+  .ui-robot-layer {
+    @apply absolute left-0 top-0;
+    transition:
+      transform 900ms cubic-bezier(0.22, 1, 0.36, 1),
+      width 900ms cubic-bezier(0.22, 1, 0.36, 1),
+      height 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .ui-robot-layer img {
+    @apply block h-full w-full select-none;
+  }
+  .ui-robot-ring {
+    @apply pointer-events-none absolute rounded-md;
+    box-shadow:
+      0 0 0 2px var(--accent-primary),
+      0 0 0 6px color-mix(in oklch, var(--accent-primary) 22%, transparent);
+    animation: ui-robot-press 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .ui-robot-pointer {
+    @apply pointer-events-none absolute;
+    transform: translate(-3px, -2px);
+    transition:
+      left 800ms cubic-bezier(0.22, 1, 0.36, 1),
+      top 800ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 400ms ease;
+  }
+  .ui-robot-pointer svg {
+    fill: var(--accent-primary);
+    stroke: var(--surface-page);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .ui-robot-pointer-rest {
+    opacity: 0.45;
+  }
+  /* Live: the pointer breathes while Loki is at work. */
+  .ui-robot[data-live] .ui-robot-pointer:not(.ui-robot-pointer-rest) {
+    animation: ui-robot-breathe 2.4s ease-in-out infinite;
+  }
+  /* The ending, laid over the last look. */
+  .ui-robot-ending {
+    @apply absolute inset-x-3 bottom-3 flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-overlay p-4;
+    animation: ui-robot-rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .ui-robot-ending-title {
+    @apply flex items-center gap-2 text-base font-medium text-text-primary;
+  }
+  .ui-robot-ending-check {
+    stroke: var(--status-positive);
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
+    animation: ui-robot-draw 600ms 200ms ease-out forwards;
+  }
   .ui-workbench-site-page {
     @apply flex min-h-0 flex-1 cursor-pointer items-start justify-center overflow-hidden rounded-lg bg-surface-page;
-  }
-  .ui-workbench-site-page img {
-    @apply h-auto max-h-full w-full object-contain object-top;
   }
   .ui-workbench-site-rest {
     @apply flex h-full w-full flex-col items-center justify-center gap-2 text-sm text-text-muted;
@@ -9156,5 +9225,47 @@
   body.fc-workbench-focus .app-main,
   body.fc-workbench-focus .app-main-column {
     padding-bottom: 0;
+  }
+}
+
+@keyframes ui-robot-press {
+  from {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes ui-robot-breathe {
+  50% {
+    transform: translate(-3px, -2px) scale(1.12);
+  }
+}
+@keyframes ui-robot-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes ui-robot-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-robot-layer,
+  .ui-robot-pointer {
+    transition: none;
+  }
+  .ui-robot-ring,
+  .ui-robot-ending,
+  .ui-robot[data-live] .ui-robot-pointer {
+    animation: none;
+  }
+  .ui-robot-ending-check {
+    stroke-dashoffset: 0;
+    animation: none;
   }
 }

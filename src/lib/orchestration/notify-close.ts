@@ -1,5 +1,4 @@
-import { sendTelegramMessage } from "@/lib/actions/telegram-send";
-import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
+import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 import { formatRunCloseMessage, runCloseButtons } from "@/lib/orchestration/notify-close-format";
 import { postRunOutcomeToConversation } from "@/lib/orchestration/run-outcome-post";
@@ -38,7 +37,6 @@ export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
     const message = formatRunCloseMessage(run);
     if (!message) return;
 
-    const telegram = await telegramTargetFor(run.userId);
     const [pushResult] = await Promise.all([
       pushToUser(run.userId, {
         title: `${run.projectKey} · ${run.outcome ?? "closed"}`,
@@ -47,25 +45,29 @@ export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
         tag: `${PUSH_TAG_PREFIX}${run.projectKey}`,
       }),
       (async () => {
-        const target = telegram;
-        if (!target) return;
         // A success leaves nothing to do, so it is not a Telegram message: the
         // thread that asked hears it (above) and so does push. Only an outcome
         // with a way forward reaches the chat (owner, 2026-11-02).
         const buttons = runCloseButtons(run);
         if (!buttons.length) return;
-        await sendTelegramMessage(target, message, { buttons }).catch(() => undefined);
+        await notifyPerson(run.userId, {
+          source: "runs",
+          category: "results",
+          text: message,
+          buttons,
+          key: `run:${run.id}`,
+        }).catch(() => undefined);
       })(),
     ]);
 
     // A run that opted into being announced and reached NOBODY is a product
     // failure, not a no-op. Record it so the gap is discoverable from the logs
     // instead of being inferred from the operator never hearing anything.
-    if (pushResult.sent === 0 && !telegram) {
+    if (pushResult.sent === 0) {
       void logDebug({
         source: "orchestration/notify-close",
         level: "warn",
-        message: `run ${run.id} closed with no reachable channel (push: ${pushResult.reason ?? "none"}, telegram: unconfigured)`,
+        message: `run ${run.id} closed and push reached nobody (${pushResult.reason ?? "none"}); Telegram, if connected, is the gateway's`,
       });
     }
   } catch (e) {

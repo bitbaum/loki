@@ -44,18 +44,12 @@ export default async function ProjectWorkbenchPage({
     ? await latestSiteReview(session.user.id, id).catch(() => null)
     : null;
   const initialReview: WorkbenchReview | null = review
-    ? (({ id, status, frame }) => ({
+    ? (({ id, status, frame, findingCount, coverage }) => ({
         id,
         status,
-        frame: frame
-          ? {
-              url: frame.url,
-              image: frame.image,
-              width: frame.width,
-              height: frame.height,
-              action: frame.action,
-            }
-          : null,
+        frame,
+        findingCount,
+        coverage: coverage.map((c) => ({ url: c.url, result: c.result })),
       }))(publicReview(review))
     : null;
 

@@ -6,10 +6,9 @@ import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { findCodeCustodyByGitUrl } from "@/db/queries/user-projects";
 import { parseGithubRepoUrl } from "@/lib/github-provision";
 import { checkProjectSiteDeployment } from "@/lib/site-cd-register";
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { notifyPerson } from "@/lib/notify/person";
 import { createOwnerPass, ownerSiteUrl } from "@/lib/feedback/owner-pass";
 import { logDebug } from "@/db/queries/debug-logs";
-import { isSiteOperator } from "@/db/queries/users";
 import { pushToUser } from "@/lib/push-fanout";
 import { PUSH_TAG_PREFIX } from "@/config/brand-storage";
 
@@ -82,14 +81,14 @@ async function announceSiteLive(
     url: link,
     tag: `${PUSH_TAG_PREFIX}site-live-${entityProjectId}`,
   }).catch(() => undefined);
-  // Telegram is the operator's own chat; another owner's link never goes there.
-  const target = selfTelegramTarget();
-  if (!target || !(await isSiteOperator(userId).catch(() => false))) return;
-  await sendTelegramMessage(
-    target,
-    `🌐 ${name} is live: ${liveUrl}\n\nOpen it and say what to change in the widget — it gets built.`,
-    { buttons: [[{ text: `Open ${name}`.slice(0, 24), url: link }]] },
-  ).catch(() => undefined);
+  // The owner's own link (it carries their pass) goes to the owner's own chat.
+  await notifyPerson(userId, {
+    source: "sites",
+    category: "results",
+    text: `🌐 ${name} is live: ${liveUrl}\nOpen it and say what to change in the widget — it gets built.`,
+    buttons: [[{ text: `Open ${name}`.slice(0, 24), url: link }]],
+    key: `site-live:${entityProjectId}`,
+  }).catch(() => undefined);
 }
 
 /** The sweep: every project with a repository and no live URL yet. */
