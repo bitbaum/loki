@@ -1,6 +1,8 @@
 "use client";
 
-import { SignInSecurity } from "@/components/settings/SignInSecurity";
+import type { SignInMethods } from "@bitbaum/accountkit/auth";
+import { LokiAccountPanel } from "@/components/auth/AccountKitAuth";
+import { sharedAuthClient } from "@/lib/auth/shared/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
@@ -258,10 +260,19 @@ function SetInitialPasswordSection() {
   );
 }
 
+/** AccountKit runtime: what its account panel needs (null on Auth.js). */
+export type AccountSecurity = {
+  methods: SignInMethods;
+  twoFactorEnabled: boolean;
+  emailVerified: boolean;
+  role: string;
+  /** Provider ids of this person's ways in ("credential", "orangecat", "github", …). */
+  linked: string[];
+};
+
 type Props = {
-  user: { email: string | null; hasPassword: boolean };
-  /** AccountKit runtime: passkeys and the second factor (null on Auth.js). */
-  security?: { twoFactorEnabled: boolean } | null;
+  user: { email: string | null; hasPassword: boolean; name?: string };
+  security?: AccountSecurity | null;
   /** Whether the OrangeCat OIDC provider is mounted (env-gated, server-derived). */
   orangecatEnabled: boolean;
 };
@@ -304,13 +315,24 @@ export function AccountSettings({ user, orangecatEnabled, security = null }: Pro
     setPwdError("");
     setPwdSaved(false);
     try {
-      const res = await patchJson("/api/me/password", {
-        currentPassword: currentPwd,
-        newPassword: newPwd,
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Failed to change password");
+      if (security) {
+        // AccountKit holds the credential: its own change, which keeps this
+        // session and ends the others.
+        const { error } = await sharedAuthClient.changePassword({
+          currentPassword: currentPwd,
+          newPassword: newPwd,
+          revokeOtherSessions: true,
+        });
+        if (error) throw new Error(error.message ?? "Failed to change password");
+      } else {
+        const res = await patchJson("/api/me/password", {
+          currentPassword: currentPwd,
+          newPassword: newPwd,
+        });
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          throw new Error(data.error ?? "Failed to change password");
+        }
       }
       setPwdSaved(true);
       setCurrentPwd("");
@@ -422,27 +444,48 @@ export function AccountSettings({ user, orangecatEnabled, security = null }: Pro
         </div>
       )}
 
+      {/* AccountKit's account panel, as on every fleet app: ways to sign in,
+          passkeys, the second factor, and leaving. Deleting stays Loki's own
+          (DELETE /api/me, every table), offered in the panel's own place. */}
       {security && (
-        <SignInSecurity
-          twoFactorEnabled={security.twoFactorEnabled}
-          hasPassword={user.hasPassword}
+        <LokiAccountPanel
+          methods={security.methods}
+          user={{
+            name: user.name ?? "",
+            email: user.email,
+            emailVerified: security.emailVerified,
+            role: security.role,
+            twoFactorEnabled: security.twoFactorEnabled,
+          }}
+          linked={security.linked}
+          deletion={
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className="ui-auth-secondary-btn text-status-negative"
+            >
+              Delete account
+            </button>
+          }
         />
       )}
 
-      {/* Danger zone */}
-      <div className="border-t border-border-subtle pt-4">
-        <h3 className="text-sm font-medium text-status-negative/80 mb-2">Danger zone</h3>
-        <p className="text-xs text-text-muted mb-3">
-          Permanently delete your account and everything it owns — projects, runs, memory, feedback,
-          chat history. This cannot be undone.
-        </p>
-        <button
-          onClick={() => setDeleteOpen(true)}
-          className="text-xs text-status-negative border border-status-negative/40 rounded-lg px-3 py-1.5 hover:bg-status-negative/10"
-        >
-          Delete account
-        </button>
-      </div>
+      {/* Danger zone (Auth.js only; on AccountKit it is in the panel above) */}
+      {!security && (
+        <div className="border-t border-border-subtle pt-4">
+          <h3 className="text-sm font-medium text-status-negative/80 mb-2">Danger zone</h3>
+          <p className="text-xs text-text-muted mb-3">
+            Permanently delete your account and everything it owns — projects, runs, memory,
+            feedback, chat history. This cannot be undone.
+          </p>
+          <button
+            onClick={() => setDeleteOpen(true)}
+            className="text-xs text-status-negative border border-status-negative/40 rounded-lg px-3 py-1.5 hover:bg-status-negative/10"
+          >
+            Delete account
+          </button>
+        </div>
+      )}
 
       {deleteOpen && (
         <Modal onClose={() => !deleting && setDeleteOpen(false)} disableClose={deleting}>

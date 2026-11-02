@@ -1,5 +1,6 @@
 import { SignInForm } from "@/components/auth/SignInForm";
 import { getEnabledAuthProviders, sharedSigninLabel } from "@/lib/auth-providers";
+import { accountKitMethods } from "@/lib/auth/shared/screens";
 
 // Server component — reads env (via the auth-providers SSOT) on the server and
 // passes the result as props. This prevents the hydration mismatch that
@@ -21,6 +22,7 @@ export default function SignInPage() {
       magicLinkEnabled={providers.magicLink}
       localAuthEnabled={providers.localOwnerKeyTab}
       demoEnabled={providers.demo}
+      accountKit={accountKitMethods()}
     />
   );
 }

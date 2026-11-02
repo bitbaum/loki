@@ -12,6 +12,7 @@ import { authTables } from "@/db/schema/accountkit";
 import { verifyPassword } from "@/lib/password";
 import { ensureLokiUser } from "./accounts";
 import { lokiSignInHook } from "./sign-in-hook";
+import { LOKI_GITHUB_SIGN_IN } from "./runtime-options";
 
 /** The public origin every redirect and every AccountKit origin check uses. */
 export function siteUrl(env: NodeJS.ProcessEnv = process.env): string {
@@ -44,8 +45,11 @@ export const sharedAuth = createAuthRuntime({
   // GitHub signs in through Loki's own app, as it did on Auth.js (the owner
   // chose to keep it, 2026-11-02), with the grant "Start a new project" and the
   // repository features act with (see the GitHub provider in src/auth.ts).
-  githubSignIn: true,
+  githubSignIn: LOKI_GITHUB_SIGN_IN,
   githubScopes: ["repo", "workflow"],
+  // Loki deletes a person itself (DELETE /api/me: every table, the mirror
+  // removes the shared row), so the account panel offers Loki's own button.
+  accountDeletion: false,
   // Loki's row and bootstrap after every new session, whatever the way in.
   plugins: [lokiSignInHook()],
 });

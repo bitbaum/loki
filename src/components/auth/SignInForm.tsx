@@ -25,6 +25,8 @@ import {
   signInWithPassword,
 } from "@/components/auth/SharedWaysIn";
 import Link from "next/link";
+import type { SignInMethods } from "@bitbaum/accountkit/auth";
+import { LokiSignIn } from "@/components/auth/AccountKitAuth";
 import { DEFAULT_AUTH_LABELS as L } from "@bitbaum/accountkit/auth/react";
 
 type Mode = "email" | "owner";
@@ -39,6 +41,7 @@ function FormInner({
   magicLinkEnabled,
   localAuthEnabled,
   demoEnabled,
+  accountKit,
 }: {
   githubEnabled: boolean;
   googleEnabled: boolean;
@@ -51,6 +54,8 @@ function FormInner({
   magicLinkEnabled: boolean;
   localAuthEnabled: boolean;
   demoEnabled: boolean;
+  /** AccountKit's own sign-in card (AUTH_RUNTIME=accountkit), or null on Auth.js. */
+  accountKit: SignInMethods | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -164,7 +169,16 @@ function FormInner({
         />
       )}
 
-      {mode === "email" && twoFactor ? (
+      {mode === "email" && accountKit ? (
+        <AuthCard>
+          <LokiSignIn
+            methods={accountKit}
+            next={safeCallback}
+            signUpHref={keepCallback(ROUTES.SIGN_UP, safeCallback, ROUTES.APP_HOME)}
+            initialError={Boolean(urlError)}
+          />
+        </AuthCard>
+      ) : mode === "email" && twoFactor ? (
         <AuthCard>
           <TwoFactorStep
             onSignedIn={signedIn}
@@ -287,6 +301,7 @@ export function SignInForm({
   magicLinkEnabled,
   localAuthEnabled,
   demoEnabled,
+  accountKit = null,
 }: {
   githubEnabled: boolean;
   googleEnabled: boolean;
@@ -299,6 +314,7 @@ export function SignInForm({
   magicLinkEnabled: boolean;
   localAuthEnabled: boolean;
   demoEnabled: boolean;
+  accountKit?: SignInMethods | null;
 }) {
   return (
     <Suspense>
@@ -312,6 +328,7 @@ export function SignInForm({
         magicLinkEnabled={magicLinkEnabled}
         localAuthEnabled={localAuthEnabled}
         demoEnabled={demoEnabled}
+        accountKit={accountKit}
       />
     </Suspense>
   );

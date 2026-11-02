@@ -49,6 +49,10 @@ export const compat = createNextAuthCompat<Session>({
   runtime: sharedAuth,
   siteUrl: () => siteUrl(),
   signInPath: ROUTES.SIGN_IN,
+  // Loki's sign-in, sign-up, recovery and account pages are AccountKit's own
+  // screens (src/components/auth/AccountKitAuth.tsx): every AccountKit
+  // endpoint opens, and next-auth/react on the other pages keeps working.
+  screens: "accountkit",
   landing: "/",
   toSession: (shared) => lokiSession(shared.user.id, shared.session.expiresAt),
   credentials: {

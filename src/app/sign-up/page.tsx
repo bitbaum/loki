@@ -1,5 +1,6 @@
 import { SignUpForm } from "@/components/auth/SignUpForm";
 import { getEnabledAuthProviders, sharedSigninLabel } from "@/lib/auth-providers";
+import { accountKitMethods } from "@/lib/auth/shared/screens";
 
 // Server component — same pattern (and same reason) as sign-in/page.tsx:
 // provider flags come from server env via the auth-providers SSOT, so the
@@ -16,6 +17,7 @@ export default function SignUpPage() {
         twitterEnabled: providers.x,
       }}
       magicLinkEnabled={providers.magicLink}
+      accountKit={accountKitMethods()}
     />
   );
 }

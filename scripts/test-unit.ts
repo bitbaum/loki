@@ -61,6 +61,8 @@ const SKIP_UNLESS_ENV: Record<string, string> = {
   "orangecat-entitlement-e2e.ts": "DATABASE_URL",
   "studio-portal-e2e.ts": "DATABASE_URL",
   "build-requests-e2e.ts": "DATABASE_URL",
+  // A running Loki on AccountKit, pointed at on purpose (it creates people).
+  "accountkit-screens-browser.ts": "LOKI_SCREENS_BASE_URL",
 };
 
 for (const [file, envVar] of Object.entries(SKIP_UNLESS_ENV)) {

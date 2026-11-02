@@ -102,6 +102,9 @@ export const authConfig = {
       if (
         !onboardingDone &&
         !pathname.startsWith(ROUTES.ONBOARDING) &&
+        // A note's tracking link claims the note for a new account before
+        // onboarding (ClaimFeedback), as the old sign-up form did by hand.
+        !pathname.startsWith("/claim-feedback") &&
         !pathname.startsWith("/api/") &&
         !pathname.startsWith(ROUTES.SIGN_OUT)
       ) {
