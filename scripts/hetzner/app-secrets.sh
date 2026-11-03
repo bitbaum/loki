@@ -243,6 +243,14 @@ OPT=$(printf %q "${APP_SECRETS_OPT:-/opt}")
 ONE=$(printf %q "$APP")
 MIN_AK=$(printf %q "$LIGHTNING_MIN_ACCOUNTKIT")
 oldest_ak() {  # the oldest AccountKit copy in an app's running release, or nothing
+  # A standalone build traces only the files it runs, so a package.json may be
+  # missing from the release; its receipt (stage-release-receipt.sh) names the
+  # locked AccountKit, so it is read first.
+  receipt="\$OPT/\$1/app/public/.well-known/fleet-release.json"
+  if [ -f "\$receipt" ]; then
+    node -e 'const a=(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).artifacts||{})["@bitbaum/accountkit"];if(a)process.stdout.write(a+"\\n")' "\$receipt" 2>/dev/null || true
+    return 0
+  fi
   find "\$OPT/\$1/app/" -maxdepth 12 -path '*/@bitbaum/accountkit/package.json' 2>/dev/null \\
     | xargs -r -I{} node -e 'process.stdout.write(require(process.argv[1]).version+"\\n")' {} 2>/dev/null \\
     | sort -V | head -n 1 || true

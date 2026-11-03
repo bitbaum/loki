@@ -231,6 +231,12 @@ OUT15="$(run lightning-on all)" || fail "lightning-on all failed: $OUT15"
   && ok "lightning-on: a value someone set is kept" || fail "lightning-on solon: $OUT15"
 ! grep -q "morulia:" <<<"$OUT15" \
   && ok "lightning-on all: apps without AccountKit in their release are not touched" || fail "lightning-on morulia: $OUT15"
+# A standalone release with no accountkit package.json: its receipt decides.
+mkdir -p "$OPT/kivvi/app/public/.well-known" "$OPT/kivvi/shared"; : > "$OPT/kivvi/shared/.env"
+printf '{"artifacts":{"@bitbaum/accountkit":"0.27.0"}}\n' > "$OPT/kivvi/app/public/.well-known/fleet-release.json"
+OUT17="$(run lightning-on kivvi)" || fail "lightning-on kivvi failed: $OUT17"
+[ "$(val ACCOUNTKIT_LIGHTNING "$OPT/kivvi/shared/.env")" = 1 ] \
+  && ok "lightning-on: a standalone release is read from its receipt" || fail "lightning-on receipt: $OUT17"
 OUT16="$(run lightning-on diplodoctor)" || fail "lightning-on again failed: $OUT16"
 [ "$(count ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env")" = 1 ] && grep -q "already set" <<<"$OUT16" \
   && ok "lightning-on: running it again changes nothing" || fail "lightning-on again: $OUT16"
