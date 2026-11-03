@@ -241,6 +241,12 @@ OUT16="$(run lightning-on diplodoctor)" || fail "lightning-on again failed: $OUT
 [ "$(count ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env")" = 1 ] && grep -q "already set" <<<"$OUT16" \
   && ok "lightning-on: running it again changes nothing" || fail "lightning-on again: $OUT16"
 
+# A monorepo release: the app and its receipt sit in a subdirectory.
+mkdir -p "$OPT/surf/app/apps/web/public/.well-known" "$OPT/surf/shared"; : > "$OPT/surf/shared/.env"
+printf '{"artifacts":{"@bitbaum/accountkit":"0.27.0"}}\n' > "$OPT/surf/app/apps/web/public/.well-known/fleet-release.json"
+OUT20="$(run lightning-on surf)" || fail "lightning-on surf failed: $OUT20"
+[ "$(val ACCOUNTKIT_LIGHTNING "$OPT/surf/shared/.env")" = 1 ] \
+  && ok "lightning-on: a monorepo release's receipt is found in its app's directory" || fail "lightning-on monorepo: $OUT20"
 OUT18="$(run lightning-off diplodoctor)" || fail "lightning-off failed: $OUT18"
 ! grep -q ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env" && grep -q "ACCOUNTKIT_LIGHTNING removed" <<<"$OUT18" \
   && ok "lightning-off removes the flag from one app" || fail "lightning-off: $OUT18"
