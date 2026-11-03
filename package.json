@@ -173,7 +173,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@bitbaum/design-tokens": "^1.4.0",
+    "@bitbaum/design-tokens": "github:bitbaum/design-tokens#07a4380e8cf076db3906732a7aa39aaee8d47ccb",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^9.6.0",
     "@types/libsodium-wrappers": "^0.8.2",
