@@ -274,8 +274,9 @@ oldest_ak() {  # the oldest AccountKit copy in an app's running release, or noth
   # A standalone build traces only the files it runs, so a package.json may be
   # missing from the release; its receipt (stage-release-receipt.sh) names the
   # locked AccountKit, so it is read first.
-  receipt="\$OPT/\$1/app/public/.well-known/fleet-release.json"
-  if [ -f "\$receipt" ]; then
+  # A monorepo release serves its app from a subdirectory (kivvi: apps/web).
+  receipt="\$(find "\$OPT/\$1/app/" -maxdepth 5 -path '*/public/.well-known/fleet-release.json' 2>/dev/null | head -n 1 || true)"
+  if [ -n "\$receipt" ] && [ -f "\$receipt" ]; then
     node -e 'const a=(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).artifacts||{})["@bitbaum/accountkit"];if(a)process.stdout.write(a+"\\n")' "\$receipt" 2>/dev/null || true
     return 0
   fi
