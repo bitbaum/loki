@@ -57,6 +57,10 @@
 #   bash scripts/hetzner/app-secrets.sh ensure heidi
 #   bash scripts/hetzner/app-secrets.sh signin-on heidi   # or: signin-on all
 #   bash scripts/hetzner/app-secrets.sh lightning-on biaslens   # or: lightning-on all
+#   bash scripts/hetzner/app-secrets.sh lightning-off aoz-wohnen  # one app, never all
+#
+# lightning-off removes ACCOUNTKIT_LIGHTNING from one app and restarts it: the
+# way back for an app whose owner has not chosen Lightning login yet.
 #
 # lightning-on turns on Lightning login (LNURL-auth, AccountKit 0.26.1+:
 # ACCOUNTKIT_LIGHTNING=1) in one app, or in every app on the box whose running
@@ -81,7 +85,7 @@ set -euo pipefail
 
 ACTION="${1:?usage: app-secrets.sh show|ensure|signin-on|lightning-on <app>}"
 APP="${2:?usage: app-secrets.sh show|ensure|signin-on|lightning-on <app>}"
-case "$ACTION" in show|ensure|signin-on|lightning-on) ;; *) echo "unknown action: $ACTION (show|ensure|signin-on|lightning-on)" >&2; exit 2 ;; esac
+case "$ACTION" in show|ensure|signin-on|lightning-on|lightning-off) ;; *) echo "unknown action: $ACTION (show|ensure|signin-on|lightning-on|lightning-off)" >&2; exit 2 ;; esac
 case "$APP" in *[!a-z0-9-]*|"") echo "app name must be [a-z0-9-]: $APP" >&2; exit 2 ;; esac
 
 REGISTRY="$(cat <<'REG'
@@ -232,6 +236,30 @@ fi
 REMOTE
   done
   exit "$failed"
+fi
+
+if [ "$ACTION" = lightning-off ]; then
+  [ "$APP" = all ] && { echo "lightning-off takes one app, not all" >&2; exit 2; }
+  ssh -o BatchMode=yes "$BOX_UBUNTU" 'bash -s' <<REMOTE
+set -euo pipefail
+OPT=$(printf %q "${APP_SECRETS_OPT:-/opt}")
+APP=$(printf %q "$APP")
+ENVF=""
+for cand in "\$OPT/\$APP/shared/.env" "\$OPT/\$APP/app/.env"; do [ -f "\$cand" ] && { ENVF="\$cand"; break; }; done
+[ -n "\$ENVF" ] || { echo "\$APP: no env file on the box — nothing changed"; exit 0; }
+if ! grep -qE "^(export[[:space:]]+)?ACCOUNTKIT_LIGHTNING=" "\$ENVF"; then
+  echo "\$APP: ACCOUNTKIT_LIGHTNING not set — nothing changed"; exit 0
+fi
+tmp="\$(mktemp)"
+grep -vE "^(export[[:space:]]+)?ACCOUNTKIT_LIGHTNING=" "\$ENVF" > "\$tmp" || true
+cat "\$tmp" > "\$ENVF"; rm -f "\$tmp"; chmod 600 "\$ENVF"
+echo "\$APP: ACCOUNTKIT_LIGHTNING removed"
+if systemctl is-active --quiet "\$APP-app" 2>/dev/null; then
+  sudo systemctl restart "\$APP-app"; sleep 3
+  echo "\$APP: restarted \$APP-app: \$(systemctl is-active "\$APP-app" || true)"
+fi
+REMOTE
+  exit 0
 fi
 
 # lightning-on: one flag, ACCOUNTKIT_LIGHTNING=1, for apps on AccountKit 0.26.1+.

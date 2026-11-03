@@ -241,4 +241,10 @@ OUT16="$(run lightning-on diplodoctor)" || fail "lightning-on again failed: $OUT
 [ "$(count ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env")" = 1 ] && grep -q "already set" <<<"$OUT16" \
   && ok "lightning-on: running it again changes nothing" || fail "lightning-on again: $OUT16"
 
+OUT18="$(run lightning-off diplodoctor)" || fail "lightning-off failed: $OUT18"
+! grep -q ACCOUNTKIT_LIGHTNING "$OPT/diplodoctor/shared/.env" && grep -q "ACCOUNTKIT_LIGHTNING removed" <<<"$OUT18" \
+  && ok "lightning-off removes the flag from one app" || fail "lightning-off: $OUT18"
+OUT19="$(run lightning-off all)" && fail "lightning-off all ran: $OUT19"
+grep -q "takes one app" <<<"$OUT19" && ok "lightning-off refuses all" || fail "lightning-off all: $OUT19"
+
 echo "app-secrets: $PASSED passed"
