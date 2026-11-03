@@ -91,15 +91,33 @@ every sign-in; unset, Auth.js answers as today. The secret is
     on the sign-in card right after the password;
   - the sign-in link, on sign-in and sign-up when account mail is configured.
 
-  None of these writes a password. AccountKit's sign-up, reset, password,
-  profile and deletion endpoints stay closed, so there is no second credential
-  writer. Recovery stays Loki's own ("Forgot password?",
-  `/api/auth/forgot-password`). Auth.js ignores passkeys and the second
-  factor, so a rollback leaves people with their password and OrangeCat.
+- Since 2026-11-02 Loki's sign-in, sign-up, recovery and account panel are
+  AccountKit's own screens (`screens: "accountkit"` in `compat.ts`,
+  `src/components/auth/AccountKitAuth.tsx`), the same as every fleet app.
+  Sign-up asks for an email and a password, nothing else; the sign-in card
+  draws OrangeCat, GitHub (Loki's own app), the passkey, the password, the
+  sign-in link and recovery in AccountKit's order; recovery is AccountKit's
+  form, whose link returns to `/sign-in`; Settings → Account shows
+  AccountKit's panel (ways to sign in, passkeys, the second factor) with
+  Loki's own name, password and deletion around it. AccountKit's sign-up,
+  reset and password-change endpoints are open; its deletion answers 404
+  (`accountDeletion: false`), because `DELETE /api/me` removes a person from
+  every table. Loki keeps what is its own around the card: the heading, the
+  site-widget hint, the demo, and on Auth.js its old forms. A password set
+  through AccountKit is its native format, which Auth.js cannot read, so a
+  rollback leaves such a person with OrangeCat, GitHub and recovery.
 
 `scripts/test/accountkit-journeys.ts` (part of `pnpm run test:db`, which CI
 runs on a fresh Postgres) runs all of this through the real handlers and the
 real import, then the rehearsal. That is not deployed evidence.
+`scripts/test/accountkit-screens-browser.ts` drives the screens in Chromium at
+390 and 320px against a running Loki (`LOKI_SCREENS_BASE_URL`,
+`LOKI_SCREENS_DATABASE_URL`): sign-up, sign-in, the account panel, adding a
+passkey and signing in with it.
+`scripts/test/accountkit-screens-browser.ts` drives the screens in Chromium at
+390 and 320px against a running Loki (`LOKI_SCREENS_BASE_URL`,
+`LOKI_SCREENS_DATABASE_URL`): sign-up, sign-in, the account panel, adding a
+passkey and signing in with it.
 
 ## GitHub, Google and X on this runtime
 
@@ -132,13 +150,12 @@ OrangeCat.
 An `ENABLE_OWNER_KEY` install that relies only on `LOCAL_AUTH_PASSWORD` (no
 stored hash) stays on Auth.js.
 
-AccountKit 0.23 can also sign people in through a product's own GitHub app,
-but only when the product asks for it (`githubSignIn: true` on
-`createAuthRuntime`, bitbaum/accountkit#61). Loki does not ask: its
-`GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are the app it acts on
-repositories with, not a way in. The journey "GitHub, Google, X and the env
-owner key are not offered on this runtime" (`scripts/test/accountkit-journeys.ts`)
-sets both variables and holds that.
+Loki asks for its own GitHub app as a way in (`githubSignIn: true`, one
+constant in `src/lib/auth/shared/runtime-options.ts` that the runtime and the
+screens read), and AccountKit 0.26 draws it on the shared screens. The journey
+"GitHub signs in through Loki's own app; Google, X and the env owner key are
+not offered on this runtime" (`scripts/test/accountkit-journeys.ts`) holds
+that nothing else is.
 
 ## Switching (and back)
 

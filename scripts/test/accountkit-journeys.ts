@@ -100,6 +100,23 @@ async function main(): Promise<number> {
   const importAccounts = () => raw.begin((tx) => tx.unsafe(importSql));
 
   const browser = createCompatClient({ compat, site: SITE });
+  /** AccountKit's own screens: JSON to /api/auth/<path>, through the compat route, with the page's cookie. */
+  async function screen(path: string, body: Record<string, unknown>) {
+    const res = await compat.route.POST(
+      new Request(`${SITE}/api/auth/${path.slice(1)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: SITE, cookie: browser.cookie },
+        body: JSON.stringify(body),
+      }),
+    );
+    for (const value of res.headers.getSetCookie()) {
+      const pair = value.split(";")[0];
+      const name = pair.slice(0, pair.indexOf("="));
+      const rest = browser.cookie.split("; ").filter((c) => c && !c.startsWith(`${name}=`));
+      browser.cookie = [...rest, pair].join("; ");
+    }
+    return { status: res.status, body: await res.json().catch(() => null) };
+  }
   const request = (route: string, form?: Record<string, string>) => ({ route, form });
   const answer = (req: ReturnType<typeof request>) => browser.call(req.route, req.form);
   const signIn = (provider: string, fields: Record<string, string>) =>
@@ -367,15 +384,59 @@ async function main(): Promise<number> {
       },
     ],
     [
-      "AccountKit's own credential writers stay closed until Loki adopts its screens",
+      "AccountKit's sign-up asks for an email and a password, nothing else, and the new person is Loki's",
       async () => {
-        for (const route of ["/sign-up/email", "/change-password", "/request-password-reset"]) {
-          assert.equal(
-            (await answer(request(route, { email: "x@example.test" }))).status,
-            404,
-            route,
-          );
-        }
+        const r = await screen("/sign-up/email", {
+          email: "New@Example.test",
+          password: PASSWORD,
+          name: "",
+          callbackURL: "/",
+        });
+        assert.equal(r.status, 200, JSON.stringify(r.body));
+        const s = await session();
+        assert.ok(s?.user?.id, "signed in at once");
+        const [row] = await raw`SELECT email FROM users WHERE id = ${s.user.id}`;
+        assert.equal(row?.email, "new@example.test", "a Loki row under the same id");
+        const [{ count }] =
+          await raw`SELECT count(*)::int AS count FROM org_memberships WHERE user_id = ${s.user.id}`;
+        assert.equal(count, 1, "and a personal org, as every first sign-in");
+      },
+    ],
+    [
+      "AccountKit's password change works on an imported Loki hash; the old one stops working",
+      async () => {
+        await signIn("email-password", { email: "person@example.test", password: PASSWORD });
+        const r = await screen("/change-password", {
+          currentPassword: PASSWORD,
+          newPassword: "a new synthetic password",
+          revokeOtherSessions: true,
+        });
+        assert.equal(r.status, 200, JSON.stringify(r.body));
+        browser.cookie = "";
+        assert.equal(
+          errorOf(
+            await signIn("email-password", { email: "person@example.test", password: PASSWORD }),
+          ),
+          "CredentialsSignin",
+        );
+        assert.equal(
+          errorOf(
+            await signIn("email-password", {
+              email: "person@example.test",
+              password: "a new synthetic password",
+            }),
+          ),
+          null,
+        );
+      },
+    ],
+    [
+      "deleting an account stays Loki's own (DELETE /api/me): AccountKit's delete answers 404",
+      async () => {
+        await signIn("email-password", { email: "person@example.test", password: PASSWORD });
+        const r = await screen("/delete-user", {});
+        assert.equal(r.status, 404);
+        assert.equal((await raw`SELECT 1 FROM users WHERE id = ${PERSON}`).length, 1);
       },
     ],
     [
@@ -425,7 +486,7 @@ async function main(): Promise<number> {
       },
     ],
     [
-      "passkeys, the second factor and the sign-in link are open; password writers are not",
+      "the sign-in card reaches passkeys, the second factor and the link directly; credential writers go through the compat layer",
       async () => {
         for (const path of [
           "/passkey/generate-authenticate-options",

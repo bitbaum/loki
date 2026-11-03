@@ -20,7 +20,7 @@ import {
 import { List, ListRow } from "@/components/ui/list-row";
 import { cn } from "@/lib/utils";
 import { ProfileSettings } from "./ProfileSettings";
-import { AccountSettings } from "./AccountSettings";
+import { AccountSettings, type AccountSecurity } from "./AccountSettings";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { PrivacySettings } from "./PrivacySettings";
 import { LocationSettings } from "./LocationSettings";
@@ -68,7 +68,7 @@ type Props = {
   /** Whether the OrangeCat OIDC provider is mounted (env-gated, server-derived). */
   orangecatEnabled: boolean;
   /** AccountKit runtime: passkeys and the second factor on the Account tab. */
-  security?: { twoFactorEnabled: boolean } | null;
+  security?: AccountSecurity | null;
 };
 
 /** Every section, with the line its row says on a phone — what is in it, in
@@ -241,7 +241,7 @@ export function SettingsTabs({
           )}
           {shown === "account" && (
             <AccountSettings
-              user={{ email: user.email, hasPassword: user.hasPassword }}
+              user={{ email: user.email, hasPassword: user.hasPassword, name: user.name }}
               orangecatEnabled={orangecatEnabled}
               security={security}
             />

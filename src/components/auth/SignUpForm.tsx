@@ -15,6 +15,8 @@ import { OAuthButtons, hasAnyOAuth, type OAuthEnabledFlags } from "@/components/
 import { SignInLinkButton } from "@/components/auth/SharedWaysIn";
 import { DEFAULT_AUTH_LABELS } from "@bitbaum/accountkit/auth/react";
 import Link from "next/link";
+import type { SignInMethods } from "@bitbaum/accountkit/auth";
+import { LokiSignUp } from "@/components/auth/AccountKitAuth";
 import { postJson } from "@/lib/api/fetch";
 import { AUTH_COPY, fromSiteWidget, keepCallback, ROUTES } from "@/config/auth";
 import { goAfterSignIn } from "@/lib/auth/after-sign-in";
@@ -22,8 +24,11 @@ import { goAfterSignIn } from "@/lib/auth/after-sign-in";
 export function SignUpForm({
   oauthFlags,
   magicLinkEnabled = false,
+  accountKit = null,
 }: {
   oauthFlags: OAuthEnabledFlags;
+  /** AccountKit's own sign-up (AUTH_RUNTIME=accountkit): an email and a password, nothing else. */
+  accountKit?: SignInMethods | null;
   /** AccountKit runtime with account mail: create the account by a link instead. */
   magicLinkEnabled?: boolean;
 }) {
@@ -85,71 +90,83 @@ export function SignUpForm({
       <AuthHeading title={DEFAULT_AUTH_LABELS.createAccount} />
       {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signUp}</p>}
 
-      <AuthCard>
-        {/* OAuth first: signing up via an existing identity (OrangeCat above
+      {accountKit ? (
+        <AuthCard>
+          <LokiSignUp
+            methods={accountKit}
+            next={safeCallback}
+            signInHref={keepCallback(ROUTES.SIGN_IN, safeCallback, ROUTES.ONBOARDING)}
+          />
+        </AuthCard>
+      ) : (
+        <AuthCard>
+          {/* OAuth first: signing up via an existing identity (OrangeCat above
             all — one account across the stack) beats minting a new password
             silo. First OAuth sign-in creates the account, so these are as
             much "sign up" buttons as the form below. */}
-        {hasAnyOAuth(oauthFlags) && (
-          <>
-            <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} intent="sign-up" />
-            {showPassword ? (
-              <AuthDivider label="or with a password" />
-            ) : (
-              <p className="pt-2 text-center text-sm text-text-muted">
-                Prefer a password just for Loki?{" "}
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(true)}
-                  className="text-text-secondary underline hover:text-text-primary"
-                >
-                  Create one
-                </button>
-              </p>
-            )}
-          </>
-        )}
-
-        <form onSubmit={handleSubmit} className={showPassword ? "space-y-4" : "hidden"}>
-          <CreateAccountFields
-            name={name}
-            onName={setName}
-            namePlaceholder="e.g. Manu"
-            email={email}
-            onEmail={setEmail}
-            password={password}
-            onPassword={setPassword}
-            confirm={confirm}
-            onConfirm={setConfirm}
-          />
-
-          {error && <p className="ui-error">{error}</p>}
-
-          <AuthSubmitButton
-            loading={loading}
-            label={DEFAULT_AUTH_LABELS.createAccount}
-            loadingLabel="Creating account…"
-          />
-          {magicLinkEnabled && (
-            <SignInLinkButton
-              email={email}
-              name={name.trim() || undefined}
-              callbackUrl={safeCallback}
-              label={DEFAULT_AUTH_LABELS.signUpWithLink}
-            />
+          {hasAnyOAuth(oauthFlags) && (
+            <>
+              <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} intent="sign-up" />
+              {showPassword ? (
+                <AuthDivider label="or with a password" />
+              ) : (
+                <p className="pt-2 text-center text-sm text-text-muted">
+                  Prefer a password just for Loki?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(true)}
+                    className="text-text-secondary underline hover:text-text-primary"
+                  >
+                    Create one
+                  </button>
+                </p>
+              )}
+            </>
           )}
-        </form>
-      </AuthCard>
 
-      <p className="ui-auth-hint">
-        {DEFAULT_AUTH_LABELS.haveAccount}{" "}
-        <Link
-          href={keepCallback(ROUTES.SIGN_IN, safeCallback, ROUTES.ONBOARDING)}
-          className="ui-auth-hint-link"
-        >
-          {DEFAULT_AUTH_LABELS.signIn}
-        </Link>
-      </p>
+          <form onSubmit={handleSubmit} className={showPassword ? "space-y-4" : "hidden"}>
+            <CreateAccountFields
+              name={name}
+              onName={setName}
+              namePlaceholder="e.g. Manu"
+              email={email}
+              onEmail={setEmail}
+              password={password}
+              onPassword={setPassword}
+              confirm={confirm}
+              onConfirm={setConfirm}
+            />
+
+            {error && <p className="ui-error">{error}</p>}
+
+            <AuthSubmitButton
+              loading={loading}
+              label={DEFAULT_AUTH_LABELS.createAccount}
+              loadingLabel="Creating account…"
+            />
+            {magicLinkEnabled && (
+              <SignInLinkButton
+                email={email}
+                name={name.trim() || undefined}
+                callbackUrl={safeCallback}
+                label={DEFAULT_AUTH_LABELS.signUpWithLink}
+              />
+            )}
+          </form>
+        </AuthCard>
+      )}
+
+      {!accountKit && (
+        <p className="ui-auth-hint">
+          {DEFAULT_AUTH_LABELS.haveAccount}{" "}
+          <Link
+            href={keepCallback(ROUTES.SIGN_IN, safeCallback, ROUTES.ONBOARDING)}
+            className="ui-auth-hint-link"
+          >
+            {DEFAULT_AUTH_LABELS.signIn}
+          </Link>
+        </p>
+      )}
     </AuthShell>
   );
 }

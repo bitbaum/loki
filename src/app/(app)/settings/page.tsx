@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { authUsers } from "@/db/schema/accountkit";
+import { authAccounts, authUsers } from "@/db/schema/accountkit";
 import { redirect } from "next/navigation";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { listInvitations } from "@/db/queries/invitations";
@@ -11,6 +11,7 @@ import { getUserPreferences, EMPTY_USER_PREFERENCES } from "@/db/queries/user-pr
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { PageLayout } from "@/components/ui/page-layout";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
+import { accountKitMethods } from "@/lib/auth/shared/screens";
 import { getProjectLimit, isUnlimitedProjects } from "@/lib/plan";
 import { orangeCatPayUrl } from "@/lib/oc-pay";
 import { PRICING_PLANS } from "@/config/plans";
@@ -37,21 +38,39 @@ export default async function SettingsPage() {
 
   if (!user) redirect(ROUTES.SIGN_IN);
 
-  // Passkeys and the second factor exist on the AccountKit runtime only.
-  const security = getEnabledAuthProviders().passkey
-    ? {
-        twoFactorEnabled: Boolean(
-          (
+  // AccountKit's account panel (ways in, passkeys, second factor, leaving)
+  // exists on the AccountKit runtime only.
+  const methods = accountKitMethods();
+  const shared = methods
+    ? (
+        await db
+          .select({
+            twoFactorEnabled: authUsers.twoFactorEnabled,
+            emailVerified: authUsers.emailVerified,
+            role: authUsers.role,
+          })
+          .from(authUsers)
+          .where(eq(authUsers.id, user.id))
+          .limit(1)
+          .catch(() => [])
+      )[0]
+    : undefined;
+  const security =
+    methods && shared
+      ? {
+          methods,
+          twoFactorEnabled: Boolean(shared.twoFactorEnabled),
+          emailVerified: Boolean(shared.emailVerified),
+          role: shared.role ?? "member",
+          linked: (
             await db
-              .select({ on: authUsers.twoFactorEnabled })
-              .from(authUsers)
-              .where(eq(authUsers.id, user.id))
-              .limit(1)
+              .select({ provider: authAccounts.providerId })
+              .from(authAccounts)
+              .where(eq(authAccounts.userId, user.id))
               .catch(() => [])
-          )[0]?.on,
-        ),
-      }
-    : null;
+          ).map((row) => row.provider),
+        }
+      : null;
 
   // The Bitcoin checkout per plan comes from env, so it is resolved here and
   // handed down: the tabs are a client component and cannot read it.
@@ -70,7 +89,9 @@ export default async function SettingsPage() {
           username: user.username ?? "",
           image: user.image ?? "",
           email: user.email,
-          hasPassword: !!user.passwordHash,
+          // On AccountKit the password is its credential row (a person who
+          // signed up there has none in users.password_hash).
+          hasPassword: security ? security.linked.includes("credential") : !!user.passwordHash,
           plan: user.plan,
           cloudBuilder: !!user.isDefault || user.privateBuilder,
           operator: !!user.isDefault,
