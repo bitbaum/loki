@@ -1,0 +1,66 @@
+name: Delete synthetic user
+
+# Delete one throwaway account (a live check's sign-up) from OrangeCat's auth
+# server by its exact email, through the GoTrue admin API on the box.
+# scripts/hetzner/delete-synthetic-user.sh is the rules: only example.com,
+# example.test and .invalid addresses, exactly one match, read back after.
+# It prints the address, the user id and verdicts, never a key (this repo and
+# its logs are public).
+#
+# Manual on purpose: it deletes. orangecat#1533 left the first one.
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "exact synthetic email (example.com, example.test or .invalid)"
+        required: true
+        type: string
+      action:
+        description: "show (read only) or delete"
+        required: true
+        default: show
+        type: choice
+        options: [show, delete]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delete-synthetic-user
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the address
+        env:
+          EMAIL: ${{ inputs.email }}
+        run: |
+          set -euo pipefail
+          # The box checks again; this keeps anything else off the ssh line.
+          [[ "$EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$ ]] || { echo "✗ not an email address" >&2; exit 1; }
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: ${{ inputs.action }}
+        env:
+          ACTION: ${{ inputs.action }}
+          EMAIL: ${{ inputs.email }}
+        run: |
+          set -euo pipefail
+          BOX="ubuntu@$HETZNER_IP"
+          SSH="ssh -o BatchMode=yes -i $HOME/.ssh/id_deploy"
+          $SSH "$BOX" 'sudo mkdir -p /opt/fleet/bin && sudo chown ubuntu:ubuntu /opt/fleet /opt/fleet/bin'
+          scp -q -o BatchMode=yes -i ~/.ssh/id_deploy scripts/hetzner/delete-synthetic-user.sh "$BOX:/opt/fleet/bin/"
+          $SSH "$BOX" "bash /opt/fleet/bin/delete-synthetic-user.sh $ACTION '$EMAIL'"
