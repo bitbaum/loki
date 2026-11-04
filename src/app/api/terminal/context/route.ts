@@ -63,6 +63,8 @@ export type TerminalContext = {
   tabs: TerminalTabContext[];
   /** Same eligibility rule as Control's launch modal: a linked directory. */
   launchable: TerminalLaunchProject[];
+  /** A task can also start a repository-only project through tab-inject. */
+  startable: { name: string; agentPref: string | null }[];
 };
 
 export async function GET(req: Request) {
@@ -133,5 +135,9 @@ export async function GET(req: Request) {
     .filter((p) => p.dirPath)
     .map((p) => ({ name: p.name, dir: p.dirPath!, agentPref: p.agentPref ?? null }));
 
-  return NextResponse.json({ agents, tabs, launchable } satisfies TerminalContext);
+  const startable = projects
+    .filter((p) => p.dirPath || p.gitUrl)
+    .map((p) => ({ name: p.name, agentPref: p.agentPref ?? null }));
+
+  return NextResponse.json({ agents, tabs, launchable, startable } satisfies TerminalContext);
 }

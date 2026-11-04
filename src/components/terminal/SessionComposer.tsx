@@ -15,6 +15,7 @@ import { SuggestionChips } from "./SuggestionChips";
 import { LokiFiles } from "./LokiFiles";
 import { SessionPicker } from "./SessionPicker";
 import { useLokiAttachments } from "./use-loki-attachments";
+import { projectTitle } from "@/lib/project-display";
 
 const SCREENSHOT_ONLY = "Look at the attached screenshot and fix what is wrong.";
 /** chatkit's own attach button. Hidden in this box (globals.css) — "+" is the
@@ -115,6 +116,7 @@ export function SessionComposer({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const loki = useLokiAttachments(project);
+  const projectLabel = projectTitle({ name: project ?? tab });
 
   const openPicker = () => {
     loki.clearNote();
@@ -181,11 +183,17 @@ export function SessionComposer({
     try {
       const command = attachments.length === 0 ? commandIn(message, agent) : null;
       if (command) {
+        if (!live) {
+          setError(
+            "No session is running yet. Send a task to start the agent before using its commands.",
+          );
+          return false;
+        }
         await typeCommand(onKey, command);
         setSent({ kind: "typed", what: command });
         return true;
       }
-      if (attachments.length > 0) {
+      if (live && attachments.length > 0) {
         return Boolean(
           await post("/api/control/chat-send", { tab, text: message, attachments, channel }),
         );
@@ -201,7 +209,7 @@ export function SessionComposer({
         }
         return true;
       }
-      const data = await post("/api/control/tab-inject", { tab, prompt: message });
+      const data = await post("/api/control/tab-inject", { tab, prompt: message, attachments });
       if (!data) return false;
       setSent({
         kind: "queued",
@@ -246,7 +254,7 @@ export function SessionComposer({
         {sent.kind === "typed"
           ? `Typed ${sent.what} into the terminal.`
           : (dispatch?.label ??
-            `Sent as a task — it starts ${agentLabel} in ${tab}, or waits for the runner.`)}
+            `Sent as a task — it starts ${agentLabel} in ${projectLabel}, or waits for the runner.`)}
       </span>
       <button
         type="button"
@@ -365,9 +373,9 @@ export function SessionComposer({
             ? `Queue a message for ${agentLabel}…`
             : live
               ? `Message ${agentLabel}…`
-              : `Describe a task for ${tab}…`
+              : `Describe a task for ${projectLabel}…`
         }
-        ariaLabel={`Message ${agentLabel} in ${tab}`}
+        ariaLabel={`Message ${agentLabel} in ${projectLabel}`}
         attachmentOnlyText={SCREENSHOT_ONLY}
         sending={working && !text.trim()}
         onStop={working ? () => void Promise.resolve(onKey(ESC)).catch(() => {}) : undefined}

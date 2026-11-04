@@ -1,0 +1,15 @@
+{
+  "scope": "Start work in an idle project from its existing session composer, including Workbench. Dispatch policy, project ownership and builder routing remain in Loki's existing server paths.",
+  "blocks": {
+    "chat": {
+      "package": "@bitbaum/chatkit",
+      "bindings": [
+        {
+          "file": "src/components/composer/Composer.tsx",
+          "symbols": ["ChatkitComposer"]
+        }
+      ],
+      "notes": "Reuse SessionComposer and its existing ChatKit wrapper for input, attachments, dictation and failed-send drafts. No new composer or transport."
+    }
+  }
+}

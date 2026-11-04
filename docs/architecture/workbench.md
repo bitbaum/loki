@@ -27,6 +27,12 @@ was "tons of options … paralysis" (2026-10-31). So:
   here: beside the session's box it was a second place to type, and the
   session already offers Loki about itself ("What's going on?"). `/loki`
   stays its own page.
+- **An idle project still has the box.** `TerminalIdleSession` reuses the
+  session composer before a PTY exists. A task, including its attachments,
+  starts through the existing tracked dispatch path; offline work queues
+  visibly, failed sends keep the draft, and polling attaches the project's
+  own session when it appears. See the
+  [repair evidence and remaining gates](../development/2026-11-04-workbench-repair.md).
 - **The robot.** `TerminalSurface` in its quiet shape (`quiet`): no
   builder picker (which builder runs a project is a stored decision,
   `lib/execution-access`), no tab strip of other projects, no shell rows.

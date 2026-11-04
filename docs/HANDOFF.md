@@ -307,3 +307,10 @@ Agent memory at `~/.claude/projects/-home-g-dev-loki/memory/` has additional his
 **End of handoff.** When you're done with your session, append your own one-paragraph summary to the changelog (`src/config/changelog.ts` for desktop releases, this doc for architectural changes), and update `MEMORY.md` at `~/.claude/projects/-home-g-dev-loki/memory/` with anything surprising or non-obvious that future-you would want to know.
 
 Build for change. Ship correct code.
+
+# 2026-11-04 repair continuation
+
+The current idle Workbench/session repair and OrangeCat release checkpoint are
+recorded in [the dated continuation](development/2026-11-04-workbench-repair.md).
+Its implementation, controlled browser evidence and outstanding deployment and
+real-builder checks are distinct. The historical handoff above is preserved.
