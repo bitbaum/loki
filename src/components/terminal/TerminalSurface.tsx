@@ -28,6 +28,8 @@ import { TerminalView } from "./TerminalView";
 import { TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
 import { TerminalSessionBar, TerminalSourceBar } from "./TerminalModeBar";
 import { SessionComposer } from "./SessionComposer";
+import { TerminalIdleSession } from "./TerminalIdleSession";
+import { idleProjectFor, resolveProjectToTab } from "@/lib/terminal-project-selection";
 import { TerminalResume } from "./TerminalResume";
 import { TerminalNewSessionSheet } from "./TerminalNewSessionSheet";
 import { sessionLaunchProps } from "./session-launch";
@@ -334,31 +336,6 @@ export function TerminalSurface({
     { intervalMs: 15000 },
   );
 
-  // Resolve project name to actual tab name using the same logic Control uses.
-  // When initialTab is "loki" (project) but the actual tab is "Bitbaum",
-  // this maps it so all lookups use "Bitbaum". Prevents "tab not found" when
-  // Watch/Focus/Open pass a project name instead of the live tab name.
-  const resolveProjectToTab = useCallback(
-    (projectOrTab: string | null | undefined, ctx: typeof primaryContext.data): string | null => {
-      if (!projectOrTab || !ctx) return projectOrTab ?? null;
-      const lower = projectOrTab.toLowerCase();
-
-      // 1. Direct tab name match (case-insensitive)
-      const directMatch = ctx.tabs.find((t) => t.tab.toLowerCase() === lower);
-      if (directMatch) return directMatch.tab;
-
-      // 2. Project name match - find tab whose projectName matches
-      const projectMatch = ctx.tabs.find((t) => t.projectName?.toLowerCase() === lower);
-      if (projectMatch) return projectMatch.tab;
-
-      // 3. No match - return original (may not exist, but that's what deepLinkMiss handles)
-      return projectOrTab;
-    },
-    // ctx parameter is used, not primaryContext - disable exhaustive-deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-
   // Resolve initialTab on BOTH sources to determine auto-switch
   const resolvedOnPrimary = resolveProjectToTab(initialTab, primaryContext.data);
   const resolvedOnOther = resolveProjectToTab(initialTab, otherContext.data);
@@ -419,6 +396,14 @@ export function TerminalSurface({
   // the miss state and left activeTab/transport null. That was the production
   // "Cannot read properties of null (reading 'key')" crash.
   const deepLinkMiss = Boolean(rawDeepLinkMiss && resolvedInitialTab);
+  const idleProject = idleProjectFor({
+    requested: initialTab,
+    activeTab,
+    loading,
+    gatedMessage,
+    shell: source === "shell",
+    context,
+  });
 
   // The terminal is one of the four project surfaces, so the tab you are
   // watching IS the fleet's active project — Control, Loki and the project
@@ -691,6 +676,8 @@ export function TerminalSurface({
     // and it opens here" is false when nothing can start. The empty state
     // below says the builder is down and offers the way forward (owner, on a
     // second computer, 2026-10-12: "classic dead end").
+    if (idleProject)
+      return <TerminalIdleSession project={idleProject} channel={channel} offline={offline} />;
     if (deepLinkMiss && !offline && !gatedMessage) {
       return (
         <TerminalSessionMiss

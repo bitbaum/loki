@@ -27,18 +27,15 @@ export function useDispatchLiveStatus(
   commandId: string | null,
   runId: string | null,
 ): DispatchLiveView | null {
-  const [view, setView] = useState<DispatchLiveView | null>(null);
+  const statusUrl = commandId
+    ? `/api/control/commands/${commandId}`
+    : runId
+      ? `/api/orchestration/runs/${runId}`
+      : null;
+  const [snapshot, setSnapshot] = useState<{ url: string; view: DispatchLiveView } | null>(null);
   useEffect(() => {
-    const statusUrl = commandId
-      ? `/api/control/commands/${commandId}`
-      : runId
-        ? `/api/orchestration/runs/${runId}`
-        : null;
-    // Neither id given — nothing to poll. Deliberately not resetting `view`
-    // here (that would be a synchronous setState-in-effect): every caller
-    // already gates rendering on `commandId || runId` being non-null, so a
-    // stale view from a previous id is never actually shown once both go
-    // null, and it's naturally replaced the next time a real id arrives.
+    // Keep the result bound to the command that produced it. A second send
+    // must not borrow the previous task's completion while its first poll waits.
     if (!statusUrl) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -50,7 +47,7 @@ export function useDispatchLiveStatus(
         if (res.ok) {
           const v = (await res.json()) as DispatchLiveView;
           if (!active) return;
-          setView(v);
+          setSnapshot({ url: statusUrl!, view: v });
           // The run is over, but its change is still on its way to the live
           // site (PR → merge → deploy → Loki's look): keep asking, slowly,
           // while this card is open — and not all day.
@@ -70,6 +67,6 @@ export function useDispatchLiveStatus(
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [commandId, runId]);
-  return view;
+  }, [statusUrl]);
+  return snapshot?.url === statusUrl ? snapshot.view : null;
 }
