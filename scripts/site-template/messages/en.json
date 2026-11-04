@@ -181,7 +181,8 @@
       "lead": "Someone asked to reset the password of your account at {site}.",
       "action": "Choose a new password"
     },
-    "ignore": "If this was not you, ignore this email — nothing changes."
+    "ignore": "If this was not you, ignore this email — nothing changes.",
+    "code": "On another device? Type this code on the page where you asked for the link: {code}"
   },
   "Journal": {
     "title": "Journal",
