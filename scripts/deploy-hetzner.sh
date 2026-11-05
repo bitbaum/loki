@@ -464,6 +464,11 @@ sync_runner "$PROJECT_DIR/desktop/src/" "$HOST:$RUNNER_DIR/desktop/src/"
 # box-runner reads its version from desktop/package.json — ship it alongside.
 sync_runner "$PROJECT_DIR/desktop/package.json" "$HOST:$RUNNER_DIR/desktop/"
 sync_runner "$PROJECT_DIR/home/" "$HOST:$RUNNER_DIR/home/"
+# src/ imports widget/ (tour-token, owner-pass, moments-contract, …) — runner
+# code reaching a widget/ module died on MODULE_NOT_FOUND while widget/ stayed
+# on the laptop: loki-reindex failed 2026-11-05 via src/lib/feedback/tour-token.ts
+# → widget/tour. scripts/test/runner-ships-imports.ts guards the whole list.
+sync_runner "$PROJECT_DIR/widget/" "$HOST:$RUNNER_DIR/widget/"
 sync_runner "$PROJECT_DIR/scripts/box-runner.ts" \
   "$PROJECT_DIR/scripts/mint-box-runner-token.ts" \
   "$PROJECT_DIR/scripts/write-tenant-engines.ts" \
@@ -506,7 +511,7 @@ vendor_out=$(rsync -azci --no-perms --omit-dir-times -e "$RSYNC_SSH" \
   "$PROJECT_DIR/vendor/" "$HOST:$RUNNER_DIR/vendor/" 2>/dev/null) || vendor_out=""
 grep -qE '^[<>ch]f' <<<"$vendor_out" && RUNNER_MANIFEST_CHANGED=1
 
-ssh "$HOST" "chown -R $RUNNER_OWNER:$RUNNER_OWNER $RUNNER_DIR/src $RUNNER_DIR/desktop $RUNNER_DIR/home $RUNNER_DIR/scripts $RUNNER_DIR/tsconfig.json"
+ssh "$HOST" "chown -R $RUNNER_OWNER:$RUNNER_OWNER $RUNNER_DIR/src $RUNNER_DIR/desktop $RUNNER_DIR/home $RUNNER_DIR/widget $RUNNER_DIR/scripts $RUNNER_DIR/tsconfig.json"
 
 if [ "$RUNNER_MANIFEST_CHANGED" = "1" ]; then
   echo "→ runner manifest changed — installing dependencies"
