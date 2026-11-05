@@ -101,8 +101,9 @@ SVC
 # app, and a timer spends them with nobody asking (George, 2026-09-25). The
 # frontier digest, feedback digest and event scout were removed for that reason;
 # scripts/test/no-free-background-ai.ts walks every route below and fails if one
-# can reach the model layer. Removing a name here does NOT remove its timer from
-# the box: `systemctl disable --now fc-cron@<name>.timer` and delete the file.
+# can reach the model layer. Removing a name here removes its timer from the box
+# on the next run (the prune below), so a retired job stops firing at a route
+# that no longer exists.
 declare -A SCHED=( [prune-debug-logs]="03:00" [autopilot-night]="02:30" [autopilot-plan]="19:00" [prune-agent-tokens]="05:00" [email-canary]="06:00" [check-project-repos]="06:20" [check-model-ids]="06:30" [check-telemetry]="06:45" [check-runner-version]="06:50" [sweep-orphan-alerts]="06:55" [sweep-temporary-chats]="04:40" [review-chats]="03:40" [send-digest-emails]="07:00" [orangecat-promote-backfill]="09:00" [downgrade-expired-plans]="09:30" [propose-checkins]="09:45" [reset-demo]="04:20" [reap-stale-runs]="*:15" [check-runner-stall]="*:30" [check-pending-approvals]="*:45" [sync-feedback-alerts]="*:10" [check-feedback-needs-you]="*:05/15" [check-site-live]="*:25" [sync-package-updates]="*:07/15" [check-gateway]="*:03/10" )
 for name in "${!SCHED[@]}"; do
   # "Thu 08:30" carries a space; daily/hourly forms never do. Anything else
@@ -126,6 +127,26 @@ Unit=fc-cron@${name}.service
 WantedBy=timers.target
 TIMER
 done
+
+# Prune: SCHED is the whole list, not just the additions. A timer on the box
+# whose name is no longer in SCHED belongs to a retired job, and left in place
+# it keeps calling a route that was deleted — `nudge-idle` was replaced by
+# `autopilot-night` on 2026-10-10 and its timer went on hitting a 404 every
+# night, failing the unit and paging the operator, because this installer only
+# ever added. Disable it, delete the file, and clear the failed state its last
+# run left behind so the alert clears with it.
+# PRUNE:BEGIN
+for unit in /etc/systemd/system/fc-cron@*.timer; do
+  [ -e "$unit" ] || continue
+  name="${unit##*/fc-cron@}"
+  name="${name%.timer}"
+  [ -n "${SCHED[$name]+set}" ] && continue
+  systemctl disable --now "fc-cron@${name}.timer" >/dev/null 2>&1 || true
+  rm -f "$unit"
+  systemctl reset-failed "fc-cron@${name}.service" >/dev/null 2>&1 || true
+  echo "✓ removed retired timer fc-cron@${name}"
+done
+# PRUNE:END
 
 systemctl daemon-reload
 # SSOT: enable exactly what SCHED declares. Listing the names a second time is

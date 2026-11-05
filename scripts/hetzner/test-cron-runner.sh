@@ -117,6 +117,33 @@ RETRY_OUT=$(cat "$TMP/retry-out.txt")
 check "retries through a transient connection-refused window and succeeds" \
   "$(grep -q '\"drafted\":3' <<<"$RETRY_OUT" && [ "$RETRY_RC" -eq 0 ] && echo 0 || echo 1)"
 
+# The prune: a timer whose job left SCHED must leave the box. nudge-idle was
+# retired on 2026-10-10 and its timer kept calling a deleted route (HTTP 404)
+# every night, because the installer only ever added timers.
+UNITS="$TMP/units"; mkdir -p "$UNITS"
+touch "$UNITS/fc-cron@autopilot-night.timer" "$UNITS/fc-cron@nudge-idle.timer" "$UNITS/fc-cron@.service"
+{
+  echo 'set -euo pipefail'
+  echo "systemctl() { echo \"\$*\" >> '$TMP/systemctl.log'; }"
+  echo 'declare -A SCHED=( [autopilot-night]="02:30" )'
+  sed -n '/^# PRUNE:BEGIN$/,/^# PRUNE:END$/p' "$SRC" | sed "s#/etc/systemd/system#$UNITS#g"
+} > "$TMP/prune.sh"
+check "prune: the block is present in the installer" \
+  "$(grep -q 'fc-cron@\*.timer' "$TMP/prune.sh" && echo 0 || echo 1)"
+PRUNE_RC=0; PRUNE_OUT=$(bash "$TMP/prune.sh" 2>&1) || PRUNE_RC=$?
+check "prune: runs clean" "$([ "$PRUNE_RC" -eq 0 ] && echo 0 || echo 1)"
+check "prune: a retired job's timer file is deleted" \
+  "$([ ! -e "$UNITS/fc-cron@nudge-idle.timer" ] && echo 0 || echo 1)"
+check "prune: the retired timer is disabled and its failed state cleared" \
+  "$(grep -qx 'disable --now fc-cron@nudge-idle.timer' "$TMP/systemctl.log" \
+     && grep -qx 'reset-failed fc-cron@nudge-idle.service' "$TMP/systemctl.log" && echo 0 || echo 1)"
+check "prune: a job still in SCHED keeps its timer, untouched" \
+  "$([ -e "$UNITS/fc-cron@autopilot-night.timer" ] && ! grep -q autopilot-night "$TMP/systemctl.log" && echo 0 || echo 1)"
+check "prune: the service template is never touched" \
+  "$([ -e "$UNITS/fc-cron@.service" ] && echo 0 || echo 1)"
+check "prune: says what it removed" \
+  "$(grep -q 'removed retired timer fc-cron@nudge-idle' <<<"$PRUNE_OUT" && echo 0 || echo 1)"
+
 echo
 echo "  ${pass} passed, ${fail} failed"
 [ "$fail" -eq 0 ]
