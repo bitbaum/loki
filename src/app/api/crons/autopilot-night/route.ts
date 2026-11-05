@@ -5,8 +5,9 @@
 // is src/lib/autopilot-night.ts.
 //
 // Schedule: daily at 02:30 UTC (systemd timer, scripts/install-hetzner-crons.sh),
-// so a fix merges and deploys before the owner wakes. The box keeps the old
-// `fc-cron@nudge-idle.timer` until the installer is run once more.
+// so a fix merges and deploys before the owner wakes. The installer prunes
+// timers that are no longer in its SCHED, so the old `fc-cron@nudge-idle.timer`
+// goes at the next deploy.
 
 import { type NextRequest, NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron-auth";
