@@ -27,9 +27,10 @@ echo "→ box-runner: syncing source into ${HOST}:${RUNNER_DIR} (node_modules un
 rsync -az --no-perms --omit-dir-times "${REPO_ROOT}/src/"        "${HOST}:${RUNNER_DIR}/src/"
 rsync -az --no-perms --omit-dir-times "${REPO_ROOT}/desktop/src/" "${HOST}:${RUNNER_DIR}/desktop/src/"
 rsync -az --no-perms --omit-dir-times "${REPO_ROOT}/home/"       "${HOST}:${RUNNER_DIR}/home/"
+rsync -az --no-perms --omit-dir-times "${REPO_ROOT}/widget/"     "${HOST}:${RUNNER_DIR}/widget/"
 rsync -az --no-perms --omit-dir-times "${REPO_ROOT}/scripts/"    "${HOST}:${RUNNER_DIR}/scripts/"
 rsync -a "${REPO_ROOT}/tsconfig.json" "${HOST}:${RUNNER_DIR}/tsconfig.json"
-ssh "$HOST" "chown -R $RUNNER_OWNER:$RUNNER_OWNER ${RUNNER_DIR}/src ${RUNNER_DIR}/desktop ${RUNNER_DIR}/home ${RUNNER_DIR}/scripts ${RUNNER_DIR}/tsconfig.json"
+ssh "$HOST" "chown -R $RUNNER_OWNER:$RUNNER_OWNER ${RUNNER_DIR}/src ${RUNNER_DIR}/desktop ${RUNNER_DIR}/home ${RUNNER_DIR}/widget ${RUNNER_DIR}/scripts ${RUNNER_DIR}/tsconfig.json"
 
 echo "→ box-runner: minting runner token if absent"
 ssh "$HOST" "sudo -u $RUNNER_OWNER -H bash -c '
