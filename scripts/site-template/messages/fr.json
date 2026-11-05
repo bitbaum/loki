@@ -181,7 +181,8 @@
       "lead": "Quelqu’un a demandé à réinitialiser le mot de passe de votre compte sur {site}.",
       "action": "Choisir un nouveau mot de passe"
     },
-    "ignore": "Si ce n’était pas vous, ignorez cet e-mail — rien ne change."
+    "ignore": "Si ce n’était pas vous, ignorez cet e-mail — rien ne change.",
+    "code": "Sur un autre appareil ? Saisissez ce code sur la page où vous avez demandé le lien : {code}"
   },
   "Journal": {
     "title": "Journal",
