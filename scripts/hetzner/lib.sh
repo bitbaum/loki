@@ -300,6 +300,15 @@ wake_inner_port() { printf '%s' "$(($1 + 20000))"; }
 # that as Result=exit-code, the unit reads `failed`, and every nap paged
 # Telegram as 🔴 DOWN quoting the boot banner, then ✅ RECOVERED on the next
 # visit — ~10 sites flapping all day on 2026-10-08, burying real alerts.
+#
+# SuccessExitStatus only covers a Node that exits within TimeoutStopSec (3s,
+# from the template). When it does not, systemd SIGKILLs it and records
+# Result=timeout, which no exit status can turn back into a success: the nap
+# reads `failed` and pages anyway (biaslens, 2026-11-04, after 14h awake). So a
+# sleeping app is stopped with SIGKILL: the proxy idles out only after
+# $SLEEP_IDLE_TIME with no connection, so there is nothing left to drain, and
+# SIGKILL ends it before any timeout. A kernel OOM kill still reads failed:
+# systemd reports it as Result=oom-kill from the cgroup, not from the signal.
 sleep_app_unit() {
   local wait
   wait="ExecStartPost=/bin/bash -c 'for i in \$\$(seq 1 300); do (echo > /dev/tcp/127.0.0.1/$3) 2>/dev/null && exit 0; sleep 0.1; done; exit 1'"
@@ -308,7 +317,7 @@ sleep_app_unit() {
     skip { next }
     { print }
     /^\[Unit\]$/ { print bind }
-    /^ExecStart=/ { print wait; print "SuccessExitStatus=143 SIGTERM" }
+    /^ExecStart=/ { print wait; print "KillSignal=SIGKILL"; print "SuccessExitStatus=143 SIGTERM SIGKILL" }
   ' <<<"$1"
 }
 
