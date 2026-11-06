@@ -11,7 +11,7 @@ export default function TermsPage() {
     <PublicSurface right={<PublicHeaderActions />}>
       <main className="mx-auto max-w-3xl px-6 py-16 ui-public-prose">
         <h1 className="ui-public-title mb-2">Terms of use</h1>
-        <p className="ui-public-meta mb-12">Last updated 2026-06-03</p>
+        <p className="ui-public-meta mb-12">Last updated 2026-10-01</p>
 
         <section className="space-y-4 mb-10">
           <h2 className="ui-public-prose-h2">Honest framing</h2>
@@ -26,9 +26,10 @@ export default function TermsPage() {
         <section className="space-y-4 mb-10">
           <h2 className="ui-public-prose-h2">Your account</h2>
           <p>
-            You authenticate via GitHub OAuth. By signing in you confirm you are the owner of that
-            GitHub account. Don&apos;t share your sign-in credentials or agent tokens — anyone with
-            a valid token can dispatch agents on the machine the token is installed on.
+            You sign in with an OrangeCat account, or with GitHub, Google or X, or with an email
+            address and a password just for Loki. By signing in you confirm the account you use is
+            yours. Don&apos;t share your sign-in or your agent tokens — anyone with a valid token
+            can start agents on the machine the token is installed on.
           </p>
         </section>
 
@@ -41,11 +42,11 @@ export default function TermsPage() {
             </li>
             <li>
               Don&apos;t use Loki to launch agents against systems you don&apos;t have permission to
-              modify — this is a control plane, not an attack platform.
+              modify — it is a tool for directing your own work, not an attack platform.
             </li>
             <li>
-              Don&apos;t abuse the platform by automating it for purposes that break the terms of
-              the AI providers your agents call (Anthropic, xAI, etc.). Their terms apply to your
+              Don&apos;t use Loki in a way that breaks the terms of the AI providers your agents
+              call (for example Anthropic, OpenAI, Cursor, Google or xAI). Their terms apply to your
               use of their models through Loki.
             </li>
             <li>
@@ -68,6 +69,22 @@ export default function TermsPage() {
             ).
           </p>
           <p>
+            <strong>Where your code lives.</strong> When Loki creates a repository for a project, it
+            creates it in the{" "}
+            <a
+              href="https://github.com/bitbaum"
+              className="ui-public-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              bitbaum organisation on GitHub
+            </a>
+            , not in your personal account. The code in it is yours. A project that runs on
+            Loki&apos;s cloud builder has its code copied (cloned) to Loki&apos;s server so the
+            agents can work on it there. A project that runs on your own computer through Fleet
+            Runner stays there.
+          </p>
+          <p>
             The Loki source code is published under the license shown at{" "}
             <a href="/license" className="ui-public-link">
               /license
@@ -86,9 +103,10 @@ export default function TermsPage() {
             someone promised you a service level.
           </p>
           <p>
-            Agent dispatch invokes external AI providers using your API keys. Loki is not
-            responsible for charges incurred against those keys — set your own quotas with each
-            provider.
+            Agents call external AI providers. On your own computer they use your own sign-ins and
+            API keys, and Loki is not responsible for charges against them — set your own limits
+            with each provider. On Loki&apos;s cloud builder they use Loki&apos;s credentials.
+            Loki&apos;s own chat uses Loki&apos;s free AI allowance unless you add your own key.
           </p>
         </section>
 
@@ -96,8 +114,11 @@ export default function TermsPage() {
           <h2 className="ui-public-prose-h2">Security disclosure</h2>
           <p>
             If you find a security issue, please <strong>do not file a public GitHub issue.</strong>{" "}
-            Reach Cato via the email address on the GitHub profile with &ldquo;Loki security&rdquo;
-            in the subject. We&apos;ll acknowledge within 72 hours.
+            Email{" "}
+            <a href="mailto:cato@orangecat.ch" className="ui-public-link">
+              cato@orangecat.ch
+            </a>{" "}
+            with &ldquo;Loki security&rdquo; in the subject. We&apos;ll acknowledge within 72 hours.
           </p>
         </section>
 
@@ -105,8 +126,11 @@ export default function TermsPage() {
           <h2 className="ui-public-prose-h2">Changes</h2>
           <p>
             These terms may be updated; the &ldquo;last updated&rdquo; date at the top reflects the
-            current version. Material changes will be announced via the release notes feed and,
-            where we have your email, by email.
+            current version. Material changes will be announced in the{" "}
+            <a href="/changelog" className="ui-public-link">
+              changelog
+            </a>{" "}
+            and, where we have your email, by email.
           </p>
         </section>
       </main>
