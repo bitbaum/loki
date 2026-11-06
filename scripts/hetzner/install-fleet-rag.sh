@@ -48,6 +48,11 @@ User=root
 WorkingDirectory=/opt/loki/embed
 Environment=EMBED_MODEL=BAAI/bge-small-en-v1.5
 Environment=EMBED_PORT=7997
+# A shared box: when this process balloons, the kernel must reclaim or kill IT,
+# not swap every app into Postgres timeouts (2026-11-06: 2GB, swap full, six
+# other apps' crons failed). Steady state is ~320MB.
+MemoryHigh=768M
+MemoryMax=1G
 ExecStart=/opt/loki/embed/venv/bin/python /opt/loki/embed/server.py
 Restart=on-failure
 RestartSec=5
