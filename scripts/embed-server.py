@@ -9,6 +9,7 @@ Bind: 127.0.0.1:7997 (loopback only — the box app + hosted runner reach it loc
 """
 import json
 import os
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from fastembed import TextEmbedding
@@ -21,6 +22,14 @@ _model = TextEmbedding(model_name=MODEL_NAME)
 # Warm + discover dimension.
 _dim = len(next(iter(_model.embed(["warmup"]))).tolist())
 print(f"[embed] ready: {MODEL_NAME} dim={_dim} on :{PORT}", flush=True)
+
+# One inference at a time. ThreadingHTTPServer gives every request its own
+# thread, and onnxruntime grows a memory arena per concurrent run that it never
+# returns: the 03:30 reindex plus live callers took this process to 2GB, filled
+# the box's swap, and starved Postgres until other apps' crons failed
+# (2026-11-06). Requests queue here instead; small batches keep the wait short.
+_infer_lock = threading.Lock()
+BATCH_SIZE = int(os.environ.get("EMBED_BATCH_SIZE", "16"))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -52,7 +61,8 @@ class Handler(BaseHTTPRequestHandler):
             if not texts:
                 self._send(400, {"error": "input required"})
                 return
-            vectors = [v.tolist() for v in _model.embed(texts)]
+            with _infer_lock:
+                vectors = [v.tolist() for v in _model.embed(texts, batch_size=BATCH_SIZE)]
             data = [{"object": "embedding", "index": i, "embedding": v} for i, v in enumerate(vectors)]
             self._send(200, {
                 "object": "list",
