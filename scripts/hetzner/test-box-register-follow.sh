@@ -11,10 +11,15 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-export TMPDIR="$TMP" HOME="$TMP/home" GIT_CONFIG_NOSYSTEM=1
+# Run from the husky pre-push hook, the inherited GIT_DIR turned `git init "$U"`
+# into the REAL repo: commits "one"/"two" landed on the pushing branch, emptied
+# its tree, and core.bare=true reached the shared .git/config (2026-11-06).
+source "$HERE/../test/lib/git-fixture-env.sh"
+export TMPDIR="$TMP" HOME="$TMP/home"
 mkdir -p "$HOME"
-git config --global user.name test; git config --global user.email test@example.invalid
-git config --global init.defaultBranch main; git config --global advice.detachedHead false
+export GIT_CONFIG_COUNT=2
+export GIT_CONFIG_KEY_0=init.defaultBranch GIT_CONFIG_VALUE_0=main
+export GIT_CONFIG_KEY_1=advice.detachedHead GIT_CONFIG_VALUE_1=false
 
 PASSED=0
 fail() { echo "  ✗ $1" >&2; exit 1; }
