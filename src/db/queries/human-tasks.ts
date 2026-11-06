@@ -42,6 +42,7 @@ import {
   type TaskEventKind,
 } from "@/config/crew";
 import { assertAssignablePerson } from "@/db/queries/crew";
+import { changesCrewConsentTerms } from "@/lib/crew/consent-terms";
 
 const assignee = aliasedTable(entities, "assignee");
 const project = aliasedTable(entities, "project");
@@ -277,55 +278,94 @@ export async function patchHumanTask(
   id: string,
   input: PatchHumanTaskInput,
 ): Promise<HumanTaskDetail | null> {
-  const existing = await getHumanTask(userId, id);
-  if (!existing) return null;
+  // Resolve foreign keys before acquiring the row lock. The transaction is
+  // responsible for judging consent against the *current*, locked assignment.
+  const assigneeId =
+    input.assigneeId === undefined
+      ? undefined
+      : input.assigneeId
+        ? ((await assertAssignablePerson(userId, input.assigneeId))?.id ?? null)
+        : null;
+  const projectId =
+    input.projectId === undefined ? undefined : await resolveProjectId(userId, input.projectId);
 
-  const patch: Partial<typeof humanTasks.$inferInsert> = { updatedAt: new Date() };
-  if (input.title !== undefined) patch.title = input.title.trim();
-  if (input.brief !== undefined) patch.brief = input.brief?.trim() || null;
-  if (input.reason !== undefined) patch.reason = input.reason?.trim() || null;
-  if (input.dueDate !== undefined) patch.dueDate = parseDate(input.dueDate);
-  if (input.feeAmount !== undefined) patch.feeAmount = input.feeAmount;
-  if (input.feeCurrency !== undefined) patch.feeCurrency = input.feeCurrency;
-  if (input.projectId !== undefined)
-    patch.projectId = await resolveProjectId(userId, input.projectId);
-  if (input.assigneeId !== undefined) {
-    patch.assigneeId = input.assigneeId
-      ? ((await assertAssignablePerson(userId, input.assigneeId))?.id ?? null)
-      : null;
-  }
+  const changed = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(humanTasks)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)))
+      .limit(1)
+      .for("update");
+    if (!existing) return false;
 
-  const nextStatus = input.status;
-  if (nextStatus && nextStatus !== existing.status) {
-    if (!canOperatorMove(existing.status, nextStatus)) {
-      throw new TaskTransitionError(existing.status, nextStatus);
+    const now = new Date();
+    const patch: Partial<typeof humanTasks.$inferInsert> = { updatedAt: now };
+    if (input.title !== undefined) patch.title = input.title.trim();
+    if (input.brief !== undefined) patch.brief = input.brief?.trim() || null;
+    if (input.reason !== undefined) patch.reason = input.reason?.trim() || null;
+    if (input.dueDate !== undefined) patch.dueDate = parseDate(input.dueDate);
+    if (input.feeAmount !== undefined) patch.feeAmount = input.feeAmount;
+    if (input.feeCurrency !== undefined) patch.feeCurrency = input.feeCurrency;
+    if (projectId !== undefined) patch.projectId = projectId;
+    if (assigneeId !== undefined) patch.assigneeId = assigneeId;
+
+    const termsChanged = changesCrewConsentTerms(existing, patch);
+    if (termsChanged && CLOSED_HUMAN_TASK_STATUSES.includes(existing.status)) {
+      throw new TaskShareError("Reopen this assignment before changing its terms.");
     }
-    patch.status = nextStatus;
-    if (nextStatus === HUMAN_TASK_STATUS.DONE) patch.completedAt = new Date();
-    // Pulling an ask back to draft un-sends it: the link dies with the status.
-    if (nextStatus === HUMAN_TASK_STATUS.DRAFT) {
-      patch.revokedAt = new Date();
+    if (termsChanged && input.status && input.status !== HUMAN_TASK_STATUS.DRAFT) {
+      throw new TaskShareError(
+        "Changing the assignment requires a fresh handover; edit it first, then share it.",
+      );
+    }
+
+    const nextStatus = termsChanged ? HUMAN_TASK_STATUS.DRAFT : input.status;
+    if (termsChanged) {
+      // A changed ask has NO current assignee consent. Its previous share link
+      // is dead even if an old ACCEPTED event remains in the audit timeline.
+      patch.status = HUMAN_TASK_STATUS.DRAFT;
+      patch.revokedAt = now;
       patch.assignedAt = null;
+      patch.respondedAt = null;
+      patch.deliveredAt = null;
+      patch.completedAt = null;
+      patch.viewedAt = null;
+    } else if (nextStatus && nextStatus !== existing.status) {
+      if (!canOperatorMove(existing.status, nextStatus)) {
+        throw new TaskTransitionError(existing.status, nextStatus);
+      }
+      patch.status = nextStatus;
+      if (nextStatus === HUMAN_TASK_STATUS.DONE) patch.completedAt = now;
+      if (nextStatus === HUMAN_TASK_STATUS.DRAFT) {
+        patch.revokedAt = now;
+        patch.assignedAt = null;
+      }
     }
-  }
 
-  await db
-    .update(humanTasks)
-    .set(patch)
-    .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
+    await tx
+      .update(humanTasks)
+      .set(patch)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
 
-  if (nextStatus && nextStatus !== existing.status) {
-    await recordEvent(userId, id, TASK_EVENT.STATUS, TASK_ACTOR.OPERATOR, {
-      status: nextStatus,
-      note: input.note,
+    const statusChanged = nextStatus && nextStatus !== existing.status;
+    await tx.insert(humanTaskEvents).values({
+      taskId: id,
+      userId,
+      kind:
+        termsChanged || statusChanged
+          ? TASK_EVENT.STATUS
+          : input.note
+            ? TASK_EVENT.NOTE
+            : TASK_EVENT.EDITED,
+      actor: TASK_ACTOR.OPERATOR,
+      status: termsChanged ? HUMAN_TASK_STATUS.DRAFT : statusChanged ? nextStatus : null,
+      note:
+        input.note?.trim() || (termsChanged ? "Terms changed — fresh acceptance required." : null),
     });
-  } else if (input.note) {
-    await recordEvent(userId, id, TASK_EVENT.NOTE, TASK_ACTOR.OPERATOR, { note: input.note });
-  } else {
-    await recordEvent(userId, id, TASK_EVENT.EDITED, TASK_ACTOR.OPERATOR);
-  }
+    return true;
+  });
 
-  return getHumanTask(userId, id);
+  return changed ? getHumanTask(userId, id) : null;
 }
 
 export async function deleteHumanTask(userId: string, id: string): Promise<boolean> {
@@ -357,67 +397,89 @@ export function isTaskShareError(e: unknown): e is TaskShareError {
  * nothing left to ask — `canShare` says so once, for every caller.
  */
 export async function shareHumanTask(userId: string, id: string): Promise<HumanTaskDetail | null> {
-  const existing = await getHumanTask(userId, id);
-  if (!existing) return null;
-  if (!canShare(existing)) {
-    throw new TaskShareError(
-      existing.assigneeId
-        ? "This assignment is closed — reopen it before sharing."
-        : "Assign this to someone before you hand it over.",
-    );
-  }
+  const shared = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(humanTasks)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)))
+      .limit(1)
+      .for("update");
+    if (!existing) return false;
+    if (!canShare(existing)) {
+      throw new TaskShareError(
+        existing.assigneeId
+          ? "This assignment is closed — reopen it before sharing."
+          : "Assign this to someone before you hand it over.",
+      );
+    }
 
-  const now = new Date();
-  const reuseLive = existing.shareToken && !existing.revokedAt;
-  const patch: Partial<typeof humanTasks.$inferInsert> = {
-    shareToken: reuseLive ? existing.shareToken : randomBytes(24).toString("base64url"),
-    sharedAt: now,
-    revokedAt: null,
-    updatedAt: now,
-  };
-  if (existing.status === HUMAN_TASK_STATUS.DRAFT) {
-    patch.status = HUMAN_TASK_STATUS.ASSIGNED;
-    patch.assignedAt = now;
-  }
+    const now = new Date();
+    const reuseLive = existing.shareToken && !existing.revokedAt;
+    const patch: Partial<typeof humanTasks.$inferInsert> = {
+      shareToken: reuseLive ? existing.shareToken : randomBytes(24).toString("base64url"),
+      sharedAt: now,
+      revokedAt: null,
+      updatedAt: now,
+    };
+    if (existing.status === HUMAN_TASK_STATUS.DRAFT) {
+      patch.status = HUMAN_TASK_STATUS.ASSIGNED;
+      patch.assignedAt = now;
+    }
 
-  await db
-    .update(humanTasks)
-    .set(patch)
-    .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
-  await recordEvent(userId, id, TASK_EVENT.SHARED, TASK_ACTOR.OPERATOR, {
-    status: patch.status as HumanTaskStatus | undefined,
+    await tx
+      .update(humanTasks)
+      .set(patch)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
+    await tx.insert(humanTaskEvents).values({
+      taskId: id,
+      userId,
+      kind: TASK_EVENT.SHARED,
+      actor: TASK_ACTOR.OPERATOR,
+      status: patch.status ?? null,
+    });
+    return true;
   });
-  return getHumanTask(userId, id);
+  return shared ? getHumanTask(userId, id) : null;
 }
 
 /**
- * Kill the link. An assignment still waiting on an answer goes back to draft —
- * a row that says "asked" while the link is dead would be a lie the board
- * repeats every morning. One they already accepted keeps its status: they did
- * answer, and revoking is only about access from here on.
+ * Kill the share link while holding the same lock used by the responder and
+ * editor. A response cannot slip in after the link was revoked.
  */
 export async function revokeHumanTaskShare(
   userId: string,
   id: string,
 ): Promise<HumanTaskDetail | null> {
-  const existing = await getHumanTask(userId, id);
-  if (!existing) return null;
+  const revoked = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(humanTasks)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)))
+      .limit(1)
+      .for("update");
+    if (!existing) return false;
 
-  const now = new Date();
-  const patch: Partial<typeof humanTasks.$inferInsert> = { revokedAt: now, updatedAt: now };
-  if (existing.status === HUMAN_TASK_STATUS.ASSIGNED) {
-    patch.status = HUMAN_TASK_STATUS.DRAFT;
-    patch.assignedAt = null;
-  }
+    const now = new Date();
+    const patch: Partial<typeof humanTasks.$inferInsert> = { revokedAt: now, updatedAt: now };
+    if (existing.status === HUMAN_TASK_STATUS.ASSIGNED) {
+      patch.status = HUMAN_TASK_STATUS.DRAFT;
+      patch.assignedAt = null;
+    }
 
-  await db
-    .update(humanTasks)
-    .set(patch)
-    .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
-  await recordEvent(userId, id, TASK_EVENT.REVOKED, TASK_ACTOR.OPERATOR, {
-    status: patch.status as HumanTaskStatus | undefined,
+    await tx
+      .update(humanTasks)
+      .set(patch)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
+    await tx.insert(humanTaskEvents).values({
+      taskId: id,
+      userId,
+      kind: TASK_EVENT.REVOKED,
+      actor: TASK_ACTOR.OPERATOR,
+      status: patch.status ?? null,
+    });
+    return true;
   });
-  return getHumanTask(userId, id);
+  return revoked ? getHumanTask(userId, id) : null;
 }
 
 /** Store the OrangeCat mirror pointer. See lib/integrations/orangecat-human-task.ts. */
@@ -508,28 +570,53 @@ export async function respondToSharedTask(
   token: string,
   input: RespondToTaskInput,
 ): Promise<SharedTask | null> {
-  const row = await findByToken(token);
-  if (!row) return null;
+  const answered = await db.transaction(async (tx) => {
+    // Lock by the bearer credential itself. A previously valid link must
+    // never update a different assignee's newly revised assignment.
+    const [existing] = await tx
+      .select()
+      .from(humanTasks)
+      .where(and(eq(humanTasks.shareToken, token), isNull(humanTasks.revokedAt)))
+      .limit(1)
+      .for("update");
+    if (!existing || !existing.assigneeId) return false;
 
-  const next = ASSIGNEE_ACTION_STATUS[input.action];
-  if (!assigneeActionsFor(row.task.status).includes(input.action)) {
-    throw new TaskTransitionError(row.task.status, next);
-  }
+    const nextStatus = ASSIGNEE_ACTION_STATUS[input.action];
+    if (!assigneeActionsFor(existing.status).includes(input.action)) {
+      throw new TaskTransitionError(existing.status, nextStatus);
+    }
 
-  const now = new Date();
-  const patch: Partial<typeof humanTasks.$inferInsert> = {
-    status: next,
-    respondedAt: now,
-    updatedAt: now,
-  };
-  if (next === HUMAN_TASK_STATUS.DELIVERED) patch.deliveredAt = now;
+    const now = new Date();
+    const patch: Partial<typeof humanTasks.$inferInsert> = {
+      status: nextStatus,
+      respondedAt: now,
+      updatedAt: now,
+    };
+    if (nextStatus === HUMAN_TASK_STATUS.DELIVERED) patch.deliveredAt = now;
 
-  await db.update(humanTasks).set(patch).where(eq(humanTasks.id, row.task.id));
-  await recordEvent(row.task.userId, row.task.id, TASK_EVENT.STATUS, TASK_ACTOR.ASSIGNEE, {
-    status: next,
-    note: input.note,
+    await tx
+      .update(humanTasks)
+      .set(patch)
+      .where(
+        and(
+          eq(humanTasks.id, existing.id),
+          eq(humanTasks.shareToken, token),
+          isNull(humanTasks.revokedAt),
+        ),
+      );
+    await tx.insert(humanTaskEvents).values({
+      taskId: existing.id,
+      userId: existing.userId,
+      kind: TASK_EVENT.STATUS,
+      actor: TASK_ACTOR.ASSIGNEE,
+      status: nextStatus,
+      note: input.note?.trim() || null,
+    });
+    return true;
   });
-  return getSharedTask(token);
+  // The link could have been revoked immediately afterward, in which case
+  // the read hides it instead of returning an obsolete permission.
+  return answered ? getSharedTask(token) : null;
 }
 
 /** Everything still open, newest first — Loki's read of "who owes me what". */
