@@ -94,6 +94,13 @@ OOMPolicy=continue
 WantedBy=multi-user.target
 UNIT
 
+# The memory bound is a drop-in FILE, not part of the heredoc above, so every
+# deploy can re-ship it (scripts/deploy-hetzner.sh).
+echo "→ box-runner: memory bound drop-in"
+ssh "$HOST" "mkdir -p /etc/systemd/system/loki-box-runner.service.d"
+rsync -a "${REPO_ROOT}/scripts/hetzner/loki-box-runner-memory.conf" \
+  "${HOST}:/etc/systemd/system/loki-box-runner.service.d/memory.conf"
+
 echo "→ box-runner: (re)start"
 ssh "$HOST" "systemctl daemon-reload && systemctl enable --now loki-box-runner.service && systemctl restart loki-box-runner.service && sleep 4 && systemctl is-active loki-box-runner.service"
 

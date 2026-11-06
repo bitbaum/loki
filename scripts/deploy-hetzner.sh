@@ -460,6 +460,28 @@ if timeout 20 ssh "$HOST" "test -x $EMBED_DIR/venv/bin/python" 2>/dev/null; then
   fi
 fi
 
+# Box-runner memory bound — the ONLY bound sealed agent sandboxes have (gVisor
+# keeps them in this unit's cgroup with no per-container limit). Written only by
+# install-box-runner.sh until 2026-11-06, when sixteen idle agent tabs took the
+# box into a global OOM that killed other tenants' apps. A daemon-reload applies
+# a changed limit to the running unit: no restart, no agent session lost.
+# Skipped where the runner was never installed. Never fails the deploy.
+RUNNER_DROPIN_DIR="/etc/systemd/system/loki-box-runner.service.d"
+if timeout 20 ssh "$HOST" "test -f /etc/systemd/system/loki-box-runner.service && mkdir -p $RUNNER_DROPIN_DIR" 2>/dev/null; then
+  mem_out=$(rsync -azci --no-perms -e "$RSYNC_SSH" \
+      "$PROJECT_DIR/scripts/hetzner/loki-box-runner-memory.conf" "$HOST:$RUNNER_DROPIN_DIR/memory.conf" 2>/dev/null) \
+    || mem_out="FAILED"
+  if [ "$mem_out" = "FAILED" ]; then
+    echo "  ⚠ box-runner memory bound not synced (the deploy continues)"
+  elif grep -qE '^[<>ch]f' <<<"$mem_out"; then
+    timeout 30 ssh "$HOST" "systemctl daemon-reload && systemctl show -p MemoryHigh -p MemoryMax --value loki-box-runner | tr '\\n' ' '" \
+      | sed 's/^/  ✓ box-runner memory bound applied (bytes, high max): /' \
+      || echo "  ⚠ box-runner memory bound synced but daemon-reload failed (the deploy continues)"
+  else
+    echo "  ✓ box-runner memory bound unchanged"
+  fi
+fi
+
 # Cloud builder (box-runner) — separate systemd unit from loki-app so app
 # deploys never kill running agent PTYs. Still sync runner code on every ship
 # so poller/pty-runtime fixes reach the always-on executor.
