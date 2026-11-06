@@ -134,7 +134,9 @@ pgrep -u openclaw -af 'gateway' 2>/dev/null | cut -c1-120 | head -3 | red
 echo "listening (openclaw's node): $(ss -ltnp 2>/dev/null | grep -E 'users:\(\("(node|openclaw)' | awk '{print $4}' | tr '\n' ' ')"
 echo "HTTP on :18789 -> $(curl -s -o /dev/null -m 4 -w '%{http_code}' http://127.0.0.1:18789/ 2>/dev/null || echo none)"
 uid="$(id -u openclaw 2>/dev/null || echo 0)"
-echo "openclaw user systemd manager running: $([ -S "/run/user/$uid/bus" ] && echo yes || echo NO)"
+# The bus socket outlives a dead manager (2026-10-15, 2026-11-05), so ask systemd.
+echo "openclaw user systemd manager (user@${uid}.service): $(systemctl is-active "user@${uid}.service" 2>&1) | result: $(systemctl show -p Result --value "user@${uid}.service" 2>&1) | bus socket: $([ -S "/run/user/$uid/bus" ] && echo present || echo absent)"
+echo "OOM drop-in (OOMPolicy=continue): $([ -f "/etc/systemd/system/user@${uid}.service.d/10-oom-continue.conf" ] && echo present || echo MISSING)"
 
 echo "-- error-shaped gateway log lines, last ${SINCE}h (digits masked, cut to 220 chars):"
 journalctl _UID="$uid" --since "${SINCE} hours ago" --no-pager -q 2>/dev/null \

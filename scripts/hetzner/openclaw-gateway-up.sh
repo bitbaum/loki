@@ -58,6 +58,7 @@ echo "linger: $(loginctl show-user openclaw -p Linger 2>/dev/null | cut -d= -f2)
 echo "user manager bus socket: $([ -S "$RT/bus" ] && echo present || echo ABSENT)"
 echo "user manager answering:  $(user_manager_ok && echo yes || echo NO)"
 echo "user@${uid}.service: $(systemctl is-active "user@${uid}.service" 2>&1) / $(systemctl is-enabled "user@${uid}.service" 2>&1)"
+echo "OOM drop-in (OOMPolicy=continue): $([ -f "/etc/systemd/system/user@${uid}.service.d/10-oom-continue.conf" ] && echo present || echo 'MISSING — the next deploy installs it')"
 echo "unit file: $([ -f /home/openclaw/.config/systemd/user/$UNIT ] && echo present || echo MISSING)"
 echo "gateway processes: $(pgrep -u openclaw -f 'gateway' 2>/dev/null | wc -l)"
 echo "HTTP :18789 -> $(gw_http)"
@@ -73,7 +74,8 @@ hr "2. get the openclaw user's systemd manager answering"
 if user_manager_ok; then
   echo "already answering"
 else
-  echo "not answering — restarting user@${uid}.service (a stale bus socket is what a dead manager leaves behind)"
+  echo "not answering — restarting user@${uid}.service (a stale bus socket is what a dead manager leaves behind;"
+  echo "since 2026-11-05 also what an OOM kill inside it leaves, when the OOM drop-in above is missing)"
   systemctl restart "user@${uid}.service" 2>&1 | red
   for i in $(seq 1 20); do user_manager_ok && break; sleep 1; done
   if user_manager_ok; then

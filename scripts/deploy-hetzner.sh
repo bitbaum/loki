@@ -460,6 +460,33 @@ if timeout 20 ssh "$HOST" "test -x $EMBED_DIR/venv/bin/python" 2>/dev/null; then
   fi
 fi
 
+# OpenClaw user manager (carries the WhatsApp/Telegram gateway) keeps running
+# when the kernel OOM-kills one process inside it — see the conf file for the
+# 2026-11-05 incident. Only a drop-in plus daemon-reload: nothing is restarted,
+# a failed manager stays failed until openclaw-gateway-up.yml brings it back.
+# Skipped where there is no openclaw user. Never fails the deploy.
+OC_DROPIN_B64=$(base64 -w0 <"$PROJECT_DIR/scripts/hetzner/openclaw-user-manager-oom.conf" 2>/dev/null || true)
+[ -n "$OC_DROPIN_B64" ] && oc_out=$(timeout 30 ssh "$HOST" 'bash -s' 2>/dev/null <<REMOTE
+set -e
+uid=\$(id -u openclaw 2>/dev/null) || { echo skipped; exit 0; }
+d=/etc/systemd/system/user@\$uid.service.d
+f=\$d/10-oom-continue.conf
+new=\$(printf '%s' '$OC_DROPIN_B64' | base64 -d)
+[ -n "\$new" ] || exit 1
+if [ -f "\$f" ] && [ "\$(cat "\$f")" = "\$new" ]; then echo unchanged; exit 0; fi
+install -d -m 0755 "\$d"
+printf '%s\n' "\$new" > "\$f.tmp" && chmod 0644 "\$f.tmp" && mv "\$f.tmp" "\$f"
+systemctl daemon-reload
+echo "installed user@\$uid"
+REMOTE
+) || oc_out="FAILED"
+case "$oc_out" in
+  installed*) echo "  ✓ openclaw user manager: OOMPolicy=continue ${oc_out#installed }" ;;
+  unchanged) echo "  ✓ openclaw user manager OOM drop-in unchanged" ;;
+  skipped) ;;
+  *) echo "  ⚠ openclaw user manager OOM drop-in not applied (the deploy continues)" ;;
+esac
+
 # Cloud builder (box-runner) — separate systemd unit from loki-app so app
 # deploys never kill running agent PTYs. Still sync runner code on every ship
 # so poller/pty-runtime fixes reach the always-on executor.
