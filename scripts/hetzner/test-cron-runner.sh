@@ -147,3 +147,9 @@ check "prune: says what it removed" \
 echo
 echo "  ${pass} passed, ${fail} failed"
 [ "$fail" -eq 0 ]
+
+# The sibling app runner lives in install-app-crons.sh. test:ops calls this
+# file and not a second script, so the gate has to run here or CI never sees it.
+echo
+echo "→ app cron runner"
+"$HERE/test-app-cron-runner.sh"

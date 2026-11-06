@@ -101,7 +101,19 @@ set -euo pipefail
 app="$1"; port="$2"; path="$3"; method="${4:-GET}"
 envf="/opt/${app}/app/.env"
 sec=""
-[ -f "$envf" ] && sec="$(grep -m1 '^CRON_SECRET=' "$envf" 2>/dev/null | sed 's/^CRON_SECRET=//; s/^"//; s/"$//' | tr -d '\r')"
+if [ -f "$envf" ]; then
+  # A missing key is not a failed job. grep exits 1, and under `set -e` the
+  # old `&& sec="$(grep …)"` aborted here — systemd status=1, no HTTP line —
+  # for every app whose env simply has no CRON_SECRET. botsmann's daily
+  # /api/rebuild is one of those (the route does not read the secret) and
+  # paged on 2026-11-06. An unreadable env (grep exit 2) still fails the job.
+  if line=$(grep -m1 '^CRON_SECRET=' "$envf"); then
+    sec=$(printf '%s' "$line" | sed 's/^CRON_SECRET=//; s/^"//; s/"$//' | tr -d '\r')
+  else
+    rc=$?
+    [ "$rc" -eq 1 ] || exit "$rc"
+  fi
+fi
 args=(-fsS -X "$method" -m 300 "http://127.0.0.1:${port}${path}")
 [ -n "$sec" ] && args+=(-H "Authorization: Bearer ${sec}")
 curl "${args[@]}" -o /dev/null -w "appcron ${app} ${method} ${path}: HTTP %{http_code}\n"
