@@ -35,31 +35,7 @@ fi
 REMOTE
 
 echo "→ fleet-rag: systemd unit loki-embed"
-ssh "$HOST" "cat > /etc/systemd/system/loki-embed.service" <<'UNIT'
-[Unit]
-Description=Loki local embeddings server (fastembed, OpenAI-compatible)
-After=network-online.target
-# Keep retrying past the default start-limit instead of locking to "failed".
-StartLimitIntervalSec=0
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/loki/embed
-Environment=EMBED_MODEL=BAAI/bge-small-en-v1.5
-Environment=EMBED_PORT=7997
-# A shared box: when this process balloons, the kernel must reclaim or kill IT,
-# not swap every app into Postgres timeouts (2026-11-06: 2GB, swap full, six
-# other apps' crons failed). Steady state is ~320MB.
-MemoryHigh=768M
-MemoryMax=1G
-ExecStart=/opt/loki/embed/venv/bin/python /opt/loki/embed/server.py
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNIT
+rsync -a "${REPO_ROOT}/scripts/hetzner/loki-embed.service" "${HOST}:/etc/systemd/system/loki-embed.service"
 
 echo "→ fleet-rag: EMBEDDINGS_* on app + runner env"
 for envfile in "$APP_ENV" "$RUNNER_ENV"; do

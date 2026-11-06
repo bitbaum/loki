@@ -7,7 +7,7 @@
 
 ## Box operations
 
-Install or refresh the local embed server, env vars, and daily reindex timer:
+Install the local embed server, env vars, and daily reindex timer (first time, or after a box rebuild). After that, every deploy re-syncs `scripts/embed-server.py` and `scripts/hetzner/loki-embed.service` and restarts `loki-embed` only when one of them changed:
 
 ```bash
 bash scripts/hetzner/install-fleet-rag.sh

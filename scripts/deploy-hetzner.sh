@@ -435,6 +435,31 @@ echo "  ✓ loki-bridge active"
 LOKI_RUNNER_OWNER="$RUNNER_OWNER" timeout 60 bash "$SCRIPT_DIR/hetzner/apply-box-agent-contract.sh" "$HOST" \
   || echo "  ⚠ box agent contract not applied (the deploy continues)"
 
+# Embeddings server — written only by install-fleet-rag.sh until 2026-11-06, so
+# the memory bound that fixed that night's box-wide swap storm sat merged in git
+# while the box kept the unbounded server, waiting on a laptop ssh key. Content
+# compare (see sync_runner below for why -c), restart only when something moved:
+# a restart is a few seconds of failed embeds, not worth paying every deploy.
+# Skipped where the install never ran. Never fails the deploy.
+EMBED_DIR="/opt/loki/embed"
+if timeout 20 ssh "$HOST" "test -x $EMBED_DIR/venv/bin/python" 2>/dev/null; then
+  embed_out=$( { rsync -azci --no-perms -e "$RSYNC_SSH" \
+      "$PROJECT_DIR/scripts/embed-server.py" "$HOST:$EMBED_DIR/server.py" \
+    && rsync -azci --no-perms -e "$RSYNC_SSH" \
+      "$PROJECT_DIR/scripts/hetzner/loki-embed.service" "$HOST:/etc/systemd/system/loki-embed.service"; } 2>/dev/null) \
+    || embed_out="FAILED"
+  if [ "$embed_out" = "FAILED" ]; then
+    echo "  ⚠ loki-embed not synced (the deploy continues)"
+  elif grep -qE '^[<>ch]f' <<<"$embed_out"; then
+    timeout 60 ssh "$HOST" "systemctl daemon-reload && systemctl restart loki-embed \
+      && for i in 1 2 3 4 5 6 7 8 9 10; do curl -sf http://127.0.0.1:7997/health >/dev/null && exit 0; sleep 2; done; exit 1" \
+      && echo "  ✓ loki-embed updated and healthy" \
+      || echo "  ⚠ loki-embed restarted but /health did not answer in 20s (the deploy continues)"
+  else
+    echo "  ✓ loki-embed unchanged"
+  fi
+fi
+
 # Cloud builder (box-runner) — separate systemd unit from loki-app so app
 # deploys never kill running agent PTYs. Still sync runner code on every ship
 # so poller/pty-runtime fixes reach the always-on executor.
