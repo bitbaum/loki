@@ -9,6 +9,8 @@ Bind: 127.0.0.1:7997 (loopback only — the box app + hosted runner reach it loc
 """
 import json
 import os
+import select
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -30,6 +32,29 @@ print(f"[embed] ready: {MODEL_NAME} dim={_dim} on :{PORT}", flush=True)
 # (2026-11-06). Requests queue here instead; small batches keep the wait short.
 _infer_lock = threading.Lock()
 BATCH_SIZE = int(os.environ.get("EMBED_BATCH_SIZE", "16"))
+
+
+def _caller_gone(conn: socket.socket) -> bool:
+    """True once the caller has hung up, e.g. because its timeout fired.
+
+    The lock alone turned one slow batch into a failed reindex (2026-11-07).
+    The client aborts at 30s, but this server kept computing the abandoned
+    request under the lock, so the next request queued behind dead work, timed
+    out in turn and left its own dead work behind. From then on every batch
+    failed until systemd killed the run at 15 minutes. So work nobody is
+    waiting for is dropped: checked when the lock is taken and between batches.
+
+    The body has already been read, so a readable socket means EOF or a reset,
+    not more data. A peek that returns bytes (a next request on a keep-alive
+    connection) means the caller is still there.
+    """
+    try:
+        readable, _, _ = select.select([conn], [], [], 0)
+        if not readable:
+            return False
+        return conn.recv(1, socket.MSG_PEEK) == b""
+    except (OSError, ValueError):
+        return True
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -62,7 +87,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, {"error": "input required"})
                 return
             with _infer_lock:
-                vectors = [v.tolist() for v in _model.embed(texts, batch_size=BATCH_SIZE)]
+                vectors = []
+                if not _caller_gone(self.connection):
+                    for v in _model.embed(texts, batch_size=BATCH_SIZE):
+                        vectors.append(v.tolist())
+                        done = len(vectors)
+                        if done < len(texts) and done % BATCH_SIZE == 0 and _caller_gone(self.connection):
+                            break
+            if len(vectors) < len(texts):
+                print(f"[embed] caller hung up, dropped {len(texts) - len(vectors)}/{len(texts)} input(s)", flush=True)
+                self.close_connection = True
+                return
             data = [{"object": "embedding", "index": i, "embedding": v} for i, v in enumerate(vectors)]
             self._send(200, {
                 "object": "list",
