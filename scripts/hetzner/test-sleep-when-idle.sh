@@ -106,6 +106,7 @@ grep -q "systemctl enable wide-app" <<<"$L" || fail "an always-on app is enabled
 grep -q "WantedBy=multi-user.target" <<<"$L" || fail "an always-on unit keeps its [Install]"
 grep -q "wide|https://wide.example.org|200" <<<"$L" || fail "the watchdog still requests a live site"
 grep -q "rm -f /etc/systemd/system/wide-wake.socket" <<<"$L" || fail "a site that went live must have stale wake units removed"
+grep -q "reset-failed wide-wake.socket wide-wake.service" <<<"$L" || fail "a site that went live must not leave a failed wake unit behind"
 ok "live site: unchanged, plus clean-up if it used to sleep"
 
 echo

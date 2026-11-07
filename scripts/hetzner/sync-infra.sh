@@ -123,9 +123,15 @@ fi"
   else
     # A site that went live is always on again: drop its wake units and
     # restart the app on its own port. Otherwise exactly what it always was.
+    # Clear the wake units' failed state as well. Stopping a failed unit does
+    # not do that, and once its file is gone systemd keeps it as a not-found,
+    # failed unit that nothing ever starts again. host-check then reports it
+    # as still failing (signin-wake.service, failed on 2026-10-31 when signin
+    # went live, was still dispatching an incident on 2026-11-05).
     activate="if [ -f /etc/systemd/system/$NAME-wake.socket ]; then
   sudo systemctl disable --now $NAME-wake.socket >/dev/null 2>&1 || true
   sudo systemctl stop $NAME-wake.service >/dev/null 2>&1 || true
+  sudo systemctl reset-failed $NAME-wake.socket $NAME-wake.service >/dev/null 2>&1 || true
   sudo rm -f /etc/systemd/system/$NAME-wake.socket /etc/systemd/system/$NAME-wake.service
   sudo systemctl daemon-reload && sudo systemctl enable $NAME-app >/dev/null 2>&1 && sudo systemctl restart $NAME-app
 else
