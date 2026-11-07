@@ -35,7 +35,12 @@ function model(): string {
 // (hundreds of chunks after section-chunking) overran the local server and
 // timed out ("fetch failed"), so we page the embeds. A failed page nulls only
 // its own inputs — the rest still embed.
-const EMBED_BATCH = 48;
+//
+// 16 matches the server's own batch (EMBED_BATCH_SIZE in scripts/embed-server.py).
+// The server runs one request at a time, so a page is also how long a live
+// caller can wait behind the nightly reindex. At 48 a page on a busy box could
+// pass the 30s timeout below, and the 2026-11-07 reindex failed that way.
+export const EMBED_BATCH = 16;
 
 async function embedBatch(url: string, inputs: string[]): Promise<(number[] | null)[]> {
   try {
