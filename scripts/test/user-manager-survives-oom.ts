@@ -8,8 +8,12 @@
  * down for more than a day. 2026-11-08 the same thing failed user@1000.service,
  * the ubuntu (operator) account's manager, and it paged as a failed unit.
  *
- * This suite guards the fix: the drop-in sets OOMPolicy=continue, and every
- * deploy installs it without restarting anything.
+ * The same day user@1000 failed again because the kernel killed the manager
+ * process itself: upstream user@.service gives it OOMScoreAdjust=100, which
+ * makes a ~10 MB process the preferred OOM victim.
+ *
+ * This suite guards the fix: the drop-in sets OOMPolicy=continue and
+ * OOMScoreAdjust=0, and every deploy installs it without restarting anything.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,6 +40,15 @@ check("the drop-in sets OOMPolicy=continue in [Service]", () => {
   assert(conf.includes("[Service]"), `${DROPIN} must have a [Service] section`);
   assert(/^OOMPolicy=continue$/m.test(service), `${DROPIN} must set OOMPolicy=continue`);
 });
+
+check(
+  "the drop-in takes back user@.service's OOMScoreAdjust=100, so the manager itself is not the victim",
+  () => {
+    const conf = read(DROPIN);
+    const service = conf.slice(conf.indexOf("[Service]"));
+    assert(/^OOMScoreAdjust=0$/m.test(service), `${DROPIN} must set OOMScoreAdjust=0`);
+  },
+);
 
 check("every deploy installs it for the openclaw and ubuntu managers, without a restart", () => {
   const deploy = read("scripts/deploy-hetzner.sh");
