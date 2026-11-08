@@ -94,6 +94,14 @@ if [ "${1:-}" = "list-units" ]; then
     if [ "$plain" = 1 ]; then echo "$u loaded failed failed stub"
     else echo "● $u loaded failed failed stub"; fi
   done
+  # A failed unit whose file was deleted: systemd prints LOAD=not-found.
+  for u in ${NOTFOUND_UNITS:-}; do
+    if [ "$plain" = 1 ]; then echo "$u not-found failed failed $u"
+    else echo "● $u not-found failed failed $u"; fi
+  done
+fi
+if [ "${1:-}" = "reset-failed" ]; then
+  shift; printf '%s\n' "$@" >> "${RESET_LOG:-/dev/null}"
 fi
 exit 0
 STUB
@@ -356,6 +364,26 @@ run_units "run-p1-i2.service real.service"
 run_units "run-p1-i2.service real.service"
 check "units: a real unit still pages beside a transient one, without naming it" \
   "$(grep -q 'STILL FAILING: real' "$ALERT_LOG" && ! grep -q 'run-p' "$ALERT_LOG" && echo 0 || echo 1)"
+
+# ── a failed unit whose file is gone is cleared, never paged ------------------
+# signin-wake.service: files deleted while failed, so systemd kept it as
+# not-found/failed and the sweep paged and dispatched it daily, 2026-11-05..08.
+rm -f "$TMP"/state/host_failed_* "$TMP"/state/paged_*
+export RESET_LOG="$TMP/reset.log"; : > "$RESET_LOG"
+NOTFOUND_UNITS="signin-wake.service" run_units ""
+NOTFOUND_UNITS="signin-wake.service" run_units ""
+check "units: a not-found failed unit never pages (got $(unit_alerts))" \
+  "$([ "$(unit_alerts)" -eq 0 ] && echo 0 || echo 1)"
+check "units: a not-found failed unit has its failed state cleared" \
+  "$(grep -qx 'signin-wake.service' "$RESET_LOG" && echo 0 || echo 1)"
+check "units: a not-found failed unit is never tracked as failing" \
+  "$([ ! -e "$TMP/state/host_failed_signin_wake_service" ] && echo 0 || echo 1)"
+: > "$RESET_LOG"
+NOTFOUND_UNITS="signin-wake.service" run_units "real.service"
+NOTFOUND_UNITS="signin-wake.service" run_units "real.service"
+check "units: a real failed unit still pages beside a ghost, and is not cleared" \
+  "$(grep -q 'STILL FAILING: real' "$ALERT_LOG" && ! grep -q 'STILL FAILING:.*signin-wake' "$ALERT_LOG" && ! grep -q 'real.service' "$RESET_LOG" && echo 0 || echo 1)"
+unset RESET_LOG
 
 # appcron oneshots belong to the OnFailure notifier, not the sweep
 rm -f "$TMP"/state/host_failed_* "$TMP"/state/paged_*

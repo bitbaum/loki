@@ -540,8 +540,22 @@ UNIT_COOLDOWN=${NOTIFY_COOLDOWN_SEC:-1800}
 systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
   | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '^run-p[0-9]+-i[0-9]+\.service$' \
   | xargs -r systemctl reset-failed >/dev/null 2>&1 || true
+# A FAILED UNIT WHOSE FILE IS GONE IS A RECORD, NOT AN OUTAGE. When a unit's
+# file is deleted while it is failed, systemd keeps the failed state under
+# LOAD=not-found until someone runs reset-failed. Nothing can start that unit
+# again, so there is nothing to fix. signin-wake.service failed on 2026-10-31,
+# its files went when signin went live and was then retired, and it paged and
+# dispatched a fix agent every day from 2026-11-05 to 2026-11-08 with an
+# empty journal. Clear it and say so in the journal; never announce it. A
+# deleted file a live site needs is not missed: the watchdog probes the site.
+systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
+  | sed 's/^[^A-Za-z0-9]*//' | awk '$2 == "not-found" {print $1}' | grep -E '\.service$' \
+  | while read -r ghost; do
+      systemctl reset-failed "$ghost" >/dev/null 2>&1 || true
+      logger -t watchdog "sweep: ${ghost} failed but its unit file is gone (not-found), failed state cleared, not paging"
+    done
 mapfile -t failed_units < <(systemctl list-units --type=service --state=failed --no-legend --plain 2>/dev/null \
-  | sed 's/^[^A-Za-z0-9]*//' | awk '{print $1}' | grep -E '\.service$' | grep -v '^notify-failure@' \
+  | sed 's/^[^A-Za-z0-9]*//' | awk '$2 != "not-found" {print $1}' | grep -E '\.service$' | grep -v '^notify-failure@' \
   | grep -vE '^run-p[0-9]+-i[0-9]+\.service$' \
   | grep -v '^appcron-')
 # appcron-* are oneshot jobs. A failed oneshot STAYS failed until its next run
