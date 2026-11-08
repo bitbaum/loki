@@ -488,7 +488,7 @@ REMOTE
 ) || um_out="FAILED"
 for um in $um_out; do
   case "$um" in
-    installed:*) echo "  ✓ ${um#installed:} user manager: OOMPolicy=continue" ;;
+    installed:*) echo "  ✓ ${um#installed:} user manager: OOMPolicy=continue, OOMScoreAdjust=0" ;;
     unchanged:*) echo "  ✓ ${um#unchanged:} user manager OOM drop-in unchanged" ;;
     skipped) ;;
     *) echo "  ⚠ user manager OOM drop-in not applied (the deploy continues)" ;;
