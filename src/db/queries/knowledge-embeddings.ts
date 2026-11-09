@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
 import { eq } from "drizzle-orm";
@@ -51,19 +52,71 @@ export type KnowledgeHit = {
   metadata: Record<string, unknown>;
 };
 
-/** Embed + upsert a batch of chunks for one user. Returns how many landed. */
+const sourceKey = (sourceType: string, sourceId: string) => `${sourceType}\u0000${sourceId}`;
+const md5 = (text: string) => createHash("md5").update(text, "utf8").digest("hex");
+
+/**
+ * Split items into those whose chunk text is already stored for this source
+ * (same md5) and those that need embedding. Text plus model fully determines
+ * the vector, and a model switch is a migration (see embeddings.ts), so an
+ * unchanged chunk keeps its stored vector. Exported for tests.
+ */
+export function partitionByStoredChunk(
+  items: KnowledgeItem[],
+  storedMd5: Map<string, string>,
+): { unchanged: KnowledgeItem[]; changed: KnowledgeItem[] } {
+  const unchanged: KnowledgeItem[] = [];
+  const changed: KnowledgeItem[] = [];
+  for (const it of items) {
+    const stored = storedMd5.get(sourceKey(it.sourceType, it.sourceId));
+    (stored === md5(it.chunk) ? unchanged : changed).push(it);
+  }
+  return { unchanged, changed };
+}
+
+/**
+ * Embed + upsert a batch of chunks for one user. Returns how many landed.
+ *
+ * Only new or changed chunks are embedded. The nightly reindex used to re-embed
+ * every chunk for every user, ~630 identical essay chunks per user included. On
+ * 2026-11-09 that outgrew loki-reindex's 15-minute limit with no error at all:
+ * eight users done, the rest cut off by the timeout. An unchanged chunk now
+ * only gets its metadata refreshed.
+ */
 export async function upsertKnowledgeBatch(
   userId: string,
   items: KnowledgeItem[],
 ): Promise<number> {
   if (!embeddingsEnabled() || items.length === 0) return 0;
   if (!(await memoryIndexingAllowed(userId))) return 0;
-  const vecs = await embedTexts(items.map((i) => i.chunk));
+  const types = [...new Set(items.map((i) => i.sourceType))];
+  const storedRows = (await db.execute(sql`
+    SELECT source_type, source_id, md5(chunk) AS chunk_md5
+    FROM knowledge_embeddings
+    WHERE user_id = ${userId}
+      AND source_type = ANY(${sql`ARRAY[${sql.join(
+        types.map((t) => sql`${t}`),
+        sql`, `,
+      )}]::text[]`})
+  `)) as unknown as Array<{ source_type: string; source_id: string; chunk_md5: string }>;
+  const storedMd5 = new Map(
+    storedRows.map((r) => [sourceKey(r.source_type, r.source_id), r.chunk_md5]),
+  );
+  const { unchanged, changed } = partitionByStoredChunk(items, storedMd5);
   let n = 0;
-  for (let i = 0; i < items.length; i++) {
+  for (const it of unchanged) {
+    await db.execute(sql`
+      UPDATE knowledge_embeddings
+      SET metadata = ${JSON.stringify(it.metadata ?? {})}::jsonb, updated_at = now()
+      WHERE user_id = ${userId} AND source_type = ${it.sourceType} AND source_id = ${it.sourceId}
+    `);
+    n++;
+  }
+  const vecs = changed.length ? await embedTexts(changed.map((i) => i.chunk)) : [];
+  for (let i = 0; i < changed.length; i++) {
     const vec = vecs[i];
     if (!vec) continue;
-    const it = items[i];
+    const it = changed[i];
     await db.execute(sql`
       INSERT INTO knowledge_embeddings (user_id, source_type, source_id, chunk, embedding, metadata, updated_at)
       VALUES (${userId}, ${it.sourceType}, ${it.sourceId}, ${it.chunk}, ${toVectorLiteral(vec)}::vector, ${JSON.stringify(it.metadata ?? {})}::jsonb, now())
