@@ -1,0 +1,52 @@
+# Safe, manual disk reclaim on the bitbaum box. Default is a dry run.
+#
+# Same SSH setup as box-doctor.yml and install-backups.yml (repo secret
+# HETZNER_SSH_KEY, org variable HETZNER_IP). The script is piped to bash
+# on the box as root and is never re-parsed in between.
+#
+# Run:  gh workflow run disk-cleanup.yml                 # dry run (default)
+#       gh workflow run disk-cleanup.yml -f dry_run=false
+name: Box disk cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Inventory and planned deletions only; change nothing"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: box-disk-cleanup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Reclaim disk (or print the plan)
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          [ "$DRY_RUN" = "true" ] && D=1 || D=0
+          echo "dry_run=$DRY_RUN (script flag $D)"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 \
+            "root@$HETZNER_IP" bash -s -- "$D" < scripts/hetzner/disk-cleanup.sh
