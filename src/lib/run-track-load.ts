@@ -27,6 +27,7 @@ import { listRunEventsForRun } from "@/db/queries/run-events";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { providerLabel } from "@/config/quota-alternatives";
 import { hydrateFeedbackSnapshot } from "@/lib/feedback/attach-work";
+import { canonicalStatus, type CanonicalStatus } from "@/lib/feedback/canonical-status";
 import { deriveFeedbackWork, type FeedbackRunSnapshot } from "@/lib/feedback/work-phase";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
@@ -79,6 +80,9 @@ export type RunTrackLoad = {
   events: { kind: RunEventKind; detail: Record<string, unknown> | null; createdAt: Date }[];
   snap: FeedbackRunSnapshot | null;
   view: TerminalRunView;
+  /** The six canonical states for this run (feedback/canonical-status.ts) — the
+   *  same mapper the status route and the reporter view use. */
+  canonical: CanonicalStatus;
   prompt: { text: string; at: Date } | null;
   project: { id: string; gitUrl: string | null; liveUrl: string | null } | null;
   provider: string;
@@ -230,6 +234,7 @@ export async function loadRunTrack(
     events,
     snap,
     view,
+    canonical: canonicalStatus(work, { liveUrl: project?.liveUrl ?? null }),
     prompt,
     project: project ? { id: project.id, gitUrl, liveUrl: project.liveUrl ?? null } : null,
     provider,

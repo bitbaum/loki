@@ -74,7 +74,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // pull request on GitHub, the commits and checks behind it, and after the
   // run the ledger through merge, deploy and Loki's look.
   const loaded = await loadRunTrack(executionUserId, run, { ownerView });
-  const { events, view, track, follow, fix, following, provider, error, failed } = loaded;
+  const { events, view, canonical, track, follow, fix, following, provider, error, failed } =
+    loaded;
   const up = loaded.project;
 
   const items = buildWatchTimeline({
@@ -118,6 +119,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       items,
       status: {
         phase: view.phase,
+        // The six canonical states, one mapper (lib/feedback/canonical-status.ts).
+        canonical: ownerView ? canonical : { state: canonical.state, label: canonical.label },
         label: view.label,
         stepSummary: view.stepSummary,
         nextAction: view.nextAction,
