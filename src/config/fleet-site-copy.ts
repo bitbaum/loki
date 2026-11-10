@@ -10,8 +10,13 @@
  * meta description. Nothing here describes a site in terms it does not use.
  * A site missing from this map is still listed — by its register name, with no
  * blurb — so adding copy is an improvement, never a precondition.
+ *
+ * `host` (optional) links the listing to another of the site's own apps.conf
+ * hosts than the first; the generator refuses a host the app does not serve.
  */
-export const FLEET_SITE_COPY: Readonly<Record<string, { name: string; blurb: string }>> = {
+export const FLEET_SITE_COPY: Readonly<
+  Record<string, { name: string; blurb: string; host?: string }>
+> = {
   orangecat: { name: "OrangeCat", blurb: "Fund, lend, invest, and coordinate with any identity." },
   "aoz-begleitung": {
     name: "AOZ Begleitung",
@@ -38,6 +43,7 @@ export const FLEET_SITE_COPY: Readonly<Record<string, { name: string; blurb: str
   "revamp-info": {
     name: "Hirnli",
     blurb: "Die richtigen Stiftungen finden. Mit Belegen überzeugen.",
+    host: "hirnli.orangecat.ch",
   },
   "sbb-fundbuero": { name: "SBB Fundbüro", blurb: "Verlorene Gegenstände melden — Konzeptdemo." },
   solon: { name: "Solon", blurb: "Bitcoin-native governance for the digital age." },
