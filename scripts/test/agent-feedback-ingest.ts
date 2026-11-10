@@ -42,6 +42,12 @@ assert.match(post, /statusUrl/);
 assert.doesNotMatch(post, /startOwnerBuild|implementFeedback|dispatch/, "filing never builds");
 assert.doesNotMatch(post, /canEdit/, "a reporter seat may file");
 
+// Attachments: the same schema object as the widget's ingest, not a copy.
+assert.match(route, /\.\.\.FeedbackAttachmentsSchema/);
+assert.match(read("src/app/api/feedback/route.ts"), /\.\.\.FeedbackAttachmentsSchema/);
+assert.match(post, /captureContext: data\.context/);
+assert.match(post, /moments: data\.moments/);
+
 // Storage: one row per (project, key).
 const schema = read("src/db/schema/site-feedback.ts");
 assert.match(schema, /uq_site_feedback_idempotency/);

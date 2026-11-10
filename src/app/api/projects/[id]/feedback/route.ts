@@ -8,6 +8,7 @@ import {
   insertSiteFeedback,
   listProjectFeedback,
 } from "@/db/queries/site-feedback";
+import { FeedbackAttachmentsSchema } from "@/lib/feedback/attachment-schema";
 import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
@@ -45,6 +46,7 @@ const AgentFiling = z.object({
   page: z.string().max(300).optional(),
   url: z.string().max(1000).optional(),
   pageTitle: z.string().max(300).optional(),
+  ...FeedbackAttachmentsSchema,
 });
 
 /**
@@ -83,10 +85,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     page: data.page ?? null,
     url: data.url ?? null,
     pageTitle: data.pageTitle ?? null,
+    captureContext: data.context ?? null,
+    screenshots: data.screenshots ?? null,
+    selectedElements: data.selectedElements ?? null,
+    moments: data.moments?.length ? data.moments : null,
     source: FEEDBACK_SOURCE.AGENT,
     agentName: data.agentName,
     reporterUserId: userId,
-    contentHash: feedbackContentHash(data.suggestion, data.page ?? null),
+    contentHash: feedbackContentHash(data.suggestion, data.page ?? null, data),
   };
   // Without a key there is nothing to replay: a plain insert.
   const stored = data.idempotencyKey

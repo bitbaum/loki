@@ -1,5 +1,4 @@
-import { MOMENT_LIMITS } from "../../../../widget/moments-contract";
-import { FeedbackCaptureContextSchema } from "@/lib/feedback/capture-context-schema";
+import { FeedbackAttachmentsSchema } from "@/lib/feedback/attachment-schema";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -61,7 +60,6 @@ const FeedbackBody = z.object({
   suggestion: z.string().trim().min(1).max(2000),
   /** Owner review notes are saved; only an explicit fix request starts work. */
   intent: z.enum(["note", "fix"]).optional(),
-  context: FeedbackCaptureContextSchema.optional(),
   contact: z.string().max(200).optional(),
   page: z.string().max(300).optional(),
   url: z.string().max(1000).optional(),
@@ -83,49 +81,7 @@ const FeedbackBody = z.object({
    *  Honoured only with a valid pass: it keys the owner's own findings to
    *  their fixes and is nothing a visitor may set. */
   noticeKey: z.string().max(300).optional(),
-  /** Visitor-attached images, client-downscaled by the widget. Data URLs only;
-   *  the char cap bounds storage per image (~450 KB each). */
-  screenshots: z
-    .array(
-      z
-        .string()
-        .regex(/^data:image\/(jpeg|png|webp);base64,/)
-        .max(600_000),
-    )
-    .max(5)
-    .optional(),
-  selectedElements: z
-    .array(
-      z.object({
-        elementType: z.string().max(100),
-        elementText: z.string().max(300),
-        selector: z.string().max(500),
-      }),
-    )
-    .max(10)
-    .optional(),
-  /** What was seen while each thing was said, from a voice note taken while
-   *  browsing (widget/moments-contract.ts holds the same limits). */
-  moments: z
-    .array(
-      z.object({
-        at: z.number().int().min(0).max(MOMENT_LIMITS.at),
-        page: z.string().max(MOMENT_LIMITS.page),
-        label: z.string().max(MOMENT_LIMITS.label),
-        marked: z.boolean().optional(),
-        scrollY: z.number().int().min(0).max(MOMENT_LIMITS.scrollY).optional(),
-        text: z.string().max(MOMENT_LIMITS.text).optional(),
-        tap: z
-          .object({
-            text: z.string().max(MOMENT_LIMITS.tapText),
-            selector: z.string().max(MOMENT_LIMITS.selector),
-          })
-          .optional(),
-        said: z.string().max(MOMENT_LIMITS.said).optional(),
-      }),
-    )
-    .max(MOMENT_LIMITS.count)
-    .optional(),
+  ...FeedbackAttachmentsSchema,
 });
 
 export function OPTIONS(req: NextRequest) {
