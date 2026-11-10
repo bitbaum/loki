@@ -15,6 +15,15 @@ Cato 2026-09-17: one canonical status language for **Feedback, Terminal, Activit
 
 `STUCK` in code maps to **Needs you** in the UI (same waitingOn=YOU), unless it is a pure timeout with a clear Retry CTA — still not “Working.”
 
+**In code:** `canonicalStatus(work)` in `src/lib/feedback/canonical-status.ts` is the
+one mapper from `work.phase` to these six, plus `cause` (a stable code),
+`nextAction` and `evidence` (PR, merge, deploy, live URL, Loki's look). The
+status route, Watch and the reporter view read it; a surface that re-derives
+the word is wrong. A pull request still open or a deploy still running reads
+Working (the machine is moving it), a finished run with the change not yet
+confirmed live reads Needs you, and a report closed without a change reads
+Done with cause `closed_without_change` and empty evidence.
+
 ## The one alive bit
 
 **Working ⇔** post-prompt PTY/Terminal frames show generation (not boot redraw, not a progress timer alone).

@@ -103,6 +103,22 @@ async function main() {
         events: [{ kind: "dispatched", detail: null, createdAt: new Date() }],
         snap: null,
         view,
+        canonical: {
+          state: "failed",
+          label: "Failed",
+          cause: "run_failed",
+          nextAction: { kind: "retry", who: "you", label: "Retry" },
+          evidence: {
+            pr: null,
+            merged: false,
+            mergeSha: null,
+            deployed: false,
+            deployUrl: null,
+            liveUrl: null,
+            verified: null,
+            unverified: false,
+          },
+        },
         prompt: { text: packet, at: new Date() },
         project: { id: "registered", gitUrl: null, liveUrl: null },
         provider: "Claude",
@@ -149,6 +165,11 @@ async function main() {
     assert(!JSON.stringify(shared).includes("Private life goal"));
     assert.equal(shared.canRetry, false);
     assert.equal(shared.status.terminalReady, false);
+    assert.deepEqual(
+      shared.status.canonical,
+      { state: "failed", label: "Failed" },
+      "a member reads the state, not the operator's cause or evidence",
+    );
     assert.equal(shared.terminalHref, undefined);
     assert.equal(shared.autopilot, undefined);
     assert.equal(shared.tab, undefined);

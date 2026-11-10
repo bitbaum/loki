@@ -29,6 +29,7 @@
  * string appears in the output.
  */
 import { FEEDBACK_WORK_PHASE, type FeedbackWorkView } from "@/lib/feedback/work-phase";
+import { canonicalStatus, type CanonicalState } from "@/lib/feedback/canonical-status";
 import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
 import { AUTO_SHIP_HOLD } from "@/lib/feedback/auto-ship";
 
@@ -36,6 +37,10 @@ import { AUTO_SHIP_HOLD } from "@/lib/feedback/auto-ship";
 export type ReporterTone = "neutral" | "accent" | "warning" | "positive";
 
 export type ReporterStatus = {
+  /** The canonical state (canonical-status.ts): the same word an agent polling
+   *  the status route reads. Only the state — cause, next action and evidence
+   *  are operator detail. */
+  state: CanonicalState;
   /** The chip word. Never a DB status ("dispatched" is not a human word). */
   label: string;
   tone: ReporterTone;
@@ -77,6 +82,13 @@ const ON_THE_WAY: ReadonlySet<string> = new Set([
 
 export function reporterStatusFor(
   work: FeedbackWorkView,
+  opts: Parameters<typeof reporterSentenceFor>[1] = {},
+): ReporterStatus {
+  return { state: canonicalStatus(work).state, ...reporterSentenceFor(work, opts) };
+}
+
+function reporterSentenceFor(
+  work: FeedbackWorkView,
   /** `tourHref`: the live page with the reporter's own walkthrough ticket
    *  (tour-token.ts, audience "reporter"). When present it replaces the bare
    *  link — "check the live page" left them to find the change themselves. */
@@ -85,7 +97,7 @@ export function reporterStatusFor(
     tourHref?: string | null;
     client?: ClientChange | null;
   } = {},
-): ReporterStatus {
+): Omit<ReporterStatus, "state"> {
   const liveHref = opts.liveHref ?? null;
   const checkLive = opts.tourHref
     ? { href: opts.tourHref, label: "Watch your fix" }

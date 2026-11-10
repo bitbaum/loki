@@ -12,7 +12,6 @@ import { FeedbackAttachmentsSchema } from "@/lib/feedback/attachment-schema";
 import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
-import { watchFixPath } from "@/lib/feedback/tour-token";
 import { appUrl } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
@@ -70,7 +69,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const respond = (row: { id: string; status: string }, replayed: boolean) =>
     jsonOk(
-      { id: row.id, status: row.status, statusUrl: `${appUrl()}${watchFixPath(row.id)}`, replayed },
+      {
+        id: row.id,
+        status: row.status,
+        statusUrl: `${appUrl()}/api/feedback/${row.id}/status`,
+        replayed,
+      },
       { status: replayed ? 200 : 201 },
     );
 

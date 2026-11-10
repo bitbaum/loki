@@ -59,6 +59,9 @@ export type FeedbackWorkView = {
   phase: FeedbackWorkPhase;
   /** Who has to act next — see WAITING_ON. */
   waitingOn: WaitingOn;
+  /** Claimed by a builder, not yet generating: the SSOT's Starting, which
+   *  shares the QUEUED phase with Queued (canonical-status.ts tells them apart). */
+  starting?: boolean;
   /** Short status word for the badge — never "dispatched". */
   label: string;
   /** One line of what to do / what happened. Written for a human, always.
@@ -578,6 +581,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.QUEUED,
       label: "Starting",
+      starting: true,
       detail: null,
       watchable: true,
       since,
@@ -637,6 +641,7 @@ function derivePhase(
   return {
     phase: FEEDBACK_WORK_PHASE.QUEUED,
     label: "Starting",
+    starting: true,
     detail: null,
     watchable: true,
     since,
