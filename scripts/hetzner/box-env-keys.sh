@@ -14,7 +14,8 @@
 #
 # RULES
 # - Only the NAMES the caller lists are written; every other secret the
-#   repository holds is ignored. Names must be [A-Z][A-Z0-9_]*.
+#   repository holds is ignored. Names must be [A-Z][A-Z0-9_]* and must not
+#   start with GITHUB_ (GitHub Actions reserves that prefix and refuses the secret).
 # - A secret that is set in GitHub wins: missing on the box → added; different
 #   → replaced (pasting a new key in GitHub IS the rotation). A secret that is
 #   NOT set in GitHub leaves the box's line alone — absence is not a deletion.
@@ -55,6 +56,7 @@ PLAN=""     # NAME per line
 absent=()
 for name in "$@"; do
   [[ "$name" =~ ^[A-Z][A-Z0-9_]*$ ]] || { echo "bad variable name: $name" >&2; exit 2; }
+  [[ "$name" =~ ^GITHUB_ ]] && { echo "GitHub Actions refuses secret names starting with GITHUB_ (they are reserved): $name. Use a name that does not start with GITHUB_, for example GH_CLIENT_ID instead of GITHUB_CLIENT_ID." >&2; exit 2; }
   value="${!name-}"
   if [ -z "${value//[[:space:]]/}" ]; then absent+=("$name"); continue; fi
   ASSIGN+="WANT_${name}=$(printf %q "$(render "$value")")"$'\n'
