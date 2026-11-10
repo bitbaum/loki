@@ -1,5 +1,5 @@
-import { ArticleBody } from "bip-kit/react";
-import { MermaidBlock } from "bip-kit/react/mermaid";
+import { ArticleBody } from "@bitbaum/bip-kit/react";
+import { MermaidBlock } from "@bitbaum/bip-kit/react/mermaid";
 import type { ThoughtBlock } from "@/lib/thoughts-content";
 
 /**
