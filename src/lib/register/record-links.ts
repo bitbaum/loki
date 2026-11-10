@@ -1,4 +1,4 @@
-import { linkDevelopment, readRefs, type Advance, type ChangeRef } from "bip-kit";
+import { linkDevelopment, readRefs, type Advance, type ChangeRef } from "@bitbaum/bip-kit";
 import type { MapRoadmapItem } from "@/lib/register/map";
 
 /**

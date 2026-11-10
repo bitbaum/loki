@@ -1,6 +1,6 @@
 import path from "path";
-import { parseContentBlocks, type ContentBlock } from "bip-kit";
-import { readCollection } from "bip-kit/node";
+import { parseContentBlocks, type ContentBlock } from "@bitbaum/bip-kit";
+import { readCollection } from "@bitbaum/bip-kit/node";
 
 const THOUGHTS_DIR = path.join(process.cwd(), "content", "thoughts");
 

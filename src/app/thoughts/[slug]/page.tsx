@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { extractToc } from "bip-kit";
-import { Toc, ReadingProgress } from "bip-kit/react";
-import "bip-kit/styles.css";
+import { extractToc } from "@bitbaum/bip-kit";
+import { Toc, ReadingProgress } from "@bitbaum/bip-kit/react";
+import "@bitbaum/bip-kit/styles.css";
 import "./thoughts-article.css";
 import { APP_URL } from "@/config/brand";
 import { PublicSurface } from "@/components/public/PublicSurface";

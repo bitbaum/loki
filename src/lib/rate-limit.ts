@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { slidingWindow, clientIp, MemoryStore, type Limiter } from "limitkit";
+import { slidingWindow, clientIp, MemoryStore, type Limiter } from "@bitbaum/limitkit";
 
 /**
  * Rate limiting — now owned by `limitkit` (see dotfiles/SHARED.md).

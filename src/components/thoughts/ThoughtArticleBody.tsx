@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { ArticleBody, setHighlighterLoader } from "bip-kit/react";
-import { MermaidBlock } from "bip-kit/react/mermaid";
+import { ArticleBody, setHighlighterLoader } from "@bitbaum/bip-kit/react";
+import { MermaidBlock } from "@bitbaum/bip-kit/react/mermaid";
 
 // shiki is an OPTIONAL peer of bip-kit; its zero-config load goes through an
 // import the bundler and Next's file tracer cannot see, so a standalone

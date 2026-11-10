@@ -5,7 +5,7 @@ import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { ownRecord } from "@/lib/register/own-record";
 import { loadRepoRecords, type RepoChangelogEntry } from "@/lib/register/repo-records";
 import { longDate } from "@/lib/dates";
-import { changeAnchor } from "bip-kit";
+import { changeAnchor } from "@bitbaum/bip-kit";
 import { recordLinks, recordText } from "@/lib/register/record-links";
 
 /**

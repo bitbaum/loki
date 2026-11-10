@@ -7,7 +7,7 @@
  * renderer has cases for — so a bip-kit upgrade that changed block semantics
  * would fail here, not on the live site.
  */
-import { parseContentBlocks } from "bip-kit";
+import { parseContentBlocks } from "@bitbaum/bip-kit";
 import { parseThoughtBlocks, listThoughts } from "../../src/lib/thoughts-content";
 
 let passed = 0;
