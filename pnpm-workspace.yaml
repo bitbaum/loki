@@ -51,35 +51,19 @@ overrides:
   brace-expansion@1: ^1.1.21
   brace-expansion@5: ^5.0.12
 
-# pnpm refuses packages published within its minimum-release-age window — a
-# supply-chain guard against a compromised release being installed before
-# anyone notices. Our own packages need an explicit exemption, because we are
-# the ones who just published them.
-#
-# Add lines only for packages WE publish — never to hurry along a third-party
-# one, which is the entire threat this window exists to cover.
-#
-# Listed by NAME, not by version. A version-pinned exemption has to be edited
-# by hand for every release, and a release nobody edits this file for is simply
-# refused at install time — which would make ai-kit's minors arrive manually
-# again, one file edit at a time, immediately after 1.0.0 was published to stop
-# exactly that. `pnpm add` grew the old pin into `0.6.2 || 1.2.0` on its own,
-# which is the second version of a list that would never stop growing.
+# Our own packages are published by our own tagged workflows; minimumReleaseAge
+# would refuse each fresh publish until it ages. One scope glob covers every
+# @bitbaum package; the four unscoped ones are named (fleet SHARED.md).
 minimumReleaseAgeExclude:
-  - "@bitbaum/ai-kit"
-  - "@bitbaum/mail-kit"
-  - "bip-kit"
-  - "limitkit"
-  - "@bitbaum/chatkit"
+  - "@bitbaum/*"
+  - limitkit
+  - bip-kit
+  - threadkit
+  - ai-forms
   - libmime@5.6.0
   - mailparser@3.12.2
   - nodemailer@10.2.0
   - smtp-server@3.21.0
-  - "@bitbaum/accountkit"
-  - "@bitbaum/listkit"
-  - "@bitbaum/searchkit"
-  - "@bitbaum/whenkit"
-  - "@bitbaum/design-tokens@1.4.0 || 1.5.2"
 
 # braces GHSA-vfj7-8cjw-p6xm has NO patched release (<=3.0.3 = every version).
 # Reached only via shadcn's CLI (fast-glob > micromatch) at dev time, never at
