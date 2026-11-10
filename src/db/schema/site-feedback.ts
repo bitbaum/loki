@@ -7,7 +7,9 @@ import {
   index,
   integer,
   boolean,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { FeedbackCaptureContext } from "../../../widget/capture-context";
 import type { FeedbackRead } from "@/lib/feedback/read-report";
 import type { ReportMoment } from "../../../widget/moments-contract";
@@ -101,6 +103,12 @@ export const siteFeedback = pgTable(
      * offering it again.
      */
     noticeKey: text("notice_key"),
+    /** For source "agent": the name the agent gave itself (a label, not an
+     *  identity — the seat's user is the identity). */
+    agentName: text("agent_name"),
+    /** For source "agent": the caller's retry key, unique per project. The
+     *  same key again returns the same row (POST /api/projects/[id]/feedback). */
+    idempotencyKey: text("idempotency_key"),
     /** Optional visitor-attached images as jpeg/png/webp data URLs (≤600k chars each,
      *  client-downscaled, max 5). EXCLUDED from list queries — fetched only via
      *  GET /api/feedback/[id]/screenshots. */
@@ -132,6 +140,9 @@ export const siteFeedback = pgTable(
     index("idx_site_feedback_reporter").on(t.reporterUserId, t.createdAt),
     index("idx_site_feedback_dedupe").on(t.projectId, t.contentHash),
     index("idx_site_feedback_notice").on(t.projectId, t.noticeKey),
+    uniqueIndex("uq_site_feedback_idempotency")
+      .on(t.projectId, t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} IS NOT NULL`),
   ],
 );
 

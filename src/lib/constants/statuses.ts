@@ -238,6 +238,7 @@ export const FEEDBACK_SOURCE_VALUES = [
   "owner",
   "client",
   "member",
+  "agent",
 ] as const;
 export type FeedbackSource = (typeof FEEDBACK_SOURCE_VALUES)[number];
 export const FEEDBACK_SOURCE = {
@@ -254,6 +255,11 @@ export const FEEDBACK_SOURCE = {
    *  or carrying their member pass. Waits for the owner's tap: whoever asks
    *  pays, and a seat is not the owner's engine (ask-in-loki.ts). */
   MEMBER: "member",
+  /** A software agent (a QA bot, a CI job) filing with its own seat's Bearer
+   *  token on POST /api/projects/[id]/feedback. Never self-asserted on the
+   *  public widget route, and not in BUILDS_UNASKED: it waits for a tap
+   *  unless the project opted in (docs/architecture/feedback-widget.md). */
+  AGENT: "agent",
 } as const satisfies Record<string, FeedbackSource>;
 /** Notes that may build with nobody looking: the owner's own words and
  *  Loki's own findings. Everything else — a visitor's note, a row older than
