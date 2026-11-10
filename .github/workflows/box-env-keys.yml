@@ -84,6 +84,10 @@ jobs:
           set -euo pipefail
           for name in $NAMES; do
             [[ "$name" =~ ^[A-Z][A-Z0-9_]*$ ]] || { echo "::error::bad name in names: $name"; exit 1; }
+            if [[ "$name" =~ ^GITHUB_ ]]; then
+              echo "::error::GitHub Actions refuses secret names starting with GITHUB_ (they are reserved): $name. Use a name that does not start with GITHUB_, for example GH_CLIENT_ID instead of GITHUB_CLIENT_ID."
+              exit 1
+            fi
             value="$(NAME="$name" node -e 'const s=JSON.parse(process.env.CALLER_SECRETS||"{}");process.stdout.write(String(s[process.env.NAME]??""))')"
             export "$name=$value"
           done
