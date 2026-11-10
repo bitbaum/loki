@@ -48,6 +48,15 @@ POLL_S=20
 #     ran on main's SHA and blocked four deploys of it (2026-11-01). Only runs a
 #     push or a pull request started are CI.
 #
+#   * Runs chained on another workflow (event workflow_run) are operations too.
+#     The fleet auto-merge sweep runs on main's SHA every time any pull
+#     request's CI finishes, and a data job (solon's places-data) chains on
+#     Deploy. Counted as CI, each one held the gate at PENDING: solon's #484
+#     had CI green at 09:24 UTC on 2026-11-10 and its deploy waited until
+#     09:36, after the last sweep run, and every merge queued behind it. The
+#     test is therefore an allowlist of the events that check code, so a new
+#     kind of trigger cannot hold or block a deploy unnoticed.
+#
 # Hence: the workflow-runs API filtered to real repo workflows, not the
 # check-runs API.
 # Exclude the DEPLOY workflow itself — every run of it, not just the current
@@ -84,7 +93,7 @@ ci_verdict() {
     [ .[]
       | select(.path | startswith(".github/workflows/"))
       | select($exclude == "" or .path != $exclude)
-      | select((.event // "push") | IN("workflow_dispatch","schedule") | not)
+      | select((.event // "push") | IN("push","pull_request","pull_request_target","merge_group"))
     ]
     | group_by(.path)
     | map(max_by(.run_number))
