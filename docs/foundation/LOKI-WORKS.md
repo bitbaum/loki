@@ -28,7 +28,9 @@ The project is the authorization boundary. The initial roles are deliberately sm
 | Viewer | Yes | Yes | No | No | No |
 | Editor | Yes | Yes | Yes | Yes | No |
 | Owner | Yes | Yes | Yes | Yes | Yes |
+| Machine filer (an agent on a Viewer or Reporter seat) | Yes, with a Viewer seat | Its own reports | No | No | No |
 
+- A **machine filer** is not a fifth role: it is an agent with its own limited (non-owner) seat and its own `ck_` token, filing through `POST /api/projects/[id]/feedback` as `source: agent` with a name such as "QA · quality control". It reads the state of what it filed and nothing of the machine. Filing never starts a build: the owner's `agentBuildsUnasked` switch (default off) is the only thing that lets an agent's report build unasked, and only an owner (or an editor the owner allowed with `editorsMayBuild`) dispatches. The contract is in LOOP-WALK, "Agent walk".
 - Anonymous reporters receive a signed tracking link and an invitation to register or sign in. Claiming a report grants access to that report only.
 - People can create projects, invite collaborators, request to join existing projects, and have an owner approve the appropriate role.
 - Authorization is enforced in server queries and mutations. Hiding a button is never the security boundary.

@@ -34,3 +34,51 @@ Use a harmless, identifiable feedback row. Set a provider that passes a live pro
 - the resulting PR/check/deploy evidence returns to the row.
 
 Record the tested production commit and any failure cause in the handoff. If any check fails, fix and repeat this same walk.
+
+## Agent walk
+
+The same loop, filed by a machine. `node scripts/walk/agent-walk.mjs` files one
+harmless report, polls its `statusUrl` and prints each canonical state
+(Queued, Starting, Working, Needs you, Done, Failed) until Done or Failed.
+Exit 0 Done, 1 Failed, 2 Needs you or out of time, 3 could not file.
+`scripts/test/agent-walk.ts` pins it against a fake server.
+
+Environment (the token comes from the environment only and is never printed;
+the script also refuses to send it to an origin other than `LOKI_URL`):
+
+| Variable | Meaning |
+| --- | --- |
+| `LOKI_SEAT_TOKEN` | `ck_…` token of the agent's own seat, not the owner's |
+| `LOKI_PROJECT_ID` | the project the seat belongs to |
+| `LOKI_URL` | origin of Loki (default `https://loki.orangecat.ch`) |
+| `LOKI_AGENT_NAME` | inbox label (default `QA · quality control`) |
+| `LOKI_WALK_TIMEOUT_S` | stop polling after this long (default 600) |
+
+### The filing contract
+
+Handing a QA bot a seat: the project's owner gives the bot's own account a
+Viewer or Reporter seat (never Owner or Editor), and the bot mints its token
+at `POST /api/agent-tokens` with its own session. Any seat may file.
+
+1. **File.** `POST /api/projects/<id>/feedback` with
+   `Authorization: Bearer ck_…`, JSON
+   `{suggestion (1–2000), agentName (1–80, e.g. "QA · quality control"), idempotencyKey? (8–200), page?, url?, pageTitle?, screenshots?, context?, moments?, selectedElements?}`.
+   Answer `201 {id, status, statusUrl, replayed: false}`; the same
+   `idempotencyKey` again answers `200` with the same `id` and `replayed: true`,
+   so a retry never files twice. 60 filings per seat per project per window,
+   then `429`. `401` no valid token, `404` the token's user has no seat here.
+2. **Does it build?** Not unless the project's owner opted in. The owner's
+   `agentBuildsUnasked` switch (`PATCH /api/projects/<id>/build-grants`, session,
+   owner only) is off by default; off, the report waits for a tap. On, the
+   filing answer also carries `{building, buildNote}`. The bot never dispatches.
+3. **Poll.** `GET <statusUrl>` (`/api/feedback/<id>/status`) with the same
+   Bearer token, `Cache-Control: no-store`. A non-owner seat gets
+   `{id, source, state, label}` for a report it filed; another seat's report is
+   `404`. Owner and editor seats get the whole status: `cause`, `reason`,
+   `nextAction` (with the exact `request` when there is one) and `evidence`.
+4. **Read the state.** `state` is one of `queued starting working needs_you
+   done failed`. **Done** is earned: a pull request, its merge, a deploy and a
+   live URL; otherwise `needs_you` with cause `done_unproven`. Closed without a
+   change is `failed`. See RUN-STATUS-SSOT.
+
+Never put a token in an argument, a log line, a report or a commit.
