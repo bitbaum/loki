@@ -19,6 +19,31 @@ export async function insertSiteFeedback(values: NewSiteFeedback): Promise<SiteF
   return created ?? null;
 }
 
+/** The row an agent already filed under this retry key, if any. */
+export async function findFeedbackByIdempotencyKey(
+  projectId: string,
+  idempotencyKey: string,
+): Promise<SiteFeedback | null> {
+  const [row] = await db
+    .select()
+    .from(siteFeedback)
+    .where(
+      and(eq(siteFeedback.projectId, projectId), eq(siteFeedback.idempotencyKey, idempotencyKey)),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+/** Insert once per (project, idempotencyKey): a racing retry gets the winner's row. */
+export async function insertAgentFeedback(
+  values: NewSiteFeedback & { idempotencyKey: string },
+): Promise<{ row: SiteFeedback; replayed: boolean } | null> {
+  const [created] = await db.insert(siteFeedback).values(values).onConflictDoNothing().returning();
+  if (created) return { row: created, replayed: false };
+  const existing = await findFeedbackByIdempotencyKey(values.projectId, values.idempotencyKey);
+  return existing ? { row: existing, replayed: true } : null;
+}
+
 /** Link exactly one signed claim to the signed-in reporter. A claim already
  * owned by another account cannot be stolen by replaying its URL. */
 export async function claimFeedbackForReporter(
