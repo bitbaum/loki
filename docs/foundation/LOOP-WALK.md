@@ -71,6 +71,10 @@ at `POST /api/agent-tokens` with its own session. Any seat may file.
    `agentBuildsUnasked` switch (`PATCH /api/projects/<id>/build-grants`, session,
    owner only) is off by default; off, the report waits for a tap. On, the
    filing answer also carries `{building, buildNote}`. The bot never dispatches.
+   `statusUrl` is built from the server's `NEXTAUTH_URL` (else `APP_URL`). The
+   walk sends the token only to the origin in `LOKI_URL`, so `statusUrl` must
+   share that origin: if it does not, the walk stops with exit 3 before polling.
+   Set `LOKI_URL` to the same origin the server is configured with.
 3. **Poll.** `GET <statusUrl>` (`/api/feedback/<id>/status`) with the same
    Bearer token, `Cache-Control: no-store`. A non-owner seat gets
    `{id, source, state, label}` for a report it filed; another seat's report is
