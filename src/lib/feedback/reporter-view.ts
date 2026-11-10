@@ -84,7 +84,10 @@ export function reporterStatusFor(
   work: FeedbackWorkView,
   opts: Parameters<typeof reporterSentenceFor>[1] = {},
 ): ReporterStatus {
-  return { state: canonicalStatus(work).state, ...reporterSentenceFor(work, opts) };
+  return {
+    state: canonicalStatus(work, { liveUrl: opts.liveHref ?? null }).state,
+    ...reporterSentenceFor(work, opts),
+  };
 }
 
 function reporterSentenceFor(
