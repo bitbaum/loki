@@ -35,7 +35,13 @@ export function listedSites(apps: HostedApp[]) {
     .map((a) => {
       const slug = canonicalSlug(a.name);
       const copy = FLEET_SITE_COPY[slug];
-      return { slug, name: copy?.name ?? a.name, url: hostedUrl(a)!, blurb: copy?.blurb ?? "" };
+      // A site may be listed under another of ITS OWN hosts (Hirnli: the
+      // product page is hirnli.*, while the first host serves a tenant). Only
+      // the link changes; apps.conf host order, Caddy and deploys do not.
+      if (copy?.host && !a.domains.includes(copy.host))
+        throw new Error(`${slug}: listing host ${copy.host} is not one of its apps.conf hosts`);
+      const url = copy?.host ? `https://${copy.host}` : hostedUrl(a)!;
+      return { slug, name: copy?.name ?? a.name, url, blurb: copy?.blurb ?? "" };
     })
     .sort((x, y) => x.name.localeCompare(y.name));
 }

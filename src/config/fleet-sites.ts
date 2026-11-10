@@ -53,7 +53,7 @@ export const FLEET_SITES: readonly FleetSite[] = [
   },
   {
     name: "Hirnli",
-    url: "https://revamp-info.orangecat.ch",
+    url: "https://hirnli.orangecat.ch",
     blurb: "Die richtigen Stiftungen finden. Mit Belegen überzeugen.",
   },
   {
