@@ -115,6 +115,21 @@ expect "a failed scheduled run is not a red CI" GREEN "" \
 expect "a hand-started run cannot outvote the push run's red" FAILED "" \
   "$(runs "$(run "$CI" 1 completed failure)" "$(run "$CI" 2 completed success workflow_dispatch)")"
 
+# Bug 5 — the auto-merge sweep (workflow_run) runs on main's SHA after every PR's
+# CI, so it was always pending somewhere and held deploys for minutes at a time.
+SWEEP='.github/workflows/auto-merge.yml'
+expect "a running sweep does not hold the gate" GREEN "" \
+  "$(runs "$(run "$CI" 1 completed success)" "$(run "$SWEEP" 40 in_progress null workflow_run)")"
+
+expect "a failed chained data job is not a red CI" GREEN "" \
+  "$(runs "$(run "$CI" 1 completed success)" "$(run "$LOAD" 23 completed failure workflow_run)")"
+
+expect "a chained run cannot outvote the push run's red" FAILED "" \
+  "$(runs "$(run "$CI" 1 completed failure)" "$(run "$SWEEP" 41 completed success workflow_run)")"
+
+expect "a pending push run still holds the gate" PENDING "" \
+  "$(runs "$(run "$CI" 1 in_progress null)" "$(run "$SWEEP" 42 completed success workflow_run)")"
+
 # Cancellation still has to survive as a signal — it is how a superseded commit
 # bows out with exit 3 instead of deploying stale code.
 expect "an unreplaced cancellation is still reported as cancelled" CANCELLED "" \
