@@ -261,6 +261,7 @@ export function ProjectFeedbackSection({
       )}
 
       <AutoShipToggle projectId={projectId} />
+      <BuildGrantsToggles projectId={projectId} />
       {reviewOpen && token && (
         <AiReviewCard
           projectId={projectId}
@@ -777,6 +778,73 @@ function AiReviewCard({
  * client sites — which Loki cannot distinguish from its own — never ship
  * themselves by accident.
  */
+/**
+ * The two owner-only switches on what may START a build on this project's
+ * builder, both off until chosen (api/projects/[id]/build-grants). The owner
+ * only sees them: the route answers anyone else with a 404 and this renders
+ * nothing.
+ */
+function BuildGrantsToggles({ projectId }: { projectId: string }) {
+  const { data, refetch } = useFetch<{
+    agentBuildsUnasked: boolean | null;
+    editorsMayBuild: boolean | null;
+  }>(`/api/projects/${projectId}/build-grants`);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!data) return null;
+  const set = async (grant: "agentBuildsUnasked" | "editorsMayBuild", next: boolean) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await patchJson(`/api/projects/${projectId}/build-grants`, { [grant]: next });
+      refetch();
+    } catch {
+      setError("Couldn't save that — the setting is unchanged.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const rows = [
+    {
+      grant: "agentBuildsUnasked" as const,
+      title: "Build agents' reports without asking",
+      says: "A report filed by an agent with its own seat starts a build on your builder at once. Off, it waits for you to start it.",
+    },
+    {
+      grant: "editorsMayBuild" as const,
+      title: "Let editors start builds",
+      says: "An editor can start a build on your builder. Off, only you can — what an editor asks for waits for you.",
+    },
+  ];
+  return (
+    <>
+      {rows.map((row) => {
+        const on = data[row.grant] === true;
+        return (
+          <div key={row.grant} className="mb-4 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-text-primary">{row.title}</p>
+              <p className="mt-0.5 text-xs text-text-tertiary">{row.says}</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={on}
+              aria-label={row.title}
+              onClick={() => void set(row.grant, !on)}
+              disabled={saving}
+              className={on ? "ui-switch ui-switch-on" : "ui-switch"}
+            >
+              <span className="ui-switch-knob" />
+            </button>
+          </div>
+        );
+      })}
+      {error && <p className="mb-4 text-xs text-status-negative">{error}</p>}
+    </>
+  );
+}
+
 function AutoShipToggle({ projectId }: { projectId: string }) {
   const { data, refetch } = useFetch<{ autoShip: boolean | null; hasRepo: boolean }>(
     `/api/projects/${projectId}/auto-ship`,

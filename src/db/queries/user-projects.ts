@@ -617,6 +617,27 @@ export async function setProjectAutoShip(
 }
 
 /**
+ * The two owner-only switches on what an agent or an editor may START: an
+ * agent's report building unasked, and editors dispatching onto the owner's
+ * builder. Explicit false is stored: null means "never chosen". Addressed by
+ * ENTITY id and the OWNER's user id, so no one else's call can write them.
+ */
+export async function setProjectBuildGrants(
+  ownerUserId: string,
+  entityProjectId: string,
+  grants: { agentBuildsUnasked?: boolean; editorsMayBuild?: boolean },
+): Promise<UserProject | null> {
+  const [row] = await db
+    .update(userProjects)
+    .set(grants)
+    .where(
+      and(eq(userProjects.userId, ownerUserId), eq(userProjects.entityProjectId, entityProjectId)),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
  * Turn the OrangeCat activity feed on or off for one project, addressed by
  * EITHER of its ids — the publish control holds whichever the page gave it,
  * and the OrangeCat routes beside this one already accept both.

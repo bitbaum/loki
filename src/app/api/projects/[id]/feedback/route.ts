@@ -11,6 +11,8 @@ import {
 import { FeedbackAttachmentsSchema } from "@/lib/feedback/attachment-schema";
 import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
+import { startOwnerBuild } from "@/lib/feedback/owner-build";
+import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import { appUrl } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -67,13 +69,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const data = await readJsonBody(req, AgentFiling);
   if (data instanceof NextResponse) return data;
 
-  const respond = (row: { id: string; status: string }, replayed: boolean) =>
+  const respond = (
+    row: { id: string; status: string },
+    replayed: boolean,
+    build?: { building: boolean; buildNote?: string },
+  ) =>
     jsonOk(
       {
         id: row.id,
         status: row.status,
         statusUrl: `${appUrl()}/api/feedback/${row.id}/status`,
         replayed,
+        ...build,
       },
       { status: replayed ? 200 : 201 },
     );
@@ -103,6 +110,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ? await insertAgentFeedback({ ...values, idempotencyKey: data.idempotencyKey })
     : await insertSiteFeedback(values).then((row) => (row ? { row, replayed: false } : null));
   if (!stored) return jsonError("Could not store feedback, try again later", 500);
-  if (!stored.replayed) void notifyFeedbackReceived(stored.row);
-  return respond(stored.row, stored.replayed);
+  if (stored.replayed) return respond(stored.row, true);
+  void notifyFeedbackReceived(stored.row);
+  // Filing alone never builds. Only a project whose OWNER opted in ("agent
+  // reports build unasked", default off) starts the build, on the owner's own
+  // builder and daily limit, through the same path as the Implement button.
+  const project = await getUserProjectByEntityId(access.ownerUserId, idOrResp).catch(() => null);
+  if (project?.agentBuildsUnasked !== true) return respond(stored.row, false);
+  const build = await startOwnerBuild(access.ownerUserId, idOrResp, stored.row.id);
+  return respond(stored.row, false, build);
 }
