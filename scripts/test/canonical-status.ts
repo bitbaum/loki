@@ -37,6 +37,19 @@ const P = FEEDBACK_WORK_PHASE;
 const S = CANONICAL_STATE;
 const C = CANONICAL_CAUSE;
 
+const deploy = {
+  url: "https://x/run/1",
+  name: "Deploy",
+  conclusion: "success",
+  status: "completed",
+};
+const DONE_WORK = work({
+  phase: P.DONE,
+  waitingOn: "nobody",
+  ship: ship(FIX_SHIP_STATE.DEPLOYED, { pr, deploy }),
+});
+const LIVE = { liveUrl: "https://site.example" };
+
 const cases: [string, FeedbackWorkView, string, string][] = [
   ["not started", work({}), S.NEEDS_YOU, C.AWAITING_IMPLEMENT],
   ["queued", work({ phase: P.QUEUED, waitingOn: "machine" }), S.QUEUED, C.WAITING_FOR_BUILDER],
@@ -112,11 +125,11 @@ const cases: [string, FeedbackWorkView, string, string][] = [
     S.NEEDS_YOU,
     C.LIVE_UNCONFIRMED,
   ],
-  ["done", work({ phase: P.DONE, waitingOn: "nobody" }), S.DONE, C.CONFIRMED],
-  ["archived", work({ phase: P.ARCHIVED, waitingOn: "nobody" }), S.DONE, C.CLOSED_WITHOUT_CHANGE],
+  ["done", DONE_WORK, S.DONE, C.CONFIRMED],
+  ["archived", work({ phase: P.ARCHIVED, waitingOn: "nobody" }), S.FAILED, C.CLOSED_WITHOUT_CHANGE],
 ];
 for (const [name, w, state, cause] of cases) {
-  const got = canonicalStatus(w);
+  const got = canonicalStatus(w, LIVE);
   assert.equal(got.state, state, `${name}: state`);
   assert.equal(got.cause, cause, `${name}: cause`);
   assert.ok(got.nextAction.label, `${name}: says what next`);
@@ -183,7 +196,7 @@ assert.deepEqual(
 assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /canonicalStatus\(/);
 assert.match(read("src/lib/run-track-load.ts"), /canonicalStatus\(work/);
 assert.match(read("src/app/api/projects/[id]/watch/route.ts"), /canonical/);
-assert.match(read("src/lib/feedback/reporter-view.ts"), /canonicalStatus\(work\)/);
+assert.match(read("src/lib/feedback/reporter-view.ts"), /canonicalStatus\(work,/);
 const route = read("src/app/api/feedback/[id]/status/route.ts");
 assert.match(route, /row\.canEdit/, "full status is the owner's and editor's");
 assert.match(route, /reporterUserId !== userId/, "a reporter sees only their own report");
@@ -192,5 +205,83 @@ assert.match(
   read("src/app/api/projects/[id]/feedback/route.ts"),
   /\/api\/feedback\/\$\{row\.id\}\/status/,
 );
+
+// Failed and Needs you always carry a cause sentence and an exact next action.
+for (const [name, w, state] of cases) {
+  const got = canonicalStatus(w, { ...LIVE, feedbackId: "f1" });
+  const problem = state === S.FAILED || state === S.NEEDS_YOU;
+  assert.equal(typeof got.reason === "string" && got.reason.length > 0, problem, `${name}: reason`);
+  if (problem) {
+    assert.notEqual(got.nextAction.kind, "wait", `${name}: a problem is never "wait"`);
+    assert.notEqual(got.nextAction.kind, "none", `${name}: a problem names a move`);
+    assert.ok(got.nextAction.label.length > 12, `${name}: the move is spelled out`);
+  }
+  if (got.nextAction.kind === "retry" || got.nextAction.kind === "implement") {
+    const rq = got.nextAction.request;
+    assert.ok(rq && rq.method === "POST", `${name}: a retry is a call`);
+    assert.ok(rq.path === "/api/feedback/f1/dispatch" || rq.path === "/api/control/reroute");
+  }
+}
+assert.equal(
+  canonicalStatus(work({ phase: P.FAILED })).nextAction.request,
+  null,
+  "no id, no invented path",
+);
+assert.deepEqual(
+  canonicalStatus(work({ phase: P.STUCK, rerouteTo: "cloud", commandId: "c9" })).nextAction.request,
+  { method: "POST", path: "/api/control/reroute", body: { commandId: "c9" } },
+);
+
+// Done needs a PR, its merge, a deploy and a live URL; anything less is not Done.
+const done = canonicalStatus(DONE_WORK, LIVE);
+assert.equal(done.state, S.DONE);
+assert.equal(done.reason, null);
+assert.equal(done.evidence.liveUrl, LIVE.liveUrl);
+const noSite = canonicalStatus(DONE_WORK);
+assert.equal(noSite.state, S.NEEDS_YOU, "no live URL on record: not Done");
+assert.equal(noSite.cause, C.DONE_UNPROVEN);
+assert.deepEqual(noSite.missing, ["live_url"]);
+assert.equal(noSite.nextAction.who, "you");
+const bare = canonicalStatus(work({ phase: P.DONE, waitingOn: "nobody" }), LIVE);
+assert.equal(bare.state, S.NEEDS_YOU, "a bare Resolve is not Done");
+assert.deepEqual(bare.missing, ["pr", "merge", "deploy"]);
+const unmerged = canonicalStatus(
+  work({ phase: P.DONE, waitingOn: "nobody", ship: ship(FIX_SHIP_STATE.PR_OPEN, { pr }) }),
+  LIVE,
+);
+assert.deepEqual(unmerged.missing, ["merge", "deploy"]);
+assert.equal(
+  canonicalStatus(
+    work({ phase: P.DONE, ship: ship(FIX_SHIP_STATE.DEPLOYED, { pr, foreignPr: true, deploy }) }),
+    LIVE,
+  ).state,
+  S.NEEDS_YOU,
+  "another run's pull request is not this one's proof",
+);
+
+// An open PR or a deploy under way is Working, never Done, whoever's move it is.
+for (const [st, who] of [
+  [FIX_SHIP_STATE.PR_OPEN, "machine"],
+  [FIX_SHIP_STATE.PR_OPEN, "you"],
+  [FIX_SHIP_STATE.DEPLOYING, "machine"],
+] as const) {
+  const got = canonicalStatus(
+    work({ phase: P.NEEDS_VERIFY, waitingOn: who, ship: ship(st, { pr }) }),
+    LIVE,
+  );
+  assert.equal(got.state, S.WORKING, `${st}/${who}`);
+  assert.equal(got.reason, null);
+}
+
+// Closed without a change is not a success with empty evidence.
+const closed = canonicalStatus(work({ phase: P.ARCHIVED, waitingOn: "nobody" }), LIVE);
+assert.equal(closed.state, S.FAILED);
+assert.equal(closed.evidence.pr, null);
+assert.ok(closed.reason && closed.nextAction.request === null);
+
+// The reporter's word agrees with the agent's once they share the live URL.
+assert.equal(reporterStatusFor(DONE_WORK, { liveHref: LIVE.liveUrl }).state, S.DONE);
+assert.equal(reporterStatusFor(DONE_WORK).state, S.NEEDS_YOU);
+assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /feedbackId: feedback\.id/);
 
 console.log("canonical-status ok");

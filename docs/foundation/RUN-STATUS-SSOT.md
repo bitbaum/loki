@@ -10,19 +10,37 @@ Cato 2026-09-17: one canonical status language for **Feedback, Terminal, Activit
 | **Starting** | Claimed; PTY up; prompt submitted or about to be; **not** yet generating | Machine | No |
 | **Working** | Post-prompt evidence the agent is **actually generating** (one alive bit) | Machine | Yes — only this |
 | **Needs you** | Blocked: inject-no-generate, quota, login, Runner offline, trust dialog | You — one CTA | No |
-| **Done** | Finished with evidence (PR / explicit no-change / live confirm) | Nobody | No |
+| **Done** | Finished with evidence: PR, merge, deploy and a live URL | Nobody | No |
 | **Failed** | Run ended dead; cause recorded | You — Retry or switch | No |
 
 `STUCK` in code maps to **Needs you** in the UI (same waitingOn=YOU), unless it is a pure timeout with a clear Retry CTA — still not “Working.”
 
-**In code:** `canonicalStatus(work)` in `src/lib/feedback/canonical-status.ts` is the
-one mapper from `work.phase` to these six, plus `cause` (a stable code),
-`nextAction` and `evidence` (PR, merge, deploy, live URL, Loki's look). The
-status route, Watch and the reporter view read it; a surface that re-derives
-the word is wrong. A pull request still open or a deploy still running reads
-Working (the machine is moving it), a finished run with the change not yet
-confirmed live reads Needs you, and a report closed without a change reads
-Done with cause `closed_without_change` and empty evidence.
+**In code:** `canonicalStatus(work, {liveUrl, feedbackId})` in
+`src/lib/feedback/canonical-status.ts` is the one mapper from `work.phase` to
+these six, plus `cause` (a stable code), `reason` (the cause in a sentence),
+`nextAction` (`kind`, `who`, `label`, and `request`, the exact call when there
+is one) and `evidence` (PR, merge, deploy, live URL, Loki's look). The status
+route, Watch and the reporter view read it; a surface that re-derives the word
+is wrong.
+
+Honesty rules for agent callers, pinned by `scripts/test/canonical-status.ts`:
+
+- **Failed and Needs you always say why and what next.** `reason` is a sentence
+  and `nextAction` is never `wait` or `none`; a retry carries
+  `request: POST /api/feedback/<id>/dispatch` (an offline builder:
+  `POST /api/control/reroute` with its `commandId`). No id given, no path made up.
+- **Done is earned.** It needs a pull request, its merge, a deploy seen, and a
+  live URL, all in `evidence`. A report marked done without them reads
+  **Needs you**, cause `done_unproven`, with `missing` listing which of
+  `pr merge deploy live_url` is absent and the next action to confirm the live
+  page. A pull request that is another run's is not proof.
+- **An open pull request or a deploy under way is Working**, whoever's move it is.
+  Never Done, never Needs you.
+- **Closed without a change is Failed**, cause `closed_without_change`, empty
+  evidence, and a next action to reopen it by building again if it is still
+  wanted. It does not read as a successful Done.
+- The reporter's state comes from the same call with the same live URL, so a
+  reporter and an agent never read different words for one report.
 
 ## The one alive bit
 
@@ -43,8 +61,9 @@ Every surface **reads** `work.phase` (and the same run id). They do not re-deriv
 | `working` | Working — **only** if alive bit true; else demote to Needs you / Starting |
 | `stuck` / inject-no-generate | Needs you |
 | `failed` | Failed or Needs you (cause decides) |
-| `needs_verify` | Needs you (Check live / Confirm) |
-| `done` | Done |
+| `needs_verify` | Needs you (Check live / Confirm); Working while a PR is open or a deploy runs; Failed when the PR closed or the deploy failed |
+| `done` | Done only with PR + merge + deploy + live URL on record; otherwise Needs you (`done_unproven`) |
+| `archived` | Failed (`closed_without_change`) |
 
 Inbox groups stay: Needs you = YOU; Under way = MACHINE (Queued|Working only).
 

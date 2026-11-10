@@ -13,7 +13,12 @@
  * Pure: it reads a FeedbackWorkView, never the database.
  */
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
-import { FEEDBACK_WORK_PHASE, type FeedbackWorkView, type WaitingOn } from "./work-phase";
+import {
+  FEEDBACK_WORK_PHASE,
+  WAITING_ON,
+  type FeedbackWorkView,
+  type WaitingOn,
+} from "./work-phase";
 
 export const CANONICAL_STATE = {
   QUEUED: "queued",
@@ -54,6 +59,8 @@ export const CANONICAL_CAUSE = {
   LIVE_UNCONFIRMED: "live_unconfirmed",
   CONFIRMED: "confirmed",
   CLOSED_WITHOUT_CHANGE: "closed_without_change",
+  /** Marked done, but PR, merge, deploy or a live URL is not on record. */
+  DONE_UNPROVEN: "done_unproven",
 } as const;
 export type CanonicalCause = (typeof CANONICAL_CAUSE)[keyof typeof CANONICAL_CAUSE];
 
@@ -66,6 +73,13 @@ export type CanonicalNextAction = {
   who: WaitingOn;
   /** What to do, in a few words. */
   label: string;
+  /**
+   * The exact call that does it, when there is one (needs the report's id, so
+   * only present when the caller passed `feedbackId`). Same-origin path; the
+   * caller's own token or session authorises it. Null: the move is a person's
+   * look at a page, or a wait.
+   */
+  request: { method: "POST"; path: string; body?: Record<string, unknown> } | null;
 };
 
 /** What exists, as seen — never what was merely claimed. */
@@ -83,19 +97,68 @@ export type CanonicalEvidence = {
   unverified: boolean;
 };
 
+/** What Done needs on record. Reported when a Done is demoted. */
+export type MissingProof = "pr" | "merge" | "deploy" | "live_url";
+
 export type CanonicalStatus = {
   state: CanonicalState;
   label: string;
   cause: CanonicalCause;
+  /**
+   * Why, in a sentence — present on EVERY Failed and Needs you (never empty),
+   * null on the states where nothing is wrong. The code in `cause` is for
+   * switching; this is for reading.
+   */
+  reason: string | null;
   nextAction: CanonicalNextAction;
   evidence: CanonicalEvidence;
+  /** Only on cause `done_unproven`: which of the four proofs is absent. */
+  missing?: MissingProof[];
 };
 
 const act = (kind: NextActionKind, who: WaitingOn, label: string): CanonicalNextAction => ({
   kind,
   who,
   label,
+  request: null,
 });
+
+/** Done is earned: a pull request, its merge, a deploy seen, and a live URL. */
+export function missingProof(e: CanonicalEvidence): MissingProof[] {
+  const out: MissingProof[] = [];
+  if (!e.pr) out.push("pr");
+  if (!e.merged) out.push("merge");
+  if (!e.deployed) out.push("deploy");
+  if (!e.liveUrl) out.push("live_url");
+  return out;
+}
+
+const REASON: Record<CanonicalCause, string> = {
+  awaiting_implement: "No build has been started for this report.",
+  waiting_for_builder: "Queued on a builder that has not picked it up yet.",
+  agent_starting: "A builder claimed it and is starting the agent.",
+  agent_generating: "The agent is writing the change.",
+  builder_offline: "The builder this was queued on is offline, so nothing is running.",
+  stalled: "The run stopped producing output and has not finished.",
+  run_failed: "The agent run ended without finishing the change.",
+  looking_up_result: "The run closed; GitHub is being asked what it produced.",
+  nothing_shipped: "The run reported success but no branch, commit or pull request exists.",
+  pushed_no_pr: "A branch was pushed but no pull request was opened.",
+  pr_open: "The pull request is open and not merged yet.",
+  pr_closed: "The pull request was closed without merging, so nothing shipped.",
+  merged_no_deploy_seen: "The change is merged but no deploy has been seen on it.",
+  deploying: "Merged; the deploy is still running.",
+  deploy_failed: "Merged, but the deploy failed, so the change is not live.",
+  live_unconfirmed: "Deployed; nobody has confirmed the live page shows the change.",
+  confirmed: "Pull request merged, deployed and confirmed live.",
+  closed_without_change: "The report was closed and no change was made for it.",
+  done_unproven: "Marked done, but the proof Done needs is not on record.",
+};
+
+/** The dispatch call: a retry, or the first start. */
+function dispatchRequest(id: string | undefined): CanonicalNextAction["request"] {
+  return id ? { method: "POST", path: `/api/feedback/${id}/dispatch`, body: {} } : null;
+}
 
 function evidenceFrom(
   ship: FixShipping | null | undefined,
@@ -123,21 +186,32 @@ function evidenceFrom(
 
 export function canonicalStatus(
   work: FeedbackWorkView,
-  opts: { liveUrl?: string | null } = {},
+  opts: { liveUrl?: string | null; feedbackId?: string } = {},
 ): CanonicalStatus {
   const evidence = evidenceFrom(work.ship, opts.liveUrl ?? null);
-  const make = (
-    state: CanonicalState,
-    cause: CanonicalCause,
-    nextAction: CanonicalNextAction,
-  ): CanonicalStatus => ({ state, label: CANONICAL_LABEL[state], cause, nextAction, evidence });
+  const make: Make = (state, cause, nextAction) => {
+    const problem = state === CANONICAL_STATE.FAILED || state === CANONICAL_STATE.NEEDS_YOU;
+    // A retry or a start is the dispatch call; an offline builder is rerouted.
+    const request =
+      nextAction.kind === "retry" || nextAction.kind === "implement"
+        ? (nextAction.request ?? dispatchRequest(opts.feedbackId))
+        : nextAction.request;
+    return {
+      state,
+      label: CANONICAL_LABEL[state],
+      cause,
+      reason: problem ? REASON[cause] : null,
+      nextAction: { ...nextAction, request },
+      evidence,
+    };
+  };
 
   switch (work.phase) {
     case FEEDBACK_WORK_PHASE.NOT_STARTED:
       return make(
         CANONICAL_STATE.NEEDS_YOU,
         CANONICAL_CAUSE.AWAITING_IMPLEMENT,
-        act("implement", work.waitingOn, "Start the work"),
+        act("implement", work.waitingOn, "Start the build"),
       );
     case FEEDBACK_WORK_PHASE.QUEUED:
       return work.starting
@@ -159,15 +233,20 @@ export function canonicalStatus(
       );
     case FEEDBACK_WORK_PHASE.STUCK:
       return work.rerouteTo
-        ? make(
-            CANONICAL_STATE.NEEDS_YOU,
-            CANONICAL_CAUSE.BUILDER_OFFLINE,
-            act("retry", work.waitingOn, "Hand it to the cloud builder"),
-          )
+        ? make(CANONICAL_STATE.NEEDS_YOU, CANONICAL_CAUSE.BUILDER_OFFLINE, {
+            ...act("retry", work.waitingOn, "Hand it to the cloud builder"),
+            request: work.commandId
+              ? {
+                  method: "POST",
+                  path: "/api/control/reroute",
+                  body: { commandId: work.commandId },
+                }
+              : null,
+          })
         : make(
             CANONICAL_STATE.NEEDS_YOU,
             CANONICAL_CAUSE.STALLED,
-            act("retry", work.waitingOn, "Retry"),
+            act("retry", work.waitingOn, "Retry the build on the same builder"),
           );
     case FEEDBACK_WORK_PHASE.FAILED: {
       const s = work.ship?.state;
@@ -177,23 +256,47 @@ export function canonicalStatus(
           : s === FIX_SHIP_STATE.DEPLOY_FAILED
             ? CANONICAL_CAUSE.DEPLOY_FAILED
             : CANONICAL_CAUSE.RUN_FAILED;
-      return make(CANONICAL_STATE.FAILED, cause, act("retry", work.waitingOn, "Retry"));
+      const label =
+        cause === CANONICAL_CAUSE.PR_CLOSED
+          ? "Retry: the closed pull request shipped nothing, so build it again"
+          : cause === CANONICAL_CAUSE.DEPLOY_FAILED
+            ? "Fix the failing deploy on the merge commit, then retry if the change is gone"
+            : "Retry the build; switch agent if the cause was a limit or login";
+      return make(CANONICAL_STATE.FAILED, cause, act("retry", work.waitingOn, label));
     }
     case FEEDBACK_WORK_PHASE.NEEDS_VERIFY:
       return verifyStatus(work, make);
-    case FEEDBACK_WORK_PHASE.DONE:
-      return make(
-        CANONICAL_STATE.DONE,
-        CANONICAL_CAUSE.CONFIRMED,
-        act("none", work.waitingOn, "Nothing"),
-      );
+    case FEEDBACK_WORK_PHASE.DONE: {
+      // Done is earned, not recorded: an operator's Resolve alone, or a ledger
+      // that never saw the deploy, is not Done to an agent reading this.
+      const missing = missingProof(evidence);
+      if (missing.length === 0)
+        return make(
+          CANONICAL_STATE.DONE,
+          CANONICAL_CAUSE.CONFIRMED,
+          act("none", work.waitingOn, "Nothing"),
+        );
+      const gaps = missing.join(", ");
+      return {
+        ...make(
+          CANONICAL_STATE.NEEDS_YOU,
+          CANONICAL_CAUSE.DONE_UNPROVEN,
+          act(
+            "check_live",
+            WAITING_ON.YOU,
+            `Open the live page and confirm the change; not on record: ${gaps}`,
+          ),
+        ),
+        missing,
+      };
+    }
     case FEEDBACK_WORK_PHASE.ARCHIVED:
-      // Closed with nothing shipped. Reported as Done only because the six
-      // have no "closed"; `evidence` is empty, and the cause says why.
+      // Closed with nothing shipped. Not a success, so not Done: Failed, with
+      // the cause saying it was closed and the next action saying how to reopen.
       return make(
-        CANONICAL_STATE.DONE,
+        CANONICAL_STATE.FAILED,
         CANONICAL_CAUSE.CLOSED_WITHOUT_CHANGE,
-        act("none", work.waitingOn, "Nothing"),
+        act("retry", work.waitingOn, "Reopen by building it again, if the change is still wanted"),
       );
   }
 }
@@ -220,13 +323,13 @@ function verifyStatus(work: FeedbackWorkView, make: Make): CanonicalStatus {
       return make(
         CANONICAL_STATE.NEEDS_YOU,
         CANONICAL_CAUSE.NOTHING_SHIPPED,
-        act("retry", who, "Retry, or close it if it was not a code change"),
+        act("retry", who, "Retry the build, or archive the report if it needed no code change"),
       );
     case FIX_SHIP_STATE.PUSHED:
       return make(
         CANONICAL_STATE.NEEDS_YOU,
         CANONICAL_CAUSE.PUSHED_NO_PR,
-        act("open_pr", who, "Open the pull request"),
+        act("open_pr", who, "Open a pull request from the pushed branch"),
       );
     case FIX_SHIP_STATE.PR_OPEN:
       // Moves by itself when the repo auto-merges; a person's move otherwise.
@@ -238,12 +341,16 @@ function verifyStatus(work: FeedbackWorkView, make: Make): CanonicalStatus {
           : act("review_pr", who, "Review the pull request"),
       );
     case FIX_SHIP_STATE.PR_CLOSED:
-      return make(CANONICAL_STATE.FAILED, CANONICAL_CAUSE.PR_CLOSED, act("retry", who, "Retry"));
+      return make(
+        CANONICAL_STATE.FAILED,
+        CANONICAL_CAUSE.PR_CLOSED,
+        act("retry", who, "Retry: the closed pull request shipped nothing, so build it again"),
+      );
     case FIX_SHIP_STATE.MERGED:
       return make(
         CANONICAL_STATE.NEEDS_YOU,
         CANONICAL_CAUSE.MERGED_NO_DEPLOY_SEEN,
-        act("check_live", who, "Check the live page"),
+        act("check_live", who, "Open the live page; no deploy was seen, so look for the change"),
       );
     case FIX_SHIP_STATE.DEPLOYING:
       return make(
@@ -255,13 +362,17 @@ function verifyStatus(work: FeedbackWorkView, make: Make): CanonicalStatus {
       return make(
         CANONICAL_STATE.FAILED,
         CANONICAL_CAUSE.DEPLOY_FAILED,
-        act("retry", who, "Retry"),
+        act(
+          "retry",
+          who,
+          "Fix the failing deploy on the merge commit, then retry if the change is gone",
+        ),
       );
     case FIX_SHIP_STATE.DEPLOYED:
       return make(
         CANONICAL_STATE.NEEDS_YOU,
         CANONICAL_CAUSE.LIVE_UNCONFIRMED,
-        act("check_live", who, "Check the live page and confirm"),
+        act("check_live", who, "Open the live page and confirm the change is there"),
       );
   }
 }

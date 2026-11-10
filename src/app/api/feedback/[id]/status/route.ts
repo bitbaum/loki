@@ -40,6 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ]);
     const status = canonicalStatus(item.work, {
       liveUrl: livePageHref(row.liveUrl, feedback.url, feedback.page),
+      feedbackId: feedback.id,
     });
     return jsonOk({ id: feedback.id, source: feedback.source, ...status }, noStore);
   }
@@ -50,6 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     : null;
   const { state, label } = canonicalStatus(
     deriveFeedbackWork(feedback.status, runToFeedbackSnapshot(run)),
+    { liveUrl: livePageHref(row.liveUrl, feedback.url, feedback.page) },
   );
   return jsonOk({ id: feedback.id, source: feedback.source, state, label }, noStore);
 }
