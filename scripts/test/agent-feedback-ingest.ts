@@ -39,7 +39,11 @@ assert.match(post, /FEEDBACK_SOURCE\.AGENT/);
 assert.match(post, /agentName/);
 assert.match(post, /idempotencyKey/);
 assert.match(post, /statusUrl/);
-assert.doesNotMatch(post, /startOwnerBuild|implementFeedback|dispatch/, "filing never builds");
+assert.doesNotMatch(post, /implementFeedback|dispatch/, "filing never dispatches directly");
+// Filing alone never builds: the one build site sits behind the owner's opt-in
+// (scripts/test/agent-build-grants.ts pins the order).
+assert.equal(post.match(/startOwnerBuild\(/g)?.length, 1);
+assert.match(post, /agentBuildsUnasked !== true\) return respond/);
 assert.doesNotMatch(post, /canEdit/, "a reporter seat may file");
 
 // Attachments: the same schema object as the widget's ingest, not a copy.

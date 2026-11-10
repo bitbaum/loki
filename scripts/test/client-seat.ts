@@ -65,6 +65,12 @@ assert.equal(
 );
 const impl = read("src/lib/feedback/implement.ts");
 assert.match(impl, /if \(actorUserId !== row\.ownerUserId\)/, "Implement is the owner's tap only");
+assert.match(
+  impl,
+  /grant\?\.editorsMayBuild !== true/,
+  "unless the owner granted editors, per project",
+);
+assert.match(impl, /row\.canEdit/, "and a grant reaches editors, never a client or a viewer");
 const holder = read("src/lib/feedback/pass-holder.ts");
 assert.match(holder, /return userId === site\.userId;/, "the owner pass is the owner's alone");
 assert.doesNotMatch(holder, /canEdit/);

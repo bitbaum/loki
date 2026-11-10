@@ -9,7 +9,11 @@ import { getCurrentClaudeSessionForProject } from "@/db/queries/agent-sessions";
 import { DEFAULT_ADAPTER_ID, ORCHESTRATION_ADAPTER_IDS, type AdapterId } from "@/lib/orchestration";
 import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
 import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives";
-import { getUserProject, updateUserProject } from "@/db/queries/user-projects";
+import {
+  getUserProject,
+  getUserProjectByEntityId,
+  updateUserProject,
+} from "@/db/queries/user-projects";
 import { providerChoiceFor } from "@/lib/provider-choice";
 import { routeAroundSpent, type RerouteWhy } from "@/lib/provider-switch";
 import { AGENT_FALLBACK_ORDER } from "@/lib/agent-resolution";
@@ -71,14 +75,22 @@ export async function implementFeedback(
   if (!row) return { status: 404, body: { error: "Feedback not found" } };
   // The build runs on the project owner's builder and engine, so only the
   // owner's word starts it: whoever asks pays, in their own builder. Until
-  // 2026-10-20 an editor's tap here ran on the owner's subscription.
-  if (actorUserId !== row.ownerUserId)
-    return {
-      status: 403,
-      body: {
-        error: "Only the project's owner can start a build on their runner. Your ask is with them.",
-      },
-    };
+  // 2026-10-20 an editor's tap here ran on the owner's subscription. An
+  // editor may start one only where the owner granted it for this project
+  // (user_projects.editors_may_build, default off); every other seat never.
+  if (actorUserId !== row.ownerUserId) {
+    const grant = row.canEdit
+      ? await getUserProjectByEntityId(row.ownerUserId, row.feedback.projectId).catch(() => null)
+      : null;
+    if (grant?.editorsMayBuild !== true)
+      return {
+        status: 403,
+        body: {
+          error:
+            "Only the project's owner can start a build on their runner. Your ask is with them.",
+        },
+      };
+  }
   const executionUserId = row.ownerUserId;
 
   // Verify the project actually exists in user_projects before dispatching.

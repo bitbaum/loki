@@ -75,6 +75,20 @@ export const userProjects = pgTable(
      */
     autoShip: boolean("auto_ship"),
     /**
+     * An agent's report (source "agent", POST /api/projects/[id]/feedback)
+     * starts a build on the owner's builder without a tap. Three states like
+     * auto_ship: null = never chosen, false = off, true = on. Off is the
+     * effective default: filing alone never builds.
+     */
+    agentBuildsUnasked: boolean("agent_builds_unasked"),
+    /**
+     * Editors may start a build with POST /api/feedback/[id]/dispatch, on the
+     * OWNER's builder. Off (null/false) keeps "whoever asks pays, in their own
+     * builder" (2026-10-20): only the owner's word starts a build. The owner
+     * grants it per project, knowingly.
+     */
+    editorsMayBuild: boolean("editors_may_build"),
+    /**
      * How shared-package updates reach this project: "auto" (merge on green),
      * "ask" (each waits on Approvals) or "pinned" (nothing updates). Values and
      * their wording are SSOT in src/config/package-updates.ts; read it through
