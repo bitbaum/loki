@@ -16,9 +16,23 @@
 #   6. /opt/backups/pg dumps older than 14 days (KEEP_DAYS policy)
 #   7. only if still above 80%: node_modules of /home/ubuntu/dev checkouts
 #      idle ≥14 days and not in use
-#   Tier 8 (~/.cache / Playwright) is deliberately not in this script.
+#   8. container and system logs that have grown without bound
+#   9. leftover /opt/<app>/app-prev-* copies older than 14 days (never the
+#      live app or the rollback target)
+#  10. superseded browser downloads under ~/.cache (the newest of each kind
+#      is kept, so tests still find a browser)
+#  11. superseded versions of the agent CLIs (the two newest are kept)
+#  12. unreferenced packages in the pnpm store
+#  13. node_modules and build output inside checkouts and agent worktrees
+#      idle for 14 days and not in use (the code itself is never touched)
+#   Tiers 8-13 were written from the 2026-11-11 usage report: tiers 1-7 freed
+#   nothing that day because none of the 127G in use was where they look.
+#   NOT here, on purpose: database dumps (two systems keep them; which one
+#   stays is the owner's call) and Solon's places-snapshots (17G of source
+#   files that belong in object storage, not in a deletion).
 #
-# Stops as soon as df Use% for / is at or below 75%.
+# Stops as soon as df Use% for / is at or below TARGET_PCT (default 75; the
+# workflow can pass a lower one).
 #
 # NEVER touches: Docker volumes, Postgres data, running containers,
 # /opt/*/shared, the live /opt/*/app target, the previous release
@@ -30,13 +44,13 @@
 set -uo pipefail
 
 DRY="${1:-1}"
-TARGET_PCT=75
+TARGET_PCT="${2:-75}"
 TIER7_PCT=80
 KEEP_RELEASES=2
 KEEP_BACKUP_DAYS=14
 DOCKER_KEEP_HOURS=168
 IDLE_DAYS=14
-DEV_ROOT="/home/ubuntu/dev"
+DEV_ROOT="${DEV_ROOT:-/home/ubuntu/dev}"
 
 if [ "$DRY" != "0" ] && [ "$DRY" != "1" ]; then
   echo "usage: $0 [0|1]  (1=dry-run, 0=real)" >&2
@@ -53,6 +67,7 @@ fi
 DU_BUDGET=45
 sz() {
   local out
+  [ -e "$1" ] || { echo "absent"; return 0; }
   out="$(timeout "$DU_BUDGET" du -sh "$1" 2>/dev/null | awk '{print $1}')"
   echo "${out:-over ${DU_BUDGET}s}"
 }
@@ -386,6 +401,123 @@ if [ "${stop:-0}" != 1 ]; then
 fi
 
 echo
+# ── Tiers 8-13: what the 2026-11-11 usage report found ─────────────────────
+AGENT_HOME="${AGENT_HOME:-/home/ubuntu}"
+
+# True when the directory has had no file change for IDLE_DAYS and no running
+# process is working in it. Looks three levels deep, never into node_modules.
+idle_and_unused() {
+  local dir="$1" newest now idle
+  now="$(date +%s)"
+  newest="$(find "$dir" -maxdepth 3 -name node_modules -prune -o -type f -printf '%T@\n' 2>/dev/null | sort -rn | head -1 | cut -d. -f1)"
+  idle=$(( (now - ${newest:-0}) / 86400 ))
+  [ "$idle" -ge "$IDLE_DAYS" ] || return 1
+  ls -l /proc/[0-9]*/cwd 2>/dev/null | sed 's/^.* -> //' | grep -F -q -- "$dir" && return 1
+  return 0
+}
+
+# Remove every entry of a directory except the N newest (by modification time).
+keep_newest() {
+  local dir="$1" keep="$2" pattern="${3:-*}"
+  [ -d "$dir" ] || return 0
+  find "$dir" -mindepth 1 -maxdepth 1 -name "$pattern" -printf '%T@ %p\n' 2>/dev/null \
+    | sort -rn | tail -n +"$((keep + 1))" | cut -d' ' -f2- | while read -r old; do
+      [ -n "$old" ] || continue
+      if [ "$DRY" = "1" ]; then
+        echo "  DRY rm -rf $old  ($(sz "$old"))"
+      else
+        echo "  rm -rf $old"
+        rm -rf -- "$old"
+      fi
+    done
+}
+
+if [ "${stop:-0}" != 1 ]; then
+begin_tier "tier 8 logs grown without bound"
+if command -v docker >/dev/null 2>&1; then
+  find /var/lib/docker/containers -maxdepth 2 -name '*-json.log' -size +200M 2>/dev/null | while read -r log; do
+    if [ "$DRY" = "1" ]; then
+      echo "  DRY truncate $(basename "$log" | cut -c1-12)…-json.log  ($(sz "$log"))"
+    else
+      echo "  truncate $(basename "$log" | cut -c1-12)…-json.log"
+      truncate -s 0 "$log"
+    fi
+  done
+fi
+if [ -f /var/log/syslog ] && [ "$(stat -c %s /var/log/syslog 2>/dev/null || echo 0)" -gt 314572800 ]; then
+  run_or_echo "logrotate -f rsyslog (syslog is $(sz /var/log/syslog))" logrotate -f /etc/logrotate.d/rsyslog || true
+fi
+end_tier "tier8" || { stop=1; }
+fi
+
+if [ "${stop:-0}" != 1 ]; then
+begin_tier "tier 9 leftover app-prev-* copies older than ${IDLE_DAYS} days"
+for old in /opt/*/app-prev-*; do
+  [ -d "$old" ] || continue
+  resolved="$(readlink -f "$old" 2>/dev/null || echo "$old")"
+  if printf '%s' "${protected:-}" | grep -F -x -q -- "$resolved"; then
+    echo "  KEEP (live or rollback target): $old"
+    continue
+  fi
+  [ -n "$(find "$old" -maxdepth 0 -mtime +"$IDLE_DAYS" 2>/dev/null)" ] || { echo "  keep (recent): $old"; continue; }
+  if [ "$DRY" = "1" ]; then
+    echo "  DRY rm -rf $old  ($(sz "$old"))"
+  else
+    echo "  rm -rf $old"
+    rm -rf -- "$old"
+  fi
+done
+end_tier "tier9" || { stop=1; }
+fi
+
+if [ "${stop:-0}" != 1 ]; then
+begin_tier "tier 10 superseded browser downloads (newest of each kept)"
+keep_newest "$AGENT_HOME/.cache/puppeteer/chrome" 1
+keep_newest "$AGENT_HOME/.cache/puppeteer/chrome-headless-shell" 1
+for kind in chromium chromium_headless_shell firefox webkit ffmpeg; do
+  keep_newest "$AGENT_HOME/.cache/ms-playwright" 1 "${kind}-*"
+done
+end_tier "tier10" || { stop=1; }
+fi
+
+if [ "${stop:-0}" != 1 ]; then
+begin_tier "tier 11 superseded agent CLI versions (two newest kept)"
+keep_newest "$AGENT_HOME/.local/share/claude/versions" 2
+keep_newest "$AGENT_HOME/.local/share/cursor-agent/versions" 2
+end_tier "tier11" || { stop=1; }
+fi
+
+if [ "${stop:-0}" != 1 ]; then
+begin_tier "tier 12 unreferenced packages in the pnpm store"
+if [ "$DRY" = "1" ]; then
+  echo "DRY: pnpm store prune as ubuntu  (store is $(sz "$AGENT_HOME/.local/share/pnpm/store"))"
+else
+  sudo -iu ubuntu bash -lc 'command -v pnpm >/dev/null 2>&1 && pnpm store prune' 2>&1 | tail -3 || true
+fi
+end_tier "tier12" || { stop=1; }
+fi
+
+if [ "${stop:-0}" != 1 ]; then
+begin_tier "tier 13 dependencies and build output in idle checkouts and worktrees"
+for root in "$DEV_ROOT" "$AGENT_HOME/.loki/worktrees"; do
+  [ -d "$root" ] || continue
+  for d in "$root"/*/; do
+    [ -d "$d" ] || continue
+    d="${d%/}"
+    idle_and_unused "$d" || continue
+    find "$d" -maxdepth 4 -type d \( -name node_modules -o -name .next -o -name .turbo \) -prune 2>/dev/null | while read -r junk; do
+      if [ "$DRY" = "1" ]; then
+        echo "  DRY rm -rf $junk  ($(sz "$junk"))"
+      else
+        echo "  rm -rf $junk"
+        rm -rf -- "$junk"
+      fi
+    done
+  done
+done
+end_tier "tier13" || true
+fi
+
 echo "=== df -h (after) ==="
 df -h
 echo
