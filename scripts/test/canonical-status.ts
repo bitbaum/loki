@@ -10,6 +10,7 @@ import {
   CANONICAL_CAUSE,
   CANONICAL_STATE,
   canonicalStatus,
+  seatStatus,
 } from "../../src/lib/feedback/canonical-status";
 import {
   FEEDBACK_WORK_PHASE,
@@ -283,5 +284,29 @@ assert.ok(closed.reason && closed.nextAction.request === null);
 assert.equal(reporterStatusFor(DONE_WORK, { liveHref: LIVE.liveUrl }).state, S.DONE);
 assert.equal(reporterStatusFor(DONE_WORK).state, S.NEEDS_YOU);
 assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /feedbackId: feedback\.id/);
+
+// A Viewer seat that just filed (never dispatched) is not left with a bare
+// "Needs you": it gets the cause, a reason and a next step, and nothing of the
+// machine (no request, no evidence, no builder words).
+const filed = seatStatus(canonicalStatus(work({}), { liveUrl: null, feedbackId: "f1" }));
+assert.equal(filed.state, S.NEEDS_YOU);
+assert.equal(filed.cause, CANONICAL_CAUSE.AWAITING_IMPLEMENT);
+assert.ok(filed.reason && filed.reason.length > 0);
+assert.equal(filed.nextAction.who, "owner");
+assert.ok(filed.nextAction.label.length > 0);
+assert.ok(!("request" in filed.nextAction) && !("evidence" in filed));
+assert.doesNotMatch(JSON.stringify(filed), /dispatch|builder|runner|retry/i);
+for (const w of [
+  work({ phase: P.STUCK, rerouteTo: "cloud", commandId: "c1" }),
+  work({ phase: P.FAILED }),
+  work({ phase: P.ARCHIVED, waitingOn: "nobody" }),
+  DONE_WORK,
+]) {
+  const v = seatStatus(canonicalStatus(w, { liveUrl: null }));
+  if (v.state === S.NEEDS_YOU || v.state === S.FAILED) assert.ok(v.reason, `reason on ${v.cause}`);
+  assert.ok(v.nextAction.label);
+  assert.doesNotMatch(JSON.stringify(v), /builder|runner|retry|dispatch/i);
+}
+assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /seatStatus\(/);
 
 console.log("canonical-status ok");

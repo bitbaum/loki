@@ -77,7 +77,10 @@ at `POST /api/agent-tokens` with its own session. Any seat may file.
    Set `LOKI_URL` to the same origin the server is configured with.
 3. **Poll.** `GET <statusUrl>` (`/api/feedback/<id>/status`) with the same
    Bearer token, `Cache-Control: no-store`. A non-owner seat gets
-   `{id, source, state, label}` for a report it filed; another seat's report is
+   `{id, source, state, label, cause, reason, nextAction}` for a report it filed
+   (on Needs you the reason and next step are never empty: a filed, unstarted
+   report is `awaiting_implement`, "nothing to do, the owner decides"; no
+   request, no evidence); another seat's report is
    `404`. Owner and editor seats get the whole status: `cause`, `reason`,
    `nextAction` (with the exact `request` when there is one) and `evidence`.
 4. **Read the state.** `state` is one of `queued starting working needs_you

@@ -84,7 +84,9 @@ export async function walk(
       log(`Unknown state "${s.state}"`);
       return 3;
     }
-    const line = [s.state, s.label, s.cause, s.reason].filter(Boolean).join(" · ");
+    const line = [s.state, s.label, s.cause, s.reason, s.nextAction?.label]
+      .filter(Boolean)
+      .join(" · ");
     if (line !== last) log(line);
     last = line;
     if (s.state === "done") return 0;

@@ -4,7 +4,7 @@ import { getApiUserId } from "@/lib/session";
 import { getFeedbackWithProject } from "@/db/queries/site-feedback";
 import { getRunsByIdsForReporter } from "@/db/queries/orchestration-runs";
 import { attachFeedbackWork, runToFeedbackSnapshot } from "@/lib/feedback/attach-work";
-import { canonicalStatus } from "@/lib/feedback/canonical-status";
+import { canonicalStatus, seatStatus } from "@/lib/feedback/canonical-status";
 import { deriveFeedbackWork } from "@/lib/feedback/work-phase";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 
@@ -15,7 +15,8 @@ import { livePageHref } from "@/lib/feedback/fix-shipping";
  *
  * Two shapes, by seat, never one with holes: an owner or editor gets the
  * whole status (state, cause, nextAction, evidence); anyone else gets the
- * state and label of a report THEY filed, and nothing of the machine
+ * state, label, cause, a reason and a next step (seatStatus: never empty on
+ * Needs you) for a report THEY filed, and nothing of the machine
  * (reporter-view.ts keeps the same line). Anyone else's report is a 404.
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -49,9 +50,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const run = feedback.dispatchedRunId
     ? (await getRunsByIdsForReporter([feedback.dispatchedRunId])).get(feedback.dispatchedRunId)
     : null;
-  const { state, label } = canonicalStatus(
-    deriveFeedbackWork(feedback.status, runToFeedbackSnapshot(run)),
-    { liveUrl: livePageHref(row.liveUrl, feedback.url, feedback.page) },
+  const status = seatStatus(
+    canonicalStatus(deriveFeedbackWork(feedback.status, runToFeedbackSnapshot(run)), {
+      liveUrl: livePageHref(row.liveUrl, feedback.url, feedback.page),
+    }),
   );
-  return jsonOk({ id: feedback.id, source: feedback.source, state, label }, noStore);
+  return jsonOk({ id: feedback.id, source: feedback.source, ...status }, noStore);
 }
