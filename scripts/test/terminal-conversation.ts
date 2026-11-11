@@ -92,6 +92,14 @@ assert(!toolWasInterrupted({ ...tool, status: "error", result: "command exited 1
   assert.equal(shown.text, "Make these changes on this page, together:\n1. Add an H1.");
   assert.equal(shown.details, filed, "the diagnostics stay one tap away");
 }
+{
+  // The packet a retried dispatch sends, as production stored it on 2026-11-11.
+  const retried =
+    "## Escalation state (operator dispatch pipeline — rung 3/4: REPLAN)\nTHREE consecutive runs failed — the current approach is not working. Step back and re-plan: state in the session handoff why the previous attempts failed, choose a genuinely different approach or a much smaller verifiable step, and pursue that instead.\nLast recorded failure: Timed out — run exceeded maximum duration and was cleaned up\n\n## Task\nFix the sign-in page.\n\n## Exit contract (operator requirement)\nBefore stopping, create ~/.loki/sessions/orangecat.md.";
+  const shown = dispatchMessageDisplay(retried);
+  assert.equal(shown.text, "Fix the sign-in page.", "the person sees what they asked");
+  assert.equal(shown.details, retried, "the full packet stays one tap away");
+}
 console.log(
   "✓ dispatch presentation preserves requests; interruption, quiet and disconnected sessions report honest state",
 );
