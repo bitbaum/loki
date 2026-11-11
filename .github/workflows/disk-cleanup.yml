@@ -16,6 +16,10 @@ on:
         required: false
         default: true
         type: boolean
+      target_pct:
+        description: "Stop once the disk is at or below this percentage"
+        required: false
+        default: "75"
 
 concurrency:
   group: box-disk-cleanup
@@ -45,8 +49,10 @@ jobs:
       - name: Reclaim disk (or print the plan)
         env:
           DRY_RUN: ${{ inputs.dry_run }}
+          TARGET_PCT: ${{ inputs.target_pct }}
         run: |
           [ "$DRY_RUN" = "true" ] && D=1 || D=0
-          echo "dry_run=$DRY_RUN (script flag $D)"
+          case "$TARGET_PCT" in ''|*[!0-9]*) TARGET_PCT=75 ;; esac
+          echo "dry_run=$DRY_RUN (script flag $D), target ${TARGET_PCT}%"
           ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 \
-            "root@$HETZNER_IP" bash -s -- "$D" < scripts/hetzner/disk-cleanup.sh
+            "root@$HETZNER_IP" bash -s -- "$D" "$TARGET_PCT" < scripts/hetzner/disk-cleanup.sh
