@@ -8,7 +8,12 @@ import { getRecentOutcomesByProjectKeys } from "@/db/queries/orchestration-runs"
 import { listFeedbackSummary } from "@/db/queries/site-feedback";
 import { getOrangeCatLinksForUser } from "@/db/queries/orangecat-links";
 import { readSignedOrangeCatBody } from "@/lib/integrations/orangecat-webhook";
-import { isFreshIssuedAt, shapeActorStatus } from "@/lib/integrations/orangecat-actor-status";
+import {
+  isFreshIssuedAt,
+  shapeActorModelKeys,
+  shapeActorStatus,
+} from "@/lib/integrations/orangecat-actor-status";
+import { listOwnModels } from "@/db/queries/user-model-keys";
 
 /**
  * OrangeCat asks what is happening to one person's Loki projects, so its
@@ -39,12 +44,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, linked: false, projects: [] });
     }
 
-    const [own, org, states, feedback, links] = await Promise.all([
+    const [own, org, states, feedback, links, models] = await Promise.all([
       getUserProjects(user.id).catch(() => []),
       getOrgProjects(user.id).catch(() => []),
       getProjectStatesByUserId(user.id).catch(() => []),
       listFeedbackSummary(user.id).catch(() => []),
       getOrangeCatLinksForUser(user.id).catch(() => []),
+      listOwnModels(user.id).catch(() => []),
     ]);
     const projects = mergeVisibleProjects(own, org);
     const outcomes = await getRecentOutcomesByProjectKeys(
@@ -57,6 +63,8 @@ export async function POST(req: NextRequest) {
       linked: true,
       generatedAt: new Date().toISOString(),
       projects: shapeActorStatus({ projects, states, outcomes, feedback, links }),
+      // Names only, never a key (shapeActorModelKeys).
+      modelKeys: shapeActorModelKeys(models),
     });
   } catch (err) {
     console.error("[orangecat/actor-status] failed:", (err as Error).message);
