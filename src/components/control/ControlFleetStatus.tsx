@@ -12,6 +12,8 @@ import { RUNNER_STATE_DEFINITIONS, deriveRunnerStateKey } from "@/lib/control-st
 import { builderCompactLabel, builderPresenceDetail } from "@/lib/builder-presence";
 import type { BuilderChannelPresence } from "@/lib/builder-presence";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { NAV } from "@/config/navigation";
+import { runningNow } from "@/lib/running-now";
 
 /** How long a queue action's report stays under the hero. */
 const QUEUE_NOTICE_MS = 15_000;
@@ -46,7 +48,6 @@ const COUNT_SCOPE_TITLE =
  * A narrow number that presents as a total is the thing to fix, and until the
  * runner can read the live-session registry, saying so is the fix available.
  */
-const COUNT_SCOPE_SHORT = "Counts only agents Loki started";
 
 type Props = {
   dashboard: ControlDashboardState | null;
@@ -145,11 +146,11 @@ export function ControlFleetStatus({
   // numbers.
   const ready = dashboard?.waitingCount ?? 0; // agent done, awaiting next step
   const working = dashboard?.runningCount ?? 0;
-  const idle = dashboard?.idleCount ?? 0; // inert: not_running / tab_open / closing / completed
   // Before the runner's first push every project reads `offline`, so the triad
   // is 0/0/0 — which is also exactly the "All clear" condition. Say "checking"
   // instead of announcing a calm fleet we know nothing about.
   const countsKnown = dashboard?.countsKnown ?? false;
+  const now = runningNow({ working, waiting: ready });
 
   // SSOT: label/description/problem-CTA all come from RUNNER_STATE_DEFINITIONS
   // (lib/control-states.ts). Hand-rolled label trees that drifted between this
@@ -464,39 +465,27 @@ export function ControlFleetStatus({
         </span>
         {countsKnown && (
           <span
-            className={cn("ui-hero-counts", staleClass)}
+            className={cn("ui-hero-counts basis-full", staleClass)}
             title={staleTitle ?? COUNT_SCOPE_TITLE}
+            role="status"
           >
-            {working > 0 && onFocusCategory ? (
-              <button
-                type="button"
-                onClick={() => onFocusCategory("working")}
-                className="ui-hero-count-link"
-              >
-                {working} working
-              </button>
-            ) : (
-              <>{working} working</>
+            {now.headline}
+            {now.working > 0 && now.waiting > 0 && ` · ${now.waiting} waiting for your reply`}
+            {". "}
+            {now.working > 0 && (
+              <Link href={NAV.terminal.href} className="ui-hero-count-link">
+                Watch
+              </Link>
             )}
-            {" · "}
-            {ready > 0 && onFocusCategory ? (
+            {now.working === 0 && now.waiting > 0 && onFocusCategory && (
               <button
                 type="button"
                 onClick={() => onFocusCategory("waiting")}
                 className="ui-hero-count-link"
               >
-                {ready} awaiting input
+                Reply
               </button>
-            ) : (
-              <>{ready} awaiting input</>
             )}
-            {" · "}
-            {idle} idle
-          </span>
-        )}
-        {countsKnown && (
-          <span className="ui-hero-count-scope" title={COUNT_SCOPE_TITLE}>
-            {COUNT_SCOPE_SHORT}
           </span>
         )}
         {versionDetail && <span className="ui-hero-sync hidden sm:inline">{versionDetail}</span>}

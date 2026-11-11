@@ -5537,16 +5537,6 @@
   .ui-hero-runner {
     @apply inline-flex items-start gap-1.5 font-medium;
   }
-  /* The qualifier that makes the counts honest. Quiet, but PRESENT — it used
-     to be a `title` tooltip, which a phone cannot show at all. */
-  .ui-hero-count-scope {
-    /* Not the smallest size. The first attempt used the old 8px "nano" —
-       passing contrast while being unreadable, which repeats the defect this
-       line exists to fix: an honest caveat delivered where it cannot be read.
-       `basis-full` puts it on its own line inside the flex row rather than
-       crushed against "20 idle". */
-    @apply basis-full text-xs text-text-muted;
-  }
   .ui-hero-counts {
     @apply text-text-secondary;
   }
