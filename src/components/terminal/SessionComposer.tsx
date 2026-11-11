@@ -7,7 +7,7 @@ import { Composer } from "@/components/composer/Composer";
 import type { Attachment } from "@/components/loki/types";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
-import { dispatchToneDotClass } from "@/lib/dispatch-status";
+import { dispatchFailureForPerson, dispatchToneDotClass } from "@/lib/dispatch-status";
 import { commandIn } from "@/lib/terminal-commands";
 import { stepLabel } from "@/lib/terminal-suggestions";
 import { ESC, typeCommand, typeMessage } from "@/lib/session-keystrokes";
@@ -26,7 +26,7 @@ const ATTACH_TRIGGER = '.ck-tools > .ck-icon-btn[aria-haspopup="dialog"]:not(.ui
 
 type Sent =
   | { kind: "typed"; what: string }
-  | { kind: "queued"; commandId: string | null; runId: string | null };
+  | { kind: "queued"; commandId: string | null; runId: string | null; text: string };
 
 /**
  * THE box for talking to the agent in a session — in the terminal view and
@@ -215,6 +215,7 @@ export function SessionComposer({
         kind: "queued",
         commandId: typeof data.commandId === "string" ? data.commandId : null,
         runId: typeof data.runId === "string" ? data.runId : null,
+        text: message,
       });
       return true;
     } catch (e) {
@@ -243,6 +244,10 @@ export function SessionComposer({
     ? suggestions.filter((s) => !asksForFeedbackAccess(s))
     : suggestions;
 
+  // A failed task says why, and hands the words back: the box was emptied on
+  // send, so without this a failure cost the person what they had written.
+  const failed = queued && dispatch?.tone === "negative" ? dispatch : null;
+  const failedWhy = failed ? dispatchFailureForPerson(failed.detail) : null;
   const status = sent ? (
     <div className="ui-session-status" role="status">
       <span
@@ -255,7 +260,20 @@ export function SessionComposer({
           ? `Typed ${sent.what} into the terminal.`
           : (dispatch?.label ??
             `Sent as a task — it starts ${agentLabel} in ${projectLabel}, or waits for the runner.`)}
+        {failedWhy && <span className="block text-text-tertiary">{failedWhy}</span>}
       </span>
+      {failed && queued && !text.trim() && (
+        <button
+          type="button"
+          className="ui-btn-ghost ui-tap shrink-0"
+          onClick={() => {
+            setText(queued.text);
+            setSent(null);
+          }}
+        >
+          Put my words back
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setSent(null)}

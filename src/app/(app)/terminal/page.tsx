@@ -3,8 +3,9 @@ import { Suspense } from "react";
 import { TerminalPageClient } from "@/components/terminal/TerminalPageClient";
 import { PageHead, PageTitle } from "@/components/ui/page-title";
 import { isRuntimeAvailable } from "@/lib/runtime";
+import { NAV } from "@/config/navigation";
 
-export const metadata: Metadata = { title: "Sessions" };
+export const metadata: Metadata = { title: NAV.terminal.label };
 
 export default function TerminalPage() {
   const local = isRuntimeAvailable();
@@ -19,12 +20,12 @@ export default function TerminalPage() {
       className="app-page app-page-compact app-viewport-pane flex flex-col gap-3 md:gap-4"
     >
       {/* The page's one title, named as the nav names it. On a phone the top
-          bar already says "Sessions", so it is read there, not drawn. It
+          bar already says it, so it is read there, not drawn. It
           used to be "Live Terminal – AI Agent Sessions" over a sentence
           explaining the page (design reset rules 1 and 2). */}
-      <PageHead title="Sessions" onlyTitle>
+      <PageHead title={NAV.terminal.label} onlyTitle>
         <div className="ui-page-header">
-          <PageTitle title="Sessions" />
+          <PageTitle title={NAV.terminal.label} />
         </div>
       </PageHead>
       <Suspense

@@ -23,6 +23,7 @@ import {
 } from "@/lib/terminal-suggestions";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { useStableSteps } from "@/hooks/use-stable-steps";
+import { runAction, screenActions } from "@/lib/terminal-commands";
 import { SessionComposer } from "./SessionComposer";
 import { ReplySteps } from "./SuggestionChips";
 import { SessionInfo, sessionInfoFrom } from "./SessionInfo";
@@ -98,6 +99,14 @@ export function ClaudeChatView({
   // A usage limit is answered with Claude Code's own commands, not sentences.
   const limited = limitSteps(reply, "claude");
   const suggestions = limited.length > 0 ? limited : stable;
+  // The agent is signed out: nothing else can happen until it signs in, so
+  // that is the one thing offered. The terminal view has had this button
+  // (TerminalActions); this view, the one a session opens in, showed only the
+  // agent's own words, "Please run /login", and chips that would fail the same
+  // way (owner on a phone, 2026-11-11: could not find how to sign in).
+  const signIn = reply
+    ? (screenActions(reply.split("\n"), "claude").find((a) => a.typed === "/login") ?? null)
+    : null;
   // A reply row pressed under the answer: sent by the box, the one send path.
   const [sendRequest, setSendRequest] = useState<{ text: string; nonce: number } | null>(null);
   // How long this turn has been going, from your last message — the Claude
@@ -149,7 +158,27 @@ export function ClaudeChatView({
           ) : (
             blocks.map((block) => <Block key={blockKey(block)} block={block} />)
           )}
-          {!working && (
+          {!working && signIn && (
+            <section className="ui-term-actions" aria-label="Claude needs you to sign in">
+              <p className="ui-term-actions-why">
+                <span>
+                  Claude is signed out here, so it cannot work until you sign in again. This opens
+                  the terminal and prints a link: open it, approve, and paste the code back.
+                </span>
+              </p>
+              <button
+                type="button"
+                className="ui-btn-primary ui-tap"
+                onClick={() => {
+                  void runAction(onKey, signIn);
+                  onShowTerminal();
+                }}
+              >
+                Sign Claude in
+              </button>
+            </section>
+          )}
+          {!working && !signIn && (
             <ReplySteps
               steps={suggestions}
               onPick={(text) => setSendRequest({ text, nonce: Date.now() })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Loader2, MessageSquare, Pin, PinOff, SquarePen, Trash2 } from "lucide-react";
 import { LokiPaneBody } from "./LokiPaneBody";
 import { shortTimeAgo } from "@/lib/dates";
@@ -19,6 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Segmented } from "@/components/ui/segmented";
 import type { ConversationSummary } from "./types";
 import { filterByQuery, type SearchSpec } from "@/lib/search";
+import { CHAT_PLACES } from "@/config/navigation";
 
 /** "Search chats": the title, then the projects a chat was about. */
 const CHAT_SEARCH_SPEC: SearchSpec<ConversationSummary> = {
@@ -252,6 +254,17 @@ export function ThreadRail({
         <SquarePen className="h-5 w-5 shrink-0" aria-hidden />
         <span>New chat</span>
       </button>
+      {/* Phones only: this panel is what the chat screen's left button opens,
+          and with the tab bar hidden there it held chats and no way to any
+          other page (owner, 2026-11-11). From md up the sidebar does this. */}
+      <nav aria-label="Go to" className="md:hidden">
+        {CHAT_PLACES.map((place) => (
+          <Link key={place.id} href={place.href} className="ui-loki-rail-new">
+            <place.icon className="h-5 w-5 shrink-0" aria-hidden />
+            <span>{place.label}</span>
+          </Link>
+        ))}
+      </nav>
 
       <div className="ui-loki-rail-scroll">
         {conversations.length >= SEARCH_THRESHOLD && (

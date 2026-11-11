@@ -3,6 +3,7 @@ import type { RunTrack } from "@/lib/run-track";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
+import { AGENT_LABELS } from "@/lib/agent-labels";
 
 export type DispatchStatusInput = {
   ok?: boolean;
@@ -329,6 +330,29 @@ export function deriveDispatchLiveStatus(
         terminal: true,
       };
   }
+}
+
+/**
+ * A failed dispatch's reason, in the words of the person who sent it.
+ *
+ * The runner's detail is written for whoever administers the builder ("remove
+ * any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN").
+ * The workbench showed none of it: a task sent from there on 2026-11-11 came
+ * back as the two words "Dispatch failed" while the header still read "Waiting
+ * for a runner", and the reason sat unread in this API's own response. A
+ * signed-out agent is the one cause common enough to say plainly; anything
+ * else is passed through as the runner wrote it, which still beats silence.
+ */
+export function dispatchFailureForPerson(detail: string | null | undefined): string | null {
+  const text = detail?.trim();
+  if (!text) return null;
+  const signedOut = /^([a-z][\w-]*) is not authenticated/i.exec(text);
+  if (signedOut) {
+    const id = signedOut[1].toLowerCase();
+    const name = (AGENT_LABELS as Record<string, string>)[id] ?? signedOut[1];
+    return `${name} is signed out on the builder, so nothing ran and nothing is lost. Sign it in again there, or send this to another agent.`;
+  }
+  return text;
 }
 
 // ── Shared presentation helpers ───────────────────────────────────────────

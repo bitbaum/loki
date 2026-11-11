@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { NAV } from "@/config/navigation";
+import { CHAT_PLACES } from "@/config/navigation";
 import { openFeedback } from "@/lib/open-feedback";
 import { MobileNavSheet } from "@/components/shell/MobileNavSheet";
 import { TEMPORARY_CHAT_NOTE } from "@/lib/loki/temporary-chat";
@@ -107,7 +107,11 @@ export function WorkspaceStartHeader({
         onOpenProjects={onOpenProjects}
         temporary={temporary}
         onToggleTemporary={onToggleTemporary}
-        onGoHome={() => router.push(NAV.control.href)}
+        places={CHAT_PLACES.map((nav) => ({
+          label: nav.label,
+          icon: nav.icon,
+          go: () => router.push(nav.href),
+        }))}
         onOpenMore={() => setMoreOpen(true)}
         onReportProblem={() => openFeedback(() => router.push("/support"))}
       />
