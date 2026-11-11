@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.64",
+    tag: "fleet-runner-v0.8.64",
+    date: "2026-11-11T14:00:00Z",
+    highlights: [
+      "The cloud builder keeps at most eight agent sessions open at once and says so when you ask for a ninth. Your own computer is not limited.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.63",
     tag: "fleet-runner-v0.8.63",
     date: "2026-11-01T20:00:00Z",
