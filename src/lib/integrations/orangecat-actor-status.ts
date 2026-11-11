@@ -124,3 +124,35 @@ export function attention(p: ActorProjectStatus): number {
   if (p.liveUrl) return 20;
   return 0;
 }
+
+/** A provider key the person brought to Loki, as OrangeCat may know it. */
+export interface ActorModelKey {
+  /** Loki's vendor id ("xai", "openrouter", …). */
+  vendor: string;
+  model: string;
+  /** "…abcd": the last characters only. */
+  keyHint: string;
+}
+
+/**
+ * Which provider keys this person holds on Loki, by NAME ONLY.
+ *
+ * The owner's xAI key was on Loki and not on OrangeCat (2026-11-11): Loki's
+ * chat answered on grok while OrangeCat's Cat, for the same linked person, sat
+ * on an exhausted free pool, and neither product could say the other had a
+ * key. This lets OrangeCat say so. It is deliberately not a way to fetch a
+ * key: the input type has no key in it, so no caller can pass one through.
+ * `custom` endpoints are left out: their host is the person's own.
+ */
+export function shapeActorModelKeys(
+  rows: Array<{ vendor: string; model: string; keyHint: string }>,
+): ActorModelKey[] {
+  const seen = new Set<string>();
+  const out: ActorModelKey[] = [];
+  for (const row of rows) {
+    if (row.vendor === "custom" || seen.has(row.vendor)) continue;
+    seen.add(row.vendor);
+    out.push({ vendor: row.vendor, model: row.model, keyHint: row.keyHint });
+  }
+  return out;
+}
