@@ -8,7 +8,6 @@ import {
   FolderKanban,
   Ghost,
   History,
-  Home,
   LayoutGrid,
   MoreVertical,
   MessageSquareWarning,
@@ -17,6 +16,7 @@ import {
   Pin,
   PinOff,
   SquarePen,
+  type LucideIcon,
 } from "lucide-react";
 import { ThreadTitle } from "./ThreadTitle";
 import { projectTitle } from "@/lib/project-display";
@@ -44,7 +44,7 @@ export function ThreadHeader({
   onOpenLokis,
   onNewChat,
   onOpenProjects,
-  onGoHome,
+  places,
   onOpenMore,
   temporary = false,
   onToggleTemporary,
@@ -64,8 +64,13 @@ export function ThreadHeader({
   onOpenLokis: () => void;
   onNewChat: () => void;
   onOpenProjects: () => void;
-  /** The start screen's way out, with the app bars gone: Home, and every page. */
-  onGoHome?: () => void;
+  /**
+   * The start screen's way to the rest of the app, by name. The app bars are
+   * gone on a phone here, so this menu IS the navigation: it listed "Projects"
+   * (which only set the chat's project) and "Everything else", and a person
+   * looking for the terminal found neither word (owner, 2026-11-11).
+   */
+  places?: { label: string; icon: LucideIcon; go: () => void }[];
   onOpenMore?: () => void;
   /** The next chat (start screen) or this one (thread) is temporary:
    *  never listed, gone when the person leaves it (lib/loki/temporary-chat). */
@@ -169,7 +174,7 @@ export function ThreadHeader({
             <div className="ui-menu" role="menu">
               {item("New chat", SquarePen, onNewChat)}
               {inThread && item("All chats", History, onOpenLokis)}
-              {item("Projects", FolderKanban, onOpenProjects)}
+              {item("Choose a project for this chat", FolderKanban, onOpenProjects)}
               {onToggleTemporary && (
                 <button
                   type="button"
@@ -186,8 +191,10 @@ export function ThreadHeader({
                   {temporary && <Check className="ml-auto h-4 w-4" aria-hidden />}
                 </button>
               )}
-              {onGoHome && item("Home", Home, onGoHome)}
-              {onOpenMore && item("Everything else", LayoutGrid, onOpenMore)}
+              {places && places.length > 0 && <div className="ui-menu-separator" />}
+              {places?.map((place) => item(place.label, place.icon, place.go))}
+              {onOpenMore && item("All pages", LayoutGrid, onOpenMore)}
+              {places && places.length > 0 && <div className="ui-menu-separator" />}
               {onReportProblem && item("Report a problem", MessageSquareWarning, onReportProblem)}
               {onSaveContext && item("Save to project context", BookmarkPlus, onSaveContext)}
               {onTogglePin &&

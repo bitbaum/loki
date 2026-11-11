@@ -7,7 +7,7 @@
  * Run: npx tsx scripts/test/terminal-session-status.ts
  */
 import type { FastProjectState } from "@/lib/control-fast-state";
-import { isNewsworthy, sessionStatusOf } from "@/lib/terminal-session-status";
+import { orderSessions, isNewsworthy, sessionStatusOf } from "@/lib/terminal-session-status";
 
 let failures = 0;
 function check(name: string, fn: () => void) {
@@ -80,6 +80,35 @@ check("starting to wait on the person is news", () => {
 });
 check("the first report of a session is never news", () => {
   assert(!isNewsworthy(undefined, "needs-you"), "first sight should be quiet");
+});
+
+check("the session list leads with what needs the person and folds the quiet ones", () => {
+  const tabs = [
+    { id: "loki-2", status: "idle" as const },
+    { id: "loki-3", status: null },
+    { id: "kivvi", status: "needs-you" as const },
+    { id: "loki-4", status: "idle" as const },
+    { id: "bias", status: "working" as const },
+    { id: "loki-5", status: "idle" as const },
+    { id: "solon", status: "done" as const },
+    { id: "loki-6", status: "idle" as const },
+  ];
+  const { first, quiet } = orderSessions(tabs, "loki-4");
+  assert(
+    first.map((t) => t.id).join(",") === "kivvi,bias,solon,loki-4",
+    `needs-you, working, finished, then the one in use: got ${first.map((t) => t.id)}`,
+  );
+  assert(quiet.length === 4 && !quiet.some((t) => t.id === "loki-4"), "the rest wait");
+});
+check("a few quiet sessions are simply listed", () => {
+  const { first, quiet } = orderSessions(
+    [
+      { id: "a", status: "idle" as const },
+      { id: "b", status: "needs-you" as const },
+    ],
+    null,
+  );
+  assert(first.map((t) => t.id).join(",") === "b,a" && quiet.length === 0, "nothing folded");
 });
 
 if (failures) {

@@ -147,6 +147,16 @@ async function main(): Promise<void> {
   assert.ok(!isFreshIssuedAt("not a date", now));
   console.log("  ✓ freshness window");
 
+  const { shapeActorModelKeys } = await import("../../src/lib/integrations/orangecat-actor-status");
+  const keys = shapeActorModelKeys([
+    { vendor: "xai", model: "grok-4.7", keyHint: "…VWhN" },
+    { vendor: "xai", model: "grok-4.6", keyHint: "…VWhN" },
+    { vendor: "custom", model: "local", keyHint: "no key" },
+  ]);
+  assert.deepEqual(keys, [{ vendor: "xai", model: "grok-4.7", keyHint: "…VWhN" }]);
+  assert.ok(!JSON.stringify(keys).includes("sealed"), "nothing but the name and the hint");
+  console.log("  ✓ model keys cross as a vendor name and a hint, one per vendor, never custom");
+
   // ── refusals (no database) ─────────────────────────────────────────────────
 
   const { POST } = await import("../../src/app/api/orangecat/actor-status/route");

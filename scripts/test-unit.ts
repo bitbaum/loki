@@ -105,6 +105,8 @@ const baseArgs = existsSync(TSX_BIN) ? [] : ["tsx"];
  * open socket, and a handler that politely waits for it would hang too.
  */
 const FILE_TIMEOUT_MS = Number(process.env.UNIT_TEST_TIMEOUT_MS ?? 120_000);
+/** How much of a failed file's output is shown: enough for an assertion and its stack. */
+const FAIL_TAIL_LINES = 40;
 
 function run(file: string): Promise<{ file: string; ok: boolean; tail: string }> {
   return new Promise((resolve) => {
@@ -136,7 +138,11 @@ function run(file: string): Promise<{ file: string; ok: boolean; tail: string }>
     child.stderr.on("data", (d) => (out += d));
     child.on("error", (err) => finish({ file, ok: false, tail: `spawn error: ${err.message}` }));
     child.on("close", (code) => {
-      const tail = out.trim().split("\n").slice(-1)[0] ?? "";
+      // The end of what the file printed, not its last line. An uncaught
+      // assertion ends in its stack and a closing brace, so one line was
+      // "    }": CI named terminal-idle-browser as failed three times on
+      // 2026-11-11 and never once said why.
+      const tail = out.trim().split("\n").slice(-FAIL_TAIL_LINES).join("\n    ");
       finish({ file, ok: code === 0, tail });
     });
   });

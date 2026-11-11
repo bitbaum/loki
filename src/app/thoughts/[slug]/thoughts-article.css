@@ -31,9 +31,9 @@
   --bp-accent-contrast: var(--accent-foreground);
 }
 
-/* The one place the warm brand accent belongs in an essay. */
+/* Reading progress: the same achromatic accent as every filled action. */
 .bp-progress-bar {
-  background: var(--accent-warm);
+  background: var(--accent-primary);
 }
 
 /* A closed technical section (components/thoughts/DeepBlock): the one line

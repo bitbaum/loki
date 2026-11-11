@@ -108,7 +108,10 @@ export const NAV = {
   },
   terminal: {
     id: "terminal",
-    label: "Sessions",
+    // "Terminal" is the word people look for. It was "Sessions" from
+    // 2026-10-19, and on 2026-11-11 the owner, signed in on a phone, could not
+    // find the terminal anywhere: no menu said the word.
+    label: "Terminal",
     description: "Your agents at work — read one as a chat, or watch its terminal",
     href: "/terminal",
     icon: SquareTerminal,
@@ -494,6 +497,13 @@ export const FLEET_SURFACES = [
   { id: "control", href: NAV.control.href, label: NAV.control.label },
   { id: "terminal", href: NAV.terminal.href, label: NAV.terminal.label },
 ] as const;
+
+/**
+ * The places named on the phone's chat screen, where the tab bar is hidden
+ * (useImmersiveChat): in its menu and at the top of its chats panel. One list,
+ * so the two ways out of the chat cannot name different places.
+ */
+export const CHAT_PLACES: NavItem[] = [NAV.control, NAV.projects, NAV.terminal];
 
 // Explicit order: what you open first is first.
 export const MOBILE_NAV_ITEMS: NavItem[] = [NAV.loki, NAV.control, NAV.projects];

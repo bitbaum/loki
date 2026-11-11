@@ -73,10 +73,17 @@ export function stripHarnessScaffolding(text: string): string {
 // verbatim buried the Activity timeline under three full copies of the
 // pipeline's guts. Detect it and collapse to the intent label instead.
 const OPERATOR_ENVELOPE = /#\s*Loki operator dispatch/i;
+const ESCALATION_OPENING = /^\s*##[ \t]*Escalation state\b/i;
 export function isOperatorEnvelope(text: string): boolean {
   return (
     OPERATOR_ENVELOPE.test(text.slice(0, 200)) ||
-    (/^##[ \t]*Task[ \t]*\n/m.test(text.slice(0, 200)) && EXIT_CONTRACT_PATTERN.test(text))
+    (/^##[ \t]*Task[ \t]*\n/m.test(text.slice(0, 200)) && EXIT_CONTRACT_PATTERN.test(text)) ||
+    // A retried dispatch opens with the escalation block, which is longer than
+    // the 200 characters the two checks above read, so the "## Task" under it
+    // was never seen and the whole packet was shown as the person's message:
+    // "Escalation state (operator dispatch pipeline — rung 3/4: REPLAN)" in
+    // the owner's own chat bubble (2026-11-11).
+    (ESCALATION_OPENING.test(text) && EXIT_CONTRACT_PATTERN.test(text))
   );
 }
 

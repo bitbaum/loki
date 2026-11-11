@@ -32,10 +32,22 @@ function runTests(): void {
     assert(ROUTES.RUNNER_HOME.startsWith("/"), "RUNNER_HOME must be a path");
   });
 
-  check("browsers still get the marketing page", () => {
+  check("a signed-in browser lands in the app, not on the pitch", () => {
+    const to = landingRedirect({ insideRunner: false, signedIn: true, params: {} });
+    assert(to === ROUTES.APP_HOME, `expected ${ROUTES.APP_HOME}, got ${to}`);
+  });
+
+  check("a signed-out browser still gets the marketing page", () => {
     assert(
-      landingRedirect({ insideRunner: false, signedIn: true, params: {} }) === null,
-      "browser must not redirect",
+      landingRedirect({ insideRunner: false, signedIn: false, params: {} }) === null,
+      "signed-out browser must not redirect",
+    );
+  });
+
+  check("?site opens the real homepage for a signed-in browser too", () => {
+    assert(
+      landingRedirect({ insideRunner: false, signedIn: true, params: { site: "1" } }) === null,
+      "?site must not redirect",
     );
   });
 

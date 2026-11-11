@@ -1,0 +1,42 @@
+# What uses the bitbaum box's memory and disk. Read-only.
+#
+# Same SSH setup as box-doctor.yml and disk-cleanup.yml (repo secret
+# HETZNER_SSH_KEY, org variable HETZNER_IP). The script is piped to bash on
+# the box as root, measures, prints, and changes nothing. It prints sizes,
+# counts and program names only: this repo is public, so its run logs are too.
+#
+# Run:  gh workflow run box-usage.yml
+name: Box usage
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: box-usage
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  usage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Measure memory and disk (changes nothing)
+        run: |
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 \
+            "root@$HETZNER_IP" bash -s < scripts/hetzner/box-usage.sh
