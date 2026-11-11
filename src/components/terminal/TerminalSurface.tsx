@@ -721,8 +721,16 @@ export function TerminalSurface({
         const runsOn = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
         return (
           <div className="ui-term-nothing-open">
+            {/* The fact first. The heading was "Pick up where you left off"
+                over rows of project names, and the owner, looking at it after
+                a restart had ended every session, could not tell whether
+                anything was running (2026-11-11). */}
+            <p className="ui-page-subtitle mb-0" role="status">
+              Nothing is running right now. No agent is working on{" "}
+              {source === "machine" ? "your computer" : "the cloud builder"}.
+            </p>
             <SectionHeading
-              title="Pick up where you left off"
+              title="Start one where you left off"
               right={
                 runsOn.length > 1 ? (
                   <ChoiceMenu
