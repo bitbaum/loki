@@ -77,5 +77,39 @@ find / -xdev -type d -path '*volumes/storage*' -maxdepth 6 2>/dev/null | head -3
   printf '%s\t%s\n' "$(du -xsh "$d" 2>/dev/null | cut -f1)" "$d"
 done
 
+# One level further into the directories the first report showed were large
+# but did not explain (2026-11-11: /opt/solon 18G with two releases, 22G of
+# caches under /home/ubuntu, 16G of checkouts). Each listing gets a time
+# budget: on a disk full of node_modules an unbounded du runs for minutes.
+drill() {
+  local dir="$1" depth="${2:-1}" rows="${3:-12}"
+  [ -d "$dir" ] || return 0
+  section "disk: inside $dir"
+  timeout 90 du -xh --max-depth="$depth" "$dir" 2>/dev/null | sort -rh | head -"$rows" \
+    || echo "(over 90s, skipped)"
+}
+drill /opt/solon 2 16
+drill /opt/loki 2 16
+drill /opt/kivvi 2 8
+drill /opt/backups 2 8
+drill /home/ubuntu/.local 3 14
+drill /home/ubuntu/.cache 2 14
+drill /home/ubuntu/.loki 2 14
+drill /home/ubuntu/dev 1 46
+drill /var/lib/containerd 2 8
+drill /usr 1 8
+
+section "disk: build output and dependencies inside checkouts"
+for kind in node_modules .next .turbo; do
+  count="$(timeout 60 find /home/ubuntu/dev /home/ubuntu/.loki -maxdepth 6 -type d -name "$kind" -prune 2>/dev/null | wc -l)"
+  printf '%s directories named %s\n' "$count" "$kind"
+done
+
+section "disk: other large files"
+ls -lh /swapfile 2>/dev/null | awk '{print $5, $9}'
+timeout 60 find / -xdev -type f -size +500M 2>/dev/null | head -15 | while read -r f; do
+  printf '%s\t%s\n' "$(du -h "$f" 2>/dev/null | cut -f1)" "$f"
+done
+
 echo
 echo "box-usage: done, nothing changed"
