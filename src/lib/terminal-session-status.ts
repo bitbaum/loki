@@ -42,3 +42,32 @@ export function isNewsworthy(
   if (!after || before === after || !before) return false;
   return after === "needs-you" || (after === "done" && before === "working");
 }
+
+/** Fewer quiet sessions than this are simply listed; folding three rows is busywork. */
+const QUIET_FOLD_MIN = 4;
+
+const ATTENTION: Record<SessionStatus, number> = { "needs-you": 0, working: 1, done: 2, idle: 3 };
+
+/**
+ * The session list in the order a person needs it, and what can wait.
+ *
+ * The phone's picker listed every open session in the order it was opened: 27
+ * rows, "Loki 2" to "Loki 15", with the three that needed the owner somewhere
+ * among them (2026-11-11). `first` is what is worth reading now: sessions
+ * waiting on the person, then working, then finished, plus the one in use.
+ * `quiet` is the rest (open, nothing happening), shown on request.
+ */
+export function orderSessions<T extends { id: string; status?: SessionStatus | null }>(
+  tabs: readonly T[],
+  activeId: string | null,
+): { first: T[]; quiet: T[] } {
+  const rank = (t: T) => (t.status ? ATTENTION[t.status] : ATTENTION.idle);
+  const sorted = tabs
+    .map((tab, index) => ({ tab, index }))
+    .sort((a, b) => rank(a.tab) - rank(b.tab) || a.index - b.index)
+    .map(({ tab }) => tab);
+  const isQuiet = (t: T) => t.id !== activeId && rank(t) === ATTENTION.idle;
+  const quiet = sorted.filter(isQuiet);
+  if (quiet.length < QUIET_FOLD_MIN) return { first: sorted, quiet: [] };
+  return { first: sorted.filter((t) => !isQuiet(t)), quiet };
+}

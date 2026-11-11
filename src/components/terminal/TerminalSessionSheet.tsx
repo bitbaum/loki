@@ -7,7 +7,11 @@ import { List, ListRow } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
 import type { AgentEntry } from "@/components/control/agent-switcher-popover";
 import { TERMINAL_SOURCES, type TerminalSource } from "@/config/terminal-modes";
-import { SESSION_STATUS_WORDS, type SessionStatus } from "@/lib/terminal-session-status";
+import {
+  orderSessions,
+  SESSION_STATUS_WORDS,
+  type SessionStatus,
+} from "@/lib/terminal-session-status";
 
 export type SheetTab = {
   id: string;
@@ -84,6 +88,11 @@ export function TerminalSessionSheet({
     const t = setTimeout(() => setArmed(null), 3000);
     return () => clearTimeout(t);
   }, [armed]);
+  // What needs the person first; sessions that are merely open wait behind
+  // one row (orderSessions).
+  const [showQuiet, setShowQuiet] = useState(false);
+  const ordered = orderSessions(tabs ?? [], activeTab);
+  const listed = showQuiet ? [...ordered.first, ...ordered.quiet] : ordered.first;
   const sourceOptions = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
   const check = <Check className="h-5 w-5 text-text-primary" aria-label="In use" />;
 
@@ -104,7 +113,7 @@ export function TerminalSessionSheet({
         {tabs && onSelectTab && (
           <Section title="Open now">
             <List>
-              {tabs.map((tab) => (
+              {listed.map((tab) => (
                 <ListRow
                   key={tab.id}
                   icon={SquareTerminal}
@@ -148,6 +157,14 @@ export function TerminalSessionSheet({
                   }
                 />
               ))}
+              {!showQuiet && ordered.quiet.length > 0 && (
+                <ListRow
+                  icon={SquareTerminal}
+                  title={`${ordered.quiet.length} more open sessions`}
+                  secondary="Open, with nothing happening in them"
+                  onClick={() => setShowQuiet(true)}
+                />
+              )}
               {onNewSession && (
                 <ListRow
                   icon={Plus}
