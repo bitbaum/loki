@@ -116,6 +116,64 @@ export type CanonicalStatus = {
   missing?: MissingProof[];
 };
 
+/**
+ * What a seat that cannot dispatch (a Viewer or Reporter, a machine filer) is
+ * told next to the state: the cause code, a reason and the one next move, so a
+ * bare "Needs you" never reaches it. Written here, never forwarded: reasons
+ * and actions in CanonicalStatus name builders, pull requests and retries,
+ * which are the operator's. No `request` (it cannot dispatch), no evidence.
+ */
+export type SeatStatus = Pick<CanonicalStatus, "state" | "label" | "reason"> & {
+  /** A cause that says nothing of the machine, else `needs_owner`; null while it moves. */
+  cause: CanonicalCause | "needs_owner" | null;
+  nextAction: { kind: NextActionKind; who: "owner" | "nobody" | "loki"; label: string };
+};
+
+const SEAT_CAUSES: ReadonlySet<CanonicalCause> = new Set([
+  CANONICAL_CAUSE.AWAITING_IMPLEMENT,
+  CANONICAL_CAUSE.CLOSED_WITHOUT_CHANGE,
+  CANONICAL_CAUSE.CONFIRMED,
+]);
+
+export function seatStatus(full: CanonicalStatus): SeatStatus {
+  const { state, label } = full;
+  const moving =
+    state === CANONICAL_STATE.QUEUED ||
+    state === CANONICAL_STATE.STARTING ||
+    state === CANONICAL_STATE.WORKING;
+  const cause: SeatStatus["cause"] = moving
+    ? null
+    : SEAT_CAUSES.has(full.cause)
+      ? full.cause
+      : "needs_owner";
+  const base = { state, label, cause };
+  if (state === CANONICAL_STATE.DONE)
+    return { ...base, reason: null, nextAction: { kind: "none", who: "nobody", label: "Nothing" } };
+  if (state === CANONICAL_STATE.NEEDS_YOU || state === CANONICAL_STATE.FAILED) {
+    const unstarted = cause === CANONICAL_CAUSE.AWAITING_IMPLEMENT;
+    return {
+      ...base,
+      reason: unstarted
+        ? "Filed and received. No build has been started for it; filing never starts one."
+        : state === CANONICAL_STATE.FAILED
+          ? "The work on this report ended without a change on the live site."
+          : "The work on this report stopped short of live and needs the project's owner.",
+      nextAction: {
+        kind: "wait",
+        who: "owner",
+        label: unstarted
+          ? "Nothing to do: the project's owner or an editor decides whether to start the build. Poll again later."
+          : "Nothing to do: the project's owner or an editor has to act on it. Poll again later.",
+      },
+    };
+  }
+  return {
+    ...base,
+    reason: null,
+    nextAction: { kind: "wait", who: "loki", label: "Wait: it is moving by itself. Poll again." },
+  };
+}
+
 const act = (kind: NextActionKind, who: WaitingOn, label: string): CanonicalNextAction => ({
   kind,
   who,
