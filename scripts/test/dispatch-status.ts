@@ -6,6 +6,7 @@ import {
   deriveDispatchLiveStatus,
   deriveMultiDispatchView,
   dispatchAssistantContent,
+  dispatchFailureForPerson,
   dispatchStatusLabel,
   dispatchToneDotClass,
   elapsedLabel,
@@ -300,6 +301,26 @@ if (elapsedLabel(null) !== null) throw new Error("a missing timestamp has no ela
 // A clock that disagrees must not render a negative age.
 if (elapsedLabel(new Date(T0).toISOString(), at(-30)) !== null) {
   throw new Error("a future timestamp has no elapsed label");
+}
+
+// A failed dispatch says why, in the sender's words. Seen 2026-11-11: the
+// workbench showed "Dispatch failed" and nothing else for a signed-out agent.
+{
+  const runner =
+    "claude is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).";
+  const said = dispatchFailureForPerson(runner);
+  if (!said || !said.startsWith("Claude is signed out")) {
+    throw new Error(`a signed-out agent is named plainly, got: ${said}`);
+  }
+  if (/credentials\.json|OAUTH_TOKEN|401/.test(said)) {
+    throw new Error("the sender is not shown the administrator's instructions");
+  }
+  if (dispatchFailureForPerson("workspace missing") !== "workspace missing") {
+    throw new Error("an unrecognised reason is passed through, not dropped");
+  }
+  if (dispatchFailureForPerson("  ") !== null || dispatchFailureForPerson(null) !== null) {
+    throw new Error("no reason is no sentence");
+  }
 }
 
 console.log("✓ dispatch-status tests passed");
