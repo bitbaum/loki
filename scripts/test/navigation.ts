@@ -151,7 +151,11 @@ for (const section of SIDEBAR_SECTIONS.filter((s) => !s.private && !s.bare)) {
     `"${section.label}" shows ${inMore.length} row(s) in the phone's More sheet — at least two, or fold it into another section`,
   );
 }
-assert.equal(NAV.terminal.label, "Sessions", "the page of agent sessions is called Sessions");
+assert.equal(
+  NAV.terminal.label,
+  "Terminal",
+  "the page of agent sessions is called by the word people look for",
+);
 
 // ─── Private zone ────────────────────────────────────────────────────────────
 const priv = SIDEBAR_SECTIONS.find((s) => s.id === "private");

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { NAV } from "@/config/navigation";
 import { CheckCircle2, Circle, Flag, MessageSquare, ShieldAlert, Target } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { List, ListRow } from "@/components/ui/list-row";
@@ -152,7 +153,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
         )}
       </Section>
 
-      <Section title="Recent runs" link={{ href: "/terminal", label: "Sessions" }}>
+      <Section title="Recent runs" link={{ href: NAV.terminal.href, label: NAV.terminal.label }}>
         {runHistory.length === 0 ? (
           <p className="text-sm text-text-secondary">No agent run yet.</p>
         ) : (
