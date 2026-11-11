@@ -43,6 +43,20 @@ if [ "$DRY" != "0" ] && [ "$DRY" != "1" ]; then
   exit 2
 fi
 
+# A size, or "over ${DU_BUDGET}s" when counting takes too long to be worth it.
+#
+# The first run of this script (2026-11-11, dry) was cancelled at the
+# workflow's 30 minutes having printed four sizes and planned nothing: `du`
+# on /opt alone took 14 minutes on a disk full of node_modules. Sizes here
+# are for the reader; what was freed is measured from df, which is instant.
+# So a size that cannot be had quickly is skipped rather than waited for.
+DU_BUDGET=45
+sz() {
+  local out
+  out="$(timeout "$DU_BUDGET" du -sh "$1" 2>/dev/null | awk '{print $1}')"
+  echo "${out:-over ${DU_BUDGET}s}"
+}
+
 pct() { df --output=pcent / 2>/dev/null | tail -1 | tr -dc '0-9'; }
 used_k() { df --output=used / 2>/dev/null | tail -1 | tr -dc '0-9'; }
 
@@ -71,25 +85,30 @@ journalctl --disk-usage 2>/dev/null || true
 echo
 
 echo "=== hotspot sizes ==="
-du -sh /var/lib/docker /var/lib/containerd /var/log /opt /opt/backups /opt/backups/pg \
-  /home/ubuntu/dev /var/cache/apt /usr /swapfile 2>/dev/null || true
+for hot in /var/lib/docker /var/lib/containerd /var/log /opt /opt/backups /opt/backups/pg \
+  /home/ubuntu /home/ubuntu/dev /home/ubuntu/.loki /home/ubuntu/.cache /home/ubuntu/.npm \
+  /home/ubuntu/.local /var/cache/apt /usr /swapfile; do
+  [ -e "$hot" ] && printf '%s\t%s\n' "$(sz "$hot")" "$hot"
+done
 echo
 echo "=== /opt per entry ==="
-du -sh /opt/* 2>/dev/null | sort -h || true
+for entry in /opt/*; do
+  [ -e "$entry" ] && printf '%s\t%s\n' "$(sz "$entry")" "$entry"
+done | sort -h
 echo
 
 echo "=== release dirs (newest first; keep ${KEEP_RELEASES}) ==="
 for reldir in /opt/*/releases; do
   [ -d "$reldir" ] || continue
   count="$(ls -1 "$reldir" 2>/dev/null | wc -l | tr -d ' ')"
-  echo "-- $reldir  ($count entries, $(du -sh "$reldir" 2>/dev/null | awk '{print $1}'))"
+  echo "-- $reldir  ($count entries, $(sz "$reldir"))"
   i=0
   ls -1t "$reldir" 2>/dev/null | while read -r name; do
     [ -n "$name" ] || continue
     i=$((i + 1))
     tag="KEEP"
     [ "$i" -gt "$KEEP_RELEASES" ] && tag="PRUNE"
-    printf '  %s  %s  %s\n' "$tag" "$(du -sh "$reldir/$name" 2>/dev/null | awk '{print $1}')" "$name"
+    printf '  %s  %s  %s\n' "$tag" "$(sz "$reldir/$name")" "$name"
   done
 done
 echo
@@ -98,7 +117,7 @@ echo "=== app / previous release pointers ==="
 for d in /opt/*/app /opt/*/app.prev /opt/*/app-old; do
   [ -e "$d" ] || continue
   target="$(readlink -f "$d" 2>/dev/null || echo not-a-link)"
-  size="$(du -sh "$d" 2>/dev/null | awk '{print $1}')"
+  size="$(sz "$d")"
   printf '  %s -> %s  %s\n' "$d" "$target" "$size"
 done
 echo
@@ -107,7 +126,7 @@ echo "=== backups in /opt/backups/pg (counts and sizes only) ==="
 if [ -d /opt/backups/pg ]; then
   total_n="$(find /opt/backups/pg -maxdepth 1 -type f \( -name '*.dump' -o -name '*.sql.gz' \) | wc -l | tr -d ' ')"
   old_n="$(find /opt/backups/pg -maxdepth 1 -type f \( -name '*.dump' -o -name '*.sql.gz' \) -mtime +${KEEP_BACKUP_DAYS} | wc -l | tr -d ' ')"
-  total_sz="$(du -sh /opt/backups/pg 2>/dev/null | awk '{print $1}')"
+  total_sz="$(sz /opt/backups/pg)"
   old_sz="$(find /opt/backups/pg -maxdepth 1 -type f \( -name '*.dump' -o -name '*.sql.gz' \) -mtime +${KEEP_BACKUP_DAYS} -printf '%s\n' 2>/dev/null | awk '{s+=$1} END {if(s<1024*1024) printf "%dK\n", s/1024; else printf "%dM\n", s/1024/1024}')"
   echo "  files=$total_n size=$total_sz  older_than_${KEEP_BACKUP_DAYS}d=$old_n size=${old_sz:-0}"
 else
@@ -259,7 +278,7 @@ for reldir in /opt/*/releases; do
       *$'\n'"$resolved"$'\n'*) echo "  KEEP (live or previous pointer) $path"; continue ;;
     esac
     if [ "$DRY" = "1" ]; then
-      echo "  DRY rm -rf $path  ($(du -sh "$path" 2>/dev/null | awk '{print $1}'))"
+      echo "  DRY rm -rf $path  ($(sz "$path"))"
     else
       echo "  rm -rf $path"
       rm -rf -- "$path"
@@ -352,7 +371,7 @@ if [ "${stop:-0}" != 1 ]; then
           continue
         fi
         if [ "$DRY" = "1" ]; then
-          echo "  DRY rm -rf $nm  ($(du -sh "$nm" 2>/dev/null | awk '{print $1}'), idle ${idle}d)"
+          echo "  DRY rm -rf $nm  ($(sz "$nm"), idle ${idle}d)"
         else
           echo "  rm -rf $nm (idle ${idle}d)"
           rm -rf -- "$nm"
