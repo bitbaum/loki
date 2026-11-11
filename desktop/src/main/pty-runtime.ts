@@ -15,6 +15,7 @@
  */
 import { executor } from "@/lib/agent-execution";
 import { isShellTab } from "@/lib/shell-session";
+import { agentLimitRefusal } from "@/lib/agent-session-limit";
 import { provisionAgentWorkspace } from "@/lib/agent-execution/launch";
 import type { AgentOption } from "@/lib/agent-registry";
 import { missingAgentReason } from "@/lib/agents/launch-check";
@@ -89,6 +90,11 @@ export async function launchAgentPty(
     presence === "cloud" || presence === "local" ? presence : null,
   );
   if (missing) throw new Error(missing);
+  // The cloud builder runs a limited number of agents at once (27 open took
+  // every site down). Checked here because every way in ends here: a launch,
+  // a dispatch, a switch, and the tabs brought back after a restart.
+  const full = agentLimitRefusal({ channel: presence, tab, openTabs: listPtyTabs() });
+  if (full) throw new Error(full);
   let effectiveDir = dir;
   // Box-runner: the dispatch's dir is the LAPTOP path and won't exist here.
   // Resolve a box-local workspace (clone-on-demand + pre-trust for claude)

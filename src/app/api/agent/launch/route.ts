@@ -12,6 +12,8 @@ import { stateFile } from "@/lib/agent-config";
 import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/execution-access";
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { isDerivedRunTab, runLaneOfTab } from "@/lib/run-tab";
+import { agentLimitRefusal } from "@/lib/agent-session-limit";
+import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 
 const LaunchAgentBody = z.object({
   tab: z.string().trim().min(1).max(120),
@@ -132,6 +134,17 @@ export async function POST(req: NextRequest) {
     });
     if (!execution.ok) {
       return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
+    }
+    // Refused here in words, and again on the runner: this count can be one
+    // heartbeat old (lib/agent-session-limit).
+    if (execution.channel) {
+      const snapshot = await getRuntimeSnapshot(userId, execution.channel).catch(() => null);
+      const full = agentLimitRefusal({
+        channel: execution.channel,
+        tab,
+        openTabs: snapshot?.openTabs ?? [],
+      });
+      if (full) return NextResponse.json({ error: full }, { status: 409 });
     }
     const commandId = await enqueueLaunchAgentCommand(userId, {
       tab,

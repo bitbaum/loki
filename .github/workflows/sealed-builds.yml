@@ -25,6 +25,7 @@ on:
             "containers",
             "launch-check",
             "clean-dead",
+            "reset-runtime",
           ]
       unit:
         description: "Runner unit (owner: loki-box-runner)"

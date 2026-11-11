@@ -24,7 +24,20 @@ ensure_image() { # <user> <home>
     podman load -q -i "$t" 2>&1 | grep -v level= | tail -2
   rm -f "$t"
 }
+# Forget podman's runtime state when it was written before this boot. Prints
+# the shell that does it for home $1; used at runner start and by reset-runtime.
+runtime_reset_cmd() {
+  printf '%s' "b=\$(cat /proc/sys/kernel/random/boot_id); [ \"\$(cat $1/.run/.boot-id 2>/dev/null)\" = \"\$b\" ] || { rm -rf $1/.run/containers $1/.run/libpod; echo \"\$b\" > $1/.run/.boot-id; echo reset; }"
+}
+
 case "$MODE" in
+reset-runtime)
+  # By hand, for a runner that is already up after a reboot: same reset the
+  # unit runs before it starts. Nothing is removed when the state is from this boot.
+  U="$(unit_user)"; H="$(unit_home)"
+  out="$(systemd-run --wait --pipe --quiet -p User="$U" -p Environment=HOME="$H" /bin/sh -c "$(runtime_reset_cmd "$H")" 2>&1)"
+  [ "$out" = reset ] && echo "✓ stale podman runtime state removed for $U" || echo "runtime state is from this boot; nothing removed ${out:+($out)}"
+  systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps -a --format '  {{.Names}} {{.Status}}' 2>&1 | grep -v level= | head -20 ;;
 matrix)
   command -v crun >/dev/null || apt-get install -y -qq crun >/dev/null 2>&1; echo "crun: $(crun --version 2>/dev/null | head -1 || echo absent)"
   U="$(unit_user)"; H="$(unit_home)"; mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"
@@ -168,7 +181,12 @@ on)
   ensure_image "$U" "$H"
   touch /etc/loki/sealed-builds.on
   { echo "[Service]"; echo "Environment=LOKI_EXECUTOR=sandbox"; echo "Environment=LOKI_SANDBOX_RUNTIME=podman"
-    echo "NoNewPrivileges=no"; echo "Environment=XDG_RUNTIME_DIR=$H/.run"; grep -qx runsc "$STATE" && echo "Environment=LOKI_SANDBOX_OCI_RUNTIME=runsc"; } > "$D/sealed.conf"
+    echo "NoNewPrivileges=no"; echo "Environment=XDG_RUNTIME_DIR=$H/.run"; grep -qx runsc "$STATE" && echo "Environment=LOKI_SANDBOX_OCI_RUNTIME=runsc"
+    # $H/.run is a real directory, not a tmpfs, so podman's runtime state
+    # outlives a reboot and podman then refuses every container ("current
+    # system boot ID differs from cached boot ID"). After the power reset of
+    # 2026-11-11 no sealed agent could start until someone deleted it by hand.
+    echo "ExecStartPre=/bin/sh -c '$(runtime_reset_cmd "$H" | sed 's/\$/$$/g')'"; } > "$D/sealed.conf"
   systemctl daemon-reload; echo "✓ sealed drop-in for $UNIT"; restart ;;
 off)
   rm -f "/etc/systemd/system/$UNIT.service.d/sealed.conf"; systemctl daemon-reload
