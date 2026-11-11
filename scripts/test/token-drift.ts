@@ -99,14 +99,15 @@ const DIVERGENCES: Record<string, string> = {
   "border-interactive": "Translucent overlay.",
 
   // ── Accent: Loki's primary accent is achromatic ───────────────────────────
-  // The fleet's --accent-primary IS the orange. Loki's is near-black, and the
-  // orange lives in --accent-warm, used sparingly on primary CTAs and focus
-  // rings. Same --public-accent value; different role in the system.
-  "accent-primary": "Achromatic. Loki's warm accent is --accent-warm, used sparingly.",
+  // The fleet's --accent-primary IS the orange (--public-accent). Loki's is
+  // near-black / near-white and it has no warm accent at all: orange means
+  // nothing on a product that is not about Bitcoin (owner, 2026-11-11), so
+  // Loki declares neither --public-accent nor an --accent-warm.
+  "accent-primary": "Achromatic. Loki has no warm accent; colour means status.",
   "accent-hover": "Achromatic, paired with accent-primary.",
   "accent-muted": "Achromatic.",
   "accent-text": "Achromatic.",
-  "on-accent": "OKLCH equivalent of the fleet's 0 0% 8% — same intent, different notation.",
+  "on-accent": "Ink on Loki's achromatic accent: the inverted text, not the fleet's ink-on-orange.",
 
   // ── Status colours: OKLCH, and Loki's subtle variants use % not decimals ──
   "status-positive": "OKLCH.",
@@ -126,7 +127,7 @@ const DIVERGENCES: Record<string, string> = {
  * if one of these changes on either side, this check fails and someone
  * decides, rather than the two drifting apart in silence again.
  */
-const MUST_MATCH = ["public-accent", "public-nav-height", "tracking-caps", "tracking-label"];
+const MUST_MATCH = ["public-nav-height", "tracking-caps", "tracking-label"];
 
 let failures = 0;
 const fail = (msg: string) => {

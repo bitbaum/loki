@@ -97,10 +97,10 @@ function themeFrom(own: Vars, root: Vars, fleet: Vars) {
     warning: c("status-warning"),
     error: c("status-negative"),
     errorSurface: c("status-negative-subtle"),
-    /** Loki's focus ring — the one place the warm colour appears. */
+    /** Loki's focus ring. */
     focus: c("ring"),
     /** What a picked element on the HOST page is outlined in: it must read on any site. */
-    highlight: c("accent-warm"),
+    highlight: c("accent-primary"),
     black: c("surface-public"),
     white: "#ffffff",
     radiusControl: remToPx(f("radius-control")),
