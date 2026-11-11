@@ -25,6 +25,14 @@ check("typed with Enter", signedOut[0]?.bytes === "/login\r");
 check("a command is TYPED: the words, then Enter on its own", signedOut[0]?.typed === "/login");
 check("says why in plain words", /signed out/i.test(signedOut[0]?.why ?? ""));
 
+// The exact line a signed-out Claude left in a session on 2026-11-11. The chat
+// view reads the reply through this same detector to offer "Sign Claude in".
+check(
+  "a reply asking for /login offers the sign-in command",
+  screenActions(["Login reached its time limit · Please run /login"], "claude")[0]?.typed ===
+    "/login",
+);
+
 check(
   "an agent with no sign-in command gets none invented",
   screenActions(["Invalid API key · Please run /login"], "cursor").length === 0,
