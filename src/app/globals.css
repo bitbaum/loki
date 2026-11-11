@@ -136,20 +136,10 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-muted: var(--accent-muted);
   --color-accent-text: var(--accent-text);
-  --color-accent-warm: var(--accent-warm);
-  --color-accent-warm-hover: var(--accent-warm-hover);
-  /* The label colour for text sitting ON accent-warm. White on the warm
-     accent is ~3.0:1 — below the 4.5 AA floor — which put "Launch agent",
-     the fleet's most-used button, under it. Near-black is ~6:1. Paired with
-     the background it belongs to so nobody has to remember which ink an
-     orange button takes. Mirrors --on-accent in @fleet/design-tokens v1.1.0
-     (SSOT for Solon and OrangeCat). Loki still declares its ramp locally —
-     but "kept in step by hand", which is what this comment used to claim,
-     was never true: measured 2026-09-20, Loki and the package disagreed on
-     32 of the 36 tokens they both define. scripts/test/token-drift.ts now
-     requires every one of those differences to be DECLARED with a reason,
-     so a divergence is a decision somebody signed rather than a drift
-     nobody noticed. */
+  /* The label colour for text sitting ON the filled accent. Loki declares its
+     ramp locally; scripts/test/token-drift.ts requires every difference from
+     @bitbaum/design-tokens to be DECLARED with a reason, so a divergence is a
+     decision somebody signed rather than a drift nobody noticed. */
   --color-on-accent: var(--on-accent);
   /* Status tokens — the only chromatic colors in the system */
   --color-status-positive: var(--status-positive);
@@ -220,7 +210,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.87 0 0);
   --input: oklch(0.87 0 0);
-  --ring: oklch(0.66 0.21 41 / 55%);
+  --ring: oklch(0.1 0 0 / 55%);
   --chart-1: oklch(0.7 0 0);
   --chart-2: oklch(0.55 0 0);
   --chart-3: oklch(0.43 0 0);
@@ -285,8 +275,7 @@
   --public-glow-primary: rgba(0, 0, 0, 0.04);
   --public-glow-primary-2: rgba(0, 0, 0, 0.02);
   --public-glow-secondary: rgba(0, 0, 0, 0.025);
-  --public-accent: #ff5c00; /* x.ai-style warm orange for download CTAs (band forces dark aesthetic) */
-  --public-glow-accent: rgba(255, 92, 0, 0.06);
+  --public-glow-accent: rgba(0, 0, 0, 0.03);
   /* 34px floor, not 52px. The floor is what a 390px phone actually renders,
      and 52px put "Feedback widget" on two lines at a size meant for a 27"
      display. The vw term still reaches the same 108px ceiling on desktop. */
@@ -325,11 +314,12 @@
   --accent-hover: oklch(0.2 0 0);
   --accent-muted: oklch(0.1 0 0 / 8%);
   --accent-text: oklch(0.1 0 0);
-  /* Warm brand accent (x.ai/grok #ff5c00) — used sparingly on primary CTAs +
-     focus rings. Darker hover for the light theme. SSOT for warm = here. */
-  --accent-warm: oklch(0.66 0.21 41);
-  --on-accent: oklch(0.18 0 0);
-  --accent-warm-hover: oklch(0.6 0.21 40);
+  /* Ink on the accent. Loki has no warm accent: the orange it carried on the
+     public call to action (#ff5c00) was the last colour here that was not a
+     status, and it meant nothing on a product that is not about Bitcoin
+     (owner, 2026-11-11). Every filled action is the achromatic accent above,
+     as x.ai draws its one button, so the ink is simply the inverted text. */
+  --on-accent: var(--text-inverted);
   /* Status — light */
   --status-positive: oklch(0.44 0.16 145);
   --status-positive-subtle: oklch(0.44 0.16 145 / 8%);
@@ -401,7 +391,7 @@
   --destructive: oklch(0.65 0.2 22);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.69 0.21 41 / 55%);
+  --ring: oklch(0.92 0 0 / 55%);
   --chart-1: oklch(0.8 0 0);
   --chart-2: oklch(0.6 0 0);
   --chart-3: oklch(0.45 0 0);
@@ -460,9 +450,6 @@
   --accent-hover: oklch(1 0 0);
   --accent-muted: oklch(1 0 0 / 8%);
   --accent-text: oklch(0.75 0 0);
-  /* Warm brand accent (x.ai/grok #ff5c00) — lighter hover for dark. */
-  --accent-warm: oklch(0.69 0.21 41);
-  --accent-warm-hover: oklch(0.75 0.19 43);
   /* Status — dark */
   --status-positive: oklch(0.72 0.14 145);
   --status-positive-subtle: oklch(0.72 0.14 145 / 12%);
@@ -478,11 +465,10 @@
   --public-glow-primary: rgba(255, 255, 255, 0.14);
   --public-glow-primary-2: rgba(255, 255, 255, 0.04);
   --public-glow-secondary: rgba(255, 255, 255, 0.05);
-  --public-accent: #ff5c00; /* x.ai-style warm orange for download CTAs and highlights on public dark bands */
   /* Subtle warm spotlight bleeding down from the top of the hero — injects the
      brand warmth into the otherwise-monochrome dark surface without using the
      accent as fill. Kept very low alpha so it reads as depth, not colour. */
-  --public-glow-accent: rgba(255, 92, 0, 0.1);
+  --public-glow-accent: rgba(255, 255, 255, 0.04);
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
@@ -1067,7 +1053,7 @@
     @apply text-text-muted;
   }
   .ui-public-primary-action {
-    @apply rounded-full bg-accent-warm px-8 py-3 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover;
+    @apply rounded-full bg-accent-primary px-8 py-3 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-hover;
   }
   .ui-public-feature-card {
     @apply rounded-2xl border border-border-subtle bg-surface-base p-6 text-left;
@@ -1472,7 +1458,7 @@
     @apply font-mono text-4xl font-semibold tracking-tight text-text-primary;
   }
   .ui-public-fleet-stat-num-accent {
-    @apply font-mono text-4xl font-semibold tracking-tight text-accent-warm;
+    @apply font-mono text-4xl font-semibold tracking-tight text-text-primary;
   }
   .ui-public-fleet-stat-label {
     @apply text-sm leading-snug text-text-secondary;
@@ -1766,13 +1752,13 @@
      stayed on one line, and collapsed below the tap-target floor whenever it
      didn't. */
   .ui-public-cta {
-    @apply inline-flex min-h-12 items-center justify-center rounded-full bg-accent-warm px-6 py-3 text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:scale-[0.98] sm:px-7;
+    @apply inline-flex min-h-12 items-center justify-center rounded-full bg-accent-primary px-6 py-3 text-base font-semibold text-on-accent transition-colors hover:bg-accent-hover active:scale-[0.98] sm:px-7;
   }
   .ui-public-cta-ghost {
     @apply inline-flex min-h-12 items-center justify-center rounded-full border border-border-default px-6 py-3 text-base font-medium text-text-primary transition-colors hover:bg-surface-raised active:scale-[0.98] sm:px-7;
   }
   .ui-public-cta-lg {
-    @apply inline-flex min-h-13 items-center justify-center rounded-full bg-accent-warm px-7 py-3.5 text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:scale-[0.98] sm:px-9 sm:text-lg;
+    @apply inline-flex min-h-13 items-center justify-center rounded-full bg-accent-primary px-7 py-3.5 text-base font-semibold text-on-accent transition-colors hover:bg-accent-hover active:scale-[0.98] sm:px-9 sm:text-lg;
   }
   .ui-public-lede {
     @apply text-[17px] leading-snug text-text-secondary sm:text-2xl;
@@ -2376,10 +2362,10 @@
      ~30-character label and its ~45-character note each wrapped to three lines
      inside one pill, which read as a paragraph someone had painted white. */
   .ui-public-download-cta {
-    @apply inline-flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-accent-warm px-6 py-3.5 text-center text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:scale-[0.985] sm:w-auto sm:flex-row sm:gap-0 sm:rounded-full sm:px-9 sm:py-4 sm:text-lg;
+    @apply inline-flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-accent-primary px-6 py-3.5 text-center text-base font-semibold text-on-accent transition-colors hover:bg-accent-hover active:scale-[0.985] sm:w-auto sm:flex-row sm:gap-0 sm:rounded-full sm:px-9 sm:py-4 sm:text-lg;
   }
   .ui-public-download-cta:hover {
-    @apply bg-accent-warm-hover;
+    @apply bg-accent-hover;
   }
   .ui-public-download-cta-note {
     @apply text-xs font-medium opacity-90 sm:ml-2;
@@ -2673,7 +2659,7 @@
     animation: ui-watch-rise 0.3s ease-out;
   }
   .ui-consult-you-bubble {
-    @apply rounded-2xl rounded-tr-md bg-accent-warm px-4 py-2 text-sm font-medium text-on-accent;
+    @apply rounded-2xl rounded-tr-md bg-accent-primary px-4 py-2 text-sm font-medium text-on-accent;
   }
   @media (prefers-reduced-motion: reduce) {
     .ui-consult-turn,
@@ -3839,7 +3825,7 @@
     @apply space-y-5;
   }
   .ui-auth-submit-btn {
-    @apply min-h-12 w-full rounded-xl bg-accent-warm py-3 text-base font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply min-h-12 w-full rounded-xl bg-accent-primary py-3 text-base font-semibold text-on-accent transition-colors hover:bg-accent-hover active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .ui-auth-title {
     font-size: clamp(var(--auth-title-min), var(--auth-title-preferred), var(--auth-title-max));
@@ -3871,7 +3857,7 @@
   }
   /* The featured OAuth door — OrangeCat, the stack's identity root. */
   .ui-auth-oauth-primary {
-    @apply border-accent-warm/40 bg-surface-raised text-text-primary hover:border-accent-warm;
+    @apply border-border-strong bg-surface-raised text-text-primary hover:border-accent-primary;
   }
   .ui-auth-note {
     @apply text-center text-sm text-text-muted;
@@ -4755,9 +4741,8 @@
        on dark), as x.ai and Grok draw their one filled button. It was the warm
        orange until 2026-10-19, so ~120 buttons in 85 files shouted at once and
        a screen held three orange slabs (owner: "a lot of things that make
-       people freak out"). Orange is the PUBLIC site's — its download button
-       (--public-accent) and the roadmap — never an in-app action; colour in
-       the app means status. Disabled is NEUTRAL (muted surface), not faded. */
+       people freak out"). The public site followed on 2026-11-11: Loki has no
+       orange anywhere; colour means status. Disabled is NEUTRAL (muted surface), not faded. */
     @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-2 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
   }
   .ui-btn-secondary {
@@ -4918,7 +4903,7 @@
      view (hero pause button, fleet chips, agent switcher, Focus/Open pills,
      autopilot toggle). A primary action that doesn't outrank its neighbors at
      a glance isn't a primary action. Solid now, matching .ui-btn-primary's
-     actual full-strength accent-warm treatment used everywhere else in the
+     actual full-strength accent treatment used everywhere else in the
      app for exactly this color — full-width and semibold stay, since those
      are this button's own layout needs, not its color story. */
   .ui-btn-nextbest {
