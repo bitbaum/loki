@@ -158,19 +158,35 @@ export async function loadRunTrack(
   // token). Live: the branch or pull request the agent has pushed so far.
   // Closed well with a ledger that found no pull request: one more look, in
   // case the handoff never named the one that exists.
-  let evidence = normalizeRepoWorkEvidence(run.payload?.evidence);
+  const recordedEvidence = normalizeRepoWorkEvidence(run.payload?.evidence);
+  let evidence = recordedEvidence;
   const cachedFix = run.payload?.fix ?? null;
   const ledgerBlind =
     !cachedFix ||
     (cachedFix.state === FIX_SHIP_STATE.NO_EVIDENCE && !cachedFix.pr) ||
     cachedFix.state === FIX_SHIP_STATE.PUSHED;
   const gitUrl = project?.gitUrl ?? null;
-  if (ownerView && !evidence && (!finished || (finishedWell && ledgerBlind)) && recent) {
+  // Evidence recorded with its branch is checked against the run's branches
+  // here, at no cost. Evidence recorded before it carried one was found by
+  // time alone: the owner's view checks it with GitHub once
+  // (run-evidence-live); any other view does not show it unless the ledger
+  // already confirmed the same pull request as the run's.
+  if (evidence && !evidence.branch && !ownerView) {
+    const confirmed = cachedFix?.pr?.url === evidence.url && !cachedFix.foreignPr;
+    if (!confirmed) evidence = null;
+  }
+  if (ownerView && (evidence ? true : (!finished || (finishedWell && ledgerBlind)) && recent)) {
     evidence = await findLiveRunEvidence(userId, run, gitUrl, now);
   }
+  // The ledger checked whose pull request this is and found it is not this
+  // run's: the track must not show it through the evidence either.
+  if (evidence?.kind === "pr" && cachedFix?.foreignPr && cachedFix.pr?.url === evidence.url) {
+    evidence = null;
+  }
+  // The ledger follows the evidence as checked here, not as first recorded.
   const runForFollow =
-    evidence && !run.payload?.evidence
-      ? { ...run, payload: { ...(run.payload ?? {}), evidence } }
+    evidence !== recordedEvidence
+      ? { ...run, payload: { ...(run.payload ?? {}), evidence: evidence ?? undefined } }
       : run;
   const [{ follow, fix }, repo] = await Promise.all([
     ownerView

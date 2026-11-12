@@ -18,6 +18,7 @@
  * This module is the decision, with no I/O, so every condition below is
  * testable without GitHub.
  */
+import { refBelongsToRun } from "@/lib/run-branches";
 import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 
@@ -213,4 +214,33 @@ export function autoShipHoldNote(hold: AutoShipHold): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * Whose pull request is this, for the ledger of one run. Pure.
+ *
+ * `runs`: the ledger may report it as this run's change. Not when it was
+ * opened before the run, and not when it is on a branch that is not one of
+ * the run's own. A runner too old to report branches knows only the two names
+ * Loki gives a run, so for its runs a pull request the handoff names in words
+ * is still taken as the run's; one found any other way (the time-window
+ * evidence of old) is not. 2026-11-12: run 70d1a78d was shown loki#1636, which
+ * a person had opened on another branch while the run was open.
+ *
+ * `mayAct`: Loki may change it on GitHub (merge it, put it back into draft).
+ * Only a pull request opened during the run on one of its own branches,
+ * whatever the handoff says about others: a handoff that says "#1636 already
+ * fixes this" must not get somebody else's pull request merged.
+ */
+export function prOwnership(input: {
+  prCreatedAt: string | null | undefined;
+  headRef: string | null | undefined;
+  runStartedAt: string | Date | null | undefined;
+  runBranches: { own: readonly string[]; reported: boolean };
+  namedInHandoff: boolean;
+}): { runs: boolean; mayAct: boolean } {
+  const onRunBranch = refBelongsToRun(input.headRef, input.runBranches.own);
+  const predates = prPredatesRun(input.prCreatedAt, input.runStartedAt);
+  const runs = !predates && (onRunBranch || (!input.runBranches.reported && input.namedInHandoff));
+  return { runs, mayAct: onRunBranch && prOpenedByRun(input.prCreatedAt, input.runStartedAt) };
 }
