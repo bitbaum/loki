@@ -79,9 +79,11 @@ export type FixShipping = {
   liveVia?: "later_deploy" | "served_release";
   ownDeploy?: { url: string | null; name: string; conclusion: string | null };
   /**
-   * The open pull request cannot merge as it stands (prBlockerFor). Read only
-   * for callers that ask (refreshFixShipping `readBlockers`), and rebuilt on
-   * every refresh: absent means "not blocked, or not looked".
+   * The open pull request cannot merge as it stands (prBlockerFor): the
+   * current reading only, for callers that ask (refreshFixShipping
+   * `readBlockers`), rebuilt on every refresh. Absent means "not blocked, or
+   * not looked". What was already SAID about it lives beside the ledger
+   * (payload.prBlockerSaid), not here.
    */
   blocked?: PrBlocker;
   /** ISO — when GitHub was last asked. */
@@ -210,7 +212,15 @@ export type PrBlocker = {
 
 /** Check conclusions that will not turn green by waiting. `cancelled` is not
  *  one: a superseded run is cancelled and the next one decides. */
-const FAILED_CHECK_CONCLUSIONS = new Set(["failure", "timed_out", "startup_failure"]);
+const FAILED_CHECK_CONCLUSIONS = new Set([
+  "failure",
+  "timed_out",
+  "startup_failure",
+  // Neither turns green by waiting, and the sweep does not re-run them: left
+  // out, such a pull request waited for ever and nobody was told.
+  "action_required",
+  "stale",
+]);
 
 export function isFailedCheckConclusion(conclusion: string | null | undefined): boolean {
   return !!conclusion && FAILED_CHECK_CONCLUSIONS.has(conclusion);
@@ -234,18 +244,33 @@ export function prBlockerFor(input: {
 }
 
 /**
+ * What was SAID about a run's blocked pull request (payload.prBlockerSaid):
+ * for each reason, the head commit it was said at. One entry per reason, so a
+ * pull request that reads "conflict" on one tick and "checks failed" on the
+ * next at the same commit (GitHub still computing mergeability) is not
+ * announced back and forth.
+ */
+export type PrBlockerSaid = Partial<Record<PrBlocker["why"], string | null>>;
+
+/**
  * Pure: is this blocker news? Once per commit and reason. A fix pushed to the
  * branch is a new commit, so a second failure is said again; the same failure
  * read on the next tick is not.
+ *
+ * Compared with what was SAID, kept beside the ledger and never in it. The
+ * ledger is rebuilt on every refresh, and the dispatch card's own refresh does
+ * not read blockers: comparing with the ledger's last `blocked` forgot the
+ * notice each time somebody opened the thread, and the same failure was
+ * announced again on the next tick (review, 2026-11-12).
  */
 export function prBlockerNews(
-  before: FixShipping | null | undefined,
+  said: PrBlockerSaid | null | undefined,
   after: FixShipping | null | undefined,
 ): PrBlocker | null {
   if (!after || after.state !== FIX_SHIP_STATE.PR_OPEN || !after.blocked) return null;
-  const was = before?.blocked;
-  if (was && was.why === after.blocked.why && was.headSha === after.blocked.headSha) return null;
-  return after.blocked;
+  const now = after.blocked;
+  if (said && now.why in said && said[now.why] === now.headSha) return null;
+  return now;
 }
 
 /**

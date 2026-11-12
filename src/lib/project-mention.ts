@@ -69,30 +69,53 @@ export function textMentionsProject(text: string, projectName: string): boolean 
  * sat behind that project's open run. That was the rule working as written;
  * an address to the assistant is the case where it should not apply.
  *
- * Only an address is removed: the name at the very start followed by
- * punctuation, the name after a greeting, "@loki", and the name set off by a
- * comma at the end. "Loki's sidebar", "in loki" and "the loki repo" still
- * name the project, and so does a bare "Loki fix the header" — with no
- * punctuation it cannot be told from a mention, and the old reading stands.
+ * Only an address is removed, and an address is the name SET OFF from the
+ * sentence: by a comma, a colon, a dash, an exclamation or question mark, or
+ * by "please" / "can you". "Loki's sidebar", "in loki", "the loki repo",
+ * "ok loki is broken" and "loki-loop-check" still name the project, and so
+ * does a bare "Loki fix the header": with nothing setting the name off it
+ * cannot be told from a mention, and the old reading stands.
+ *
+ * "loki: fix the header" stays ambiguous. It is read as an address, so with
+ * another project selected the work goes there; with nothing selected and no
+ * other project named, the name is all there is to go on and it is the
+ * project (projectNamedByAddress, the last resort of every caller).
  */
 const ADDRESS_GREETING =
-  "(?:hey|hi|hello|hallo|ok|okay|yo|dear|please|thanks|thank you|danke|bitte|salut|ciao)";
+  "(?:hey there|hey|hi|hello|hallo|hoi|ok|okay|yo|dear|please|thanks|thank you|danke|bitte|salut|ciao|good morning|good evening|morning)";
+/** What sets a name off as an address: punctuation, a dash, or the end. A
+ *  hyphen counts only with a space on each side ("Loki - add …"), never
+ *  attached ("loki-loop-check"). Lookahead only: nothing is consumed. */
+const SET_OFF = "(?=\\s*(?:[,:;!?—–]|\\s-\\s|\\.(?:\\s|$)|$))";
+/** A request that follows a name makes the name an address ("Loki please …"). */
+const ASKS = "(?=\\s+(?:please|can you|could you|would you|will you)\\b)";
+/** Start of the message, of a sentence, or of a line. */
+const START = "(^|[.!?\\n]\\s*)";
+/** The punctuation and space an address leaves behind. */
+const TAIL = "(?:\\s*[,:;!?—–]|\\s+-(?=\\s))*\\s*";
+
 export function withoutAddressTo(text: string, assistantName: string = APP_NAME): string {
   const name = assistantName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   if (!name) return text;
+  // Not "loki's" and not "loki-loop-check": the name must end the word.
+  const whole = `${name}(?!['’]s\\b)(?!-\\w)\\b`;
   return (
     text
-      // "@loki" anywhere.
-      .replace(new RegExp(`@${name}\\b`, "gi"), " ")
-      // "Hey Loki", "Thanks Loki," at the start of the message or a sentence.
+      // "@loki" opening the message or a sentence; "@loki/ui" is a package.
+      .replace(new RegExp(`${START}@${name}\\b(?!/)${TAIL}`, "gi"), "$1")
+      // "Hey Loki, …", "Thanks Loki!": a greeting, then the name set off.
       .replace(
-        new RegExp(`(^|[.!?\\n]\\s*)${ADDRESS_GREETING}[\\s,]+${name}\\b[\\s,:;!?.—–-]*`, "gi"),
+        new RegExp(`${START}${ADDRESS_GREETING}[\\s,]+${whole}${SET_OFF}${TAIL}`, "gi"),
         "$1",
       )
-      // "Loki, …" / "Loki: …" / "Loki — …" at the start.
-      .replace(new RegExp(`^\\s*${name}\\s*[,:;!?—–]\\s*`, "i"), "")
+      // "Loki, …" / "Loki: …" / "Loki — …" / "Loki - …" opening a sentence.
+      .replace(new RegExp(`${START}${whole}${SET_OFF}${TAIL}`, "gi"), "$1")
+      // "Loki please …", "Loki can you …".
+      .replace(new RegExp(`${START}${whole}${ASKS}\\s*`, "gi"), "$1")
+      // "…, Loki, …" between commas.
+      .replace(new RegExp(`,\\s*${whole}\\s*,`, "gi"), ",")
       // "…, Loki." at the end.
-      .replace(new RegExp(`,\\s*${name}\\s*[.!?]*\\s*$`, "i"), "")
+      .replace(new RegExp(`,\\s*${whole}\\s*[.!?]*\\s*$`, "i"), "")
   );
 }
 
@@ -110,6 +133,19 @@ export function projectMentionedIn(text: string, projectNames: string[]): string
   const said = withoutAddressTo(text);
   const ranked = [...projectNames].sort((a, b) => squash(b).length - squash(a).length);
   return ranked.find((name) => textMentionsProject(said, name)) ?? null;
+}
+
+/**
+ * The project a text names ONLY in the way one addresses the assistant, or
+ * null. The last resort when nothing else says where the work goes: no other
+ * project named, none selected. "loki: fix the header" typed with nothing
+ * selected means the project; with orangecat selected it is read as "Loki,
+ * fix the header" and never reaches this.
+ */
+export function projectNamedByAddress(text: string, projectNames: string[]): string | null {
+  if (projectMentionedIn(text, projectNames)) return null;
+  const ranked = [...projectNames].sort((a, b) => squash(b).length - squash(a).length);
+  return ranked.find((name) => textMentionsProject(text, name)) ?? null;
 }
 
 /**

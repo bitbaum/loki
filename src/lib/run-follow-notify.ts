@@ -26,6 +26,7 @@ import { runBranches, runReportedBranches } from "@/lib/run-branches";
 import { and, desc, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ORCHESTRATION_OUTCOME, orchestrationRuns } from "@/db/schema/orchestration-runs";
+import { mergeRunPayload } from "@/db/queries/orchestration-runs";
 import { addMessage } from "@/db/queries/conversations";
 import { logDebug } from "@/db/queries/debug-logs";
 import { getFeedbackByRunId } from "@/db/queries/site-feedback";
@@ -34,6 +35,7 @@ import {
   FIX_SHIP_STATE,
   fixNeedsRefresh,
   prBlockerNews,
+  type PrBlockerSaid,
   type FixShipping,
 } from "@/lib/feedback/fix-shipping";
 import { refreshFixShipping } from "@/lib/feedback/fix-shipping-refresh";
@@ -83,6 +85,7 @@ export async function followChatRuns(now: number = Date.now()): Promise<FollowRe
         fix?: FixShipping;
         evidence?: { kind: string; url: string; title: string };
         prUrl?: unknown;
+        prBlockerSaid?: PrBlockerSaid;
       };
       const conversationId = payload.conversationId;
       const before = payload.fix ?? null;
@@ -112,18 +115,26 @@ export async function followChatRuns(now: number = Date.now()): Promise<FollowRe
       });
       // A pull request that cannot merge is news too, and the only kind that
       // needs the person: said once per commit, with the message that repairs it.
-      const blocked = prBlockerNews(before, fix);
+      const saidBefore = payload.prBlockerSaid ?? null;
+      const blocked = prBlockerNews(saidBefore, fix);
       if (blocked && fix.pr?.url) {
         const said = chatRunBlockedMessage({
           projectKey: run.projectKey,
           blocked,
           prUrl: fix.pr.url,
+          prNumber: fix.pr.number,
         });
         await addMessage(conversationId, {
           role: "assistant",
           kind: "outcome",
           content: said.content,
           meta: { runId: run.id, prUrl: fix.pr.url, blocked: blocked.why },
+        });
+        // Remembered beside the ledger, which every refresh rebuilds, and only
+        // once the line is in the thread: a failed write is tried again on the
+        // next tick instead of being counted as said.
+        await mergeRunPayload(run.id, {
+          prBlockerSaid: { ...saidBefore, [blocked.why]: blocked.headSha },
         });
         await pushToUser(run.userId, {
           title: said.title,

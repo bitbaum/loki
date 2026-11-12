@@ -15,10 +15,13 @@ import {
 } from "@/lib/feedback/fix-shipping";
 import {
   ANNOUNCE_FRESH_MS,
+  blockedRepairLine,
   chatRunAnnouncement,
   chatRunBlockedMessage,
   chatRunShippedMessage,
 } from "@/lib/run-shipped-message";
+import { looksLikeDispatchTask } from "@/lib/command-resolve";
+import { projectMentionedIn } from "@/lib/project-mention";
 
 const NOW = Date.parse("2026-11-12T07:00:00Z");
 const ledger = (state: FixShipping["state"], at: string | null, extra: Partial<FixShipping> = {}) =>
@@ -129,27 +132,57 @@ assert.equal(isFailedCheckConclusion(null), false, "still running");
 
 const red = { why: "checks_failed" as const, checks: ["check", "e2e"], headSha: HEAD };
 const openRed = ledger(FIX_SHIP_STATE.PR_OPEN, null, { blocked: red });
-assert.deepEqual(prBlockerNews(open, openRed), red, "first sight of a red pull request");
-assert.equal(prBlockerNews(openRed, openRed), null, "the same failure is not said twice");
+const saidRed = { checks_failed: red.headSha };
+assert.deepEqual(prBlockerNews(null, openRed), red, "first sight of a red pull request");
+assert.equal(prBlockerNews(saidRed, openRed), null, "the same failure is not said twice");
+// The dispatch card refreshes the ledger too, without reading blockers, and
+// so erases `blocked` from it. What was SAID is kept beside the ledger, so the
+// next tick, which finds the same failure again, stays silent.
+assert.equal(open.blocked, undefined, "a refresh that does not read blockers");
+assert.equal(
+  prBlockerNews(saidRed, openRed),
+  null,
+  "opening the thread between two ticks does not repeat the notice",
+);
 assert.deepEqual(
   prBlockerNews(
-    openRed,
+    saidRed,
     ledger(FIX_SHIP_STATE.PR_OPEN, null, { blocked: { ...red, headSha: "c".repeat(40) } }),
   ),
   { ...red, headSha: "c".repeat(40) },
   "a repair that failed too is a new commit, and is said",
 );
-assert.equal(prBlockerNews(openRed, open), null, "no longer blocked is not news here");
+assert.deepEqual(
+  prBlockerNews(
+    saidRed,
+    ledger(FIX_SHIP_STATE.PR_OPEN, null, {
+      blocked: { why: "conflict", checks: [], headSha: HEAD },
+    }),
+  ),
+  { why: "conflict", checks: [], headSha: HEAD },
+  "another reason at the same commit is said",
+);
+// Said per reason: a pull request that flaps between the two readings at one
+// commit (GitHub still computing mergeability) is announced once for each.
 assert.equal(
-  prBlockerNews(open, ledger(FIX_SHIP_STATE.MERGED, null, { blocked: red })),
+  prBlockerNews({ checks_failed: HEAD, conflict: HEAD }, openRed),
+  null,
+  "back to a reason already said at this commit is not news",
+);
+assert.equal(prBlockerNews(saidRed, open), null, "no longer blocked is not news here");
+assert.equal(
+  prBlockerNews(null, ledger(FIX_SHIP_STATE.MERGED, null, { blocked: red })),
   null,
   "only an open pull request can be blocked",
 );
+assert.equal(isFailedCheckConclusion("action_required"), true, "does not turn green by waiting");
+assert.equal(isFailedCheckConclusion("stale"), true);
 
 const blockedSaid = chatRunBlockedMessage({
   projectKey: "orangecat",
   blocked: red,
   prUrl: "https://github.com/bitbaum/orangecat/pull/1664",
+  prNumber: 1664,
 });
 assert.match(blockedSaid.content, /\*\*orangecat\*\* — the pull request cannot merge yet\./);
 assert.match(blockedSaid.content, /2 checks failed: check, e2e\./);
@@ -157,31 +190,54 @@ assert.match(
   blockedSaid.content,
   /The pull request: https:\/\/github\.com\/bitbaum\/orangecat\/pull\/1664/,
 );
-// The way forward is a message that names the project, so sending it is a task.
 assert.match(
   blockedSaid.content,
-  /> orangecat: fix the failing checks on https:\/\/github\.com\/bitbaum\/orangecat\/pull\/1664 and push to the same branch\./,
+  /\nIn orangecat, fix the failing checks on pull request #1664 and push to the same branch\.$/,
+  "the repair is the last line, ready to copy, with no quote mark in front",
 );
 assert.equal(blockedSaid.title, "orangecat · the pull request needs a repair");
 const many = chatRunBlockedMessage({
   projectKey: "loki",
   blocked: { why: "checks_failed", checks: ["a", "b", "c", "d", "e"], headSha: HEAD },
   prUrl: "u",
+  prNumber: 7,
 });
 assert.match(many.content, /5 checks failed: a, b, c and 2 more\./);
 const one = chatRunBlockedMessage({
   projectKey: "loki",
   blocked: { why: "checks_failed", checks: ["check"], headSha: HEAD },
   prUrl: "u",
+  prNumber: 7,
 });
 assert.match(one.content, /A check failed: check\./);
 const conflict = chatRunBlockedMessage({
   projectKey: "loki",
   blocked: { why: "conflict", checks: [], headSha: HEAD },
   prUrl: "u",
+  prNumber: 7,
 });
 assert.match(conflict.content, /It conflicts with the main branch\./);
-assert.match(conflict.content, /> loki: bring the branch of u up to date with main/);
+
+// The repair line is read back by the chat as a task, so three things about
+// its wording are load-bearing. A fleet with a project named like the GitHub
+// owner, and one named like the assistant.
+const FLEET = ["Bitbaum", "loki", "orangecat", "datacat", "Prime tower", "solon"];
+for (const projectKey of ["loki", "orangecat", "datacat", "Prime tower"]) {
+  for (const why of ["checks_failed", "conflict"] as const) {
+    const line = blockedRepairLine({
+      projectKey,
+      blocked: { why, checks: why === "conflict" ? [] : ["check"], headSha: HEAD },
+      prNumber: 1663,
+    });
+    assert.equal(
+      projectMentionedIn(line, FLEET),
+      projectKey,
+      `"${line}" is a task for ${projectKey}, not for ${projectMentionedIn(line, FLEET)}`,
+    );
+    assert.equal(looksLikeDispatchTask(line), true, `"${line}" must read as a task`);
+    assert.doesNotMatch(line, /github\.com|https?:/, "no link: it carries the owner's name");
+  }
+}
 
 // The wiring: the existing fifteen-minute cron, the conversation's own
 // thread, never a feedback fix (its row announces it), and no model.
@@ -191,7 +247,14 @@ assert.match(src, /getFeedbackByRunId\(run\.userId, run\.id\)/);
 assert.match(src, /liveUrl,\n/);
 assert.doesNotMatch(src, /lookAndRecord|checkAiBudget|callText/, "the timer spends no model call");
 assert.match(src, /readBlockers: true/, "the follower asks whether the pull request can merge");
-assert.match(src, /prBlockerNews\(before, fix\)/);
+assert.match(src, /prBlockerNews\(saidBefore, fix\)/, "compared with what was said");
+assert.match(src, /const saidBefore = payload\.prBlockerSaid \?\? null;/);
+const wrote = src.indexOf("meta: { runId: run.id, prUrl: fix.pr.url, blocked: blocked.why }");
+const remembered = src.indexOf("prBlockerSaid: { ...saidBefore, [blocked.why]: blocked.headSha }");
+assert.ok(
+  wrote > 0 && remembered > wrote && src.indexOf("tag: `run-blocked:", remembered) > remembered,
+  "remembered once the line is in the thread, and before the push",
+);
 assert.doesNotMatch(
   src,
   /executeInject|injectPrompt|enqueuePendingCommand/,

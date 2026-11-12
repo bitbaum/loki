@@ -67,6 +67,30 @@ export function chatRunShippedMessage(input: {
 const BLOCKED_CHECKS_NAMED = 3;
 
 /**
+ * Pure: the message a person sends to have the agent repair the pull request.
+ *
+ * Its wording is load-bearing, because the chat reads it back as a task:
+ * - It names the pull request by NUMBER, not by its link. A link carries the
+ *   repository owner's name, and a project of that name (bitbaum) then won the
+ *   project match over the one the line is about (review, 2026-11-12).
+ * - It opens with "In <project>," and not "<project>:", which for the project
+ *   called loki reads as an address to the assistant (lib/project-mention).
+ * - Both forms use a verb the chat's own rule takes as a task
+ *   (lib/command-resolve looksLikeDispatchTask); scripts/test/run-follow-notify.ts
+ *   holds all three.
+ */
+export function blockedRepairLine(input: {
+  projectKey: string;
+  blocked: PrBlocker;
+  prNumber: number;
+}): string {
+  const { projectKey, blocked, prNumber } = input;
+  return blocked.why === "conflict"
+    ? `In ${projectKey}, update the branch of pull request #${prNumber} from main, fix the conflicts and push to the same branch.`
+    : `In ${projectKey}, fix the failing checks on pull request #${prNumber} and push to the same branch.`;
+}
+
+/**
  * Pure: the line for a pull request that cannot merge as it stands, and the
  * push that points at it.
  *
@@ -79,6 +103,7 @@ export function chatRunBlockedMessage(input: {
   projectKey: string;
   blocked: PrBlocker;
   prUrl: string;
+  prNumber: number;
 }): { content: string; title: string; body: string } {
   const { projectKey, blocked, prUrl } = input;
   const conflict = blocked.why === "conflict";
@@ -89,9 +114,6 @@ export function chatRunBlockedMessage(input: {
   const what = conflict
     ? "It conflicts with the main branch."
     : `${count}: ${named}${more > 0 ? ` and ${more} more` : ""}.`;
-  const repair = conflict
-    ? `${projectKey}: bring the branch of ${prUrl} up to date with main, resolve the conflicts and push to the same branch.`
-    : `${projectKey}: fix the failing checks on ${prUrl} and push to the same branch.`;
   return {
     content: [
       `🔴 **${projectKey}** — the pull request cannot merge yet.`,
@@ -101,9 +123,9 @@ export function chatRunBlockedMessage(input: {
       "",
       "It stays open until this is repaired. To have the agent repair it, send this here:",
       "",
-      `> ${repair}`,
+      blockedRepairLine(input),
     ].join("\n"),
     title: `${projectKey} · the pull request needs a repair`,
-    body: conflict ? "It conflicts with the main branch." : what,
+    body: what,
   };
 }
