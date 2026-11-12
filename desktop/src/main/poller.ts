@@ -27,7 +27,7 @@ import path from 'path'
 import { APP_URL } from '@/config/brand'
 import { APP_SLUG } from '@/config/brand'
 import { startPeek, stopPeek } from './peek-streamer'
-import { detectAuthFailure } from './agent-auth'
+import { authFailureMessage, claudeReportedCapacityWall, detectAuthFailure } from './agent-auth'
 import { startRunProgress } from './run-progress'
 import { getAgentInstallCommand, listAgentRegistry, type AgentOption } from '@/lib/agent-registry'
 import { executor } from '@/lib/agent-execution'
@@ -67,6 +67,9 @@ import {
 } from '@/lib/agent-execution/worktree-workspace'
 import { dispatchLaunchDir, laneLaunchDir } from './lane-workspace'
 import { materializeImages } from '@/lib/agent-attachments-fs'
+import { newestLog, readRange } from './transcript-streamer'
+import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
+import { transcriptShowsPrompt } from '@/lib/prompt-evidence'
 
 /** Commands that change the open-tab / agent set → trigger an immediate
  *  runtime-state push so the UI reflects them in ~1s, not at the next heartbeat. */
@@ -401,6 +404,39 @@ async function waitForAgentGenerating(dir: string, tab: string, timeoutMs = 8000
 }
 
 /**
+ * Whether the prompt shows up in the agent's own conversation log within
+ * `timeoutMs`. Null when there is no log to read (another agent, a log folder
+ * this runner cannot find): that is no evidence, not a refusal.
+ */
+async function waitForPromptInTranscript(
+  dir: string,
+  prompt: string,
+  sinceMs: number,
+  timeoutMs = 15_000,
+): Promise<boolean | null> {
+  const deadline = Date.now() + timeoutMs
+  let sawLog = false
+  while (Date.now() < deadline) {
+    const log = await newestLog(dir).catch(() => null)
+    if (log) {
+      sawLog = true
+      const start = Math.max(0, log.size - PROMPT_TAIL_BYTES)
+      const lines = (await readRange(log.file, start, log.size).catch(() => '')).split('\n')
+      if (start > 0) lines.shift()
+      const state = newTranscriptState()
+      const items: TranscriptItem[] = []
+      for (const line of lines) items.push(...reduceTranscriptLine(state, line))
+      if (transcriptShowsPrompt(items, prompt, sinceMs)) return true
+    }
+    await asleep(750)
+  }
+  return sawLog ? false : null
+}
+
+/** A prompt is near the end of the log just after it was typed. */
+const PROMPT_TAIL_BYTES = 512_000
+
+/**
  * PATCH the pending_commands row done. Always called once per command
  * (success, error, or already-done dedup hit) so a claimed row never
  * lingers waiting for the 90s stale-claim reaper.
@@ -427,6 +463,12 @@ async function ackCommand(
         ...(body.text !== undefined ? { text: body.text } : {}),
         ...(body.verified !== undefined ? { verified: body.verified } : {}),
         ...(body.warning ? { warning: body.warning } : {}),
+        // When the prompt reached the agent, and in which workspace. Built by
+        // the dispatch case and read by the server (delivery stamp, run
+        // ledger), but dropped here until 2026-11-12, so delivery was stamped
+        // at ack time, up to ~20s late.
+        ...(body.deliveredAt ? { deliveredAt: body.deliveredAt } : {}),
+        ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}),
       }),
       signal: AbortSignal.timeout(5000),
     })
@@ -732,6 +774,21 @@ async function handleCommand(
                 ? await outputAfterInject
                 : await waitForAgentGenerating(resolveRunnerWorkspaceDir(tab, effDir), tab, 8000)
             }
+            // Busy is not delivered: the request has to be in the agent's own
+            // conversation log (prompt-evidence transcriptShowsPrompt). Only
+            // where a log can be read; no log is no evidence either way.
+            if (verified && agent === 'claude' && injectedAt) {
+              const seen = await waitForPromptInTranscript(
+                resolveRunnerWorkspaceDir(tab, effDir),
+                effPrompt,
+                Date.parse(injectedAt),
+              )
+              if (seen === false) {
+                verified = false
+                warning =
+                  'the agent is working, but your request is not in its conversation: it may be carrying on with something else. Open the session to see what it is doing.'
+              }
+            }
             ok = true
             workspaceId = runnerWorkspaceId(tab)
             text = launched ? `launched ${agent} (pty) + injected` : `injected to running ${agent} (pty)`
@@ -753,16 +810,19 @@ async function handleCommand(
             // credentials it was written for (2026-07-02/03).
             const transcriptDir = resolveRunnerWorkspaceDir(tab, effDir)
             for (let i = 0; i < 6 && !authFailed; i++) {
-              authFailed = detectAuthFailure(transcriptDir)
+              authFailed = detectAuthFailure(transcriptDir, {
+                agent,
+                since: injectedAt ? Date.parse(injectedAt) : undefined,
+                screen: saidSinceInject.text(),
+                prompt: effPrompt,
+              })
               if (!authFailed && i < 5) await asleep(2000)
             }
             if (authFailed) {
               ok = false
               verified = false
               warning = undefined
-              error =
-                `${agent} is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. ` +
-                `On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).`
+              error = authFailureMessage(agent)
             } else {
               let capacityFailure = detectPtyCapacityFailure(tab, agent as AgentOption, {
                 since: saidSinceInject.text(),
@@ -771,6 +831,16 @@ async function handleCommand(
               // Claude reports its own state. A session still generating ~12s
               // after the submit has not hit a wall, whatever its screen says —
               // "Approaching usage limit" is a warning it prints WHILE working.
+              // Claude: only its own API error entry since the prompt is a
+              // wall. The screen echoes our brief, and a brief that talks
+              // about rate limits is not Claude running out.
+              if (
+                capacityFailure &&
+                agent === 'claude' &&
+                !claudeReportedCapacityWall(transcriptDir, injectedAt ? Date.parse(injectedAt) : undefined)
+              ) {
+                capacityFailure = null
+              }
               if (capacityFailure && agent === 'claude') {
                 const live = claudeLiveSessionForDir(
                   readClaudeLiveSessions(),
@@ -783,7 +853,7 @@ async function handleCommand(
                 verified = false
                 warning = undefined
                 error = capacityFailure
-              } else if (!verified) {
+              } else if (!verified && !warning) {
               // Unverified inject is a soft failure for the captain loop: "Install
               // dispatched" with no generation is how botsmann stayed Not live
               // while Activity looked busy. Prefer Failed over fake success.

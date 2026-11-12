@@ -383,6 +383,11 @@ export function capacityFailureFromScreen(
   prompt?: string,
 ): string | null {
   const echoed = prompt ? normalizeScreenText(prompt) : "";
+  // A TUI redraw often drops the spaces of an echoed line (cursor moves stand
+  // in for them), so compare without whitespace too: "ratelimiterresets" is
+  // still our own brief, not the agent's answer (2026-11-12).
+  const compact = (t: string) => t.replace(/[\s│┃|>]+/g, "");
+  const echoedCompact = compact(echoed);
   const said = screen
     .replace(ANSI_RE, "")
     .split(/\r?\n|\r/)
@@ -390,7 +395,8 @@ export function capacityFailureFromScreen(
     // Box-drawing borders and the composer's "> " marker wrap an echoed prompt.
     .map((line) => line.replace(/^[\s>│┃|]+|[\s│┃|]+$/g, ""))
     .filter((line) => line && looksLikeAgentCapacityIssue(line))
-    .filter((line) => !(echoed && echoed.includes(line)));
+    .filter((line) => !(echoed && echoed.includes(line)))
+    .filter((line) => !(echoedCompact && echoedCompact.includes(compact(line))));
   if (!said.length) return null;
   return `${agent} cannot generate because its usage limit is exhausted. Switch this project to a provider with available capacity, then Retry.`;
 }

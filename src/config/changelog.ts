@@ -29,12 +29,35 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
-    version: "0.8.67",
-    tag: "fleet-runner-v0.8.67",
-    date: "2026-11-12T06:30:00Z",
+    version: "0.8.69",
+    tag: "fleet-runner-v0.8.69",
+    date: "2026-11-12T08:45:00Z",
     highlights: [
       "The cloud builder closes an agent session nobody has touched for six hours, so its memory comes back. Resume picks the conversation up where it stopped.",
       "Commits and pull requests a Loki-launched Claude makes are signed without a model name, unless you set your own attribution.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.68",
+    tag: "fleet-runner-v0.8.68",
+    date: "2026-11-12T07:30:00Z",
+    highlights: [
+      "A task counts as delivered only once Claude Code's own conversation shows your request. If the agent is busy with something else, the task says so instead of reading as delivered.",
+      "The builder reports the moment a task reached the agent, so a quick task's report is matched to it.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.67",
+    tag: "fleet-runner-v0.8.67",
+    date: "2026-11-12T05:30:00Z",
+    highlights: [
+      'A new session is no longer failed as "not signed in" because an older session in the same folder once was. Only what this run\'s agent says counts.',
+      "Grok, Antigravity and other agents are checked from their own output, and a sign-in error names that agent and its own fix instead of Claude's token.",
+      "A brief that talks about rate limits no longer marks Claude out of quota: only Claude's own usage-limit error counts, and a provider that finished a task since its last limit is offered again.",
     ],
     breaking: [],
     notes: "",
