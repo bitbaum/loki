@@ -38,7 +38,10 @@ Honesty rules for agent callers, pinned by `scripts/test/canonical-status.ts`:
   (`lib/run-branches`: `loki/run-<id8>`, its worktree branch, and every
   branch its runner reported the agent's checkout on); "the newest one opened
   since the run started" is not an attribution, and `main` is never one of
-  them. Pinned by `scripts/test/run-branches.ts`.
+  them. The evidence finder (`lib/github-evidence`) and the delivery track's
+  own read of the repository (`lib/repo-progress`, the "Pushed: …" line and
+  the track's pull request) both apply it. Pinned by
+  `scripts/test/run-branches.ts`.
 - **An open pull request or a deploy under way is Working**, whoever's move it is.
   Never Done, never Needs you.
 - **Closed without a change is Failed**, cause `closed_without_change`, empty

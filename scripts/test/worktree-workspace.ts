@@ -207,11 +207,14 @@ async function main(): Promise<void> {
 
   // ── 4. The prompt note ─────────────────────────────────────────────────────
 
-  check("worktreePromptNote names the branch and the land-on-main path", () => {
+  check("worktreePromptNote names the branch and ships through a pull request", () => {
     const note = worktreePromptNote("run-9");
     assert(note.includes(worktreeBranch("run-9")), "note must name the branch");
-    assert(note.includes("git push origin HEAD:main"), "note must say how to land on main");
-    assert(note.includes("pull --rebase"), "note must include the rebase-first step");
+    assert(note.includes("git push -u origin HEAD"), "note must say how to push the branch");
+    assert(note.includes("open a pull request"), "note must say the pull request is the way");
+    // 2026-11-12: it told every isolated run to push straight to main.
+    assert(!/HEAD:main|push origin main/.test(note), "note must never send work to main");
+    assert(note.includes("Never push to main"), "and says so");
   });
 
   // ── 5. Whose agent is it? ──────────────────────────────────────────────────

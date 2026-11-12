@@ -112,7 +112,8 @@ reaches its own account's sessions.
 1. **Start or continue.** `POST /api/control/tab-inject` `{tab, prompt}`, where
    `tab` is the project's name. A session that is running gets the prompt
    typed into it; otherwise the builder starts the project's agent and hands
-   it the prompt. Returns `commandId` and `runId`.
+   it the prompt. Returns `commandId`, `runId` and `openUrl`: the same
+   session in Loki's Terminal, on that run.
 2. **See it is up.** `GET /api/control/open-tabs?channel=cloud` lists the
    sessions open on the cloud builder, by name.
 3. **Read it.** `POST /api/control/peek-tab` `{tab, channel: "cloud"}` returns
@@ -123,9 +124,9 @@ reaches its own account's sessions.
    `{kind: "key", tab, data, channel: "cloud"}`, the bytes the Terminal page
    sends for a keystroke.
 5. **Close it.** `POST /api/control/close-tab` `{tab, channel: "cloud"}`.
-6. **Hand it to a person.** `openUrl` (`/terminal?project=<tab>`) is the same
-   session in Loki's Terminal, for whoever is signed in as the owner, on a
-   phone or a computer.
+6. **Hand it to a person.** `openUrl` (`/terminal?source=cloud&project=<tab>&run=<id>`,
+   from starting it or from a capture) is the same session in Loki's
+   Terminal, for whoever is signed in as the owner, on a phone or a computer.
 
 A plain shell (`loki-shell-…`) is never part of this: its screen and keys
 belong to a signed-in, unlocked browser, and a token gets `403` or `404`.

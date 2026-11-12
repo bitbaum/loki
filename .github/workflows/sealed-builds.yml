@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "read | test | on | off"
+        description: "read | test | on | off | activity (what each agent session read and wrote over a minute)"
         required: true
         default: read
         type: choice
@@ -23,6 +23,7 @@ on:
             "stop-sealed",
             "journal",
             "containers",
+            "activity",
             "launch-check",
             "clean-dead",
             "reset-runtime",

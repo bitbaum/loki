@@ -80,10 +80,12 @@ substrata|4022|*-*-* 00/6:52:00|/api/cron/source|POST
 # OpenFIGI) and USGS table rows, and stores the scorecard behind /data/quality
 # (research_quality_checks/_runs, migration 014). No AI: HTTP and string matching.
 substrata|4022|*-*-* 01/6:41:00|/api/cron/quality|POST
-# solon has no vercel.json. Daily Places import: the route fetches the public
-# registers whose cadence names the day (solon src/lib/places/schedule.ts) and
-# calls no model.
-solon|4018|*-*-* 04:30:00|/api/cron/places|POST
+# solon has no vercel.json. Hourly Places import: the route starts a worker
+# that fetches every public register its run log says is behind (solon
+# src/lib/places/importer/queue.ts) and answers at once; it calls no model.
+# Hourly, so a publisher that was down is tried again the same day and a batch
+# of new sources drains without one long request (curl here stops at 300 s).
+solon|4018|*-*-* *:30:00|/api/cron/places|POST
 # heidi has no vercel.json. Hourly: reads the YouTube feeds of the channels
 # learners follow and sends the Web Push for new videos (heidi
 # lib/channels/sweep.ts). No AI: XML and one HTTP call per phone. The route

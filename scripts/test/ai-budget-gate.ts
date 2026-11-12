@@ -48,12 +48,14 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void): void
 }
 
 const NOON = new Date("2026-08-15T12:00:00Z");
-const KEYS: Record<string, string | undefined> = {
-  GROQ_API_KEY: undefined,
-  OPENROUTER_API_KEY: undefined,
-  LOKI_GROQ_DAILY_TOKENS: undefined,
-  LOKI_OPENROUTER_DAILY_TOKENS: undefined,
-};
+// Every key and budget override the chain reads, from the chain itself: a
+// list written by hand missed GEMINI_API_KEY once Gemini joined the chain, so
+// a machine that held one failed "unkeyed providers contributed capacity".
+const KEYS: Record<string, string | undefined> = Object.fromEntries(
+  CHAT_CHAIN.flatMap((p) => [p.keyEnv, p.dailyTokensEnv])
+    .filter((k): k is string => !!k)
+    .map((k) => [k, undefined]),
+);
 
 async function main() {
   // ── capacity SSOT ──────────────────────────────────────────────────────────
