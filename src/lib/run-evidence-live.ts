@@ -19,6 +19,7 @@ import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
 import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { findCodeCustodyByGitUrl } from "@/db/queries/user-projects";
 import { stampRunEvidence } from "@/db/queries/orchestration-runs";
+import { runBranches } from "@/lib/run-branches";
 
 /**
  * The token a read of this repository goes out with — the same picker as the
@@ -57,7 +58,12 @@ export async function findLiveRunEvidence(
   try {
     const token = await repoTokenFor(userId, gitUrl);
     if (!token) return null;
-    const found = await findRepoWorkEvidence(gitUrl, token, run.startedAt.getTime());
+    const found = await findRepoWorkEvidence(
+      gitUrl,
+      token,
+      run.startedAt.getTime(),
+      runBranches(run),
+    );
     if (!found) return null;
     await stampRunEvidence(run.id, userId, found).catch(() => undefined);
     return found;

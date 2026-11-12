@@ -33,7 +33,12 @@ Honesty rules for agent callers, pinned by `scripts/test/canonical-status.ts`:
   live URL, all in `evidence`. A report marked done without them reads
   **Needs you**, cause `done_unproven`, with `missing` listing which of
   `pr merge deploy live_url` is absent and the next action to confirm the live
-  page. A pull request that is another run's is not proof.
+  page. A pull request that is another run's is not proof. A pull request or
+  push is a run's only when it is on one of the run's own branches
+  (`lib/run-branches`: `loki/run-<id8>`, its worktree branch, and every
+  branch its runner reported the agent's checkout on); "the newest one opened
+  since the run started" is not an attribution, and `main` is never one of
+  them. Pinned by `scripts/test/run-branches.ts`.
 - **An open pull request or a deploy under way is Working**, whoever's move it is.
   Never Done, never Needs you.
 - **Closed without a change is Failed**, cause `closed_without_change`, empty
@@ -103,7 +108,15 @@ commits and the state of the checks on it (`repo-progress`), and after the
 run the fix ledger through merge, deploy and Loki's look (`run-follow`). The
 Watch route (`/api/projects/[id]/watch`) and both live-status routes the chat
 card polls (`/api/orchestration/runs/[id]`, `/api/control/commands/[id]`)
-call it and carry `track`; `components/projects/RunTrack` draws it in both
+call it and carry `track`. While the run is open, the status fields those two
+routes return beside it (`status`, `label`, `detail`, `tone`) are read from
+the track too (`track.live` and `track.summary`, through
+`alignLiveViewWithTrack` in `lib/dispatch-status`): Queued until a builder
+claims it, Starting until the agent prints after the prompt, then Working,
+or Needs you. An open run is never "Delivered to agent" on a runner's ack
+alone, and a run that went through the queue is judged by its own command
+row, not assumed executed (`scripts/test/one-run-status.ts`).
+`components/projects/RunTrack` draws the track in both
 places, and `components/projects/RunLook` shows what Loki saw (verdict,
 evidence, the page before and after) under it. Until 2026-10-17 the chat card
 had its own list (`run-milestones`: picked up → pushed → PR → checks) read

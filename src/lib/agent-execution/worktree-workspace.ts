@@ -26,6 +26,7 @@
  * uncommitted changes AND no unpushed commits — an agent's unfinished work is
  * never destroyed. `pruneWorktrees` sweeps stale clean ones (crashed runs).
  */
+import { sanitizeRunKey, worktreeBranchName } from "@/lib/run-branches";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -43,14 +44,7 @@ const WORKTREES_ROOT =
  *  Symlinks, not copies: deps stay warm and env stays single-sourced. */
 const LINKED_ARTIFACTS = ["node_modules", ".env", ".env.local", ".env.selfhost.local"];
 
-function sanitize(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "x"
-  );
-}
+const sanitize = sanitizeRunKey;
 
 function git(dir: string, args: string[], timeoutMs = 60_000): string {
   return execFileSync("git", ["-C", dir, ...args], {
@@ -61,7 +55,7 @@ function git(dir: string, args: string[], timeoutMs = 60_000): string {
 }
 
 export function worktreeBranch(runId: string): string {
-  return `fc/${sanitize(runId)}`;
+  return worktreeBranchName(runId);
 }
 
 export function worktreePath(tab: string, runId: string): string {

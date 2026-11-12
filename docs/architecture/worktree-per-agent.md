@@ -75,6 +75,19 @@ worktree. The pieces that ARE alias-aware:
   base project's state row — run A's ready handoff can't close run B. The
   reaper remains the backstop for lost alias runs.
 
+### A fresh one-off session (`session: "fresh"`)
+
+`POST /api/inject` and the MCP `loki_dispatch` take `session: "fresh"`. The
+prompt gets a lane of its own whether or not the project is busy: a new agent
+in its own worktree, with no earlier conversation, told that this is a one-off.
+When it reports ready on its own session file the run closes and Loki queues
+`close_tab` for the lane, so the agent cannot go on to anything else. The
+server flag does not apply (the caller asked by name); the lane limit does.
+When no lane can be had the request is refused with
+`fresh-session-unavailable` (409) and nothing is sent: a fresh session never
+falls back to the project's shared tab. A run that the reaper closes (no
+report) keeps its tab until it is closed by hand or the builder restarts.
+
 Trade-off (deliberate): parallel alias runs have no live project card — they
 surface in Activity/runs, not /control cards. Net: `scripts/test/run-tab.ts`.
 

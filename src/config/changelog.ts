@@ -29,12 +29,22 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
-    version: "0.8.66",
-    tag: "fleet-runner-v0.8.66",
-    date: "2026-11-12T10:00:00Z",
+    version: "0.8.67",
+    tag: "fleet-runner-v0.8.67",
+    date: "2026-11-12T06:30:00Z",
     highlights: [
       "The cloud builder closes an agent session nobody has touched for six hours, so its memory comes back. Resume picks the conversation up where it stopped.",
       "Commits and pull requests a Loki-launched Claude makes are signed without a model name, unless you set your own attribution.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.66",
+    tag: "fleet-runner-v0.8.66",
+    date: "2026-11-12T04:45:00Z",
+    highlights: [
+      "The builder reports which branch the agent is working on, so a task only shows a pull request that is really its own.",
     ],
     breaking: [],
     notes: "",

@@ -9,7 +9,6 @@ import { getAgentProcesses, readFastState } from "@/lib/control-fast-state";
 import { listOwnedTabs } from "@/lib/agent-execution/owned";
 import { getSessionUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
-import { NOTIFY_CHANNEL } from "@/db/setup-notify-trigger";
 import { SSE_KEEPALIVE_MS } from "@/lib/constants/time";
 import type { FastProjectState } from "@/lib/control-fast-state";
 import { sseBus } from "@/lib/sse-bus";
@@ -18,8 +17,7 @@ import {
   dbRowToSession,
   isRuntimeObservationFresh,
 } from "@/lib/project-session";
-import { getDatabaseDirectUrl } from "@/lib/db-url";
-import postgres from "postgres";
+import { subscribeControlNotify } from "@/lib/control-notify";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +184,7 @@ export async function GET() {
     });
   };
 
+  let cleanup: (() => void) | null = null;
   const stream = new ReadableStream({
     async start(controller) {
       const enc = new TextEncoder();
@@ -306,31 +305,30 @@ export async function GET() {
       };
       sseBus.on("sentinel-changed", onSentinelChanged);
 
-      // Cloud host only: Postgres LISTEN/NOTIFY for sub-second state propagation.
-      // Must use a direct URL — poolers do not support persistent LISTEN.
-      let pgListener: ReturnType<typeof postgres> | null = null;
-      const directDatabaseUrl = getDatabaseDirectUrl();
-      if (!isRuntimeAvailable() && directDatabaseUrl) {
-        pgListener = postgres(directDatabaseUrl, { max: 1 });
-        pgListener
-          .listen(NOTIFY_CHANNEL, (notifyUserId) => {
-            if (notifyUserId === userId) scheduledTick();
-          })
-          .catch((err) => console.warn("[control/stream] LISTEN setup failed:", err));
-      }
+      // Cloud host only: Postgres LISTEN/NOTIFY for sub-second state propagation,
+      // through ONE shared listener per process (src/lib/control-notify.ts).
+      const unsubscribeNotify = !isRuntimeAvailable()
+        ? subscribeControlNotify(userId, scheduledTick)
+        : () => {};
 
       // Fallback tick — much longer now that events cover real-time changes.
       const FALLBACK_TICK_MS = isRuntimeAvailable() ? 10_000 : 5_000;
       const interval = setInterval(scheduledTick, FALLBACK_TICK_MS);
 
-      // Cleanup when client disconnects
-      return () => {
+      // Cleanup when the client disconnects. A function returned from
+      // start() is ignored by ReadableStream, so it is stored and run from
+      // cancel(); that is what leaked a Postgres connection per page view.
+      cleanup = () => {
         clearInterval(interval);
         if (keepaliveTimer) clearTimeout(keepaliveTimer);
         sseBus.off(`state:${userId}`, onStateChanged);
         sseBus.off("sentinel-changed", onSentinelChanged);
-        pgListener?.end().catch(() => {});
+        unsubscribeNotify();
       };
+    },
+    cancel() {
+      cleanup?.();
+      cleanup = null;
     },
   });
 

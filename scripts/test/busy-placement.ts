@@ -13,6 +13,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { busyPlacement } from "@/lib/orchestration/busy-placement";
+import { ONE_OFF_SESSION_NOTE, promptForOneOff } from "@/lib/orchestration/lane-prompt";
 
 let failures = 0;
 function check(name: string, fn: () => void) {
@@ -63,7 +64,9 @@ check("the executor forks a lane only through this rule", () => {
   const src = read("src/lib/executor.ts");
   assert(/busyPlacement\(\{/.test(src), "executeInject does not consult busyPlacement");
   assert(
-    /placement === "lane" && payload\.projectKey\s*\? await planParallelRun\(/.test(src),
+    /\(placement === "lane" \|\| placement === "fresh"\) && payload\.dir && payload\.projectKey\s*\? await planParallelRun\(/.test(
+      src,
+    ),
     "planParallelRun is reachable without the caller asking for a lane",
   );
   assert(
@@ -91,6 +94,85 @@ check("a message through the API or MCP never asks for a lane", () => {
 
 check("feedback Implement still asks for its own lane", () => {
   assert(/whenBusy: "lane"/.test(read("src/lib/feedback/implement.ts")), "Implement would queue");
+});
+
+// ── a fresh one-off session ────────────────────────────────────────────────
+// Probe 9e3658d9, 2026-11-12: "only run git status, then stop" was answered in
+// the project's shared session, which then resumed its own plan and edited
+// tests. A fresh session is its own lane for one prompt, or nothing.
+
+check("a fresh session is a lane of its own whether or not the project is busy", () => {
+  for (const projectBusy of [true, false, undefined]) {
+    for (const whenBusy of [undefined, "queue", "lane"] as const) {
+      assert(
+        busyPlacement({ projectBusy, whenBusy, session: "fresh", ...full }) === "fresh",
+        `busy=${projectBusy} whenBusy=${whenBusy}`,
+      );
+    }
+  }
+});
+
+check("a shared session is unchanged by the option", () => {
+  assert(
+    busyPlacement({ projectBusy: true, whenBusy: undefined, session: "shared", ...full }) ===
+      "queue",
+    "shared + busy",
+  );
+  assert(
+    busyPlacement({ projectBusy: false, whenBusy: undefined, session: "shared", ...full }) ===
+      "now",
+    "shared + free",
+  );
+});
+
+check("a fresh session never falls back to the shared tab", () => {
+  const src = read("src/lib/executor.ts");
+  assert(
+    /if \(placement === "fresh" && !plan\) \{\s*return \{\s*ok: false,/.test(src),
+    "a fresh session without a lane is not refused",
+  );
+  assert(/code: "fresh-session-unavailable"/.test(src), "the refusal has no code");
+  assert(
+    /runtimeAvailable && !payload\.projectBusy && !payload\.queueOnly && !fresh/.test(src),
+    "a fresh session can be typed straight into the live shared PTY",
+  );
+  assert(
+    /plan && placement === "fresh" \? \{\} : \{ sessionId: payload\.sessionId \}/.test(src),
+    "a fresh session resumes an earlier conversation",
+  );
+});
+
+check("a fresh session's prompt says it is one-off and reports to its own file", () => {
+  const out = promptForOneOff("only run git status, then stop", "orangecat~9e3658d9");
+  assert(out.startsWith(ONE_OFF_SESSION_NOTE), "the note does not lead");
+  assert(out.includes("only run git status, then stop"), "the request is gone");
+  assert(out.includes("orangecat~9e3658d9.md"), "the handoff is not the lane's own file");
+  assert(!/sessions\/orangecat\.md/.test(out), "it would report on the shared tab");
+});
+
+check("a fresh run is marked, and its tab is closed when it reports", () => {
+  const plan = read("src/lib/orchestration/parallel-run.ts");
+  assert(/oneOff: true/.test(plan), "the run is not marked one-off");
+  assert(/if \(!oneOff && !PARALLEL_DISPATCH_ENABLED\) return null;/.test(plan), "flag rule moved");
+  const close = read("src/lib/orchestration/close-sweep.ts");
+  assert(
+    /if \(outcome != null\) await closeOneOffTab\(run, sessionTab\);/.test(close),
+    "not closed",
+  );
+  assert(
+    /payload\?\.oneOff !== true\) return;/.test(close),
+    "an ordinary lane would be closed too",
+  );
+  assert(/enqueueTabCommand\(run\.userId, "close_tab"/.test(close), "no close_tab is queued");
+});
+
+check("the option is on POST /api/inject and on the MCP loki_dispatch", () => {
+  const route = read("src/app/api/inject/route.ts");
+  assert(/session: z\.enum\(\["shared", "fresh"\]\)\.optional\(\)/.test(route), "route schema");
+  assert(/notifyOnClose: announce, session \}/.test(route), "route does not pass it on");
+  const tools = read("src/lib/mcp/tools.ts");
+  assert(/session: z\s*\.enum\(\["shared", "fresh"\]\)/.test(tools), "tool schema");
+  assert(/session: opts\?\.session/.test(read("src/lib/mcp/services.ts")), "service drops it");
 });
 
 if (failures) {

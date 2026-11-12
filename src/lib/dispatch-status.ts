@@ -100,13 +100,36 @@ export function dispatchAssistantContent(projectKey: string, input: DispatchStat
   return `Dispatched **${projectKey}**.`;
 }
 
+/**
+ * A dispatch that went to another builder because the project's own was
+ * offline, said in one sentence for a caller with no card to draw (the API,
+ * an MCP app). The chat already says it (dispatchReply); an API caller got
+ * `reroutedFrom` and a channel and had to know what the pair meant, so a
+ * project pinned to an offline computer looked like it simply ran on the
+ * cloud. Null when nothing was rerouted.
+ */
+export function rerouteNotice(
+  channel: BuilderChannel | null | undefined,
+  reroutedFrom: BuilderChannel | null | undefined,
+): string | null {
+  if (!channel || !reroutedFrom || channel === reroutedFrom) return null;
+  const from = EXECUTOR_COPY.builderFromOutside[reroutedFrom];
+  const on = EXECUTOR_COPY.builderFromOutside[channel];
+  if (!from || !on) return null;
+  return `This project is set to run on ${from}, which is offline now, so ${on} took this one. The setting is unchanged.`;
+}
+
 /** The live lifecycle of a queued dispatch, derived from its pending_command
  *  row. Lets the transcript footer show the truth as it unfolds — queued →
  *  picked up → ran / failed — instead of freezing on the optimistic snapshot
  *  stamped at dispatch time. SSOT for both the status API and the footer. */
 export type DispatchLiveStatus =
   | "queued"
+  /** A builder has it; the agent has not shown the prompt yet. */
+  | "starting"
   | "working"
+  /** Stopped until a person acts; the track's sentence says on what. */
+  | "needs_you"
   | "delivered"
   | "completed"
   | "partial"
@@ -425,4 +448,42 @@ export function deriveMultiDispatchView(attempts: MultiDispatchAttempt[]): Multi
     };
   }
   return { label: `Started all ${total}`, tone: "positive", primaryProject };
+}
+
+/**
+ * While a run is open, its status is the track's.
+ *
+ * The status routes derived a word from the command row (claimed, executed)
+ * and the track derived a sentence from the run's events, and the two were
+ * returned side by side. On 2026-11-12 one response said status "delivered"
+ * and track.summary "Waiting for a runner to pick it up". The track reads the
+ * evidence (who claimed it, whether the agent printed anything), so it wins:
+ * every field of an open run's view comes from `track.live` and
+ * `track.summary`.
+ *
+ * "Delivered to agent" is therefore never said about an open run on the
+ * strength of a runner's ack alone. Until the agent has shown output after
+ * the prompt, the run is Starting; once it has, it is Working.
+ *
+ * A settled view is left as it is: a refused or unconfirmed command and a
+ * finished run are facts of their own, not a stage of the road.
+ */
+export function alignLiveViewWithTrack(
+  view: DispatchLiveView,
+  track: RunTrack | null | undefined,
+): DispatchLiveView {
+  if (view.terminal || !track?.live) return view;
+  const detail = track.summary;
+  switch (track.live) {
+    case "queued":
+      return { ...view, status: "queued", label: "Queued", detail, tone: "neutral" };
+    case "starting":
+      return { ...view, status: "starting", label: "Starting", detail, tone: "neutral" };
+    case "needs_you":
+      return { ...view, status: "needs_you", label: "Needs you", detail, tone: "warning" };
+    case "working":
+      return view.status === "working"
+        ? view
+        : { ...view, status: "working", label: "Agent is working", detail, tone: "positive" };
+  }
 }

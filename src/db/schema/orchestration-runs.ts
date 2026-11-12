@@ -47,6 +47,11 @@ export type OrchestrationRunPayload = {
    *  this tab; close matching keys on it (closeOpenRunBySessionTab). Absent
    *  for ordinary runs. */
   sessionTab?: string;
+  /** A fresh one-off session (inject `session: "fresh"`): its lane tab is
+   *  closed when the run closes. */
+  oneOff?: boolean;
+  /** The builder a one-off session runs on, so its tab is closed there. */
+  oneOffChannel?: string;
   /** The agent this run was MEANT for, when Loki started a different one
    *  because that agent was observed out of quota (routeAroundSpent). Absent
    *  when the run went where it was sent. */
@@ -80,6 +85,9 @@ export type OrchestrationRunPayload = {
    *  the run's window. Written by the reaper when it corrects a timeout
    *  (reap-evidence.ts) and by Watch the moment it appears (run-evidence-live.ts). */
   evidence?: { kind: string; url: string; title: string; atMs: number };
+  /** Branches the runner reported the agent's checkout on while the run was
+   *  live (lib/run-branches): what ties a pull request or push to this run. */
+  branches?: string[];
   /** The fix ledger — where the change got to AFTER the run closed: pull
    *  request, merge, deploy, Loki's look (lib/feedback/fix-shipping, written
    *  by stampRunFix). Every reader used to cast for it. */
