@@ -11,6 +11,7 @@
  * after the reap is still a correction.
  */
 
+import { runBranches } from "@/lib/run-branches";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { entities, userProjects } from "@/db/schema";
@@ -94,7 +95,12 @@ export async function correctTimeoutReapsWithRepoEvidence(
       const token = await getGithubToken(run.userId);
       if (!token) continue;
 
-      const evidence = await findRepoWorkEvidence(gitUrl, token, run.startedAt.getTime());
+      const evidence = await findRepoWorkEvidence(
+        gitUrl,
+        token,
+        run.startedAt.getTime(),
+        runBranches(run),
+      );
       if (!evidence) continue;
 
       const [corrected] = await db

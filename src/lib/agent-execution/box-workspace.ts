@@ -17,6 +17,7 @@
  * Loaded ONLY by the box-runner (LOKI_BOX_PREPARE=true), via dynamic import
  * from pty-runtime — keeps git out of the desktop Electron bundle.
  */
+import { runBranchName } from "@/lib/run-branches";
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
@@ -145,13 +146,8 @@ export async function ensureBoxWorkspace(
   return boxDir;
 }
 
-/** The branch a run works on: one per run, named so it is obviously Loki's. */
-export function runBranchName(runId: string): string {
-  return `loki/run-${runId
-    .replace(/[^0-9a-zA-Z]/g, "")
-    .slice(0, 8)
-    .toLowerCase()}`;
-}
+/** The branch a run works on (lib/run-branches is the one place it is named). */
+export { runBranchName };
 
 function defaultRemoteBranch(dir: string): string {
   try {
