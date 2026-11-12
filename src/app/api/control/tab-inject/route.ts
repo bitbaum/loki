@@ -9,7 +9,13 @@ import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { AttachmentsField, stageAttachmentsForAgent } from "@/lib/composer-attachments";
 import { materializeImages } from "@/lib/agent-attachments-fs";
-import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/execution-access";
+import {
+  coldStartWorkspaceDir,
+  executionAccessErrorBody,
+  offlineFallbackChannel,
+  resolveQueuedExecution,
+} from "@/lib/execution-access";
+import { rerouteNotice } from "@/lib/dispatch-status";
 import {
   DEFAULT_ADAPTER_ID,
   ORCHESTRATION_ADAPTER_IDS,
@@ -226,10 +232,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(body, { status });
   }
 
-  const execution = await resolveQueuedExecution(userId, { project });
+  // The project's own builder is off and the cloud runner can clone it: the
+  // work goes where it can start now, as it does from the chat (inject-core).
+  // Without the fallback this composer queued for a computer that was shut and
+  // answered "dispatch" with nothing else; the row then sat until the reaper
+  // closed it an hour later (the owner's laptop was offline from 2026-11-11
+  // 07:19, and every project registered from it was still pinned to it).
+  const execution = await resolveQueuedExecution(userId, {
+    project,
+    offlineFallback: project ? offlineFallbackChannel(project) : null,
+  });
   if (!execution.ok) {
     return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
   }
+  const reroutedFrom = execution.reroutedFrom ?? null;
+  const rerouted = rerouteNotice(execution.channel ?? null, reroutedFrom);
   // Record BEFORE enqueue so the command payload carries the runId — the
   // runner's ack (submitted/delivered/undelivered) and the queued-dispatch
   // ordering machinery both key on payload.runId.
@@ -246,7 +263,11 @@ export async function POST(req: NextRequest) {
     const commandId = await enqueueDispatchCommand(userId, {
       tab,
       ...(execution.channel ? { channel: execution.channel } : {}),
-      dir: project.dirPath,
+      // On the other builder the project's stored folder is another machine's
+      // path; the cloud runner starts in the folder it clones into.
+      dir: reroutedFrom
+        ? (coldStartWorkspaceDir(project.name, project.gitUrl) ?? project.dirPath)
+        : project.dirPath,
       agent: adapter,
       prompt: promptToSend,
       ...attachments,
@@ -260,6 +281,12 @@ export async function POST(req: NextRequest) {
       mode: "dispatch",
       commandId,
       tab,
+      // Which builder has it, and in a sentence when that is not the one the
+      // project is set to: nobody should have to guess where their work went.
+      ...(execution.channel ? { channel: execution.channel } : {}),
+      runnerConnected: execution.runnerConnected,
+      ...(reroutedFrom ? { reroutedFrom } : {}),
+      ...(rerouted ? { message: rerouted } : {}),
       openUrl: sessionOpenUrl(tab, execution.channel ?? null, runId ?? null),
       ...(runId ? { runId } : {}),
     });

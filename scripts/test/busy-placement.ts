@@ -92,6 +92,27 @@ check("a message through the API or MCP never asks for a lane", () => {
   }
 });
 
+check("every way a feedback fix starts asks for a lane, as Implement does", () => {
+  // "Implement all" and the widget's "Build all" (batch-dispatch), and the
+  // automatic retry of a stuck Implement (retry-queued), queued behind the
+  // project's open run after #1639 while single-item Implement got a lane.
+  for (const rel of ["src/lib/feedback/batch-dispatch.ts", "src/lib/feedback/retry-queued.ts"]) {
+    assert(/whenBusy: "lane",/.test(read(rel)), `${rel} waits behind the open run`);
+  }
+});
+
+check("a busy project never queues a message it has no run for", () => {
+  // The claim gate holds a busy project's row back by its run; a row without
+  // one is claimable at once and would be typed into the session it was
+  // meant to wait for.
+  const src = read("src/lib/inject-core.ts");
+  const busy = src.indexOf("const projectBusy =");
+  const guard = src.indexOf("if (projectBusy && trackableIntent && !runId) {");
+  const execute = src.indexOf("return await executeAndReport(");
+  assert(busy > 0 && guard > busy && guard < execute, "an unrecorded busy message is queued");
+  assert(/code: "run-not-recorded",/.test(src), "the refusal has no code");
+});
+
 check("feedback Implement still asks for its own lane", () => {
   assert(/whenBusy: "lane"/.test(read("src/lib/feedback/implement.ts")), "Implement would queue");
 });
@@ -137,8 +158,8 @@ check("a fresh session never falls back to the shared tab", () => {
     "a fresh session can be typed straight into the live shared PTY",
   );
   assert(
-    /plan && placement === "fresh" \? \{\} : \{ sessionId: payload\.sessionId \}/.test(src),
-    "a fresh session resumes an earlier conversation",
+    /\.\.\.\(plan \? \{\} : \{ sessionId: payload\.sessionId \}\),/.test(src),
+    "a lane (fresh or parallel) resumes an earlier conversation",
   );
 });
 
@@ -164,7 +185,7 @@ check("a fresh run is marked, and its tab is closed when its run closes", () => 
 check("the option is on POST /api/inject and on the MCP loki_dispatch", () => {
   const route = read("src/app/api/inject/route.ts");
   assert(/session: z\.enum\(\["shared", "fresh"\]\)\.optional\(\)/.test(route), "route schema");
-  assert(/notifyOnClose: announce, session \}/.test(route), "route does not pass it on");
+  assert(/notifyOnClose: announce,\s*session,/.test(route), "route does not pass it on");
   const tools = read("src/lib/mcp/tools.ts");
   assert(/session: z\s*\.enum\(\["shared", "fresh"\]\)/.test(tools), "tool schema");
   assert(/session: opts\?\.session/.test(read("src/lib/mcp/services.ts")), "service drops it");

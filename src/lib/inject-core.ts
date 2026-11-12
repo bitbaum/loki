@@ -211,8 +211,10 @@ async function buildLocalPrompt(args: {
   promptKey?: string;
   customPrompt?: string;
   eventAdapter: ResolvedAdapter;
+  /** A fresh one-off: none of the shared session's notes or recovery state. */
+  oneOff?: boolean;
 }): Promise<BuiltPrompt | InjectResult> {
-  const { userId, canonical, effectiveTab, promptKey, customPrompt, eventAdapter } = args;
+  const { userId, canonical, effectiveTab, promptKey, customPrompt, eventAdapter, oneOff } = args;
   const { readPrompts, readPromptMeta } = await import("@/lib/agent-config");
 
   // Broad intents can use the project roadmap. Explicit user tasks are kept
@@ -220,8 +222,9 @@ async function buildLocalPrompt(args: {
   const [projectContext, escalationBlock] = await Promise.all([
     customPrompt ? Promise.resolve(null) : getProjectContext(userId, canonical).catch(() => null),
     // Open escalation ladder — the last failure fed back to the agent with a
-    // rung-specific instruction. Mirrors assembleInjectPrompt.
-    getOpenEscalationBlock(userId, canonical).catch(() => ""),
+    // rung-specific instruction. Mirrors assembleInjectPrompt, and like it
+    // leaves a fresh one-off out.
+    oneOff ? Promise.resolve("") : getOpenEscalationBlock(userId, canonical).catch(() => ""),
   ]);
   const contextBlock = renderProjectContextBlock(projectContext ?? undefined);
   const withContext = (body: string) =>
@@ -259,7 +262,12 @@ async function buildLocalPrompt(args: {
     ((b: string) => b);
   const meta = readPromptMeta().find((m) => m.key === promptKey);
   return {
-    prompt: withContext(enrichPrompt(base, effectiveTab, projectStateDescription(stateKey))),
+    // The enrichment is the SHARED session's: its last handoff and an
+    // instruction to update its file. A fresh one-off gets neither; the lane
+    // gives it its own file (lane-prompt promptForOneOff).
+    prompt: withContext(
+      oneOff ? base : enrichPrompt(base, effectiveTab, projectStateDescription(stateKey)),
+    ),
     promptLabel: meta ? `${meta.icon} ${meta.label}` : promptKey,
   };
 }
@@ -275,6 +283,7 @@ async function buildRemotePrompt(args: {
   customPrompt?: string;
   eventModel?: string;
   liveUrl?: string | null;
+  oneOff?: boolean;
 }): Promise<BuiltPrompt | InjectResult> {
   const assembled = await assembleInjectPrompt({
     userId: args.userId,
@@ -286,6 +295,7 @@ async function buildRemotePrompt(args: {
     customPrompt: args.customPrompt,
     model: args.eventModel,
     liveUrl: args.liveUrl,
+    oneOff: args.oneOff,
   });
   if (!assembled.ok) return { status: assembled.status, body: { error: assembled.error } };
   return { prompt: assembled.prompt, promptLabel: assembled.promptLabel };
@@ -785,9 +795,13 @@ async function executeAndReport(
     // (2026-10-15) an account with no builder piled up six "waiting" runs, and
     // Loki told it its work was queued when none of it ever could start.
     if (runId) {
-      await closeRunUndelivered(runId, userId, result.error, { notify: false }).catch((err) =>
-        console.error("[inject] close refused run failed:", err),
-      );
+      await closeRunUndelivered(runId, userId, result.error, {
+        notify: false,
+        // "No free lane for a fresh session" is a choice the caller can
+        // retry, not a sign the project is failing: four of them used to
+        // reach the human rung and page the owner, with no agent ever run.
+        ladder: (result as { code?: string }).code !== "fresh-session-unavailable",
+      }).catch((err) => console.error("[inject] close refused run failed:", err));
     }
     return recordInjectFailure(userId, result, outcome);
   }
@@ -961,6 +975,7 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
         promptKey,
         customPrompt,
         eventAdapter,
+        oneOff: params.session === "fresh",
       })
     : await buildRemotePrompt({
         userId,
@@ -972,6 +987,7 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
         customPrompt,
         eventModel,
         liveUrl: dbMatch.liveUrl,
+        oneOff: params.session === "fresh",
       });
   if (isInjectResult(built)) return built;
   const { prompt, promptLabel } = built;
@@ -1026,7 +1042,9 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
     });
   }
 
-  if (runtimeAvailable) {
+  // The shared tab's prompt and handshake files describe the shared session.
+  // A fresh one-off runs in a lane of its own and must not touch them.
+  if (runtimeAvailable && params.session !== "fresh") {
     await writeLocalInjectSideEffects(userId, {
       effectiveTab,
       promptKey,
@@ -1046,6 +1064,22 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
   const projectBusy =
     !lifecycleIntent &&
     (await isProjectBusy(userId, canonical, { excludeRunId: runId }).catch(() => false));
+
+  // The queue holds a busy project's dispatch back by its run: the claim gate
+  // releases it once it is the oldest open run (fifoEligibilitySql). A row
+  // with no run has nothing to hold it by and is claimable at once, so a
+  // message whose run could not be recorded would be typed into the session
+  // it was meant to wait for. Refuse it instead; nothing was sent.
+  if (projectBusy && trackableIntent && !runId) {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        error: `${canonical} is busy, and Loki could not record this request, so it cannot wait its turn. Nothing was sent; send it again in a moment.`,
+        code: "run-not-recorded",
+      },
+    };
+  }
 
   // Name the builder that will run this. A command with no channel is claimable
   // by EVERY runner at once, so leaving it open is a race the always-on box

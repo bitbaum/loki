@@ -2,6 +2,7 @@
  * Inline tests for multitenant execution routing.
  * Run: npx tsx scripts/test/execution-access.ts
  */
+import { readFileSync } from "node:fs";
 import {
   decideQueuedExecution,
   offlineFallbackChannel,
@@ -148,5 +149,22 @@ console.log("✓ execution-access tests passed");
     offlineFallback: "cloud",
   });
   if (tenant.ok) throw new Error("tenant without cloud access must not fall through to it");
+}
+// The project composer falls back the same way. It asked for the decision
+// without the fallback, so a project registered from a laptop queued for that
+// laptop while it was shut, and the answer named no builder at all
+// (2026-11-12: the owner's computer had been offline for a day).
+{
+  const route = readFileSync("src/app/api/control/tab-inject/route.ts", "utf8");
+  if (!/offlineFallback: project \? offlineFallbackChannel\(project\) : null/.test(route))
+    throw new Error("the project composer must pass the project's offline fallback");
+  if (
+    !/dir: reroutedFrom\s*\?\s*\(coldStartWorkspaceDir\(project\.name, project\.gitUrl\) \?\? project\.dirPath\)/.test(
+      route,
+    )
+  )
+    throw new Error("a rerouted dispatch must not carry the other machine's folder");
+  if (!/\.\.\.\(rerouted \? \{ message: rerouted \} : \{\}\)/.test(route))
+    throw new Error("the answer must say in a sentence that another builder took the work");
 }
 console.log("✓ execution-access offline fallback");

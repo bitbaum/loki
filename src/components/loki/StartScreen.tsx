@@ -1,5 +1,8 @@
 "use client";
 
+import { NAV } from "@/config/navigation";
+import { useLocalNow } from "@/hooks/use-local-now";
+import { APP_LOCALE } from "@/lib/constants/locale";
 import { shortTimeAgo } from "@/lib/dates";
 import { projectTitle } from "@/lib/project-display";
 import { BrandMark } from "@/components/shell/BrandMark";
@@ -26,6 +29,31 @@ const RESUME_LIMIT = 3;
  * starters are gone — "Build next" answers "what should I do" from the
  * person's own records, which a generic "What needs me" chip only asked.
  */
+/**
+ * The row into the day, named for the reader's hour. /loki became the home
+ * after sign-in (2026-11-01), and the day — what needs you, habits,
+ * commitments — stayed on Today (2026-10-21), so the page a person lands on
+ * every morning said nothing about the morning (owner, 2026-11-12: "it could
+ * tell what time it is and say what's today and let's start my day"). One
+ * row, not the card that was removed: the day itself stays Today's.
+ */
+export function dayRowTitle(hour: number): string {
+  if (hour >= 5 && hour < 12) return "Start my day";
+  if (hour >= 12 && hour < 17) return "My day";
+  return "Wrap up my day";
+}
+
+/** "Thursday 12 November · 07:20", in the app's locale. */
+export function startDateLine(now: Date): string {
+  const day = now.toLocaleDateString(APP_LOCALE, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const time = now.toLocaleTimeString(APP_LOCALE, { hour: "2-digit", minute: "2-digit" });
+  return `${day} · ${time}`;
+}
+
 export function StartScreen({
   conversations,
   loading,
@@ -46,6 +74,8 @@ export function StartScreen({
   // When the rail is open it owns resuming — the same threads twice side by
   // side is noise.
   const recent = railVisible ? [] : conversations.slice(0, RESUME_LIMIT);
+  // The reader's clock, after mount: the server's is UTC (hooks/use-local-now).
+  const now = useLocalNow();
 
   // Nothing is rendered while the list is still unknown, so the greeting does
   // not jump when the rows arrive.
@@ -60,7 +90,21 @@ export function StartScreen({
       <div className="ui-loki-start-hello">
         <BrandMark showWordmark={false} />
         <h1 className="ui-loki-start-title">What are we working on?</h1>
+        {/* A non-breaking space holds the line until the clock is known. */}
+        <p className="ui-loki-start-date">{now ? startDateLine(now) : "\u00a0"}</p>
       </div>
+
+      <nav aria-label="Your day" className="ui-loki-start-section">
+        <List>
+          <ListRow
+            href={NAV.today.href}
+            icon={NAV.today.icon}
+            title={now ? dayRowTitle(now.getHours()) : NAV.today.label}
+            secondary="What needs you today"
+            chevron
+          />
+        </List>
+      </nav>
 
       {recent.length > 0 && (
         <nav aria-labelledby="loki-recent" className="ui-loki-start-section">

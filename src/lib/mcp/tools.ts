@@ -222,11 +222,18 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
         .describe(
           "shared (default): the project's one long-lived agent session, which keeps its own plan and waits its turn when busy. fresh: a new session in its own copy of the project for this one task, closed when it reports; use it for a one-off question or check that must not continue or disturb the project's ongoing work.",
         ),
+      builder: z
+        .enum(["cloud", "local"])
+        .optional()
+        .describe(
+          "cloud: the always-on cloud runner; local: the owner's own computer. Omit to use the project's own setting. A project that exists on only one of them always runs there.",
+        ),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async run(args, { userId, services }) {
       const { status, body } = await services.dispatch(userId, args.project, args.task, {
         session: args.session,
+        ...(args.builder ? { builderChannel: args.builder } : {}),
       });
       if (status === 404) {
         return toolError(

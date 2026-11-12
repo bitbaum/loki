@@ -3,13 +3,21 @@
 // fix ledger then follows that PR like any other. Plan: src/lib/salvage-plan.ts.
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { salvagePlan, shippedPr } from '@/lib/salvage-plan'
+import { openedDuringRun, salvagePlan, shippedPr } from '@/lib/salvage-plan'
 import { fetchWorkspaceSource } from './workspace-source'
 
 const run = promisify(execFile)
 
 /** The open PR the agent itself shipped from this workspace, if it is done. */
-export async function findShippedPr(tab: string, dir: string): Promise<string | null> {
+/**
+ * The open or merged pull request of the branch the agent is on, at exactly
+ * what it has checked out, or null. `sinceMs`: only one opened after this run
+ * began. A session that carries on from an earlier run sits on that run's
+ * branch, whose pull request is the earlier run's, and taking it closed a
+ * read-only probe as Done with another run's pull request (and stopped the
+ * shared session).
+ */
+export async function findShippedPr(tab: string, dir: string, sinceMs?: number): Promise<string | null> {
   const source = await fetchWorkspaceSource(tab).catch(() => null)
   const token = source?.token ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? ''
   const env = { ...process.env, ...(token ? { GH_TOKEN: token, GITHUB_TOKEN: token } : {}), GIT_TERMINAL_PROMPT: '0' }
@@ -25,12 +33,15 @@ export async function findShippedPr(tab: string, dir: string): Promise<string | 
       ) || 'main'
     if (dirty || !branch || branch === def) return null
     const headSha = await git('rev-parse', 'HEAD')
-    const out = await run('gh', ['pr', 'view', branch, '--json', 'url,state,headRefOid'], {
+    const out = await run('gh', ['pr', 'view', branch, '--json', 'url,state,headRefOid,createdAt'], {
       cwd: dir,
       env,
       timeout: 30_000,
     }).catch(() => ({ stdout: '' }))
-    const pr = out.stdout.trim() ? (JSON.parse(out.stdout) as { url: string; state: string; headRefOid: string }) : null
+    const pr = out.stdout.trim()
+      ? (JSON.parse(out.stdout) as { url: string; state: string; headRefOid: string; createdAt?: string })
+      : null
+    if (pr && sinceMs !== undefined && !openedDuringRun(pr.createdAt, sinceMs)) return null
     return shippedPr({ dirty, branch, defaultBranch: def, headSha, pr })
   } catch {
     return null

@@ -26,6 +26,11 @@ export async function dispatchFeedbackBatch(
       // Honor user_projects.builder_pref via pickDispatchChannel — do not force cloud.
       customPrompt: composeFeedbackBatchFixPrompt(items, project.name, note),
       notifyOnClose: true,
+      // Feedback fixes, like a single Implement: a lane of their own when the
+      // project is busy (and the lane can be had), instead of waiting behind
+      // whatever the project is doing. "Implement all" and the widget's
+      // "Build all" both come through here.
+      whenBusy: "lane",
     },
     userId,
   );
