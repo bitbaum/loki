@@ -40,6 +40,7 @@ import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
 import type { RunFollow } from "@/lib/run-handoff";
 import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
 import { fetchRepoProgress, type RepoProgress } from "@/lib/repo-progress";
+import { runBranches } from "@/lib/run-branches";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
 import { RUN_BLOCKED } from "@/lib/run-progress";
 
@@ -251,5 +252,12 @@ async function repoProgress(
 ): Promise<RepoProgress | null> {
   const token = await repoTokenFor(userId, gitUrl);
   if (!token) return null;
-  return fetchRepoProgress(run.id, gitUrl, token, run.startedAt.getTime(), now).catch(() => null);
+  return fetchRepoProgress(
+    run.id,
+    gitUrl,
+    token,
+    run.startedAt.getTime(),
+    runBranches(run),
+    now,
+  ).catch(() => null);
 }
