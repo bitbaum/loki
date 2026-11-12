@@ -39,7 +39,8 @@ import { builderHoldsNewWork } from "@/lib/builder-presence";
 import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { isProjectBusy } from "@/db/queries/orchestration-runs";
-import { QUEUED_BEHIND_SENTENCE } from "@/lib/dispatch-status";
+import { queuedBehindLabel, queuedBehindSentence } from "@/lib/dispatch-status";
+import { findQueueBlockers } from "@/db/queries/pending-commands";
 import { isPreviewDir } from "@/lib/previews/root";
 import { findLiveRunEvidence, repoTokenFor } from "@/lib/run-evidence-live";
 import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
@@ -206,10 +207,14 @@ export async function loadRunTrack(
     !eventTimes.claimed &&
     !run.payload?.sessionTab &&
     (await isProjectBusy(userId, run.projectKey, { excludeRunId: run.id }).catch(() => false));
+  // What it waits behind, and since when: the run, its start, its last work.
+  const blocker = waitingBehind
+    ? ((await findQueueBlockers([run.id]).catch(() => new Map())).get(run.id) ?? null)
+    : null;
   const track = buildRunTrack({
-    queueLabel: waitingBehind ? "Next in line for this project" : null,
+    queueLabel: waitingBehind ? queuedBehindLabel(blocker, new Date(now)) : null,
     queueNote: waitingBehind
-      ? QUEUED_BEHIND_SENTENCE
+      ? queuedBehindSentence(blocker, new Date(now))
       : waitingOnUpdate
         ? BUILDER_UPDATING_SENTENCE
         : null,

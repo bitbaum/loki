@@ -53,10 +53,10 @@ import { getProjectState, persistProjectRuntimeIfNewer } from "@/db/queries/proj
 import { deriveProjectStateKey, projectStateDescription } from "@/lib/control-states";
 import { logDebug } from "@/db/queries/debug-logs";
 import { promptFingerprint, recordControlAuditEvent } from "@/db/queries/control-audit-events";
-import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
+import { enqueueHostedDispatchCommand, findQueueBlockers } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
-import { QUEUED_BEHIND_SENTENCE, rerouteNotice } from "@/lib/dispatch-status";
+import { queuedBehindSentence, rerouteNotice } from "@/lib/dispatch-status";
 import { builderHoldsNewWork } from "@/lib/builder-presence";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
@@ -863,6 +863,11 @@ async function executeAndReport(
   // Queued for a cloud runner that is behind the deploy: it holds new work
   // until it has restarted (lib/runner-update-hold). Say so now, with the
   // bound, instead of "starting shortly" over a task that sits for minutes.
+  // What it waits behind, said with the run, its start and its last work.
+  const blocker =
+    queuedBehind && runId
+      ? ((await findQueueBlockers([runId]).catch(() => new Map())).get(runId) ?? null)
+      : null;
   const builderUpdating =
     result.mode === "queued" &&
     !queuedOffline &&
@@ -884,11 +889,24 @@ async function executeAndReport(
       ...(queuedBehind || builderUpdating
         ? {
             ...(queuedBehind ? { queuedBehind: true } : {}),
+            ...(blocker
+              ? {
+                  waitingOn: {
+                    runId: blocker.runId,
+                    label: blocker.label,
+                    since: blocker.startedAt.toISOString(),
+                    lastProgressAt: blocker.lastProgressAt?.toISOString() ?? null,
+                  },
+                }
+              : {}),
             ...(builderUpdating ? { builderUpdating: true } : {}),
             message: [
               notice,
-              queuedBehind ? QUEUED_BEHIND_SENTENCE : null,
-              builderUpdating ? BUILDER_UPDATING_SENTENCE : null,
+              queuedBehind ? queuedBehindSentence(blocker) : null,
+              // The update hold's bound ("five minutes at the latest") is not
+              // the bound of a task that also waits behind an open run: the
+              // run is what it waits on, and promising five minutes was false.
+              builderUpdating && !queuedBehind ? BUILDER_UPDATING_SENTENCE : null,
             ]
               .filter(Boolean)
               .join(" "),
