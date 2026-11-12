@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/segmented";
 
 /** SSOT for theme modes. "system" renders as Auto in the UI (follows OS). */
 export const THEME_OPTIONS = [
@@ -35,19 +36,34 @@ function useThemeControl() {
  *
  * - `cycle` (default): single tap cycles modes; used in shell chrome + mobile.
  * - `select`: one dropdown in Settings → Appearance.
+ * - `segmented`: the three, the current one marked — in the account menu,
+ *   where a cycle button read "☀ Light" and switched to Dark, so its label
+ *   said the state while the tap did something else, and Auto was only
+ *   reachable by tapping past Dark (audit, 2026-11-12).
  */
 export function ThemeToggle({
   variant = "cycle",
   showLabel = false,
   className,
 }: {
-  variant?: "cycle" | "select";
+  variant?: "cycle" | "select" | "segmented";
   /** Show the current mode name beside the icon (cycle variant). */
   showLabel?: boolean;
   className?: string;
 }) {
   const { mounted, current, currentOption, nextOption, setTheme, cycle } = useThemeControl();
   const Icon = currentOption.icon;
+
+  if (variant === "segmented") {
+    return (
+      <Segmented
+        label="Appearance"
+        options={THEME_OPTIONS.map((o) => ({ id: o.value, label: o.label, disabled: !mounted }))}
+        value={mounted ? current : null}
+        onChange={(id) => setTheme(id as ThemeValue)}
+      />
+    );
+  }
 
   if (variant === "select") {
     return (

@@ -57,7 +57,8 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
   ok(!/<nav[^>]*data-fc-place="hidden"/.test(nav), "phone nav does not hide the widget launcher");
   ok(/<nav[^>]*data-fc-place="tab"/.test(nav), "phone nav asks for the edge tab, not the pill");
   ok(
-    menu.includes("Hide feedback button") && menu.includes("Show feedback button"),
+    menu.includes("Hide the spiral (feedback) from the top bar") &&
+      menu.includes("Show the spiral (feedback) in the top bar"),
     "menu offers the feedback button's on/off switch",
   );
   const opener = read("src/lib/open-feedback.ts");
@@ -65,7 +66,7 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
     menu.includes("Report a problem") &&
       menu.includes("openFeedback(") &&
       opener.includes(".report()"),
-    "menu offers Report a problem",
+    "menu offers Report a problem (while the top bar has no spiral)",
   );
 }
 {

@@ -22,14 +22,18 @@ import {
   useCommandPaletteState,
 } from "@/hooks/use-command-palette";
 import { SIDEBAR_COLLAPSE_STORAGE_KEY } from "@/config/shell";
+import { OwnSitePass } from "./OwnSitePass";
 
 export function AppShell({
   children,
   orangecatEnabled = false,
   feedbackWidget = false,
   viewerId = null,
+  ownerPass = null,
 }: {
   children: React.ReactNode;
+  /** The signed-in owner's pass for Loki's own widget (server fact), else null. */
+  ownerPass?: { token: string; pass: string } | null;
   /** The signed-in person's id (server fact), the floating assistant's storage scope. */
   viewerId?: string | null;
   /** Whether the OrangeCat provider is configured (server fact from the layout). */
@@ -86,6 +90,7 @@ export function AppShell({
         </div>
         <MobileNav />
         <AskLokiButton viewerId={viewerId} />
+        {ownerPass && <OwnSitePass token={ownerPass.token} pass={ownerPass.pass} />}
         <RefreshOnFocus />
         <CommandPalette />
         <FleetRunnerAutoMint />

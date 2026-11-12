@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/shell/AppShell";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
 import { auth } from "@/auth";
+import { ownSitePass } from "@/lib/feedback/own-site-pass";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Server fact handed to the client shell: whether "Connect OrangeCat" can
@@ -14,8 +15,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // for a storage key; nothing is read from the database for it.
   const session = await auth();
   const viewerId = session?.user?.id ?? null;
+  // The owner, signed in, is the owner to his own widget too: its panel is
+  // then his tool, not the visitor's sign-in door (lib/feedback/own-site-pass).
+  const widgetToken = process.env.FEEDBACK_WIDGET_TOKEN?.trim() ?? "";
+  const ownerPass =
+    widgetToken && viewerId ? await ownSitePass(widgetToken, viewerId).catch(() => null) : null;
   return (
-    <AppShell orangecatEnabled={orangecat} feedbackWidget={feedbackWidget} viewerId={viewerId}>
+    <AppShell
+      orangecatEnabled={orangecat}
+      feedbackWidget={feedbackWidget}
+      viewerId={viewerId}
+      ownerPass={ownerPass ? { token: widgetToken, pass: ownerPass } : null}
+    >
       {children}
     </AppShell>
   );

@@ -36,7 +36,7 @@ export const FEEDBACK_WIDGET_EXCLUDED_PREFIXES = [
   // launcher is the slim edge tab there, off the corners those pages use.
   // The rule a person can predict: the launcher is on every page past sign-in,
   // as a corner button or an edge tab, unless they switched it off themselves
-  // (account menu → Hide feedback button).)
+  // (account menu → Hide the spiral (feedback) from the top bar).)
   //
   // Not in the product yet. Feedback here would be about the door, not the
   // room, and an anonymous FAB on a credential form is the wrong invitation.
