@@ -155,7 +155,13 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
     // Say it now, not at the next 45s beat.
     if (changed) t.lastBeatAt = 0
   } else if (shouldDiagnoseSilence(t)) {
-    t.blocked = detectAuthFailure(t.dir) ? RUN_BLOCKED.AUTH : null
+    t.blocked = detectAuthFailure(t.dir, {
+      agent: ptyAgentForTab(t.tab) ?? undefined,
+      since: t.startedAt,
+      screen,
+    })
+      ? RUN_BLOCKED.AUTH
+      : null
     t.question = null
   } else if (t.bytesSinceBeat > 0) {
     t.blocked = null
