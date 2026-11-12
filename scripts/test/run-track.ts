@@ -65,7 +65,7 @@ const states = (i: RunTrackInput) =>
 check("queued: nothing is claimed as done but the ask", () => {
   const t = buildRunTrack(base);
   assert.equal(states(base), "done now next next next next");
-  assert.match(t.summary, /Waiting for a runner/);
+  assert.match(t.summary, /Waiting for a computer to start it/);
   assert.equal(t.settled, false);
   assert.equal(t.current, "builder");
 });
@@ -104,8 +104,8 @@ check("a pull request seen on GitHub while the run is live is a done stage with 
   assert.equal(t.stages[3].at, "2026-10-17T09:58:02.000Z", "the PR stage is dated by GitHub");
   const pr = t.stages.find((s) => s.id === "pr")!;
   assert.equal(pr.href, PR);
-  assert.equal(pr.note, "fix(home): 14px");
-  assert.match(t.summary, /Pull request open — Claude Code is finishing up/);
+  assert.equal(pr.note, "14px", "the headline, without the tool prefix");
+  assert.match(t.summary, /The change is ready — the agent is finishing up/);
   assert.equal(t.settled, false);
 });
 
@@ -171,7 +171,7 @@ check("pull request open after the run: checks are 'now', live is next, not sett
   };
   const t = buildRunTrack(i);
   assert.equal(states(i), "done done done done now next");
-  assert.match(t.summary, /merges and deploys by itself/);
+  assert.match(t.summary, /goes live by itself/);
   assert.equal(t.settled, false);
 });
 
@@ -396,7 +396,11 @@ check("what the repository shows rides on the track: commits as facts, checks as
     },
   };
   const t = buildRunTrack(live);
-  assert.equal(states(live), "done done now done now next", "PR from the repo; checks running");
+  assert.equal(
+    states(live),
+    "done done done done now next",
+    "PR from the repo; checks running — one stage happens at a time",
+  );
   const work = t.stages.find((s) => s.id === "working")!;
   const pushed = work.facts.filter((f) => f.text.startsWith("Pushed"));
   assert.equal(pushed.length, 4, "three newest commits and one line for the rest");
@@ -404,9 +408,9 @@ check("what the repository shows rides on the track: commits as facts, checks as
   assert.equal(pushed[3].text, "Pushed: Four");
   assert.equal(pushed[3].href, "u/d");
   const pr = t.stages.find((s) => s.id === "pr")!;
-  assert.equal(pr.note, "#113 · fix(home): 14px");
+  assert.equal(pr.note, "14px", "no number, no tool prefix");
   assert.equal(pr.at, "2026-10-17T09:58:02Z", "dated by the repository");
-  assert.match(t.stages.find((s) => s.id === "merged")!.label, /Testing/);
+  assert.match(t.stages.find((s) => s.id === "merged")!.label, /Checking the change/);
 
   const red = buildRunTrack({
     ...live,
@@ -429,7 +433,11 @@ check("what the repository shows rides on the track: commits as facts, checks as
   assert.equal(green.settled, false, "merging is still movement");
 
   const branchOnly: RunTrackInput = { ...live, repo: { ...live.repo!, pr: null } };
-  assert.equal(states(branchOnly), "done done now now next next", "commits with no PR = pushed");
+  assert.equal(
+    states(branchOnly),
+    "done done now done next next",
+    "commits with no PR = pushed; the agent is what is happening",
+  );
   assert.match(
     buildRunTrack(branchOnly).summary,
     /Pushed to a branch — a pull request usually follows/,
@@ -484,7 +492,10 @@ check("past the follow window nothing waits forever: no stage is 'now', the trac
   assert.equal(prOpen.stages.find((s) => s.id === "pr")!.state, "done", "what is on record stays");
   assert.equal(prOpen.stages.find((s) => s.id === "merged")!.state, "next");
   assert.equal(prOpen.stages.find((s) => s.id === "merged")!.label, "Merge not on record");
-  assert.match(prOpen.summary, /^Pull request opened — this ran more than two days ago/);
+  assert.match(
+    prOpen.summary,
+    /^The change was ready for checks — this ran more than two days ago/,
+  );
   assert.equal(prOpen.settled, true);
 
   const live = buildRunTrack({ ...old, fix: ledger(FIX_SHIP_STATE.DEPLOYED, { prUrl: PR }) });
@@ -543,7 +554,7 @@ check("a found pull request is never overridden by the look window", () => {
     evidence: { kind: "pr", url: PR, title: "Fix", atMs: fin - 60_000 },
     now: fin + 10 * PR_LOOK_WINDOW_MS,
   });
-  assert.equal(t.stages.find((s) => s.id === "pr")!.label, "Pull request opened");
+  assert.equal(t.stages.find((s) => s.id === "pr")!.label, "The change is ready for checks");
 });
 
 check("past the follow window, main's 'not on record' wording wins over the look window", () => {
@@ -594,6 +605,32 @@ check("a preview still being built is not live yet and keeps being followed", ()
   const t = buildRunTrack({ ...base, liveUrl: "https://centersom.orangecat.ch/", savedLive: true });
   assert.equal(t.stages.at(-1)!.state, "next");
   assert.equal(t.settled, false);
+});
+
+check("2026-11-12: a pull request with no claim on record is not 'waiting for a runner'", () => {
+  // The owner's watch page: kicker "Next in line", and three rows saying
+  // "Happening now" — the runner wait, the agent finishing up, the checks.
+  const i: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched"],
+    repo: {
+      commits: [],
+      pr: {
+        number: 1625,
+        title: "fix(a11y): one h1",
+        url: PR,
+        at: "2026-10-17T10:20:00Z",
+        checks: "running",
+      },
+    },
+  };
+  const t = buildRunTrack(i);
+  assert.equal(states(i), "done done done done now next");
+  assert.doesNotMatch(t.stages[1].label, /Waiting/);
+  assert.equal(t.stages.filter((s) => s.state === "now").length, 1);
+  assert.equal(t.current, "merged");
+  assert.equal(t.stages[2].label, "Claude Code made the change");
+  assert.equal(t.live, "starting", "a started run is not queued");
 });
 
 console.log(`\n✓ run-track: ${passed} passed`);

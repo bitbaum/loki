@@ -35,6 +35,9 @@ export interface ProjectAutopilotToggleProps {
   /** Called after a successful PATCH so the parent can refetch /api/control. */
   onAfter?: () => void;
   onOverrideChange?: (override: AutoInjectMode | null) => void;
+  /** Name the button by what a tap does ("Pause after this") instead of the
+   *  state it is in — for a place whose caption already says the state. */
+  actionLabels?: boolean;
 }
 
 export function ProjectAutopilotToggle({
@@ -44,6 +47,7 @@ export function ProjectAutopilotToggle({
   variant = "card",
   onAfter,
   onOverrideChange,
+  actionLabels = false,
 }: ProjectAutopilotToggleProps) {
   const {
     override: localOverride,
@@ -117,7 +121,7 @@ export function ProjectAutopilotToggle({
     <div className="inline-flex max-w-full flex-wrap items-center gap-2 text-xs">
       <button
         type="button"
-        aria-pressed={building}
+        aria-pressed={actionLabels ? undefined : building}
         title={tooltip}
         disabled={saving}
         onClick={toggle}
@@ -144,17 +148,27 @@ export function ProjectAutopilotToggle({
         {/* Say what the control IS, not a state word. "Building" next to the
             card's own state badge ("Awaiting input") read as two contradicting
             statuses — this is the autopilot toggle, so name it that. */}
-        <span>{building ? "Autopilot on" : "Autopilot paused"}</span>
+        <span>
+          {actionLabels
+            ? building
+              ? "Pause after this"
+              : "Keep going on its own"
+            : building
+              ? "Autopilot on"
+              : "Autopilot paused"}
+        </span>
       </button>
       {overridden && (
         <button
           type="button"
           disabled={saving}
           onClick={() => saveOverride(null)}
-          className="ui-btn-chip text-micro disabled:opacity-60"
-          title={`Follow fleet autopilot again (currently: ${inheritedMode === "on" ? "building" : "paused"}).`}
+          // Same shape as its sibling: a grey filled chip beside it read as
+          // a selected option, not a second button (owner's phone, 2026-11-12).
+          className="inline-flex ui-tap items-center rounded-xl px-3 py-2 text-sm font-medium ui-btn-secondary disabled:opacity-60"
+          title={`Go back to your usual autopilot setting (currently: ${inheritedMode === "on" ? "on" : "paused"}).`}
         >
-          Follow fleet
+          Use my usual setting
         </button>
       )}
       {error && <span className="text-xs text-status-warning">{error}</span>}

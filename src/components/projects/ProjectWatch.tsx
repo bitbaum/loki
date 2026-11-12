@@ -283,7 +283,7 @@ export function ProjectWatch({
           screen={working ? tail : null}
           fallbackHeadline={
             (working && tail && latestActivityLine(tail)) ||
-            (working ? status.label : waitingHeadline(status.label))
+            (working ? status.label : (p.track?.summary ?? waitingHeadline(status.label)))
           }
           tab={runLive && status.terminalReady ? (p.tab ?? null) : null}
           terminalHref={runLive && status.terminalReady ? (p.terminalHref ?? null) : null}
@@ -434,7 +434,13 @@ function cardPhase(input: {
   if (input.runLive) {
     if (input.stalled || input.track?.stages.some((s) => s.state === "attention"))
       return "attention";
-    return input.working ? "working" : "waiting";
+    // The track has moved past the queue (the agent opened a pull request,
+    // its checks are running): "Next in line" above "the agent is finishing
+    // up" was the owner's watch page on 2026-11-12.
+    const pastQueue = input.track?.stages.some(
+      (s) => s.id !== "asked" && s.id !== "builder" && (s.state === "now" || s.state === "done"),
+    );
+    return input.working || pastQueue ? "working" : "waiting";
   }
   const live = input.track?.stages.find((s) => s.id === "live");
   if (live?.state === "done") return "live";
@@ -461,5 +467,5 @@ function rerouteSentence(provider: NonNullable<WatchPayload["provider"]>): strin
 
 /** A one-word state ("Queued") as a headline a person can read. */
 function waitingHeadline(label: string): string {
-  return /^queued$/i.test(label.trim()) ? "Waiting for a runner to pick it up." : label;
+  return /^queued$/i.test(label.trim()) ? "Waiting for a computer to start it." : label;
 }

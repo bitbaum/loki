@@ -100,7 +100,7 @@ check("a finished run has no live status: its outcome speaks", () => {
 
 check("the incident: 'delivered' beside 'Waiting for a runner' becomes Queued", () => {
   const track = withEvents(["dispatched"]);
-  assert(/Waiting for a runner/.test(track.summary), track.summary);
+  assert(/Waiting for a computer to start it/.test(track.summary), track.summary);
   // The run route's old input: executed and verified from the start.
   const before = fromCommand({ executed: true });
   assert(before.status === "delivered", `fixture drifted: ${before.status}`);

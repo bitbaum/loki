@@ -5062,7 +5062,7 @@
     @apply max-w-[88%] rounded-2xl rounded-br-md bg-surface-raised px-4 py-3 text-sm leading-relaxed text-text-primary sm:text-base;
   }
   .ui-chat-more {
-    @apply mt-1 text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary;
+    @apply inline-flex min-h-11 items-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary;
   }
   .ui-chat-meta {
     @apply text-xs text-text-muted;
@@ -5198,13 +5198,13 @@
     @apply text-status-warning;
   }
   .ui-track-link {
-    @apply mt-1 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
+    @apply mt-1 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
   }
   /* The row is a button: the label, the time on the right, a chevron when
      there is something behind it. A row with nothing to open keeps the same
      shape and simply does not react. */
   .ui-track-row {
-    @apply flex min-h-9 w-full items-start gap-2 text-left;
+    @apply flex min-h-11 w-full items-start gap-2 text-left;
   }
   .ui-track-row:disabled {
     @apply cursor-default;
