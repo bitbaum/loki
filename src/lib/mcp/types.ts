@@ -44,6 +44,20 @@ export type ProjectSummary = {
   lastDispatchAt: string | null;
 };
 
+/** Agent sessions open on one of the owner's builders. */
+export type SessionsOnBuilder = {
+  channel: "cloud" | "local";
+  /** When the builder last reported, ISO. Old means it may be offline. */
+  reportedAt: string | null;
+  tabs: string[];
+};
+
+export type SessionRead =
+  | { status: "done"; content: string }
+  /** No builder answered within the wait. */
+  | { status: "pending" }
+  | { status: "error"; error: string };
+
 export type BookRequest = {
   title: string;
   start: string;
@@ -72,6 +86,10 @@ export type McpServices = {
   dispatch(userId: string, project: string, task: string): Promise<InjectResult>;
   book(userId: string, request: BookRequest): Promise<EnqueueReport>;
   projects(userId: string): Promise<ProjectSummary[]>;
+  /** Open agent sessions per builder, as the runners last reported them. */
+  sessions(userId: string): Promise<SessionsOnBuilder[]>;
+  /** One capture of a session's terminal output, raw, from a builder. */
+  readSession(userId: string, tab: string, channel?: "cloud" | "local"): Promise<SessionRead>;
   /** The /fill link for a known form. Null when the recipe or its parameters
    *  are refused. */
   browserTask(

@@ -122,3 +122,7 @@ reaches its own account's sessions.
 A plain shell (`loki-shell-…`) is never part of this: its screen and keys
 belong to a signed-in, unlocked browser, and a token gets `403` or `404`.
 `scripts/test/agent-session-read.ts` pins the read side.
+
+Over MCP (`docs/development/mcp.md`) the same walk is `loki_dispatch` to
+start or continue, `loki_sessions` to see what is open, and
+`loki_session_read` to read a session's output.
