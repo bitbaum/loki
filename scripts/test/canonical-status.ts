@@ -194,18 +194,25 @@ assert.deepEqual(
 );
 
 // Wiring: the three surfaces call the one mapper.
-assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /canonicalStatus\(/);
+// The status route's body is lib/feedback/agent-filing (readFeedbackStatus),
+// shared with the signed OrangeCat door.
+assert.match(
+  read("src/app/api/feedback/[id]/status/route.ts"),
+  /readFeedbackStatus\(userId, idOrResp\)/,
+);
+assert.match(
+  read("src/app/api/orangecat/feedback/route.ts"),
+  /readFeedbackStatus\(user\.id, data\.feedbackId\)/,
+);
+assert.match(read("src/lib/feedback/agent-filing.ts"), /canonicalStatus\(/);
 assert.match(read("src/lib/run-track-load.ts"), /canonicalStatus\(work/);
 assert.match(read("src/app/api/projects/[id]/watch/route.ts"), /canonical/);
 assert.match(read("src/lib/feedback/reporter-view.ts"), /canonicalStatus\(work,/);
-const route = read("src/app/api/feedback/[id]/status/route.ts");
+const route = read("src/lib/feedback/agent-filing.ts");
 assert.match(route, /row\.canEdit/, "full status is the owner's and editor's");
 assert.match(route, /reporterUserId !== userId/, "a reporter sees only their own report");
 // The agent filing route hands out this route as its statusUrl.
-assert.match(
-  read("src/app/api/projects/[id]/feedback/route.ts"),
-  /\/api\/feedback\/\$\{row\.id\}\/status/,
-);
+assert.match(route, /\/api\/feedback\/\$\{row\.id\}\/status/);
 
 // Failed and Needs you always carry a cause sentence and an exact next action.
 for (const [name, w, state] of cases) {
@@ -283,7 +290,7 @@ assert.ok(closed.reason && closed.nextAction.request === null);
 // The reporter's word agrees with the agent's once they share the live URL.
 assert.equal(reporterStatusFor(DONE_WORK, { liveHref: LIVE.liveUrl }).state, S.DONE);
 assert.equal(reporterStatusFor(DONE_WORK).state, S.NEEDS_YOU);
-assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /feedbackId: feedback\.id/);
+assert.match(route, /feedbackId: feedback\.id/);
 
 // A Viewer seat that just filed (never dispatched) is not left with a bare
 // "Needs you": it gets the cause, a reason and a next step, and nothing of the
@@ -321,6 +328,6 @@ assert.equal(
   seatStatus(canonicalStatus(work({ phase: P.FAILED }), { liveUrl: null })).nextAction.who,
   "owner",
 );
-assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /seatStatus\(/);
+assert.match(route, /seatStatus\(/);
 
 console.log("canonical-status ok");
