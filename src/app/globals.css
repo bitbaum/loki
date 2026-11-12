@@ -8570,12 +8570,13 @@
   /* PageAction — the page's ONE primary action. A filled 40px circle in the
      phone top bar (the place Claude puts "new chat"); a pill with its verb
      at the right of the page header from md up. */
+  /* 44px, the tap-target floor: it was 40 (2026-11-12). */
   .ui-page-action {
-    @apply inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted;
+    @apply inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted;
   }
   @media (max-width: 47.99rem) {
     .ui-page-action {
-      @apply w-10 px-0;
+      @apply w-11 px-0;
     }
     .ui-page-action-label {
       @apply sr-only;

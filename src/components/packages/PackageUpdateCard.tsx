@@ -10,6 +10,7 @@ import {
   UPDATE_ACTIONS,
   UPDATE_DECISION,
   UPDATE_DECISION_LABELS,
+  updateLeadSentence,
   type UpdateAction,
 } from "@/config/package-updates";
 import { PAUSED_BY_OWNER } from "@/config/package-releases";
@@ -26,8 +27,12 @@ import { BreakingTag, UpdateStatusTag } from "./UpdateStatusTag";
 export function PackageUpdateCard({
   update,
   onHandled,
+  quietYes = false,
 }: {
   update: UpdateCard;
+  /** Draw "Update" as a secondary button — when the page's one primary
+   *  action is something else ("Unlock to review", 2026-11-12). */
+  quietYes?: boolean;
   /** Called once Loki has done it, with the sentence to keep on screen: the card is about to leave the queue. */
   onHandled?: (update: UpdateCard, decision: UpdateAction, message: string) => void;
 }) {
@@ -66,7 +71,7 @@ export function PackageUpdateCard({
           <PackagePlus className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden />
           <Link
             href={update.projectHref}
-            className="wrap-anywhere font-medium text-text-primary hover:underline"
+            className="inline-flex min-h-11 items-center wrap-anywhere font-medium text-text-primary hover:underline"
           >
             {update.projectName}
           </Link>
@@ -75,36 +80,47 @@ export function PackageUpdateCard({
           href={update.prUrl}
           target="_blank"
           rel="noreferrer"
-          className="ui-link-subtle inline-flex items-center gap-1 text-xs"
+          className="ui-link-subtle inline-flex min-h-11 items-center gap-1 text-xs"
         >
           Pull request #{update.prNumber}
           <ExternalLink className="h-3 w-3" aria-hidden />
         </a>
       </div>
 
-      <ul className="space-y-1.5">
-        {update.bumps.map((b) => (
-          <li key={b.name} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="min-w-0 wrap-anywhere text-text-primary">{b.name}</span>
-            <span className="font-mono text-xs text-text-secondary">
-              {b.from} → {b.to}
-            </span>
-            {b.breaking && <BreakingTag />}
-          </li>
-        ))}
-        {update.otherCount > 0 && (
-          <li className="text-xs text-text-tertiary">
-            and {update.otherCount} other {update.otherCount === 1 ? "update" : "updates"} in the
-            same pull request
-          </li>
-        )}
-      </ul>
-
+      <p className="text-sm text-text-primary">
+        {updateLeadSentence({
+          projectName: update.projectName,
+          count: update.bumps.length + update.otherCount,
+          breaking: update.bumps.filter((b) => b.breaking).length,
+        })}
+      </p>
       <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
         <UpdateStatusTag status={update.checks} />
         {update.paused && <span className="ui-tag ui-tag-warning shrink-0">{PAUSED_BY_OWNER}</span>}
-        <span>{update.why}</span>
       </div>
+
+      <details className="text-sm">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center text-text-secondary">
+          Details
+        </summary>
+        <ul className="space-y-1.5">
+          {update.bumps.map((b) => (
+            <li key={b.name} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="min-w-0 wrap-anywhere text-text-primary">{b.name}</span>
+              <span className="font-mono text-xs text-text-secondary">
+                {b.from} → {b.to}
+              </span>
+              {b.breaking && <BreakingTag />}
+            </li>
+          ))}
+          {update.otherCount > 0 && (
+            <li className="text-xs text-text-tertiary">
+              and {update.otherCount} other {update.otherCount === 1 ? "update" : "updates"} in the
+              same pull request
+            </li>
+          )}
+        </ul>
+      </details>
       {update.detail && <p className="text-xs text-text-tertiary">{update.detail}</p>}
 
       {/* An even grid, the yes on its own row on a phone: wrapping left
@@ -116,7 +132,7 @@ export function PackageUpdateCard({
             type="button"
             onClick={() => void decide(d)}
             disabled={busy !== null}
-            className={`${d === UPDATE_DECISION.UPDATE ? "ui-btn-primary col-span-2 sm:col-span-1" : "ui-btn-secondary"} min-h-11 gap-2`}
+            className={`${d === UPDATE_DECISION.UPDATE ? `${quietYes ? "ui-btn-secondary" : "ui-btn-primary"} col-span-2 sm:col-span-1` : "ui-btn-secondary"} min-h-11 gap-2`}
           >
             {busy === d && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
             {UPDATE_DECISION_LABELS[d]}

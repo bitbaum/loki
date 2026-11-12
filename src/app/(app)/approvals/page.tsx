@@ -83,13 +83,15 @@ export default async function ApprovalsPage() {
               : `${approvalsSentence(pendingCount)}, behind your PIN`
           }
           action={
-            <Link href="/unlock?next=/approvals" className="ui-btn-secondary">
+            // The page's one primary while locked: a filled "Update" on a
+            // package card below drew the eye first (2026-11-12).
+            <Link href="/unlock?next=/approvals" className="ui-btn-primary min-h-11">
               Unlock to review
             </Link>
           }
         />
         <BuildRequestQueue requests={buildRequests} />
-        <PackageUpdateQueue updates={updates} recent={recentUpdates} />
+        <PackageUpdateQueue updates={updates} recent={recentUpdates} quietYes />
       </PageLayout>
     );
   }
