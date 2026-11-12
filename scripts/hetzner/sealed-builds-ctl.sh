@@ -187,8 +187,13 @@ runs-db)
   # database: why a run that the agent finished stays open. RUNS: a project key.
   # Prints states, times, payload keys and the handoff's status line only.
   P="${RUNS:-}"
-  case "$P" in ""|*[!a-z0-9-]*) echo "✗ runs must be one project key"; exit 1 ;; esac
+  case "$P" in ""|*[!a-z0-9-]*) echo "✗ runs must be one project key, or open"; exit 1 ;; esac
   q() { sudo -u postgres psql -d "${LOKI_DB:-loki}" -qtAX -F ' | ' -c "$1" </dev/null 2>&1 | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-300; }
+  if [ "$P" = open ]; then
+    echo "--- every open run (project, lane, adapter, started, delivered, last beat) ---"
+    q "SELECT project_key, coalesce(payload->>'sessionTab','-'), adapter, state, to_char(started_at,'MM-DD HH24:MI'), coalesce(payload->>'deliveredAt','-'), coalesce(payload->>'lastBeatAt','-') FROM orchestration_runs WHERE finished_at IS NULL ORDER BY started_at"
+    exit 0
+  fi
   echo "--- last runs of $P ---"
   q "SELECT left(id::text,8), adapter, state, coalesce(outcome,'-'), to_char(started_at,'HH24:MI:SS'), coalesce(to_char(finished_at,'HH24:MI:SS'),'open'), coalesce(payload->>'deliveredAt','no deliveredAt'), coalesce(payload->>'sessionTab','-'), left(coalesce(summary::text,''),80) FROM orchestration_runs WHERE project_key='$P' ORDER BY started_at DESC LIMIT 6"
   echo "--- payload keys of the newest ---"
