@@ -220,6 +220,8 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
         placeholder={hasBrief ? "Anything else? Say it or type it…" : copy.placeholder}
         ariaLabel="Describe your website and what should change"
         attach={false}
+        // Signed out, the server's transcriber answers 401: use the browser's.
+        voice={signedIn ? true : "visitor"}
         disabled={!ready || sending}
         hint="Type it, or use the mic and say it — in any language."
       />

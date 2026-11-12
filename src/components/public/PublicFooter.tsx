@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { ChevronDown } from "lucide-react";
 import { useInsideFleetRunner } from "@/hooks/use-inside-fleet-runner";
 import { APP_NAME } from "@/config/brand";
 import { ECOSYSTEM, ECOSYSTEM_LINKS } from "@/config/ecosystem";
@@ -14,10 +15,9 @@ import { visitorLink } from "@/lib/visitor-link";
 // unauthenticated marketing page. Rendered by PublicSurface so individual
 // pages don't need to opt in.
 //
-// Group A (Product): the things a visitor might want to do next.
-// Group B (Legal): trust signals required for a credible product release.
-// Group C (Source): GitHub, the org the product ships from.
-
+// Four groups, so the grid is two by two on a phone and one row of four on a
+// wide screen. Five left "Legal" alone under a 2×2 at 390px and an empty cell
+// at 1440px. "Sign in" is not here: the header and the menu own it.
 const FOOTER_GROUPS = [
   {
     heading: "Product",
@@ -43,22 +43,6 @@ const FOOTER_GROUPS = [
     ],
   },
   {
-    heading: "Support",
-    links: [
-      // "Support Loki" under a heading already reading SUPPORT asks the
-      // reader to fund the project. It goes to the help desk, whose own H1 is
-      // "Get help" — so the label promised one thing and delivered another in
-      // both directions: someone wanting to contribute lands on a support
-      // form, and someone stuck may not click what reads like a donate link.
-      { label: "Get help", href: "/support" },
-      {
-        label: "GitHub issues",
-        href: "https://github.com/bitbaum/loki/issues",
-        external: true,
-      },
-    ],
-  },
-  {
     heading: "Ecosystem",
     links: [
       { label: "OrangeCat — Economy", href: ECOSYSTEM.orangeCat.siteUrl, external: true },
@@ -68,8 +52,17 @@ const FOOTER_GROUPS = [
     ],
   },
   {
-    heading: "Legal",
+    heading: "Help and legal",
     links: [
+      // "Support Loki" under a heading reading SUPPORT asked the reader to
+      // fund the project, and went to the help desk, whose own H1 is "Get
+      // help". The label says what the page is.
+      { label: "Get help", href: "/support" },
+      {
+        label: "GitHub issues",
+        href: "https://github.com/bitbaum/loki/issues",
+        external: true,
+      },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
       { label: "License", href: "/license" },
@@ -141,6 +134,8 @@ export function PublicFooter() {
       <details className="ui-public-footer-fleet">
         <summary className="ui-public-footer-fleet-summary">
           Built by bitbaum, the studio — {FLEET_SITES.length} more sites
+          {/* The same glyph the header's menu button carries: this line opens. */}
+          <ChevronDown className="ui-public-footer-fleet-chevron" aria-hidden />
         </summary>
         <div className="mt-3">
           <Link href="/fleet" className="ui-public-link-standalone text-sm">

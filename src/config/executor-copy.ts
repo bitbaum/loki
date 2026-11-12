@@ -47,6 +47,8 @@ export const EXECUTOR_COPY = {
     // A private cloud is not an offline one: a new account's Terminal read
     // "Cloud builder offline" beside "private for this account" (2026-10-12).
     cloudPrivate: "Cloud runner private",
+    // This account's own private builder is off (not the fleet's runner).
+    ownCloudOffline: "Your cloud builder offline",
     localComputerOffline: "This computer offline",
     offline: "Runner offline",
     queued: "Queued",
@@ -124,16 +126,18 @@ export const EXECUTOR_COPY = {
   },
 
   runnerBanner: {
-    /** Home's builder row: its one grey line under offlineTitle. */
+    /** Home's builder row: its one grey line under offlineTitle. Short enough
+     *  for a phone row (about thirty characters after the status dot): the
+     *  longer line was cut at "work waits …", before what it waits for. */
     offlineDetail: (lastSeen: string | null) =>
-      lastSeen
-        ? `Last seen ${lastSeen} — work waits until it is back`
-        : "Work waits until it is back",
+      lastSeen ? `Last seen ${lastSeen} · work waits` : "Work waits until it is back",
     reconnect: "How to reconnect",
-    neverSeenTitle: "Connect a runner to run agents",
+    // "A runner" is our word for it (design reset rule 9). To the person it
+    // is their computer, and the row's grey line already says how.
+    neverSeenTitle: "Connect a computer so agents can work",
     /** Home's never-connected row: a short title and its one grey line (the
      *  full sentences above are for the setup that opens from it). */
-    neverSeenRowTitle: "Connect a runner",
+    neverSeenRowTitle: "Connect your computer",
     neverSeenDetail: "Install the desktop app",
     offlineTitle: "Runner offline",
     neverSeenBody:
@@ -256,6 +260,13 @@ export const EXECUTOR_COPY = {
     cloudEmptyHint:
       "Start an agent below to open a cloud runner session. Choose its location with Runs on.",
     cloudOfflineHint: "Cloud sessions are offline. Work you send waits until they are back.",
+    // An account with its own private builder: its builder is off, which says
+    // nothing about the fleet's runner (lib/cloud-builder-scope).
+    cloudPrivateOfflineHint:
+      "This account's own cloud builder is not connected. It is separate from the cloud runner that builds Loki's own projects, so that one being up does not run work here. Work you send waits until this account's builder is back.",
+    // No cloud builder for this account at all.
+    cloudNotYoursHint:
+      "You can't see this cloud runner: it works for its owner's account, not this one. Work you send here does not run on it.",
     // Connected to the peek stream but no screen frames arrived → the runner is
     // wedged (e.g. its outbound fetch is failing). Honest, actionable — not a
     // black pane labelled "live".

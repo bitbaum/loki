@@ -1,7 +1,6 @@
 "use client";
 
-import { CloudOff, FolderKanban } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
+import { FolderKanban } from "lucide-react";
 import { List, ListRow } from "@/components/ui/list-row";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { patchJson } from "@/lib/api/fetch";
@@ -95,6 +94,58 @@ export function heroHasNewsFor(
   );
 }
 
+/**
+ * What Home says when it could not load, instead of loading forever.
+ *
+ * A failed /api/control read left `data` null, and Home showed its skeleton
+ * for as long as the page stayed open: QA's seat, whose session could not
+ * read Home, watched skeleton cards forever (QA seat walk, 2026-11-12).
+ * Pure, so the words are tested without a browser.
+ */
+export function homeLoadFailure(error: string): {
+  title: string;
+  body: string;
+  action: "sign-in" | "retry";
+} {
+  const status = /^HTTP (\d{3})$/.exec(error.trim())?.[1];
+  if (status === "401" || status === "403") {
+    return {
+      title: "Home needs you signed in",
+      body:
+        status === "401"
+          ? "This browser is not signed in to Loki, or its session has ended. Sign in to see your projects."
+          : "This account cannot open Home. Sign in as the account that owns these projects.",
+      action: "sign-in",
+    };
+  }
+  return {
+    title: "Home could not load",
+    body: status
+      ? `Loki answered with an error (HTTP ${status}). Nothing was lost; try again.`
+      : `Loki could not be reached (${error}). Nothing was lost; try again.`,
+    action: "retry",
+  };
+}
+
+export function HomeLoadFailed({ error, onRetry }: { error: string; onRetry: () => void }) {
+  const failure = homeLoadFailure(error);
+  return (
+    <div className="space-y-3" role="alert">
+      <SectionHeading title={failure.title} />
+      <p className="text-sm text-muted-foreground">{failure.body}</p>
+      {failure.action === "sign-in" ? (
+        <a className="ui-btn-primary" href="/sign-in?callbackUrl=%2Fcontrol">
+          Sign in
+        </a>
+      ) : (
+        <button type="button" className="ui-btn-secondary" onClick={onRetry}>
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Home while it loads: the composer's shape and three row lines — the page
  *  it becomes, not three empty cards. */
 export function HomeLoading() {
@@ -110,18 +161,3 @@ export function HomeLoading() {
   );
 }
 
-/** Home when its data could not load: says so, with the one way forward. It
- *  used to stay on the skeleton forever, the error stored and never shown. */
-export function HomeLoadFailed({ onRetry }: { onRetry: () => void }) {
-  return (
-    <EmptyState
-      icon={CloudOff}
-      title="Home could not load. Check your connection, then try again."
-      action={
-        <button type="button" className="ui-btn-primary min-h-11" onClick={onRetry}>
-          Try again
-        </button>
-      }
-    />
-  );
-}

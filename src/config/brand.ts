@@ -90,11 +90,17 @@ export const APP_TAGLINE = "say what you want, Loki builds it with you";
 // staff you direct. "Agents build it" framed Loki as hired hands; the owner
 // asked for the opposite (2026-11-01). Every claim stays one the product
 // keeps: it does build with AI agents, put it online, and change it on ask.
+// One line that adds what the headline does not (what gets built, by what,
+// and that it keeps changing). It was three sentences, the first of which
+// repeated the headline above it.
 export const MARKETING_TAGLINE =
-  "Tell Loki what you want, in your own words. It builds the website or app with AI agents, puts it online, and keeps changing it whenever you say what should be different.";
+  "A website or an app, built by AI agents, put online, and changed whenever you say what should be different.";
 export const MARKETING_HERO_PRIMARY = "Say what you want.";
 export const MARKETING_HERO_SECONDARY = "Loki builds it with you.";
-export const MARKETING_POSITIONING = "Beta · Free while in beta · Open source";
+// "Beta" is said once on a wide screen, by the brand's own eyebrow beside the
+// mark; this line said it twice more. The phone hides that eyebrow, so the
+// short form keeps the word.
+export const MARKETING_POSITIONING = "Free while in beta · Open source";
 /** Phone-width variant of the positioning badge — a badge that wraps stops
  *  reading as a badge. Same claim, fewer words. */
 export const MARKETING_POSITIONING_SHORT = "Beta · Free · Open source";

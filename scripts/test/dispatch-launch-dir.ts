@@ -19,6 +19,24 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
+// SAFETY (the same guard as worktree-workspace.ts): a hook run from a linked
+// worktree exports an absolute GIT_DIR, which overrides `git -C <sandbox>`.
+// Without this, a pre-push from a second worktree pointed every "throwaway"
+// command below at the real repository: a test@test "init" commit on the
+// branch being pushed, `core.bare = true`, a test identity and a hooks path of
+// /dev/null in the real config (2026-11-12). scripts/test-unit.ts clears the
+// same variables for every test; this keeps a direct run safe too.
+for (const k of [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_COMMON_DIR",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_PREFIX",
+]) {
+  delete process.env[k];
+}
+
 const SANDBOX = fs.mkdtempSync(path.join(os.tmpdir(), "loki-dispatch-dir-"));
 const DEV_ROOT = path.join(SANDBOX, "dev");
 // Read at module load by the pieces under test, so set before they are imported.

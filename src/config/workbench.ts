@@ -34,9 +34,8 @@ export type WorkbenchPane = {
 export const WORKBENCH_PANES: Record<WorkbenchPaneId, WorkbenchPane> = {
   session: {
     id: "session",
-    label: "Talk to the agent",
-    // One line at 390px: the longer "…; the agent at work" ended in "wo…".
-    description: "Say what to change",
+    label: "The agent",
+    description: "Tell the agent what to change",
     icon: SquareTerminal,
     pageHref: (p) => fleetSurfaceHref("terminal", p.workspaceKey),
   },

@@ -8,6 +8,7 @@ import { normalizeUsername } from "@/lib/username";
 import { postJson, patchJson, throwApiError, getJson } from "@/lib/api/fetch";
 import { normalizeSiteUrl } from "@/lib/site-url";
 import { ROUTES } from "@/config/auth";
+import { clearFirstWords, firstWordsHref, readFirstWords } from "@/lib/first-words";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { APP_DOMAIN } from "@/config/brand";
 import {
@@ -97,7 +98,9 @@ export default function OnboardingPage() {
         }
         if (data.complete && (data.projectCount ?? 0) === 0) {
           if (data.needsSessionRefresh) await updateRef.current();
-          setStep(data.isTeamInvitee ? "connect" : "project");
+          // A sentence carried from the homepage becomes the project at the
+          // end (see saveUsername below): the form is not put in front of it.
+          setStep(data.isTeamInvitee || readFirstWords() ? "connect" : "project");
           setIsTeamInvitee(data.isTeamInvitee ?? false);
           return;
         }
@@ -159,6 +162,14 @@ export default function OnboardingPage() {
       // Someone who gave their website lands on that project instead: its
       // page has the live link with Loki on it, the widget's status, and
       // the first change waiting to be said.
+      // Someone who said what they want on the homepage lands on the
+      // new-project form with that sentence already in it (lib/first-words).
+      const words = readFirstWords();
+      if (words && !site) {
+        clearFirstWords();
+        router.push(firstWordsHref(words));
+        return;
+      }
       router.push(site ? `/projects/${site.entityProjectId}` : "/control");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -179,7 +190,10 @@ export default function OnboardingPage() {
       const status = await getJson<OnboardingBootstrap>("/api/onboarding");
       const teamInvitee = status.isTeamInvitee ?? false;
       setIsTeamInvitee(teamInvitee);
-      setStep(teamInvitee ? "connect" : "project");
+      // A sentence carried from the homepage becomes the project at the end,
+      // so the name / folder / GitHub form is not put in front of it. It is
+      // the same path as that form's own "Skip for now".
+      setStep(teamInvitee || readFirstWords() ? "connect" : "project");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
