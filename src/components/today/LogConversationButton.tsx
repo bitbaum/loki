@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageCircle, X, Check, Loader2, Search } from "lucide-react";
 import { CHANNEL_NAMES } from "@/config/channels";
@@ -16,6 +17,7 @@ export function LogConversationButton() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PersonResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [locked, setLocked] = useState(false);
   const [selected, setSelected] = useState<PersonResult | null>(null);
   const [channel, setChannel] = useState(CHANNEL_NAMES[0] ?? "whatsapp");
   const [note, setNote] = useState("");
@@ -49,9 +51,19 @@ export function LogConversationButton() {
           `/api/people?q=${encodeURIComponent(query)}&limit=6&sort=${SORT_MODE.RECENT}`,
           { signal: ctrl.signal },
         );
-        if (!ctrl.signal.aborted) setResults(data.people ?? []);
+        if (!ctrl.signal.aborted) {
+          setResults(data.people ?? []);
+          setLocked(false);
+        }
       } catch (err) {
         if ((err as { name?: string }).name === "AbortError") return;
+        // The private zone is locked: People answers 403, and "No results"
+        // was a wrong answer with no way forward (2026-11-12).
+        if (err instanceof Error && err.message === "HTTP 403") {
+          setResults([]);
+          setLocked(true);
+          return;
+        }
         throw err;
       } finally {
         if (!ctrl.signal.aborted) setSearching(false);
@@ -206,7 +218,18 @@ export function LogConversationButton() {
               ))}
             </div>
           )}
-          {query.trim() && !searching && results.length === 0 && (
+          {query.trim() && !searching && locked && (
+            <div className="flex items-center justify-between gap-2 px-2 py-1 text-xs text-text-secondary">
+              Your contacts are locked.
+              <Link
+                href="/unlock?next=/today"
+                className="inline-flex min-h-11 items-center font-medium text-text-primary underline underline-offset-2"
+              >
+                Unlock
+              </Link>
+            </div>
+          )}
+          {query.trim() && !searching && !locked && results.length === 0 && (
             <div className="text-xs text-text-secondary px-2 py-1">No results</div>
           )}
         </div>

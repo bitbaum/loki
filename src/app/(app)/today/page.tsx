@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Activity, CalendarClock, LayoutGrid, Target, Wallet } from "lucide-react";
+import { Activity, CalendarClock, LayoutGrid, Lock, Target, Wallet } from "lucide-react";
 import { NAV } from "@/config/navigation";
 import { EmptyState } from "@/components/ui/empty-state";
 import { List, ListRow } from "@/components/ui/list-row";
@@ -39,6 +39,7 @@ import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
 import { LastNightCard } from "@/components/today/LastNightCard";
 import { ListenBriefButton } from "@/components/today/ListenBriefButton";
 import { lastNightNote } from "@/lib/autopilot-night-note";
+import { isPrivateZoneLocked } from "@/lib/private-zone";
 import { isFreshNight } from "@/config/autopilot-night";
 import { StartMyDay } from "@/components/control/StartMyDay";
 
@@ -165,11 +166,14 @@ async function loadTodayInputs() {
   // below it, each with its own count and its own wall of detail.
   // Last night's autopilot note, only on the morning it happened. A failure
   // here costs the line, never the page.
-  const [extras, night] = await Promise.all([
+  const [extras, night, zoneLocked] = await Promise.all([
     step("loadNeedsYouExtras", () => loadNeedsYouExtras(userId)),
     lastNightNote(userId).catch(() => null),
+    isPrivateZoneLocked(userId).catch(() => true),
   ]);
-  const nightNote = night && isFreshNight(night.night) ? night.note : null;
+  const fresh = night && isFreshNight(night.night) ? night : null;
+  const nightNote = fresh?.note ?? null;
+  const nightNotApproved = fresh?.notApproved ?? false;
 
   return {
     name,
@@ -180,21 +184,56 @@ async function loadTodayInputs() {
     flagged: needsYou,
     extras,
     nightNote,
+    nightNotApproved,
+    zoneLocked,
   };
 }
 
 /** The pages behind Today's recap, as rows — they were four summary cards
  *  in a "Recap & reference" disclosure, each restating a page in the nav. */
 const MORE = [
-  { href: NAV.goals.href, icon: Target, title: "Goals", secondary: "Due soon and stalled" },
-  { href: NAV.events.href, icon: CalendarClock, title: "Events", secondary: "Deadlines coming up" },
-  { href: NAV.money.href, icon: Wallet, title: "Money", secondary: "Bills and subscriptions" },
-  { href: NAV.activity.href, icon: Activity, title: "Activity", secondary: "What the builds did" },
+  {
+    href: NAV.goals.href,
+    icon: Target,
+    title: "Goals",
+    secondary: "Due soon and stalled",
+    private: true,
+  },
+  {
+    href: NAV.events.href,
+    icon: CalendarClock,
+    title: "Events",
+    secondary: "Deadlines coming up",
+    private: true,
+  },
+  {
+    href: NAV.money.href,
+    icon: Wallet,
+    title: "Money",
+    secondary: "Bills and subscriptions",
+    private: true,
+  },
+  {
+    href: NAV.activity.href,
+    icon: Activity,
+    title: "Activity",
+    secondary: "What the builds did",
+    private: false,
+  },
 ];
 
 export default async function TodayPage() {
-  const { name, projects, orgProjects, sharedProjects, flagged, extras, nightNote } =
-    await loadTodayInputs();
+  const {
+    name,
+    projects,
+    orgProjects,
+    sharedProjects,
+    flagged,
+    extras,
+    nightNote,
+    nightNotApproved,
+    zoneLocked,
+  } = await loadTodayInputs();
   const isFirstRun = projects.length === 0 && orgProjects.length === 0;
   // Owns nothing yet, but is on someone else's project: that project is the
   // first thing to do, not "Add a project".
@@ -240,7 +279,7 @@ export default async function TodayPage() {
                 piece renders nothing when it has nothing to say. */}
             <AwayReturnCard />
             <StartMyDay />
-            <LastNightCard note={nightNote} />
+            <LastNightCard note={nightNote} notApproved={nightNotApproved} />
             {nightNote && <ListenBriefButton nightNote={nightNote} />}
 
             {/* THE ANSWER, FIRST — the only place "N things need you" is
@@ -284,16 +323,21 @@ export default async function TodayPage() {
 
             <Section title="More">
               <List aria-label="More">
-                {MORE.map((m) => (
-                  <ListRow
-                    key={m.href}
-                    href={m.href}
-                    icon={m.icon}
-                    title={m.title}
-                    secondary={m.secondary}
-                    chevron
-                  />
-                ))}
+                {/* Behind the PIN, a row says so: Goals and Money read as
+                    open while the banner above said they were locked. */}
+                {MORE.map((m) => {
+                  const locked = m.private && zoneLocked;
+                  return (
+                    <ListRow
+                      key={m.href}
+                      href={locked ? `/unlock?next=${encodeURIComponent(m.href)}` : m.href}
+                      icon={locked ? Lock : m.icon}
+                      title={m.title}
+                      secondary={locked ? "Unlock to see" : m.secondary}
+                      chevron
+                    />
+                  );
+                })}
               </List>
             </Section>
             <AutoRefresh intervalMs={REFRESH_CADENCE.today} />

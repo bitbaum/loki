@@ -216,7 +216,9 @@ export function nightNoteText(
   // the one case where "nothing" is the news, and the way to a night that
   // builds is one line away (Settings → Autopilot).
   if (s.approval === NIGHT_APPROVAL.NOT_APPROVED) {
-    parts.push("built nothing (tonight's plan was not approved)");
+    // "Last night … (tonight's plan was not approved)" mixed two nights in
+    // one sentence (2026-11-12).
+    parts.push("built nothing — its plan was never approved");
   }
   const started = s.fixes.filter((f) => f.runId);
   // A yes that led nowhere is owed an answer too: the owner approved runs and

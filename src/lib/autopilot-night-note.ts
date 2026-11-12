@@ -7,11 +7,16 @@
  */
 import { getLatestAutopilotNight } from "@/db/queries/autopilot-nights";
 import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
-import { nightNoteText } from "@/config/autopilot-night";
+import { NIGHT_APPROVAL, nightNoteText } from "@/config/autopilot-night";
 import { getProjects } from "@/db/queries/projects";
 import { projectTitle } from "@/lib/project-display";
 
-export type NightNote = { night: string; note: string };
+export type NightNote = {
+  night: string;
+  note: string;
+  /** Nobody said yes to the plan: the way forward is Autopilot settings. */
+  notApproved: boolean;
+};
 
 export async function lastNightNote(userId: string): Promise<NightNote | null> {
   const row = await getLatestAutopilotNight(userId).catch(() => null);
@@ -32,5 +37,7 @@ export async function lastNightNote(userId: string): Promise<NightNote | null> {
     spent,
     (name) => titles.get(name) ?? projectTitle({ name }),
   );
-  return note ? { night: row.night, note } : null;
+  return note
+    ? { night: row.night, note, notApproved: row.summary.approval === NIGHT_APPROVAL.NOT_APPROVED }
+    : null;
 }

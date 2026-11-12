@@ -20,8 +20,11 @@ export async function LockedZoneBanner() {
   return (
     <Link href="/unlock" className="ui-locked-banner group gap-2 py-2.5">
       <Lock className="h-4 w-4 shrink-0 text-text-tertiary" />
-      <span className="min-w-0 flex-1 truncate text-sm text-text-secondary">
-        Private zone locked — goals, people, habits, money &amp; memory are hidden.
+      {/* Short enough to read whole, and allowed to wrap: truncated, it read
+          "Private zone locked — goals, pe…" and never said what was hidden
+          (2026-11-12). */}
+      <span className="min-w-0 flex-1 text-sm text-text-secondary">
+        Goals, people, money, habits and memory are locked.
       </span>
       <span className="ui-locked-banner-cta">
         Unlock
