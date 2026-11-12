@@ -128,7 +128,7 @@
     "@bitbaum/accountkit": "^0.27.0",
     "@bitbaum/ai-kit": "^1.24.0",
     "@bitbaum/bip-kit": "^0.6.1",
-    "@bitbaum/chatkit": "^0.22.1",
+    "@bitbaum/chatkit": "^0.26.0",
     "@bitbaum/limitkit": "^0.2.1",
     "@bitbaum/mail-kit": "^0.2.0",
     "@bitbaum/paykit": "^0.3.0",

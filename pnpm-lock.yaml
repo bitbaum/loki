@@ -41,8 +41,8 @@ importers:
         specifier: ^0.6.1
         version: 0.6.1(katex@0.16.47)(mermaid@11.17.2)(react@19.3.1)(shiki@4.5.0)
       '@bitbaum/chatkit':
-        specifier: ^0.22.1
-        version: 0.22.1(react@19.3.1)
+        specifier: ^0.26.0
+        version: 0.26.0(react@19.3.1)
       '@bitbaum/limitkit':
         specifier: ^0.2.1
         version: 0.2.1
@@ -599,8 +599,8 @@ packages:
       shiki:
         optional: true
 
-  '@bitbaum/chatkit@0.22.1':
-    resolution: {integrity: sha512-hAvxeJbpsMS6Jn0TTNyiVRpbhmsQqx52dG6woCH+UbZCZhuK4czldjIU8LpHppMk/NDuz7Yg+phKxJ6HDNiIkw==}
+  '@bitbaum/chatkit@0.26.0':
+    resolution: {integrity: sha512-oUUIC2Opdn3MhU+Fsk8DpIqFnee+c/WKY1fwtDSFtxti8IRI9eG7VyNDboa8TKpS5byxtFGnbOlfUilF4W9dAA==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -6045,7 +6045,7 @@ snapshots:
       mermaid: 11.17.2
       shiki: 4.5.0
 
-  '@bitbaum/chatkit@0.22.1(react@19.3.1)':
+  '@bitbaum/chatkit@0.26.0(react@19.3.1)':
     dependencies:
       pdfjs-dist: 6.4.299
       react: 19.3.1
