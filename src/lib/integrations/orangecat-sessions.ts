@@ -17,6 +17,7 @@
  */
 import { APP_URL } from "@/config/brand";
 import type { TranscriptItem } from "@/lib/claude-transcript";
+import type { RunHandoff } from "@/lib/run-handoff";
 
 /** Projects listed in one answer; the same ceiling as actor-status. */
 export const SESSIONS_MAX_PROJECTS = 25;
@@ -51,6 +52,12 @@ export interface SessionRow {
   prUrl: string | null;
   /** Where a person watches this run. */
   statusUrl: string | null;
+  /**
+   * What the agent reported when it finished (lib/run-handoff): what it did,
+   * what it checked, what should come next. The answer to a one-off question
+   * lives here, and stays after its session is closed. Null until it reports.
+   */
+  handoff: RunHandoff | null;
 }
 
 export interface SessionRowInput {
@@ -67,6 +74,7 @@ export interface SessionRowInput {
     track: string | null;
     prUrl: string | null;
     lastProgressAt: string | null;
+    handoff?: RunHandoff | null;
   } | null;
   /** Epoch ms of the newest cached transcript frame for the session. */
   transcriptAt: number | null;
@@ -128,6 +136,7 @@ export function shapeSessionRow(input: SessionRowInput): SessionRow {
     track: run?.track ?? null,
     prUrl: safeUrl(run?.prUrl),
     statusUrl: run ? runStatusUrl(run.id) : null,
+    handoff: run?.handoff ?? null,
   };
 }
 
@@ -177,4 +186,32 @@ export function shapeTranscriptItems(
     const text = clip((item as { text?: string }).text ?? "", SESSIONS_ITEM_CHARS);
     return text ? [{ kind: "note", at: item.at, text }] : [];
   });
+}
+
+/** The conversation as it crosses the rail, with how fresh the copy is. */
+export interface SessionTranscript {
+  project: string;
+  /** ISO time the server last received a frame of it. */
+  at: string;
+  /**
+   * True when someone (a person on Terminal, or a bot's watch) was viewing
+   * the session, or the runner sent a fresh snapshot for this read. False
+   * when only an older copy was there: it may be missing the latest turns.
+   */
+  live: boolean;
+  items: SessionTranscriptItem[];
+}
+
+export function shapeTranscript(
+  project: string,
+  frame: { at: number; items: readonly TranscriptItem[] },
+  live: boolean,
+  count: number = SESSIONS_DEFAULT_ITEMS,
+): SessionTranscript {
+  return {
+    project,
+    at: new Date(frame.at).toISOString(),
+    live,
+    items: shapeTranscriptItems(frame.items, count),
+  };
 }

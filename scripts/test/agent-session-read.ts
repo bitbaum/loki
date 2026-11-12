@@ -36,7 +36,7 @@ for (const route of [
 // The asking route says where the answer is and where a person opens the session.
 const ask = read("src/app/api/control/peek-tab/route.ts");
 assert.match(ask, /resultUrl: `\/api\/control\/peek-tab\/\$\{peekId\}`/);
-assert.match(ask, /openUrl: terminalHref\(tab, channel \?\? null\)/);
+assert.match(ask, /openUrl: sessionOpenUrl\(tab, channel \?\? null\)/);
 assert.equal(terminalHref("loki", "cloud"), "/terminal?project=loki");
 // The live stream is still a browser's: it holds a viewer open on the runner.
 assert.match(read("src/app/api/control/peek-stream/route.ts"), /getSessionUserId\(\)/);

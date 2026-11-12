@@ -38,13 +38,16 @@ Honesty rules for agent callers, pinned by `scripts/test/canonical-status.ts`:
   (`lib/run-branches`: `loki/run-<id8>`, its worktree branch, and every
   branch its runner reported the agent's checkout on); "the newest one opened
   since the run started" is not an attribution, and `main` is never one of
-  them. The window ends 15 minutes after the run finished. The fix ledger
-  applies the same rule before it reports a pull request as the run's, and
-  only merges or drafts one that is on the run's own branches; a runner too
-  old to report branches is still credited with the pull request its handoff
-  names. Evidence recorded before it carried its branch is checked with
-  GitHub once and removed when it is another branch's. Pinned by
-  `scripts/test/run-branches.ts` and `scripts/test/run-evidence-ownership.ts`.
+  them. The evidence finder (`lib/github-evidence`) and the delivery track's
+  own read of the repository (`lib/repo-progress`, the "Pushed: …" line and
+  the track's pull request) both apply it. The window ends 15 minutes after
+  the run finished. The fix ledger applies the same rule before it reports a
+  pull request as the run's, and only merges or drafts one that is on the
+  run's own branches; a runner too old to report branches is still credited
+  with the pull request its handoff names. Evidence recorded before it
+  carried its branch is checked with GitHub once and removed when it is
+  another branch's. Pinned by `scripts/test/run-branches.ts` and
+  `scripts/test/run-evidence-ownership.ts`.
 - **An open pull request or a deploy under way is Working**, whoever's move it is.
   Never Done, never Needs you.
 - **Closed without a change is Failed**, cause `closed_without_change`, empty
