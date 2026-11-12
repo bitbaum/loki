@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ExternalLink } from "lucide-react";
+import { TextArea } from "@/components/ui/text-area";
 import { postJson } from "@/lib/api/fetch";
 import { deadlineLabel } from "@/lib/dates";
 import {
@@ -134,14 +135,15 @@ export function SharedTaskView({ token, initialTask }: { token: string; initialT
           <label className="ui-kicker block" htmlFor="crew-response-note">
             Anything to say back? (optional)
           </label>
-          <textarea
+          <TextArea
             id="crew-response-note"
+            ariaLabel="Anything to say back? (optional)"
+            voice="visitor"
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={setNote}
             rows={3}
             maxLength={1000}
             placeholder="e.g. I can do this, but not before Thursday."
-            className="ui-input"
           />
           <div className="flex flex-wrap gap-2">
             {task.actions.map((action) => (

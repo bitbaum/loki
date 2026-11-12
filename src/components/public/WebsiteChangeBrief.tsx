@@ -17,6 +17,7 @@ import { useSiteConsultation } from "@/hooks/use-site-consultation";
 import { appendToBrief, extractWebsite, saysMoreThanAddress } from "@/lib/website-from-speech";
 import { clearWebsiteDraft, parseWebsiteDraft, saveWebsiteDraft } from "@/lib/website-draft";
 import { Segmented } from "@/components/ui/segmented";
+import { TextArea } from "@/components/ui/text-area";
 
 /**
  * "Change your website", told in your own words — typed or spoken.
@@ -220,6 +221,8 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
         placeholder={hasBrief ? "Anything else? Say it or type it…" : copy.placeholder}
         ariaLabel="Describe your website and what should change"
         attach={false}
+        // Signed out, the server's transcriber answers 401: use the browser's.
+        voice={signedIn ? true : "visitor"}
         disabled={!ready || sending}
         hint="Type it, or use the mic and say it — in any language."
       />
@@ -271,9 +274,10 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
           <label htmlFor="change-brief-text" className="ui-change-brief-label">
             {report ? "Anything else you want (optional)" : copy.changesLabel}
           </label>
-          <textarea
+          <TextArea
             id="change-brief-text"
-            className="ui-input min-h-24 w-full resize-y text-base"
+            ariaLabel={report ? "Anything else you want (optional)" : copy.changesLabel}
+            voice={signedIn ? true : "visitor"}
             rows={Math.min(
               10,
               Math.max(3, changes.split("\n").length + Math.ceil(changes.length / 40)),
@@ -283,9 +287,9 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
             }
             maxLength={COMMISSION.maxChanges}
             value={changes}
-            onChange={(e) => {
+            onChange={(next) => {
               requestId.current = "";
-              setChanges(e.target.value);
+              setChanges(next);
             }}
           />
 

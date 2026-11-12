@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Segmented } from "@/components/ui/segmented";
+import { TextArea } from "@/components/ui/text-area";
 import type { Project } from "./types";
 import type { UserPromptCard } from "./UserPromptsSection";
 
@@ -160,13 +161,14 @@ export function PromptForm({
           <label className="ui-prompt-field-label" htmlFor="prompt-body">
             The prompt
           </label>
-          <textarea
+          <TextArea
             id="prompt-body"
+            ariaLabel="The prompt"
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={setBody}
             placeholder="What the agent should do."
             rows={7}
-            className="ui-input font-mono text-sm"
+            className="ui-text-area-mono"
           />
           <p className="mt-1.5 text-sm text-text-secondary">
             Write <code>{`{{name}}`}</code> for a blank to fill in when it runs.

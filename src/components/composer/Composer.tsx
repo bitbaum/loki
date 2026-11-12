@@ -6,11 +6,9 @@ import { Composer as ChatkitComposer } from "@bitbaum/chatkit/react";
 import { ModelPicker } from "@/components/loki/ModelPicker";
 import type { Attachment, ModelChoice } from "@/components/loki/types";
 import type { ComposerMode, ComposerSendResult } from "./composer-logic";
+import { LOKI_VOICE, VISITOR_VOICE } from "./voice";
 
 export type { ComposerMode, ComposerSendResult };
-
-/** Loki's server leg for dictation: Groq Whisper behind the operator's session. */
-const TRANSCRIBE_URL = "/api/control/transcribe";
 
 export type ComposerProps = {
   /** Deliver what was written. Return `false` (or resolve to it) to keep the
@@ -37,7 +35,9 @@ export type ComposerProps = {
   /** Take the next message while a turn runs; the caller sends it after. */
   queue?: boolean;
   attach?: boolean;
-  voice?: boolean;
+  /** `"visitor"`: the box is on a page a signed-out person uses, so the mic
+   *  is the browser's own recogniser (see VISITOR_VOICE). */
+  voice?: boolean | "visitor";
   /** Offer the Loki model picker (chat turns). Off where the model is the
    *  session's own CLI, which the composer cannot change. */
   modelPicker?: boolean;
@@ -109,7 +109,7 @@ export function Composer({
       disabled={disabled}
       attach={attach}
       onSend={(text, attachments) => onSend(text, model ? { model } : {}, attachments)}
-      voice={voice ? { transcribeUrl: TRANSCRIBE_URL, prefer: "server" } : false}
+      voice={voice === "visitor" ? VISITOR_VOICE : voice ? LOKI_VOICE : false}
       tools={
         <>
           {modelPicker && !demo && (

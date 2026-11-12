@@ -3,6 +3,7 @@
 import { Plus, X, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
 import { Modal } from "@/components/ui/modal";
+import { TextArea } from "@/components/ui/text-area";
 import type { ControlData } from "@/lib/control-types";
 import { PROMPT_TEMPLATES } from "@/config/prompt-library";
 
@@ -174,12 +175,11 @@ export function LaunchTabModal({
               </option>
             ))}
           </select>
-          <textarea
+          <TextArea
             value={initialPrompt}
-            onChange={(e) => onInitialPromptChange(e.target.value)}
+            onChange={onInitialPromptChange}
             placeholder="What should the agent do first? Injected automatically once it starts."
             rows={3}
-            className="ui-input w-full resize-none"
           />
         </div>
       </div>

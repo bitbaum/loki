@@ -1,3 +1,4 @@
+// experience-exempt: the review paths box takes URL paths, one per line; dictated words would corrupt them
 /* eslint-disable @next/next/no-img-element -- Authenticated browser evidence is already encoded JPEG; it must not pass through a public image optimizer. */
 "use client";
 

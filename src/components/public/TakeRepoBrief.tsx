@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { ROUTES } from "@/config/auth";
 import { Segmented } from "@/components/ui/segmented";
+import { TextArea } from "@/components/ui/text-area";
 import {
   OPEN_SOURCE_STARTERS,
   OPEN_SOURCE_STARTER_IDS,
@@ -151,17 +152,18 @@ export function TakeRepoBrief({
         <label htmlFor="take-brief-text" className="ui-change-brief-label">
           What yours is for
         </label>
-        <textarea
+        <TextArea
           id="take-brief-text"
-          className="ui-input min-h-24 w-full resize-y text-base"
+          ariaLabel="What yours is for"
+          voice={signedIn ? true : "visitor"}
           rows={4}
           maxLength={TAKE.maxWishes}
           placeholder={`e.g. “A ${starter.name} for my climbing club: our name, green, and only the parts we need.”`}
           value={wishes}
           disabled={!ready || sending}
-          onChange={(e) => {
+          onChange={(next) => {
             requestId.current = "";
-            setWishes(e.target.value);
+            setWishes(next);
           }}
         />
 

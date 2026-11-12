@@ -154,7 +154,10 @@ async function main() {
     // Measured 24 KB when it landed and 33 KB on chatkit 0.13 (option cards,
     // citation chips, the layered figure, the thinking row — the shapes the
     // conversation is there to draw). The budget leaves room, not a blank cheque.
-    ok(kb(b.chat) <= 40, `the chat chunk stays small (${kb(b.chat)} KB gzipped, budget 40)`);
+    // 41 since chatkit 0.25 (2026-11-12): 40.45 KB on 0.22.1, 40.65 KB on 0.25,
+    // the ~200 bytes being the dictation problems a person can act on (sign in,
+    // busy) and their status mapping, which the composer in this chunk draws.
+    ok(kb(b.chat) <= 41, `the chat chunk stays small (${kb(b.chat)} KB gzipped, budget 41)`);
   }
 
   try {

@@ -6,6 +6,7 @@ import { patchJson } from "@/lib/api/fetch";
 import type { UserPreferencesData } from "@/db/queries/user-preferences";
 import { TOAST_SHORT_MS } from "@/lib/constants/timings";
 import { Segmented } from "@/components/ui/segmented";
+import { TextArea } from "@/components/ui/text-area";
 
 // Quick-start voices — fill the textarea, then the user tunes from there.
 // These are starting points, not an enum; the field is free text.
@@ -87,11 +88,11 @@ export function VoiceSettings({ initialPrefs }: Props) {
         />
 
         <div className="space-y-1.5">
-          <textarea
+          <TextArea
+            ariaLabel="Writing voice"
             value={voice}
-            onChange={(e) => setVoice(e.target.value.slice(0, MAX))}
+            onChange={(next) => setVoice(next.slice(0, MAX))}
             rows={4}
-            className="ui-input"
             placeholder="e.g. Concise and direct. Lead with the answer, no preamble. Plain language, no jargon."
           />
           <p className="ui-kicker text-right">
