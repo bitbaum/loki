@@ -27,6 +27,9 @@ export const NOT_PICKED_UP_MS = 30 * 60_000;
 export const DONE_WINDOW_MS = 24 * 60 * 60_000;
 export const DONE_MAX = 6;
 
+/** The status of an agent that stopped to ask the owner something. */
+export const WAITING_FOR_ANSWER = "Waiting for your answer";
+
 export type NowJob = {
   tab: string;
   title: string;
@@ -110,13 +113,13 @@ export function buildNowJobs(
       status = "The agent stopped — try again";
     } else if (openRun?.blocked === "permission") {
       tone = "you";
-      status = "Waiting for your answer";
+      status = WAITING_FOR_ANSWER;
     } else if (awaiting) {
       tone = "you";
       // The question IS the job now: lead with it.
       const asked = project.session?.blockReason?.trim();
       if (asked) title = asked;
-      status = "Waiting for your answer";
+      status = WAITING_FOR_ANSWER;
     } else if (category === "working") {
       status = step && (fresh || !openRun?.lastProgressAt) ? step : "Working on it";
     } else if (openRun && openRun.lastProgressAt && !fresh) {
@@ -126,11 +129,13 @@ export function buildNowJobs(
       // these under "Gone quiet".
       tone = "quiet";
       const heard = elapsedLabel(parseMs(openRun.lastProgressAt), nowMs);
-      status = heard ? `No word from the agent for ${heard}` : "No word from the agent";
+      status = heard ? `No word from it for ${heard}` : "No word from it yet";
     } else if (openRun && !step && since !== null && nowMs - since > NOT_PICKED_UP_MS) {
-      // Sent long ago and never reported a step: no builder took it.
+      // Sent long ago and never reported a step: no builder took it. Said
+      // without "runner", a word the owner does not use (2026-11-12).
       tone = "quiet";
-      status = "Waiting for a runner to pick it up";
+      const sent = elapsedLabel(since, nowMs);
+      status = sent ? `Not started yet — sent ${sent} ago` : "Not started yet";
     } else if (openRun) {
       // Sent, and not yet reporting: picked up, or still on its way.
       status = step ?? "Starting";
@@ -205,6 +210,14 @@ export function buildDoneJobs(
     });
   }
   return done.sort((a, b) => b.at - a.at).slice(0, DONE_MAX);
+}
+
+/** The question (or task) the agent is waiting on; the reason first when it
+ *  is something other than an answer ("Waiting for someone to sign in"). */
+export function waitingLine(job: Pick<NowJob, "title" | "status">): string {
+  if (job.status === WAITING_FOR_ANSWER || !job.status) return job.title;
+  if (!job.title || job.title === job.status) return job.status;
+  return `${job.status} · ${job.title}`;
 }
 
 /** "12 min", "2 h 5 min", "3 d" — how long something has been going. */

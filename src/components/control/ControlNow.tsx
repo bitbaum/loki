@@ -9,13 +9,13 @@ import {
   Hammer,
   MessageCircle,
   Plus,
-  Server,
+  Settings2,
 } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import { projectTitle } from "@/lib/project-display";
 import { List, ListRow } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
-import { elapsedLabel, type DoneJob, type NowJob } from "./control-now";
+import { elapsedLabel, waitingLine, type DoneJob, type NowJob } from "./control-now";
 
 /**
  * The top of Control: what is being built for you right now. One card per
@@ -33,26 +33,24 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
   // Nothing running: nothing to say. The box above is where work starts; a
   // card here saying so, with a "Start something" that left for /loki, was a
   // second way to the same act and the loudest thing on an idle page.
-  if (jobs.length === 0) return null;
+  //
+  // Only work that is actually being done sits under "Being built". Agents
+  // waiting for the owner are listed in "Needs you" (ControlWaiting): two
+  // waiting rows under "Being built", beside a hero saying nothing was
+  // building, gave three answers to "is anything running?" (2026-11-12).
+  const active = jobs.filter((j) => j.tone === "working");
+  const quiet = jobs.filter((j) => j.tone === "quiet");
+  if (active.length === 0 && quiet.length === 0) return null;
   // One row per job (design reset, 2026-10): the project, what it is doing
   // this minute, how long. They were cards that each read "Next best step"
   // in large type — the prompt's name, the same on every card.
-  const active = jobs.filter((j) => j.tone !== "quiet");
-  const quiet = jobs.filter((j) => j.tone === "quiet");
   const row = (job: NowJob) => (
     <ListRow
       key={job.tab}
       href={job.href}
-      icon={job.tone === "you" ? MessageCircle : job.tone === "quiet" ? CirclePause : Hammer}
+      icon={job.tone === "quiet" ? CirclePause : Hammer}
       title={projectTitle({ name: job.tab })}
-      secondary={
-        job.tone === "you"
-          ? `Waiting for you · ${job.status}`
-          : job.tone === "quiet"
-            ? job.status
-            : jobLine(job)
-      }
-      status={job.tone === "you" ? "warning" : undefined}
+      secondary={job.tone === "quiet" ? job.status : jobLine(job)}
       trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
       chevron
     />
@@ -72,6 +70,35 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
         </Section>
       )}
     </>
+  );
+}
+
+/**
+ * Agents that stopped to ask the owner something, inside "Needs you": each
+ * row names the project and shows the question itself. It read "Waiting for
+ * you · Waiting for your a…" — the state twice, cut off, and never the
+ * question the owner had to open the session to learn (2026-11-12).
+ */
+export function ControlWaiting({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
+  const waiting = jobs.filter((j) => j.tone === "you");
+  if (waiting.length === 0) return null;
+  return (
+    <List aria-label="Agents waiting for you" id="control-waiting">
+      {waiting.map((job) => (
+        <ListRow
+          key={job.tab}
+          href={job.href}
+          icon={MessageCircle}
+          title={projectTitle({ name: job.tab })}
+          secondary={waitingLine(job)}
+          // Waiting for an answer is a to-do, not a warning: neutral, never
+          // the warning orange (owner: "Orange is not the color of Loki").
+          status="neutral"
+          trailing={elapsedLabel(job.since, nowMs) ?? undefined}
+          chevron
+        />
+      ))}
+    </List>
   );
 }
 
@@ -164,34 +191,30 @@ function FinishButton({
 }
 
 /**
- * The machinery, in one quiet line at the foot of the page: which builder is
- * on, and the two things a person occasionally needs here — a new project and
- * the settings (autopilot, refresh, builder detail).
+ * The foot of the page: the settings (naming where builds run, in plain
+ * words) and a new project.
  */
 export function ControlFoot({
-  builderLabel,
+  builderLine,
   builderNote = null,
   onNewProject,
   onOpenSettings,
 }: {
-  /** Which builder is on — null when none is: the builder row at the top
-   *  of Home already says so, and the foot saying "No builder connected"
-   *  under "Builder offline · last seen 1d ago" told one fact twice, two
-   *  different ways (owner, 2026-10-22). */
-  builderLabel: string | null;
-  /** One clause after the label: "a newer version waits for its agents to finish". */
+  /** Where builds run ("Builds run in Loki's cloud") — null when no builder
+   *  is on: the builder banner at the top of Home already says so. The row
+   *  used to be titled "Cloud runner online" and open Settings (2026-11-12). */
+  builderLine: string | null;
+  /** "An update installs when current work finishes" — wins when present. */
   builderNote?: string | null;
   onNewProject: () => void;
   onOpenSettings: () => void;
 }) {
-  // The last rows of the page, not a strip of chrome: settings (naming the
-  // builder when one is on), and a new project.
   return (
-    <List aria-label="Runner and settings" className="ui-home-foot">
+    <List aria-label="Settings and new project" className="ui-home-foot">
       <ListRow
-        icon={Server}
-        title={builderLabel ?? "Settings"}
-        secondary={builderNote ?? "Autopilot, refresh and agents"}
+        icon={Settings2}
+        title="Settings"
+        secondary={builderNote ?? builderLine ?? "Autopilot, refresh and agents"}
         onClick={onOpenSettings}
         chevron
       />

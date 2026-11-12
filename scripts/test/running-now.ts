@@ -10,7 +10,13 @@ assert.equal(runningNow({ working: 1, waiting: 0 }).headline, "1 agent working n
 assert.equal(runningNow({ working: 3, waiting: 2 }).headline, "3 agents working now");
 assert.equal(
   runningNow({ working: 0, waiting: 2 }).headline,
-  "Nothing is working. Waiting for your reply",
+  "Nothing is running. 2 agents are waiting for you",
+);
+// "Nothing is working. Waiting for your reply" sat beside a "Being built"
+// heading over two waiting rows (2026-11-12): it now says how many wait.
+assert.equal(
+  runningNow({ working: 0, waiting: 1 }).headline,
+  "Nothing is running. 1 agent is waiting for you",
 );
 // A negative count from a stale tally is not announced as work.
 assert.equal(runningNow({ working: -1, waiting: 0 }).working, 0);

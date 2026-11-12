@@ -4,7 +4,7 @@ import { projectTitle } from "@/lib/project-display";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { activityHref } from "@/components/activity/activity-shared";
-import { ArrowRight, Plus, Radio, Settings2, WifiOff } from "lucide-react";
+import { ArrowRight, Radio, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/dates";
 import type { ControlDashboardState, FleetPulse } from "./control-presenter";
@@ -79,14 +79,14 @@ type Props = {
    *  either — the number was a fact you then had to go hunting for. */
   attentionProjects: { tab: string; name: string }[];
   onFocusProject?: (tab: string) => void;
-  /** Opens the fleet settings sheet — autopilot, refresh, builder detail. */
-  onOpenSettings: () => void;
-  /** Opens the new-project flow. */
-  onNewProject?: () => void;
   /** Makes the working/awaiting-input counter chips actionable: selects the
    *  first project in that bucket and scrolls the workspace into view. A
    *  count you can't follow to its subject is noise, not status. */
   onFocusCategory?: (category: "working" | "waiting") => void;
+  /** The agents waiting for the owner's answer, each with its session. The
+   *  hero's "Reply" goes to them: it used to scroll to the project list,
+   *  which a phone hides, so the tap did nothing (2026-11-12). */
+  waitingJobs?: { tab: string; href: string }[];
 };
 
 /**
@@ -111,11 +111,10 @@ export function ControlFleetStatus({
   fleetPulse,
   attentionProjects,
   onFocusProject,
-  onOpenSettings,
-  onNewProject,
   onFocusCategory,
   onRunInCloud,
   onStopWaiting,
+  waitingJobs = [],
 }: Props) {
   // What the last queue action did, said where it was tapped. It is a
   // past-tense report ("Handed 2 dispatches to the cloud builder"), so it stays
@@ -349,28 +348,6 @@ export function ControlFleetStatus({
             </p>
           )}
         </div>
-        <div className="ui-hero-tools">
-          {onNewProject && (
-            <button
-              type="button"
-              onClick={onNewProject}
-              className="ui-btn-icon"
-              title="New project"
-              aria-label="New project"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="ui-btn-icon"
-            title="Fleet settings — autopilot, refresh, runner status"
-            aria-label="Fleet settings"
-          >
-            <Settings2 className="h-4 w-4" />
-          </button>
-        </div>
       </div>
 
       {needsYou > 0 && topAttention && onFocusProject ? (
@@ -455,14 +432,20 @@ export function ControlFleetStatus({
             where "Cloud + this computer online" wraps — the age floated into a
             second column beside the wrapped label and read as a broken
             two-column layout. As prose it just wraps. */}
-        <span className={cn("ui-hero-runner", runnerTone)} title={runnerTitle}>
-          <RunnerIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span className="min-w-0">
-            {compactLabel}
-            {executionStalled && " · not executing"}
-            {runnerDetail && <span className="ui-hero-sync"> · {runnerDetail}</span>}
+        {/* Only when it is news: a builder that is on and working is
+            already named in Settings at the foot of the page, and the line
+            here ("Cloud runner online · … · This computer offline") told one
+            fact twice in machine words (2026-11-12). */}
+        {(runnerStateKey !== "connected" || executionStalled) && (
+          <span className={cn("ui-hero-runner", runnerTone)} title={runnerTitle}>
+            <RunnerIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0">
+              {compactLabel}
+              {executionStalled && " · not executing"}
+              {runnerDetail && <span className="ui-hero-sync"> · {runnerDetail}</span>}
+            </span>
           </span>
-        </span>
+        )}
         {countsKnown && (
           <span
             className={cn("ui-hero-counts basis-full", staleClass)}
@@ -477,19 +460,54 @@ export function ControlFleetStatus({
                 Watch
               </Link>
             )}
-            {now.working === 0 && now.waiting > 0 && onFocusCategory && (
-              <button
-                type="button"
-                onClick={() => onFocusCategory("waiting")}
-                className="ui-hero-count-link"
-              >
-                Reply
-              </button>
+            {now.working === 0 && now.waiting > 0 && (
+              <ReplyLink waitingJobs={waitingJobs} onFocusCategory={onFocusCategory} />
             )}
           </span>
         )}
         {versionDetail && <span className="ui-hero-sync hidden sm:inline">{versionDetail}</span>}
       </div>
     </section>
+  );
+}
+
+/**
+ * The way to the agents waiting for an answer: straight to the session when
+ * one waits ("Answer Orangecat"), else to the waiting rows in "Needs you".
+ */
+function ReplyLink({
+  waitingJobs,
+  onFocusCategory,
+}: {
+  waitingJobs: { tab: string; href: string }[];
+  onFocusCategory?: (category: "working" | "waiting") => void;
+}) {
+  if (waitingJobs.length === 1) {
+    return (
+      <Link href={waitingJobs[0].href} className="ui-hero-count-link">
+        Answer {projectTitle({ name: waitingJobs[0].tab })}
+      </Link>
+    );
+  }
+  if (waitingJobs.length > 1) {
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          document
+            .getElementById("control-waiting")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+        className="ui-hero-count-link"
+      >
+        See who is waiting
+      </button>
+    );
+  }
+  if (!onFocusCategory) return null;
+  return (
+    <button type="button" onClick={() => onFocusCategory("waiting")} className="ui-hero-count-link">
+      Reply
+    </button>
   );
 }

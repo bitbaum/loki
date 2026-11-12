@@ -22,8 +22,14 @@ export const EXECUTOR_COPY = {
     cloudOnline: "Cloud runner online",
     localComputerOnline: "This computer online",
     bothOnline: "Cloud + this computer online",
-    cloudOnlyDetail: "This computer offline — cloud runner runs the queue",
-    localOnlyDetail: "Cloud runner offline — this computer runs the queue",
+    // On a phone, "This computer offline" read as if the phone itself were
+    // offline (2026-11-12): name the app that is closed and who does the work.
+    cloudOnlyDetail: "Your desktop app is closed; the cloud does the work",
+    localOnlyDetail: "Loki's cloud is offline; your desktop app does the work",
+    /** Home's Settings row, in words a person uses: where builds run. */
+    plainCloud: "Builds run in Loki's cloud",
+    plainLocal: "Builds run on your computer",
+    plainBoth: "Builds run in Loki's cloud and on your computer",
     cloudOffline: "Cloud runner offline",
     // A private cloud is not an offline one: a new account's Terminal read
     // "Cloud builder offline" beside "private for this account" (2026-10-12).

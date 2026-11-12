@@ -443,8 +443,10 @@ export function deriveFleetPulse(input: {
   if (failed >= 2 && succeeded === 0) {
     return {
       key: "failing",
-      label: "Stalled",
-      detail: `The latest run on ${failed} project${failed === 1 ? "" : "s"} failed and nothing is currently building.`,
+      label: "Last runs failed",
+      // "…and nothing is currently building" was a third answer to "is
+      // anything running?" beside the rows that already answer it (2026-11-12).
+      detail: `The last run on ${failed} project${failed === 1 ? "" : "s"} failed.`,
     };
   }
   // Nothing is working and nothing failed recently. "Waiting to dispatch"

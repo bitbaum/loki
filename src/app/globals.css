@@ -5543,8 +5543,11 @@
   /* A count you can follow. The bare counts stay plain text — a chip that only
      reports is a button that lies, and the old card drew all four identically
      whether or not clicking them did anything. */
+  /* A link inside the sentence, and it has to read as one: the underline
+     was border-subtle, so on a phone "Reply" looked like plain text — on a
+     31px target (2026-11-12). */
   .ui-hero-count-link {
-    @apply underline decoration-border-subtle underline-offset-2 transition-colors hover:decoration-current;
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center font-medium text-text-primary underline decoration-current underline-offset-2;
   }
   .ui-hero-sync {
     @apply text-text-muted;

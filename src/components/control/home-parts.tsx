@@ -1,6 +1,7 @@
 "use client";
 
-import { FolderKanban } from "lucide-react";
+import { CloudOff, FolderKanban } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { List, ListRow } from "@/components/ui/list-row";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { patchJson } from "@/lib/api/fetch";
@@ -82,11 +83,15 @@ export function heroHasNewsFor(
   dashboard: { countsKnown?: boolean } | null,
   pulseKey: string,
   attentionCount: number,
+  /** Failed runs "Done" already lists, each with "Ask it to finish". The card
+   *  repeating them ("Stalled … [Review failures]") was one fact told twice,
+   *  with two different fixes (2026-11-12). */
+  doneFailures = 0,
 ): boolean {
   return (
     !(dashboard?.countsKnown ?? true) ||
     ["stalled", "partial", "unknown"].includes(pulseKey) ||
-    (pulseKey === "failing" && attentionCount === 0)
+    (pulseKey === "failing" && attentionCount === 0 && doneFailures === 0)
   );
 }
 
@@ -102,5 +107,21 @@ export function HomeLoading() {
         <span />
       </div>
     </div>
+  );
+}
+
+/** Home when its data could not load: says so, with the one way forward. It
+ *  used to stay on the skeleton forever, the error stored and never shown. */
+export function HomeLoadFailed({ onRetry }: { onRetry: () => void }) {
+  return (
+    <EmptyState
+      icon={CloudOff}
+      title="Home could not load. Check your connection, then try again."
+      action={
+        <button type="button" className="ui-btn-primary min-h-11" onClick={onRetry}>
+          Try again
+        </button>
+      }
+    />
   );
 }
