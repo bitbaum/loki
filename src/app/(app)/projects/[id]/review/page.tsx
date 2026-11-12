@@ -5,6 +5,7 @@ import { getProjectCore } from "@/db/queries/projects";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { latestSiteReview, publicReview } from "@/db/queries/site-reviews";
 import { InspectionWorkspace } from "@/components/inspection/InspectionWorkspace";
+import { projectTitle } from "@/lib/project-display";
 
 export const metadata = { title: "Review your project" };
 export default async function ProjectReviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,7 @@ export default async function ProjectReviewPage({ params }: { params: Promise<{ 
     <div className="app-page mx-auto max-w-7xl">
       <InspectionWorkspace
         projectId={id}
-        projectName={project.name}
+        projectName={projectTitle(project)}
         initialReview={review ? publicReview(review) : null}
         hasWebsite={!!registered?.liveUrl}
         hasCode={!!(registered?.gitUrl || registered?.dirPath || project.gitUrl)}

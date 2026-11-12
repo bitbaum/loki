@@ -5,7 +5,7 @@ import { WORKBENCH_PANE_IDS, WORKBENCH_PANES } from "@/config/workbench";
 import type { WorkbenchSite } from "./workbench-types";
 
 /**
- * The workbench on a phone: the same things as rows — the site, the robot,
+ * The workbench on a phone: the same things as rows — the site, the agent,
  * and the build to watch — each opening the phone's own shape of it. Two
  * regions on a 390px screen would be two unreadable strips; no-screen mode
  * and the session's phone chrome already exist for exactly this width, so
@@ -26,7 +26,9 @@ export function WorkbenchNarrow({
     <PageLayout
       title="Workbench"
       back={{ href: `/projects/${projectId}`, label: projectName }}
-      maxWidth="max-w-2xl"
+      // The page around it is already an app-page; a second one's padding
+      // put this list at x=33 beside every other page's 16.
+      maxWidth="max-w-2xl p-0 sm:p-0 md:p-0"
     >
       <List aria-label="Workbench">
         {site && (
@@ -35,7 +37,7 @@ export function WorkbenchNarrow({
             external
             icon={Globe}
             title={site.kind === "preview" ? "Open the preview" : "Open the site"}
-            secondary="Point at anything there and say what to change"
+            secondary="See it, then say what to change"
             chevron
           />
         )}
@@ -56,7 +58,7 @@ export function WorkbenchNarrow({
           href={`/projects/${projectId}/watch`}
           icon={Eye}
           title="Watch it work"
-          secondary="What is happening, and where the change is"
+          secondary="What is happening now"
           chevron
         />
       </List>

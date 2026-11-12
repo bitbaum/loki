@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { ReviewBrowser } from "./ReviewBrowser";
 import { useState, useEffect, useRef } from "react";
 import { useLocalNow } from "@/hooks/use-local-now";
@@ -132,8 +133,11 @@ export function InspectionWorkspace({
   return (
     <div className="ui-inspection-workspace" data-fc-place="tab">
       <header className="space-y-4">
-        <Link href={`/projects/${projectId}`} className="ui-link inline-flex min-h-11 items-center">
-          ← {projectName}
+        {/* The same back link every project page draws (PageLayout): the
+            project's name as it is called, with the icon, not "← orangecat". */}
+        <Link href={`/projects/${projectId}`} className="ui-page-back">
+          <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          {projectName}
         </Link>
         <div>
           <h1 className="ui-page-title">Review your project</h1>

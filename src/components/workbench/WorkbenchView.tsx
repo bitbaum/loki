@@ -111,7 +111,7 @@ export function WorkbenchView({
   // The robot's window: its bar is the build's state, its body the session.
   const robotFrame = (onClose?: () => void) => (
     <WorkbenchFrame
-      label="The robot"
+      label="The agent"
       tone={run.tone}
       title={run.text}
       aside={

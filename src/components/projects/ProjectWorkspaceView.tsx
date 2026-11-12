@@ -23,7 +23,7 @@ import { readAppsConf } from "@/lib/register/apps-conf";
 import { studioRepoRoot } from "@/lib/site-cd-local";
 import { siteAddresses } from "@/lib/site-domain";
 import { getProjectLinks } from "./project-detail-types";
-import { workbenchHref } from "@/config/workbench";
+import { WORKBENCH_PANES, workbenchHref } from "@/config/workbench";
 import { getHealthSignals, HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { computeProjectHealth } from "@/lib/project-health";
 import { FixSignalButton } from "./ProjectActionButtons";
@@ -217,6 +217,20 @@ export function ProjectWorkspaceView({
             title="Workbench"
             secondary="Say what to change and watch it happen, with the site beside — on one screen or two"
             chevron
+            className="max-md:hidden"
+          />
+        )}
+        {/* On a phone the workbench is a menu of what this page already
+            offers (the site, View progress); the one thing it adds is the
+            agent itself, so the row goes straight there. */}
+        {!dossier.readonly && (
+          <ListRow
+            href={WORKBENCH_PANES.session.pageHref({ id: project.id, workspaceKey })}
+            icon={WORKBENCH_PANES.session.icon}
+            title={WORKBENCH_PANES.session.label}
+            secondary={WORKBENCH_PANES.session.description}
+            chevron
+            className="md:hidden"
           />
         )}
         {!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath) && (
@@ -224,7 +238,7 @@ export function ProjectWorkspaceView({
             href={`/projects/${project.id}/review`}
             icon={Eye}
             title="Review it"
-            secondary="See it through your users’ eyes, then pick what to improve"
+            secondary="See it as visitors do"
             chevron
           />
         )}
@@ -312,7 +326,10 @@ export function ProjectWorkspaceView({
                     setupNeeded={showKickoff}
                     hasNextStep={Boolean(nextStep)}
                   />
-                  {!showKickoff && (
+                  {/* While it builds, "Building now · View progress" already
+                      answers what happens next; a second answer under it
+                      is the same question twice. */}
+                  {!showKickoff && !isBuildActive(buildStatus) && (
                     <NextSection
                       dossier={dossier}
                       interactive={false}
@@ -442,7 +459,14 @@ export function ProjectWorkspaceView({
                 <>
                   <section className="space-y-6" aria-label="Activity">
                     <NowSection dossier={dossier} interactive={false} showBrief={false} />
-                    <DoneSection dossier={dossier} />
+                    <DoneSection
+                      dossier={dossier}
+                      runHref={
+                        dossier.readonly
+                          ? undefined
+                          : (runId) => `/projects/${project.id}/watch?run=${runId}`
+                      }
+                    />
                     {primaryOrangeCatLink &&
                       dossier.orangecatFunding &&
                       dossier.orangecatFunding.totalBtc > 0 && (

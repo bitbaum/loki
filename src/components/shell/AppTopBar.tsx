@@ -10,7 +10,7 @@ import { FeedbackLauncher } from "./FeedbackLauncher";
 import { FleetRunnerStatusPill } from "@/components/desktop/FleetRunnerStatusPill";
 import { AccountMenu } from "@/components/shell/AccountMenu";
 import { NAV_ITEMS } from "@/config/navigation";
-import { isCurrentPath, isProjectWorkspacePath } from "@/lib/navigation";
+import { isCurrentPath, isProjectPagePath } from "@/lib/navigation";
 
 /**
  * Slim app-shell top bar. Universal across every authenticated route.
@@ -52,7 +52,7 @@ export function AppTopBar({
   // outside the nav config (sign-in, /u/<username>) get none rather than a
   // guess, and a project's own workspace names itself in its header.
   const currentNavItem = NAV_ITEMS.find((item) => isCurrentPath(pathname, item.href));
-  const pageLabel = isProjectWorkspacePath(pathname) ? "" : (currentNavItem?.label ?? "");
+  const pageLabel = isProjectPagePath(pathname) ? "" : (currentNavItem?.label ?? "");
 
   // Exactly one <h1> per page, at every width (rule 1). When the page draws
   // its own h1 (PageTitle — sr-only on a phone when it says the same as this

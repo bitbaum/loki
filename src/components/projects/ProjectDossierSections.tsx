@@ -18,6 +18,8 @@ import { MINUTE_MS, WEEK_MS } from "@/lib/constants/time";
 import { SESSION_STATUS } from "@/lib/constants/statuses";
 import { isRuntimeObservationFresh } from "@/lib/project-session";
 import { plainWords } from "@/lib/project-display";
+import { explainRunFailure } from "@/lib/feedback/failure-reason";
+import { commitHeadline } from "@/lib/repo-progress";
 import { SectionHeading } from "@/components/ui/section-heading";
 
 /** A run's outcome, in words, and whether it is worth a dot (rule 8). */
@@ -170,16 +172,14 @@ export function NextSection({
    *  The dispatch button itself lives in ProjectBuildStatus above — one CTA. */
   ownerView?: boolean;
 }) {
-  const latest = latestDevLog(dossier);
   const goals = dossier.detail.linkedGoals;
-  // A stale handoff's "next" is a week-old verification chore (and it's already
-  // echoed in the changelog). Only trust it when fresh; otherwise fall back to
-  // the project's planned next step, then the top unfinished goal.
-  const handoffMs = dossier.state?.sessionUpdatedAt?.getTime() ?? null;
-  const staleHandoff = handoffMs != null && dossier.builtAtMs - handoffMs > DOSSIER_STALE_MS;
+  // The plan's next step, then the top unfinished goal — the same source the
+  // Plan tab reads. Never the agent's handoff note: on 2026-11-12 the owner's
+  // overview printed "NOT PUSHED - pre-push hook fails … --no-verify …" here,
+  // while Plan named a different next step for the same project. The handoff
+  // is the agent talking to the next agent; it belongs with its run.
   const topOpenGoal = goals.find((g) => (g.progress ?? 0) < 100);
   const next =
-    (staleHandoff ? null : latest?.next?.trim()) ||
     answer(dossier.detail.attrs.next_step) ||
     (topOpenGoal ? `Advance: ${topOpenGoal.title}` : null);
 
@@ -221,7 +221,15 @@ export function NextSection({
 }
 
 /** DONE — the report: changelog (dev log) + run history with outcomes/commits. */
-export function DoneSection({ dossier }: { dossier: ProjectDossier }) {
+export function DoneSection({
+  dossier,
+  runHref,
+}: {
+  dossier: ProjectDossier;
+  /** Where a past run opens — its watch page, which carries the reason and
+   *  the Retry. Omitted where the viewer cannot act (the shared view). */
+  runHref?: (runId: string) => string;
+}) {
   const entries = dedupeDevLog(devLogNewestFirst(dossier));
   const runs = dossier.runs.filter((run) => run.finishedAt);
   // Cap the inline list: a dossier once buried its shipped changelog under
@@ -252,7 +260,7 @@ export function DoneSection({ dossier }: { dossier: ProjectDossier }) {
                   className="min-w-0 flex-1 truncate text-text-secondary"
                   title={commit.message}
                 >
-                  {commit.message}
+                  {commitHeadline(commit.message)}
                 </span>
               </li>
             ))}
@@ -275,11 +283,12 @@ export function DoneSection({ dossier }: { dossier: ProjectDossier }) {
                 word: run.finishedAt ? "Finished" : "Running",
                 dot: null,
               };
-              return (
-                <li
-                  key={run.id}
-                  className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs"
-                >
+              // A failed row was a dead end: a raw runner error cut off
+              // mid-word ("Dispatch failed before the prompt reached the
+              // agent: Sandbox c…"), nothing to tap. It now says why in a
+              // sentence and opens the run, where Retry lives.
+              const body = (
+                <>
                   <span className="text-text-muted tabular-nums">
                     {run.startedAt.toLocaleDateString(APP_LOCALE, {
                       month: "short",
@@ -292,7 +301,22 @@ export function DoneSection({ dossier }: { dossier: ProjectDossier }) {
                   </span>
                   {runDuration(run) && <span className="text-text-muted">{runDuration(run)}</span>}
                   {run.outcome !== "success" && errorText && (
-                    <span className="w-full truncate text-text-muted">{plainWords(errorText)}</span>
+                    <span className="w-full text-text-muted">{explainRunFailure(errorText)}</span>
+                  )}
+                </>
+              );
+              const rowClass = "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs";
+              return (
+                <li key={run.id}>
+                  {runHref ? (
+                    <Link
+                      href={runHref(run.id)}
+                      className={`${rowClass} min-h-11 py-1.5 hover:text-text-primary`}
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className={rowClass}>{body}</div>
                   )}
                 </li>
               );
@@ -334,8 +358,4 @@ function dedupeDevLog(entries: DevLogEntry[], limit = 5): DevLogEntry[] {
     if (out.length >= limit) break;
   }
   return out;
-}
-
-function latestDevLog(dossier: ProjectDossier): DevLogEntry | null {
-  return devLogNewestFirst(dossier)[0] ?? null;
 }
