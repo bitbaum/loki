@@ -125,7 +125,11 @@ export function rerouteNotice(
  *  stamped at dispatch time. SSOT for both the status API and the footer. */
 export type DispatchLiveStatus =
   | "queued"
+  /** A builder has it; the agent has not shown the prompt yet. */
+  | "starting"
   | "working"
+  /** Stopped until a person acts; the track's sentence says on what. */
+  | "needs_you"
   | "delivered"
   | "completed"
   | "partial"
@@ -444,4 +448,42 @@ export function deriveMultiDispatchView(attempts: MultiDispatchAttempt[]): Multi
     };
   }
   return { label: `Started all ${total}`, tone: "positive", primaryProject };
+}
+
+/**
+ * While a run is open, its status is the track's.
+ *
+ * The status routes derived a word from the command row (claimed, executed)
+ * and the track derived a sentence from the run's events, and the two were
+ * returned side by side. On 2026-11-12 one response said status "delivered"
+ * and track.summary "Waiting for a runner to pick it up". The track reads the
+ * evidence (who claimed it, whether the agent printed anything), so it wins:
+ * every field of an open run's view comes from `track.live` and
+ * `track.summary`.
+ *
+ * "Delivered to agent" is therefore never said about an open run on the
+ * strength of a runner's ack alone. Until the agent has shown output after
+ * the prompt, the run is Starting; once it has, it is Working.
+ *
+ * A settled view is left as it is: a refused or unconfirmed command and a
+ * finished run are facts of their own, not a stage of the road.
+ */
+export function alignLiveViewWithTrack(
+  view: DispatchLiveView,
+  track: RunTrack | null | undefined,
+): DispatchLiveView {
+  if (view.terminal || !track?.live) return view;
+  const detail = track.summary;
+  switch (track.live) {
+    case "queued":
+      return { ...view, status: "queued", label: "Queued", detail, tone: "neutral" };
+    case "starting":
+      return { ...view, status: "starting", label: "Starting", detail, tone: "neutral" };
+    case "needs_you":
+      return { ...view, status: "needs_you", label: "Needs you", detail, tone: "warning" };
+    case "working":
+      return view.status === "working"
+        ? view
+        : { ...view, status: "working", label: "Agent is working", detail, tone: "positive" };
+  }
 }

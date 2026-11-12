@@ -8,7 +8,11 @@ import {
 } from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
 import { getApiUserId } from "@/lib/session";
-import { deriveDispatchLiveStatus, type CommandLiveInput } from "@/lib/dispatch-status";
+import {
+  alignLiveViewWithTrack,
+  deriveDispatchLiveStatus,
+  type CommandLiveInput,
+} from "@/lib/dispatch-status";
 import { autoReimplementAfterRunnerNack } from "@/lib/feedback/auto-reimplement";
 import { autoRetryProjectRunAfterNack } from "@/lib/project-retry";
 import { runHandoff } from "@/lib/run-handoff";
@@ -49,7 +53,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // card can say it instead of linking away.
   const loaded = run ? await loadRunTrack(userId, run).catch(() => null) : null;
   return NextResponse.json({
-    ...view,
+    // One status: while the run is open, the word is the track's.
+    ...alignLiveViewWithTrack(view, loaded?.track),
     handoff: runHandoff(run?.finishedAt ? run.summary : null),
     follow: view.terminal ? (loaded?.follow ?? null) : null,
     track: loaded?.track ?? null,

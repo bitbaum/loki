@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getOrchestrationRunById } from "@/db/queries/orchestration-runs";
-import { deriveDispatchLiveStatus } from "@/lib/dispatch-status";
+import {
+  alignLiveViewWithTrack,
+  deriveDispatchLiveStatus,
+  type CommandLiveInput,
+} from "@/lib/dispatch-status";
+import { getCommandById } from "@/db/queries/pending-commands";
 import { getApiUserId } from "@/lib/session";
 import { runHandoff } from "@/lib/run-handoff";
 import { loadRunTrack } from "@/lib/run-track-load";
@@ -16,10 +21,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const run = await getOrchestrationRunById(userId, id);
   if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
 
+  // A run that went through the queue is judged by its own command row. This
+  // route used to answer for every run as if its prompt had been executed and
+  // verified the moment the run was opened, so a run still waiting for a
+  // runner read "Delivered to agent". Only a run with no command (typed
+  // straight into a live session on this runtime) starts as executed.
+  const commandId = (run.payload as { commandId?: unknown } | null)?.commandId;
+  const command =
+    typeof commandId === "string" ? await getCommandById(commandId).catch(() => null) : null;
+  const queued = command && command.userId === userId ? command : null;
   const view = deriveDispatchLiveStatus({
-    claimedAt: null,
-    executedAt: run.startedAt,
-    result: { ok: true, verified: true },
+    claimedAt: queued ? queued.claimedAt : null,
+    executedAt: queued ? queued.executedAt : run.startedAt,
+    result: queued
+      ? ((queued.result ?? null) as CommandLiveInput["result"])
+      : { ok: true, verified: true },
     run: {
       state: run.state,
       outcome: run.outcome,
@@ -31,7 +47,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const loaded = await loadRunTrack(userId, run).catch(() => null);
   return NextResponse.json(
     {
-      ...view,
+      // One status: while the run is open, the word is the track's.
+      ...alignLiveViewWithTrack(view, loaded?.track),
       handoff: runHandoff(run.finishedAt ? run.summary : null),
       follow: view.terminal ? (loaded?.follow ?? null) : null,
       track: loaded?.track ?? null,
