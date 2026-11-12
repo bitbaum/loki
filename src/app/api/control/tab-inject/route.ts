@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
-import { enqueueInjectCommand, enqueueDispatchCommand } from "@/db/queries/pending-commands";
+import {
+  enqueueInjectCommand,
+  enqueueDispatchCommand,
+  findQueueBlockers,
+} from "@/db/queries/pending-commands";
 import { getUserProjects } from "@/db/queries/user-projects";
 import { getApiUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
@@ -23,6 +27,7 @@ import { emitRunEvent } from "@/db/queries/run-events";
 import { injectPrompt } from "@/lib/inject-core";
 import { sessionOpenUrl } from "@/lib/dispatch-card";
 import type { UserProject } from "@/db/schema";
+import { isShellTab } from "@/lib/shell-session";
 
 const Body = z.object({
   tab: z.string().trim().min(1).max(120),
@@ -118,6 +123,32 @@ async function recordTabDispatch(opts: {
   return runId;
 }
 
+/**
+ * A queued task names the open run it waits behind, when it does.
+ *
+ * On the cloud builder a task for a project whose last run is still open waits
+ * its turn: the claim gate (pending-commands fifoEligibilitySql) holds it
+ * until that run closes, so it is never typed into an agent mid-task. The
+ * answer said only `ok`, and a caller took "queued" for "the agent has it".
+ * findQueueBlockers reads the same predicate the gate enforces.
+ */
+async function withHold(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const runId = typeof body.runId === "string" ? body.runId : null;
+  if (!runId || body.mode === "pty") return body;
+  const blocker = (await findQueueBlockers([runId]).catch(() => new Map())).get(runId);
+  if (!blocker) return body;
+  const started = new Date(blocker.startedAt);
+  return {
+    ...body,
+    heldBehind: {
+      runId: blocker.runId,
+      startedAt: started.toISOString(),
+      label: blocker.label,
+    },
+    message: `Waiting for the project's open run${blocker.label ? ` (${blocker.label})` : ""}, started ${started.toISOString()}, to finish; this task starts after it. To reach the running agent now, type into the session (POST /api/control/tab-inject-raw).`,
+  };
+}
+
 export async function POST(req: NextRequest) {
   const userId = await getApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -125,6 +156,15 @@ export async function POST(req: NextRequest) {
   const dataOrResp = await readJsonBody(req, Body);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
   const { tab, prompt, attachments: rawAttachments } = dataOrResp;
+  // A plain shell takes keys from a signed-in, unlocked person only
+  // (tab-inject-raw); a prompt for one was queued here, answered 200, and then
+  // refused by the runner, so the caller was told it worked.
+  if (isShellTab(tab)) {
+    return NextResponse.json(
+      { error: "A shell takes keys from its owner's unlocked browser, not prompts." },
+      { status: 403 },
+    );
+  }
 
   // Stage attachments BEFORE project context is assembled, so the screenshot
   // is part of the task the agent is given rather than a trailer after the
@@ -223,7 +263,7 @@ export async function POST(req: NextRequest) {
       },
       userId,
     );
-    return NextResponse.json(body, { status });
+    return NextResponse.json(status === 200 ? await withHold(body) : body, { status });
   }
 
   const execution = await resolveQueuedExecution(userId, { project });
@@ -255,14 +295,16 @@ export async function POST(req: NextRequest) {
       projectKey: tab,
       ...(runId ? { runId } : {}),
     });
-    return NextResponse.json({
-      ok: true,
-      mode: "dispatch",
-      commandId,
-      tab,
-      openUrl: sessionOpenUrl(tab, execution.channel ?? null, runId ?? null),
-      ...(runId ? { runId } : {}),
-    });
+    return NextResponse.json(
+      await withHold({
+        ok: true,
+        mode: "dispatch",
+        commandId,
+        tab,
+        openUrl: sessionOpenUrl(tab, execution.channel ?? null, runId ?? null),
+        ...(runId ? { runId } : {}),
+      }),
+    );
   }
 
   const commandId = await enqueueInjectCommand(userId, {
@@ -275,12 +317,14 @@ export async function POST(req: NextRequest) {
     adapter,
     ...(runId ? { runId } : {}),
   });
-  return NextResponse.json({
-    ok: true,
-    mode: "queued",
-    commandId,
-    tab,
-    openUrl: sessionOpenUrl(tab, execution.channel ?? null, runId ?? null),
-    ...(runId ? { runId } : {}),
-  });
+  return NextResponse.json(
+    await withHold({
+      ok: true,
+      mode: "queued",
+      commandId,
+      tab,
+      openUrl: sessionOpenUrl(tab, execution.channel ?? null, runId ?? null),
+      ...(runId ? { runId } : {}),
+    }),
+  );
 }
