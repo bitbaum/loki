@@ -785,9 +785,13 @@ async function executeAndReport(
     // (2026-10-15) an account with no builder piled up six "waiting" runs, and
     // Loki told it its work was queued when none of it ever could start.
     if (runId) {
-      await closeRunUndelivered(runId, userId, result.error, { notify: false }).catch((err) =>
-        console.error("[inject] close refused run failed:", err),
-      );
+      await closeRunUndelivered(runId, userId, result.error, {
+        notify: false,
+        // "No free lane for a fresh session" is a choice the caller can
+        // retry, not a sign the project is failing: four of them used to
+        // reach the human rung and page the owner, with no agent ever run.
+        ladder: (result as { code?: string }).code !== "fresh-session-unavailable",
+      }).catch((err) => console.error("[inject] close refused run failed:", err));
     }
     return recordInjectFailure(userId, result, outcome);
   }

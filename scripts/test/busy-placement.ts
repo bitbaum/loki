@@ -164,7 +164,7 @@ check("a fresh run is marked, and its tab is closed when its run closes", () => 
 check("the option is on POST /api/inject and on the MCP loki_dispatch", () => {
   const route = read("src/app/api/inject/route.ts");
   assert(/session: z\.enum\(\["shared", "fresh"\]\)\.optional\(\)/.test(route), "route schema");
-  assert(/notifyOnClose: announce, session \}/.test(route), "route does not pass it on");
+  assert(/notifyOnClose: announce,\s*session,/.test(route), "route does not pass it on");
   const tools = read("src/lib/mcp/tools.ts");
   assert(/session: z\s*\.enum\(\["shared", "fresh"\]\)/.test(tools), "tool schema");
   assert(/session: opts\?\.session/.test(read("src/lib/mcp/services.ts")), "service drops it");
