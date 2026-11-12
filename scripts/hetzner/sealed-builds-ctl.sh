@@ -71,7 +71,7 @@ memory_report() {
 # between_tasks <container> <containers with an open run, one a line> <age s> <fresh s>
 # — stop | open-run | fresh. Pure, pinned by test-sealed-builds-memory.sh.
 between_tasks() {
-  printf '%s\n' "$2" | grep -qx "$1" && { echo open-run; return; }
+  grep -qx -- "$1" <<<"$2" && { echo open-run; return; }
   [ "${3:-0}" -lt "$4" ] 2>/dev/null && { echo fresh; return; }
   echo stop
 }
