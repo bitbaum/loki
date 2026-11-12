@@ -30,6 +30,7 @@ on:
             "memory",
             "memory-set",
             "memory-clear",
+            "stop-idle",
           ]
       unit:
         description: "Runner unit (owner: loki-box-runner)"

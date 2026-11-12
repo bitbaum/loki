@@ -7,6 +7,7 @@
 #   sealed-builds-ctl.sh memory <unit>             # read: what the builder holds and what bounds it
 #   RUNS="9" sealed-builds-ctl.sh memory-set <unit>  # ceiling in GiB; the builder gives first
 #   sealed-builds-ctl.sh memory-clear <unit>       # undo memory-set
+#   sealed-builds-ctl.sh stop-idle <unit>          # stop sealed sessions with no open run (RUNS=dry lists only)
 # Prints verdicts only, never a secret (public Action logs).
 set -uo pipefail
 MODE="${1:-read}"; UNIT="${2:-loki-box-runner}"; UNIT="${UNIT%.service}"
@@ -67,9 +68,46 @@ memory_report() {
   echo "  stopped for memory since boot: $(journalctl -k -b --no-pager 2>/dev/null | grep -ci 'out of memory')"
 }
 
+# between_tasks <container> <containers with an open run, one a line> <age s> <fresh s>
+# — stop | open-run | fresh. Pure, pinned by test-sealed-builds-memory.sh.
+between_tasks() {
+  grep -qx -- "$1" <<<"$2" && { echo open-run; return; }
+  [ "${3:-0}" -lt "$4" ] 2>/dev/null && { echo fresh; return; }
+  echo stop
+}
+
 if [ -n "${SEALED_CTL_LIB_ONLY:-}" ]; then return 0 2>/dev/null || exit 0; fi
 
 case "$MODE" in
+stop-idle)
+  # Free memory without touching work: stop the sealed sessions (fc-ws-*) whose
+  # project has NO open run in Loki's database, i.e. sessions between tasks.
+  # An agent mid-task always has an open run, even one that prints nothing
+  # while it waits on CI. Bytes are not the signal: on 2026-11-12 eight
+  # sessions at their prompt each relayed 3 to 10 KB a minute through podman.
+  # A session younger than FRESH_SECS is left alone (its run may not be
+  # recorded yet). RUNS="dry" lists without stopping. About 1 GiB each; the
+  # runner reopens a session on the next message to that project.
+  FRESH_SECS="${FRESH_SECS:-900}"
+  U="$(unit_user)"; H="$(unit_home)"
+  CG="/sys/fs/cgroup$(systemctl show -p ControlGroup --value "$UNIT.service")/cgroup.procs"
+  open_tabs="$(sudo -u postgres psql -d "${LOKI_DB:-loki}" -qtAX -c "SELECT DISTINCT COALESCE(payload->>'sessionTab', project_key) FROM orchestration_runs WHERE finished_at IS NULL AND started_at > NOW() - INTERVAL '12 hours'" </dev/null 2>/dev/null)" \
+    || { echo "✗ could not read open runs: nothing stopped"; exit 1; }
+  keep="$(printf '%s\n' "$open_tabs" | while read -r t; do [ -n "$t" ] && printf 'fc-ws-%s\n' "$(printf '%s' "runner:$t" | sha256sum | cut -c1-24)"; done)"
+  echo "open runs in: $(printf '%s\n' "$open_tabs" | grep -c .) projects or lanes"
+  echo "before:"; memory_report
+  for p in $(cat "$CG" 2>/dev/null); do
+    [ "$(cat "/proc/$p/comm" 2>/dev/null)" = podman ] || continue
+    n="$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -oE -- '--name fc-ws-[0-9a-f]+' | head -1 | cut -d' ' -f2)"
+    [ -n "$n" ] || continue
+    age="$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')"
+    verdict="$(between_tasks "$n" "$keep" "${age:-0}" "$FRESH_SECS")"
+    if [ "$verdict" != stop ]; then echo "keep $n ($verdict)"; continue; fi
+    if [ "${RUNS:-}" = dry ]; then echo "would stop $n (no open run, ${age}s old)"; continue; fi
+    echo "stopping $n (no open run, ${age}s old)"
+    systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$n" 2>&1 | grep -v level= | tail -1
+  done
+  sleep 5; echo "after:"; memory_report ;;
 memory)
   # Read-only. What the builder holds, what bounds it, what the box has left.
   echo "$UNIT:"; memory_report ;;

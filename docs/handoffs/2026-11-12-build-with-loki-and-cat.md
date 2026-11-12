@@ -87,6 +87,14 @@ signed-in browser. What it could use:
 | 11:39 | Loki #1678 `check` | success on `0e48feb4` (the real-Postgres scenarios ran in CI). Waiting for the sweep; #1661 and #1673 merged ahead of it. |
 | 11:30 | `box-usage.yml` `mode=read` (run 43209749814) | cancelled at its 20-minute limit inside the first `du`, after printing the memory facts: **MemAvailable 0.6 GiB of 15.2, swap 4.0 GiB of 4.0 used.** Resident memory by program: `gvisor_sentry` 25186 MiB over 1734 processes (the sealed agent sessions; shared pages are counted once per process, 6.5 GiB is shared), `next-server` 3847 MiB over 24, `postgres` 2112 MiB. **20 out-of-memory kills since boot**: `openclaw-gateway` 10, `gvisor_sentry` 3, and one each of `next-server`, `java`, `python`, `node`, `bash`, `MainThread`. |
 | 11:55 | Read `src/lib/agent-execution/sandbox.ts` and `scripts/hetzner/install-box-runner.sh` | A sealed session started with podman gets no `--memory` (only the docker shape does); the code says "MemoryMax still bounds them", meaning the runner unit's. `loki-box-runner.service` has `OOMPolicy=continue` and **no `MemoryHigh` or `MemoryMax`**. Every site unit has `MemoryMax=1G` (`scripts/hetzner/sync-infra.sh`). So the builder is the one service on the box with no ceiling. `AGENT_MAX_OPEN_DEFAULT = 8` was sized at 0.4 GB a session. |
+| 15:00 | **The box recovered** | `https://orangecat.ch/api/health` 0.4 s, `mem_used_pct` 64 (96 all day); Loki 0.4 s and serving `54a7024c`, so #1680 and #1678 are live. Loop check started (`loki-loop-check.yml`, `ref=main`, `project=sbb-fundbuero`, 15 min). OrangeCat #1672 green on `72a6a77`; its `main` merges again. |
+| 13:58 | `stop-idle` for real (run 43231891076) | Kept the three sessions with an open run (loki, orangecat, substrata). The five without one (botsmann, solon, three lanes) had already ended when podman was asked ("no such container"): builder 3.9 GiB after (6.7 to 8.3 before), box 5.6 GiB available. Why they ended a minute earlier is in the 15:00 journal read. |
+| 13:45 | Owner: "Fix memory and other situations. You know what happened when Gemini" | Read as: free memory, and find every other place a platform key can spend with no hard cap. Audit by a background agent; findings and fixes below ("Spend caps"). |
+| 13:26 | **Owner said "both"**: the builder's memory ceiling, and Gemini back on with a strict spending cap | `sealed-builds.yml` `mode=memory-set` `runs=10` from `main` (run 43226788396): "ceiling 10G; 1967 running processes marked to give first"; the builder held 7.7 GiB; box 0.6 GiB available, 37 stopped for memory since boot. Undo: `mode=memory-clear`. |
+| 13:30 | Gemini cap pushed to OrangeCat #1672 (`76e9870`) | `reserve_vendor_call` counts each call on the platform's Gemini key before it is made, refuses at `GEMINI_DAILY_CALL_CAP` a day (300 when unset, 0 = off) and when the count cannot be read. Chat/bot clients, the Cat's tool loop and the health probe. Whole unit suite green. Re-enabling the API in Google Cloud is the owner's step. |
+| 13:11 | `sealed-builds.yml` `mode=memory` from `main` (run 43224827107) | The builder holds **8.1 GiB**, no ceiling; the box has 0.8 GiB available, no swap free; **34 stopped for memory since boot** (30 at 12:25). |
+| 13:10 | Both sites sampled for three minutes | **Timeouts and connection resets on both from 13:10 to 13:13 UTC**, with a few answers in between. Loki still serves `7ea443c5`, a commit from before noon: none of the later merges (#1680, #1678 among them) is live, so their deploys are not landing. |
+| 13:09 | **Loki #1678 merged** (squash `54a7024c`) | The local branch is on `origin/main`. This checkpoint's later lines are on the branch `ccr-6043476f-vhm900` without a pull request: a docs-only merge would start one more deploy build on a box that has no memory for it. Open the pull request when the box is well. |
 | 12:55 | OrangeCat `Browser smoke` (`cat-chat`) failed on #1672 twice, at 12:29 and 12:51 UTC | Not that pull request's: the job signs in against the live auth service and timed out there. **The same workflow is red on OrangeCat `main`** (run 43220672323, push at 12:44) and on #1679 and #1680. The sweep does not merge onto a red base, so **the box's memory now holds up every OrangeCat merge**, the bot fix (#1672) and the provider-chain fix included. Said once on #1672. CodeQL on #1672 flagged an unanchored URL pattern in my new test: fixed in `1f233ab`. |
 | 12:50 | The review ended: 8 agents, 4 reviewers and 4 told to refute the most severe finding of each part | Every finding on the parts that remain was confirmed and is fixed: the notice (repeat, wrong project, two check outcomes), the address rule (see change 8), and OrangeCat's own-key promise (see journey B). The two on the idle rule were confirmed already fixed by change 7. |
 | 12:25 | `sealed-builds.yml` `mode=memory` from the branch (run 43217502457): the new read mode works on the box | **The builder holds 8.3 GiB** (6.3 at 12:19), `MemoryHigh` and `MemoryMax` infinity; the box has 0.6 GiB available and no swap free; 30 stopped for memory since boot. |
@@ -135,6 +143,41 @@ What it does not do: make the restart land. The drain still counts every
 sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
+
+## Spend caps (owner, 13:45: "as with everything")
+
+The platform's Gemini key spent with no cap until the API was switched off
+(10:47 UTC). An audit then found every place a platform-paid key can spend.
+
+Fixed in OrangeCat #1672:
+- `reserve_vendor_call` (migration `20261112200000`) counts every call on a
+  platform key before it is made, per UTC day, and refuses past the cap or
+  when the count cannot be read. Caps (env `<VENDOR>_DAILY_CALL_CAP`, 0 = off):
+  Gemini 300, Groq 3000, OpenRouter 1000, Together 300, embeddings on a paid
+  host 5000, web search 1000. Chat, bots, the Cat's tool loop, the health probe.
+- The per-person free allowance (10 a day) refused nothing when its count
+  could not be read; it refuses now.
+- "Start instantly" sends the Turnstile token (enforced only if the auth
+  server requires a captcha).
+
+Fixed in Loki #1687:
+- Google is out of Loki's own chat chain (Loki has no refusing cap).
+- `install-builder-agents.sh` no longer copies OrangeCat's Gemini key into
+  the builder; `openclaw-media.yml` no longer falls back to it for the
+  Telegram gateway's image and video reading.
+
+Owner's steps (cannot be done from here):
+1. Make a new Gemini key in a Google project of its own, with a per-day
+   request quota on the Generative Language API (Google refuses past it).
+   Put it in OrangeCat's env only. Delete the old key: its copies sit in the
+   builder's and the gateway's env on the box.
+2. If the builder or the gateway should use Gemini, a separate key each, in
+   its own quota-capped project.
+3. Set a spend limit on the Anthropic workspace of Loki's build-engine key.
+
+Not fixed yet: Loki's `checkAiBudget` fails open and books spend after the
+call; several Loki routes have no budget check (audit list); the build
+engine's raw key is written into each tenant's runner env.
 
 ## The box: what holds its memory, and the control that is ready but not applied
 
@@ -499,20 +542,22 @@ Every runner change must bump `desktop/package.json` and prepend to `src/config/
 
 ## Next action
 
-1. Loki #1678 and OrangeCat #1672: follow CI and the sweep. After a merge
-   the branch is deleted: `git fetch --prune`, put the branch on
-   `origin/main`, and any later change is a new pull request.
-2. The owner decides on the builder's memory ceiling (section above). Until
-   then the box keeps running out: read it with `sealed-builds.yml`
-   `mode=memory`.
-3. After OrangeCat #1672 deploys: one bot turn as a new person
-   (`node <scratchpad>/pw/bot-turn.cjs` is gone with the session; the steps
-   are "Start instantly", New bot, Day Planner, send a line) should show the
-   new sentence with the button while the pool is down, and
-   `cat-diagnostics.yml` should list `bots.links`.
-4. After #1680 and #1678 are live: `loki-loop-check.yml`, `dispatch=true`,
-   on a project that is free, `minutes=15`.
-5. Bots answer on the shared pool again only when it has a link with
+1. **The box first.** Nothing below can be verified while it is out of
+   memory: Loki's deploys do not land, OrangeCat's `main` is red on sign-in,
+   both sites drop requests. The owner decides on the builder's ceiling
+   (section "The box"); read the state with `sealed-builds.yml`
+   `mode=memory` on `main`. Do not run `memory-set` without his say-so.
+2. When Loki serves `54a7024c` or later (`/api/health` → `commit`):
+   `loki-loop-check.yml`, `ref=main`, `dispatch=true`, a project that is
+   free, `minutes=15`.
+3. OrangeCat #1672 is blocked by the red `main` (sign-in against the live
+   auth service). When `main` is green again its checks need a re-run, not a
+   change. After its deploy: one bot turn as a new person ("Start
+   instantly", New bot, Day Planner, send a line) and `cat-diagnostics.yml`
+   (`bots.links`).
+4. Bots answer on the shared pool again only when it has a link with
    capacity. Another session was given the chain (10:59 UTC, lane
    `orangecat~ed39e1e1`); look at what it opened before touching
    `src/config/free-vendors.ts` or `provider-catalog.ts`.
+5. Open a pull request for this checkpoint's lines after 13:09 once the box
+   is well.

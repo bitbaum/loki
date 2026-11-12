@@ -20,5 +20,11 @@ check "words are refused" "$(memory_set_decision 0 lots)" refuse:the\ ceiling\ i
 check "empty is refused" "$(memory_set_decision 0 '')" refuse:the\ ceiling\ is\ a\ whole
 check "one GiB is refused" "$(memory_set_decision 0 1)" refuse:the\ ceiling\ is\ between
 check "a hundred GiB is refused" "$(memory_set_decision 0 100)" refuse:the\ ceiling\ is\ between
+keep=$'fc-ws-aa\nfc-ws-bb'
+check "a session with an open run is kept" "$(between_tasks fc-ws-aa "$keep" 99999 900)" open-run
+check "a session younger than the window is kept" "$(between_tasks fc-ws-cc "$keep" 300 900)" fresh
+check "a session between tasks is stopped" "$(between_tasks fc-ws-cc "$keep" 4000 900)" stop
+check "no open runs listed: still judged per session" "$(between_tasks fc-ws-cc "" 4000 900)" stop
+check "a prefix of a kept name is not kept" "$(between_tasks fc-ws-a "$keep" 4000 900)" stop
 [ "$BUILDER_OOM_ADJ" -gt 0 ] && [ "$BUILDER_OOM_ADJ" -lt 1000 ] && echo "  ✓ the builder gives first, and is never the only thing that can" || { echo "  ✗ BUILDER_OOM_ADJ=$BUILDER_OOM_ADJ"; fail=1; }
 [ "$fail" = 0 ] && echo "sealed-builds memory: all passed" || { echo "sealed-builds memory: FAILED"; exit 1; }

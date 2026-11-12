@@ -11,8 +11,15 @@
  */
 import { isShellTab } from "@/lib/shell-session";
 
-/** Eight sessions is about 3 GB: room for the sites and the database. */
-export const AGENT_MAX_OPEN_DEFAULT = 8;
+/**
+ * Five sessions. Eight was sized at 0.4 GB a session; a sealed session
+ * (gVisor) measures about 1 GiB (2026-11-12: the builder held 6.3 to 8.3 GiB
+ * with seven or eight open, the box had 0.6 GiB left and the kernel had
+ * stopped 37 processes for memory, live sites and the gateway among them).
+ * The box is 15 GiB; sites, databases and one deploy build need about 9 of it.
+ * LOKI_AGENT_MAX_OPEN raises it where there is room.
+ */
+export const AGENT_MAX_OPEN_DEFAULT = 5;
 
 /** LOKI_AGENT_MAX_OPEN on the runner or the server, else the default. */
 export function agentMaxOpen(env: Record<string, string | undefined> = process.env): number {
