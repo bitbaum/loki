@@ -61,6 +61,13 @@ export const EXECUTOR_COPY = {
     cloud: "the cloud runner",
   } as Record<BuilderChannel, string>,
 
+  /** The same two builders, named for a caller that is not sitting at either:
+   *  an API client or an MCP app, where "this computer" would be its own. */
+  builderFromOutside: {
+    local: "the owner's computer",
+    cloud: "the cloud runner",
+  } as Record<BuilderChannel, string>,
+
   desktopApp: `${APP_NAME} desktop`,
 
   queuedWhenOffline: "Queued — runs when the runner is online",
