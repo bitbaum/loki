@@ -26,10 +26,11 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **A wrong address is not a dead end.** {#not-found} An address that leads
   nowhere shows one line and the way back, inside and outside the app. It
   used to be a bare "404" on a black screen.
-- **A microphone in more text boxes.** {#text-boxes-mic} Sixteen forms (a new
-  goal, a prompt, a project's brief, an event's notes and others) now take
-  dictation in their text boxes, the same way the chat does. The rest follow
-  with the next release of the shared field.
+- **A microphone in the text boxes.** {#text-boxes-mic} Thirty-two forms (a
+  new goal, a prompt, a project's brief, a note about a person, an event's
+  notes and others) now take dictation in their text boxes, the same way the
+  chat does. Where a box saved with Cmd+Enter it still does, and Ctrl+Enter
+  works too.
 - **Words a person would say.** {#plain-words-2026-11} The Terminal says who
   the cloud computer is for and what works instead. Home's running rows lead
   with what the agent is doing this minute. "Connect a runner" is "Connect
