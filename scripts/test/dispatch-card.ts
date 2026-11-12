@@ -65,6 +65,23 @@ check(
 );
 check("…with no download at all", !cloudDown.secondary.some((l) => l.href === "/download"));
 
+// #1647 made an offline builder read Needs you on the live status; the card
+// must still show which builder, and the one-tap move to the cloud.
+const offlineNeedsYou = presentDispatchCard({
+  ...waitingLocal,
+  live: { ...queued, status: "needs_you" as const, label: "Needs you", tone: "warning" as const },
+  cloud: "online",
+});
+check(
+  "an offline builder read as Needs you still names it",
+  offlineNeedsYou.headline === "Waiting for this computer",
+);
+check(
+  "…and still offers to run it in the cloud",
+  isDispatchCardAction(offlineNeedsYou.primary) &&
+    offlineNeedsYou.primary.action === "run-in-cloud",
+);
+
 const unknown = presentDispatchCard(waitingLocal);
 check(
   "before presence is known, the download is a quiet secondary, never the primary",

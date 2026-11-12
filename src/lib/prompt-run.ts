@@ -39,6 +39,15 @@ export function sendResultLine(input: {
   switch (input.status) {
     case "working":
       return { text: `An agent is working on it in ${p}.`, failed: false };
+    case "starting":
+      return { text: `A builder picked it up; the agent in ${p} is starting.`, failed: false };
+    case "needs_you":
+      return {
+        text: input.waitingForBuilder
+          ? `Sent. It starts in ${p} as soon as a runner is online.`
+          : `The agent in ${p} is waiting for you. Watch it to see what it asks.`,
+        failed: false,
+      };
     case "delivered":
       return { text: `The agent in ${p} has it and is working.`, failed: false };
     case "completed":

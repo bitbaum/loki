@@ -98,7 +98,18 @@ const SETTLED_LEDGER: ReadonlySet<string> = new Set([
 export async function loadRunTrack(
   userId: string,
   run: TrackableRun,
-  opts: { ownerView?: boolean; now?: number } = {},
+  opts: {
+    ownerView?: boolean;
+    now?: number;
+    /**
+     * Hops the caller holds evidence of that no run event records: a runner's
+     * claim of the dispatch command (claimedAt), a prompt typed straight into
+     * a live session (submitted). Counted only where the run has no event of
+     * that kind. Without them the track said "Waiting for a runner" about a
+     * command a runner held.
+     */
+    known?: Partial<Record<"claimed" | "submitted", Date | string | null>>;
+  } = {},
 ): Promise<RunTrackLoad> {
   const ownerView = opts.ownerView ?? true;
   const now = opts.now ?? Date.now();
@@ -174,11 +185,23 @@ export async function loadRunTrack(
   // The first time each hop happened — the track dates its stages by these.
   const eventTimes: Partial<Record<RunEventKind, string>> = {};
   for (const e of events) eventTimes[e.kind] ??= e.createdAt.toISOString();
+  const eventKinds: RunEventKind[] = events.map((e) => e.kind);
+  for (const [kind, at] of Object.entries(opts.known ?? {}) as [
+    RunEventKind,
+    Date | string | null,
+  ][]) {
+    if (!at || eventTimes[kind]) continue;
+    eventTimes[kind] = typeof at === "string" ? at : at.toISOString();
+    // Placed by time among the run's own events, so "the last hop" stays true.
+    const atMs = Date.parse(eventTimes[kind]!);
+    const after = events.findIndex((e) => e.createdAt.getTime() > atMs);
+    eventKinds.splice(after === -1 ? eventKinds.length : after, 0, kind);
+  }
   // A pull request the ledger discounted (opened before the run) is not this
   // change's; the track must not point at it.
   const ownPr = fix && !fix.foreignPr ? (fix.pr ?? null) : null;
   const track = buildRunTrack({
-    eventKinds: events.map((e) => e.kind),
+    eventKinds,
     eventTimes,
     run: {
       startedAt: run.startedAt.toISOString(),

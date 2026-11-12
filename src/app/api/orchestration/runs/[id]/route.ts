@@ -44,11 +44,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   });
   // Where the change is — the same track Watch draws, so the chat card and
   // the Watch page tell one story (lib/run-track-load).
-  const loaded = await loadRunTrack(userId, run).catch(() => null);
+  // What the command row knows and no run event says: a runner's claim; or,
+  // for a prompt typed straight into a live session, that it was submitted.
+  const deliveredAt = (run.payload as { deliveredAt?: unknown } | null)?.deliveredAt;
+  const loaded = await loadRunTrack(userId, run, {
+    known: queued
+      ? { claimed: queued.claimedAt }
+      : { submitted: typeof deliveredAt === "string" ? deliveredAt : run.startedAt },
+  }).catch(() => null);
   return NextResponse.json(
     {
       // One status: while the run is open, the word is the track's.
-      ...alignLiveViewWithTrack(view, loaded?.track),
+      ...alignLiveViewWithTrack(
+        view,
+        loaded?.track,
+        queued
+          ? { claimed: Boolean(queued.claimedAt), executed: Boolean(queued.executedAt) }
+          : null,
+      ),
       handoff: runHandoff(run.finishedAt ? run.summary : null),
       follow: view.terminal ? (loaded?.follow ?? null) : null,
       track: loaded?.track ?? null,
