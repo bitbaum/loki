@@ -45,39 +45,59 @@ export async function findRepoWorkEvidence(
   sinceMs: number,
   /** The run's own branches (runBranches). */
   branches: readonly string[],
+  /** The end of the run's window (runEvidenceUntilMs); null while it runs. */
+  untilMs: number | null = null,
 ): Promise<RepoWorkEvidence | null> {
   const parsed = parseGithubRepo(gitUrl);
   if (!parsed) return null;
   if (branches.length === 0) return null;
   const base = `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}`;
+  const inWindow = (atMs: number) =>
+    Number.isFinite(atMs) && atMs >= sinceMs && (untilMs === null || atMs <= untilMs);
 
+  // Asked by head branch, one question per branch of the run. Scanning the
+  // newest ten pull requests missed a run's own one in a busy repository
+  // (loki opened eight in one morning).
   try {
-    const res = await fetch(
-      `${base}/pulls?state=all&sort=created&direction=desc&per_page=10`,
-      ghInit(token),
+    const perBranch = await Promise.all(
+      branches.map(async (branch) => {
+        const res = await fetch(
+          `${base}/pulls?state=all&head=${encodeURIComponent(`${parsed.owner}:${branch}`)}&per_page=5`,
+          ghInit(token),
+        ).catch(() => null);
+        if (!res?.ok) return [];
+        const rows = (await res.json().catch(() => [])) as Array<{
+          html_url?: string;
+          title?: string;
+          created_at?: string;
+          user?: { type?: string; login?: string } | null;
+          head?: { ref?: string | null } | null;
+        }>;
+        return (Array.isArray(rows) ? rows : []).map((row) => ({ row, branch }));
+      }),
     );
-    if (res.ok) {
-      const rows = (await res.json()) as Array<{
-        html_url?: string;
-        title?: string;
-        created_at?: string;
-        user?: { type?: string; login?: string } | null;
-        head?: { ref?: string | null } | null;
-      }>;
-      for (const row of Array.isArray(rows) ? rows : []) {
-        const atMs = row.created_at ? Date.parse(row.created_at) : NaN;
-        if (!Number.isFinite(atMs) || atMs < sinceMs) break; // sorted desc — older from here on
-        // Dependabot opens pull requests on its own clock. One that lands in
-        // the run's window is not the run's work, and telling the person
-        // "Pull request opened: bump 24 packages" about their font-size
-        // change is worse than saying nothing.
-        if (isBot(row.user)) continue;
-        // Opened in the window, on a branch that is not this run's: another
-        // run's, or a person's. Not this run's work.
-        if (!refBelongsToRun(row.head?.ref, branches)) continue;
-        if (row.html_url)
-          return { kind: "pr", url: row.html_url, title: row.title ?? "pull request", atMs };
-      }
+    const own = perBranch
+      .flat()
+      .map(({ row, branch }) => ({
+        row,
+        branch,
+        atMs: row.created_at ? Date.parse(row.created_at) : NaN,
+      }))
+      // GitHub filters by head already; the check stays so a mismatched
+      // answer can never attribute somebody else's branch.
+      .filter(({ row, atMs }) => inWindow(atMs) && refBelongsToRun(row.head?.ref, branches))
+      // Dependabot opens pull requests on its own clock.
+      .filter(({ row }) => !isBot(row.user) && row.html_url)
+      .sort((a, b) => b.atMs - a.atMs);
+    const pick = own[0];
+    if (pick) {
+      return {
+        kind: "pr",
+        url: pick.row.html_url!,
+        title: pick.row.title ?? "pull request",
+        atMs: pick.atMs,
+        branch: pick.branch,
+      };
     }
   } catch {
     // fall through to the events check
@@ -96,7 +116,8 @@ export async function findRepoWorkEvidence(
         if (row.type !== "PushEvent" && row.type !== "CreateEvent") continue;
         if (isBot(row.actor)) continue;
         const atMs = row.created_at ? Date.parse(row.created_at) : NaN;
-        if (!Number.isFinite(atMs) || atMs < sinceMs) break; // events feed is newest-first
+        if (Number.isFinite(atMs) && atMs < sinceMs) break; // events feed is newest-first
+        if (!inWindow(atMs)) continue;
         const ref =
           typeof row.payload?.ref === "string"
             ? row.payload.ref.replace(/^refs\/heads\//, "")
@@ -107,6 +128,7 @@ export async function findRepoWorkEvidence(
           url: `https://github.com/${parsed.owner}/${parsed.repo}${ref ? `/tree/${ref}` : ""}`,
           title: ref ? `push to ${ref}` : row.type,
           atMs,
+          ...(ref ? { branch: ref } : {}),
         };
       }
     }
@@ -115,4 +137,24 @@ export async function findRepoWorkEvidence(
   }
 
   return null;
+}
+
+/** A pull request's head branch, or null when GitHub cannot say. */
+export async function fetchPrHeadRef(
+  prUrl: string,
+  token: string,
+): Promise<string | null | undefined> {
+  const m = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+  if (!m) return undefined;
+  try {
+    const res = await fetch(
+      `${GITHUB_API_BASE}/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,
+      ghInit(token),
+    );
+    if (!res.ok) return undefined;
+    const row = (await res.json()) as { head?: { ref?: string | null } | null };
+    return typeof row.head?.ref === "string" ? row.head.ref : null;
+  } catch {
+    return undefined;
+  }
 }

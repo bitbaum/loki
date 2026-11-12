@@ -112,6 +112,39 @@ clean-dead)
     asu podman ps -a --format '{{.Names}}' | grep -qx "$c" && { echo "  still there; forgetting its storage"; asu podman rm --storage "$c" | tail -2; }
   done
   echo "after:"; asu podman ps -a --format '  {{.Names}} {{.Status}}' ;;
+activity)
+  # Read-only. What the drain sees for each agent process of the unit
+  # (drain-and-restart-runner.sh counts every sealed session, and every agent
+  # that is not Claude, as working for as long as it is open), beside what
+  # the process actually read and wrote over a minute. An idle session at its
+  # prompt and a working one should differ here; this prints the numbers so
+  # the drain's rule can rest on them. Prints pids, kinds and byte counts only.
+  CG="/sys/fs/cgroup$(systemctl show -p ControlGroup --value "$UNIT.service")/cgroup.procs"
+  SECS="${ASECS:-60}"
+  snap() {
+    for p in $(cat "$CG" 2>/dev/null); do
+      c="$(cat "/proc/$p/comm" 2>/dev/null || true)"
+      case "$c" in claude|hermes|codex|cursor-agent|grok|gemini|podman) ;; *) continue ;; esac
+      if [ "$c" = podman ]; then
+        n="$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -oE -- '--name fc-ws-[0-9a-f]+' | head -1 | cut -d' ' -f2)"
+        [ -n "$n" ] || continue
+        c="sealed:$n"
+      fi
+      echo "$p $c $(awk '/^rchar/{r=$2} /^wchar/{w=$2} END{print r+0, w+0}' "/proc/$p/io" 2>/dev/null)"
+    done
+  }
+  a="$(snap)"; sleep "$SECS"; b="$(snap)"
+  echo "agent processes in $UNIT: $(printf '%s\n' "$a" | grep -c .)"
+  echo "pid kind age_s claude_status read_bytes written_bytes  (bytes over ${SECS}s)"
+  printf '%s\n' "$a" | while read -r p c r w; do
+    [ -n "$p" ] || continue
+    after="$(printf '%s\n' "$b" | awk -v p="$p" '$1==p{print $3, $4}')"
+    [ -n "$after" ] || { echo "$p $c ended"; continue; }
+    h="$({ tr '\0' '\n' < "/proc/$p/environ"; } 2>/dev/null | sed -n 's/^HOME=//p' | head -1)"
+    st="$(sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p' "$h/.claude/sessions/$p.json" 2>/dev/null | head -1)"
+    echo "$p $c $(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ') ${st:-none} $(( ${after% *} - r )) $(( ${after#* } - w ))"
+  done
+  journalctl -t loki-drain --since -10min --no-pager -o short-iso 2>/dev/null | tail -2 ;;
 containers)
   U="$(unit_user)"; H="$(unit_home)"
   systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps -a --format '  {{.Names}} {{.Status}} {{.Created}}' 2>&1 | grep -v level= ;;

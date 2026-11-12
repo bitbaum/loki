@@ -10,6 +10,8 @@
  *
  * Run: npx tsx scripts/test/run-branches.ts
  */
+import { readFileSync } from "fs";
+import { join } from "path";
 import { findRepoWorkEvidence } from "@/lib/github-evidence";
 import {
   RUN_BRANCHES_MAX,
@@ -162,6 +164,92 @@ async function main() {
     );
     const got = await findRepoWorkEvidence(GIT_URL, "t", STARTED, mine);
     assert(got?.kind === "push" && got.url.endsWith("/tree/loki/run-70d1a78d"), `got ${got?.url}`);
+  });
+
+  // ── the delivery track's own read (lib/repo-progress) ──────────────────────
+  // The incident's "Pushed: <#1636's commit>" came from here, not from the
+  // evidence finder: it took the newest pull request since the run began.
+  const progressGithub = (pulls: Pull[], pushes: Push[] = []) => {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      let body: unknown = [];
+      if (/\/pulls\/\d+\/commits/.test(url)) {
+        const n = url.match(/\/pulls\/(\d+)\//)?.[1];
+        body = [
+          {
+            sha: `sha${n}`,
+            html_url: `${GIT_URL}/commit/sha${n}`,
+            commit: { message: `work of ${n}`, committer: { date: "2026-11-12T03:58:30Z" } },
+          },
+        ];
+      } else if (url.includes("/check-runs")) {
+        body = { check_runs: [] };
+      } else if (url.includes("/pulls?")) {
+        body = pulls.map((p) => ({
+          number: p.number,
+          title: `pull ${p.number}`,
+          html_url: `${GIT_URL}/pull/${p.number}`,
+          created_at: p.created_at,
+          head: { sha: `sha${p.number}`, ref: p.head },
+        }));
+      } else if (url.includes("/events?")) {
+        body = pushes.map((p) => ({
+          type: "PushEvent",
+          created_at: p.created_at,
+          payload: { ref: `refs/heads/${p.ref}` },
+        }));
+      } else if (url.includes("/commits?sha=")) {
+        const ref = decodeURIComponent(url.match(/sha=([^&]+)/)?.[1] ?? "");
+        body = [
+          {
+            sha: `push-${ref}`,
+            html_url: `${GIT_URL}/commit/push`,
+            commit: { message: `pushed to ${ref}`, committer: { date: "2026-11-12T03:58:30Z" } },
+          },
+        ];
+      }
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as typeof fetch;
+  };
+  const { fetchRepoProgress } = await import("@/lib/repo-progress");
+  let progressRun = 0;
+  const progress = (branches: string[]) =>
+    fetchRepoProgress(`progress-${progressRun++}`, GIT_URL, "t", STARTED, branches);
+
+  await check(
+    "the incident on the track: another branch's pull request and commit are not shown",
+    async () => {
+      progressGithub([
+        { number: 1636, head: "ops/grubenv-repair", created_at: "2026-11-12T03:58:00Z" },
+      ]);
+      const got = await progress(runBranches({ id: RUN }));
+      assert(got?.pr === null, `showed ${got?.pr?.url}`);
+      assert(got?.commits.length === 0, `showed commits: ${got?.commits.map((c) => c.sha).join()}`);
+    },
+  );
+
+  await check("the track shows the run's own pull request and its commits", async () => {
+    progressGithub([
+      { number: 1636, head: "ops/grubenv-repair", created_at: "2026-11-12T03:59:00Z" },
+      { number: 1635, head: "loki/run-70d1a78d", created_at: "2026-11-12T03:55:00Z" },
+    ]);
+    const got = await progress(runBranches({ id: RUN }));
+    assert(got?.pr?.number === 1635, `showed ${got?.pr?.number}`);
+    assert(got?.commits[0]?.sha === "sha1635", `commits ${got?.commits.map((c) => c.sha).join()}`);
+  });
+
+  await check("the track shows a push only on the run's own branch", async () => {
+    progressGithub([], [{ ref: "ops/grubenv-repair", created_at: "2026-11-12T03:58:00Z" }]);
+    const stranger = await progress(runBranches({ id: RUN }));
+    assert(stranger?.commits.length === 0 && stranger.pr === null, "a stranger's push is shown");
+    progressGithub([], [{ ref: "loki/run-70d1a78d", created_at: "2026-11-12T03:58:00Z" }]);
+    const own = await progress(runBranches({ id: RUN }));
+    assert(own?.commits[0]?.sha === "push-loki/run-70d1a78d", `got ${own?.commits[0]?.sha}`);
+  });
+
+  await check("the track's loader passes the run's own branches", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/run-track-load.ts"), "utf8");
+    assert(/runBranches\(run\),\s*now,?\s*\)/.test(src), "run-track-load does not pass them");
   });
 
   if (failures) {

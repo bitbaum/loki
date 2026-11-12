@@ -32,6 +32,18 @@ MAX="${LOKI_RUNNER_DRAIN_SECS:-21600}"
 # A Claude older than this with no status file is a leftover, not a task.
 LEFTOVER="${LOKI_RUNNER_LEFTOVER_SECS:-86400}"
 INTERVAL=20
+# A sealed session that has relayed next to nothing for this long is not
+# working (see agent_is_busy). Half an hour, on purpose far longer than any
+# pause inside a task: an agent at work prints as it goes.
+QUIET_SECS="${LOKI_RUNNER_QUIET_SECS:-1800}"
+# "Next to nothing", per look. Open sessions at their prompt relayed 0, 40
+# and 96 bytes in a whole minute when this was measured.
+QUIET_BYTES="${LOKI_RUNNER_QUIET_BYTES:-512}"
+# What each sealed session had relayed at the last look, and since when it
+# has been quiet. Kept outside this process: every deploy starts a new drain,
+# and a clock that restarted with it would never reach QUIET_SECS on a box
+# that deploys several times an hour.
+QUIET_STATE="${LOKI_RUNNER_QUIET_STATE:-/run/loki-drain/${UNIT}}"
 
 log() { logger -t loki-drain "$*" 2>/dev/null || true; echo "[drain] $*"; }
 
@@ -63,14 +75,68 @@ log() { logger -t loki-drain "$*" 2>/dev/null || true; echo "[drain] $*"; }
 # and 1.8 days old, kept the runner on 12 October's code while every other
 # agent sat idle — and since the commands route holds new work for a builder
 # that is behind (src/lib/runner-update-hold.ts), no new task started at all.
-agent_is_busy() { # <comm> <status or empty> [age in seconds]
+#
+# A sealed session has no status file this script can read: its agent lives
+# inside gVisor and all the unit's cgroup holds is the `podman run` that
+# relays its terminal. So it counted as working for as long as it was open,
+# and sessions stay open for days. 2026-11-12: three open sealed sessions,
+# one of them eighteen hours old, relayed 0, 40 and 96 bytes in a minute
+# (Sealed builds run 43178274733, mode=activity) while this drain logged
+# "3 agent(s) working" on every look and the runner stayed two releases
+# behind; the commands route was holding new work for that restart the whole
+# time. That relay is the one thing visible from here, and it carries every
+# byte the agent prints and every key a person types: a session that has
+# moved under QUIET_BYTES a look for QUIET_SECS is at its prompt, or stuck
+# waiting on a person, and a restart reopens it. Less quiet than that, or
+# quiet for a time that cannot be told, is still working: unknown is not idle.
+agent_is_busy() { # <comm> <status or empty> [age in seconds] [quiet for, seconds]
   case "$1" in
     claude|hermes|codex|cursor-agent|grok|gemini|sealed-agent) ;;
     *) return 1 ;;
   esac
   [ "$1" = claude ] && { [ "$2" = idle ] || [ "$2" = dialog ]; } && return 1
   [ "$1" = claude ] && [ -z "$2" ] && [ "${3:-0}" -ge "$LEFTOVER" ] 2>/dev/null && return 1
+  [ "$1" = sealed-agent ] && [ -n "${4:-}" ] && [ "$4" -ge "$QUIET_SECS" ] 2>/dev/null && return 1
   return 0
+}
+
+# relayed_bytes <pid> — everything the process has read and written, or empty.
+relayed_bytes() {
+  awk '/^rchar:/{r=$2} /^wchar:/{w=$2} END{ if (r != "" && w != "") print r + w }' \
+    "${PROC_ROOT:-/proc}/$1/io" 2>/dev/null
+}
+
+# quiet_for <pid> <now, epoch seconds> — how long this process has relayed
+# under QUIET_BYTES a look, in seconds; 0 the first time it is seen, when it
+# moved, and when its counters cannot be read. The counters are cumulative,
+# so a look after a long gap still answers for the whole gap.
+quiet_for() {
+  local pid="$1" now="$2" cur last since
+  cur="$(relayed_bytes "$pid")"
+  mkdir -p "$QUIET_STATE" 2>/dev/null || { echo 0; return 0; }
+  if [ -z "$cur" ]; then rm -f "$QUIET_STATE/$pid.io" "$QUIET_STATE/$pid.since"; echo 0; return 0; fi
+  last="$(cat "$QUIET_STATE/$pid.io" 2>/dev/null || true)"
+  echo "$cur" > "$QUIET_STATE/$pid.io"
+  case "$last" in ''|*[!0-9]*) last="" ;; esac
+  if [ -z "$last" ] || [ "$cur" -lt "$last" ] || [ $((cur - last)) -ge "$QUIET_BYTES" ]; then
+    echo "$now" > "$QUIET_STATE/$pid.since"
+    echo 0
+    return 0
+  fi
+  since="$(cat "$QUIET_STATE/$pid.since" 2>/dev/null || true)"
+  case "$since" in ''|*[!0-9]*) since="$now"; echo "$now" > "$QUIET_STATE/$pid.since" ;; esac
+  echo $((now - since))
+}
+
+# forget_ended — drop the notes of processes that are gone, so a recycled pid
+# does not inherit another session's quiet.
+forget_ended() {
+  local f pid
+  for f in "$QUIET_STATE"/*.io; do
+    [ -e "$f" ] || continue
+    pid="$(basename "$f" .io)"
+    [ -d "${PROC_ROOT:-/proc}/$pid" ] || rm -f "$QUIET_STATE/$pid.io" "$QUIET_STATE/$pid.since"
+  done
 }
 
 # session_status <pid> — Claude's own status for that process, or empty.
@@ -110,15 +176,21 @@ if [ -n "${DRAIN_LIB_ONLY:-}" ]; then return 0; fi
 
 count_agents() {
   [ -r "$CGROUP" ] || { echo 0; return 0; }
-  local c=0 p comm
+  local c=0 p comm quiet now
+  now="$(date +%s)"
+  forget_ended
   for p in $(cat "$CGROUP" 2>/dev/null); do
+    quiet=""
     comm="$(cat "/proc/$p/comm" 2>/dev/null || true)"
     # A sealed build's agent lives inside gVisor: the unit's cgroup holds only
     # the `podman run --name fc-ws-…` that owns it, never a process named
     # gemini/claude. 2026-10-21 21:01 a restart killed a working Antigravity
     # run that way (runsc kill). Its podman is the agent.
-    [ "$comm" = podman ] && sealed_container "$p" && comm=sealed-agent
-    agent_is_busy "$comm" "$(session_status "$p")" "$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')" && c=$((c + 1))
+    if [ "$comm" = podman ] && sealed_container "$p"; then
+      comm=sealed-agent
+      quiet="$(quiet_for "$p" "$now")"
+    fi
+    agent_is_busy "$comm" "$(session_status "$p")" "$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')" "$quiet" && c=$((c + 1))
   done
   echo "$c"
 }

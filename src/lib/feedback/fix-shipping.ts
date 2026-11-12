@@ -70,8 +70,13 @@ export type FixShipping = {
    * base branch shipped the change instead. `deploy` is then that later run and
    * `ownDeploy` the failed one, so a reader can say "went live with a later
    * deploy" rather than pretending the merge deployed by itself.
+   *
+   * "served_release": no deploy run was found for the merge (or it was still
+   * running, or failed), and the site's own release receipt names a commit
+   * that contains the merge (feedback/served-release.ts). `deploy` is then
+   * that receipt.
    */
-  liveVia?: "later_deploy";
+  liveVia?: "later_deploy" | "served_release";
   ownDeploy?: { url: string | null; name: string; conclusion: string | null };
   /** ISO — when GitHub was last asked. */
   checkedAt: string;
@@ -321,6 +326,8 @@ export type GithubPrDetail = {
   /** null while GitHub is still computing mergeability — never treat as true. */
   mergeable?: boolean | null;
   headSha?: string | null;
+  /** The branch it was opened from: whether it is the run's own. */
+  headRef?: string | null;
   /** When GitHub says the pull request was opened. The only hard evidence that
    *  ties a pull request to the run that supposedly produced it. */
   createdAt?: string | null;

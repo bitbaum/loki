@@ -36,6 +36,10 @@ export function normalizeTaskProjects(projects: readonly string[]): string[] {
   return out;
 }
 
+/** The rule between the cross-project preamble and the request itself. */
+const PREAMBLE_RULE = "\n---\n";
+const PREAMBLE_START = "Cross-project task.";
+
 /**
  * The prompt one project's agent receives.
  *
@@ -56,9 +60,17 @@ export function buildProjectTaskPrompt(
     `Cross-project task. The same request below was sent to ${all.length} projects at once: ${all.join(", ")}.`,
     `You are working in ${project}. Do the part that belongs in this repository; ${others.join(", ")} ${others.length === 1 ? "is" : "are"} handling ${others.length === 1 ? "its" : "their"} own part in parallel.`,
     "If this repository has nothing to do for it, say so and stop. Where your part depends on another project (an endpoint, a payload shape, a URL, a shared secret's name), state the contract you assumed in your summary so the other side can match it.",
-    "",
-    "---",
-    "",
+    PREAMBLE_RULE,
     body,
   ].join("\n");
+}
+
+/**
+ * What the person asked, without the cross-project preamble the agent was
+ * given (buildProjectTaskPrompt). A prompt with no preamble comes back as is.
+ */
+export function askedOf(prompt: string): string {
+  const rule = `\n${PREAMBLE_RULE}\n`;
+  const at = prompt.indexOf(rule);
+  return prompt.startsWith(PREAMBLE_START) && at >= 0 ? prompt.slice(at + rule.length) : prompt;
 }

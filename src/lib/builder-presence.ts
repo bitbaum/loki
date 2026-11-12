@@ -1,4 +1,5 @@
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { holdWindowOpen } from "@/lib/runner-update-hold";
 import { FLEET_RUNNER_RELEASES } from "@/config/changelog";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 import type { RunnerStateKey } from "@/lib/control-states";
@@ -84,6 +85,19 @@ export function builderBehind(
     if (have[i]! > want[i]!) return false;
   }
   return false;
+}
+
+/**
+ * Is new work being held for this builder's update right now? Behind the
+ * deploy, and the newest runner release is recent enough that its restart
+ * may still land (lib/runner-update-hold). One answer for the commands
+ * route that holds, the dispatch answer and the run track that say so.
+ */
+export function builderHoldsNewWork(
+  reported: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  return builderBehind(reported) && holdWindowOpen(FLEET_RUNNER_RELEASES[0]?.date, now);
 }
 
 /** One quiet clause for the builder line, or null when it is current. */

@@ -15,6 +15,10 @@ export type RepoWorkEvidence = {
   title: string;
   /** When the PR was opened / the push happened, epoch ms. */
   atMs: number;
+  /** The branch it is on: the PR's head or the pushed ref. Absent on evidence
+   *  recorded before 2026-11-12, which was found by time alone and is checked
+   *  again before it is trusted (run-evidence-live). */
+  branch?: string;
 };
 
 /**
@@ -32,5 +36,27 @@ export function normalizeRepoWorkEvidence(value: unknown): RepoWorkEvidence | nu
   if (typeof e.url !== "string" || !e.url) return null;
   if (typeof e.title !== "string") return null;
   if (typeof e.atMs !== "number" || !Number.isFinite(e.atMs)) return null;
-  return { kind: e.kind, url: e.url, title: e.title, atMs: e.atMs };
+  return {
+    kind: e.kind,
+    url: e.url,
+    title: e.title,
+    atMs: e.atMs,
+    ...(typeof e.branch === "string" && e.branch ? { branch: e.branch } : {}),
+  };
+}
+
+/**
+ * The pull request a runner reported when it closed a run on it
+ * (closeRunShipped writes `payload.prUrl`: the agent's own pull request, seen
+ * at its HEAD), as evidence. Nothing read that field, so the message posted
+ * for a run that shipped could say no pull request was found. Null when the
+ * payload carries no pull request address.
+ */
+export function reportedPrEvidence(payload: unknown, atMs: number): RepoWorkEvidence | null {
+  if (!payload || typeof payload !== "object") return null;
+  const url = (payload as { prUrl?: unknown }).prUrl;
+  if (typeof url !== "string" || !/^https:\/\/[^\s/]+\/[^\s/]+\/[^\s/]+\/pull\/\d+/.test(url)) {
+    return null;
+  }
+  return { kind: "pr", url, title: "", atMs };
 }

@@ -102,10 +102,18 @@ export function formatRunOutcomeMessage(
   } else if (run.outcome === ORCHESTRATION_OUTCOME.SUCCESS) {
     lines.push(
       "",
-      "No pull request or push was found for this run — the work may not have left the runner.",
+      "No pull request or push was found on this run's own branches — the work may not have left the runner.",
     );
   }
-  if (liveUrl) lines.push("", `Live: ${liveUrl}`);
+  // Not "Live:": at close the change is a pull request, not on the site. The
+  // line named the address as if the change were already there.
+  if (liveUrl)
+    lines.push(
+      "",
+      prUrl
+        ? `The site: ${liveUrl} (the change is there after the merge and the deploy)`
+        : `The site: ${liveUrl}`,
+    );
 
   const stage: UpdateStage =
     run.outcome === ORCHESTRATION_OUTCOME.PARTIAL

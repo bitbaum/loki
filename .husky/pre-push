@@ -49,8 +49,12 @@ fi
 # A background timer that kills THIS shell. Not `timeout(1)` around each step:
 # the failure we saw was the SUM of steps under load, not one step hanging.
 _LIMIT=900
+# The sleep holds none of the caller's descriptors: the trap below stops this
+# subshell, not the sleep under it, and an orphaned sleep that still held the
+# caller's pipe kept `git push | tail` (or any tool that waits for the output
+# to close) open for the full limit after the push had landed (2026-11-12).
 (
-  sleep "$_LIMIT"
+  sleep "$_LIMIT" </dev/null >/dev/null 2>&1
   echo ""
   echo "✗ pre-push exceeded $((_LIMIT / 60)) minutes (load $(cut -d' ' -f1 /proc/loadavg 2>/dev/null) on $(nproc 2>/dev/null) cores)."
   echo "  This hook previews the CI bundle; CI runs the identical bundle on the PR."
@@ -68,7 +72,7 @@ done
 _base=$(git merge-base HEAD "origin/${_def:-main}" 2>/dev/null || echo "")
 
 _changed=$(mktemp)
-trap 'kill "$_watchdog" 2>/dev/null; rm -f "$_changed"' EXIT
+trap 'pkill -P "$_watchdog" 2>/dev/null; kill "$_watchdog" 2>/dev/null; rm -f "$_changed"' EXIT
 if [ -n "$_base" ]; then
   git diff --name-only "$_base"...HEAD > "$_changed" 2>/dev/null
 else

@@ -142,6 +142,74 @@ async function main(): Promise<void> {
   assert.equal(shapeTranscriptItems(many, 999).at(-1)?.text, "m99");
   console.log("  ✓ transcript: last n, clipped, tools as one row, capped at 40");
 
+  // ── the handoff and the transcript's freshness ─────────────────────────────
+
+  const { shapeTranscript } = await import("../../src/lib/integrations/orangecat-sessions");
+  const reported = shapeSessionRow({
+    project: "site",
+    builderPref: "cloud",
+    presence,
+    run: {
+      ...run,
+      state: "done",
+      handoff: { done: ["On main, last commit abc123"], checked: null, next: [] },
+    },
+    transcriptAt: null,
+  });
+  assert.deepEqual(reported.handoff, {
+    done: ["On main, last commit abc123"],
+    checked: null,
+    next: [],
+  });
+  assert.equal(working.handoff, null, "no handoff until the agent reports");
+  assert.equal(idle.handoff, null);
+  console.log("  ✓ a finished run carries the agent's handoff; an open one does not");
+
+  const t = shapeTranscript("site", { at: Date.parse("2026-11-12T05:00:00Z"), items }, false, 2);
+  assert.equal(t.live, false, "an older copy is marked as such");
+  assert.equal(t.at, "2026-11-12T05:00:00.000Z");
+  assert.equal(t.items.length, 1);
+  console.log("  ✓ a transcript says whether it is live or an older copy");
+
+  // ── a bot's watch ──────────────────────────────────────────────────────────
+
+  const { watchTab, isWatched, watchSeconds, WATCH_MAX_SECONDS } =
+    await import("../../src/lib/integrations/orangecat-watch");
+  const { addPeekViewer, removePeekViewer } = await import("../../src/lib/sse-bus");
+  assert.equal(watchSeconds(0), 1);
+  assert.equal(watchSeconds(10_000), WATCH_MAX_SECONDS);
+  const u = "watch-test-user";
+  const first = await watchTab(u, "site~abcd1234", 1, "cloud", 1_000);
+  assert.equal(first, 2_000);
+  assert.ok(isWatched(u, "site~abcd1234", "cloud"));
+  // The watch holds a viewer: another viewer joining is not the first.
+  assert.equal(addPeekViewer(u, "site~abcd1234", "cloud"), false);
+  assert.equal(removePeekViewer(u, "site~abcd1234", "cloud"), false, "the watch still holds it");
+  const extended = await watchTab(u, "site~abcd1234", 1, "cloud", 1_500);
+  assert.equal(extended, 2_500, "watching again extends the same watch");
+  await new Promise((r) => setTimeout(r, 1_200));
+  assert.equal(isWatched(u, "site~abcd1234", "cloud"), false, "a watch ends by itself");
+  assert.equal(addPeekViewer(u, "site~abcd1234", "cloud"), true, "and leaves no viewer behind");
+  removePeekViewer(u, "site~abcd1234", "cloud");
+  console.log("  ✓ a watch holds one viewer, extends, and ends by itself");
+
+  // The route watches BEFORE it reads, and waits for a frame newer than its join.
+  const { readFileSync } = await import("node:fs");
+  const routeSrc = readFileSync("src/app/api/orangecat/sessions/route.ts", "utf8");
+  assert.ok(
+    routeSrc.indexOf("await watchTab(") <
+      routeSrc.indexOf("await readTranscript(user.id, tab, channel)"),
+    "watch first, then read",
+  );
+  assert.match(routeSrc, /frame\.at >= joinedAt/, "a snapshot must be newer than the join");
+  assert.match(routeSrc, /settledFrame\(/, "and whole: every batch of it, not the first");
+  assert.match(
+    routeSrc,
+    /rowFor\(user\.id, project, run, presence, !poll\)/,
+    "a poll never looks at GitHub",
+  );
+  console.log("  ✓ the route follows before it reads, and never passes an old copy off as live");
+
   // ── refusals (no database) ─────────────────────────────────────────────────
 
   const { POST } = await import("../../src/app/api/orangecat/sessions/route");
@@ -186,6 +254,9 @@ async function main(): Promise<void> {
       { ...fresh, runId: "nope" },
       { ...fresh, items: 41 },
       { ...fresh, project: "" },
+      { ...fresh, runId: "11111111-1111-4111-8111-111111111111", watch: 301 },
+      { ...fresh, runId: "11111111-1111-4111-8111-111111111111", watch: 0 },
+      { ...fresh, runId: "11111111-1111-4111-8111-111111111111", poll: "yes" },
     ]) {
       assert.equal((await POST(request(bad, sign(JSON.stringify(bad))))).status, 400);
     }

@@ -11,7 +11,7 @@
  * after the reap is still a correction.
  */
 
-import { runBranches } from "@/lib/run-branches";
+import { runBranches, runEvidenceUntilMs } from "@/lib/run-branches";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { entities, userProjects } from "@/db/schema";
@@ -19,7 +19,7 @@ import { pendingCommands } from "@/db/schema/pending-commands";
 import { ORCHESTRATION_OUTCOME, orchestrationRuns } from "@/db/schema/orchestration-runs";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import { emitRunEvent } from "@/db/queries/run-events";
-import { getGithubToken } from "@/lib/github-token";
+import { repoTokenFor } from "@/lib/run-evidence-live";
 import { findRepoWorkEvidence } from "@/lib/github-evidence";
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
@@ -30,6 +30,10 @@ export type ReapedRunForEvidence = {
   projectKey: string;
   outcome: string | null;
   startedAt: Date;
+  /** When it was reaped: the end of its evidence window. */
+  finishedAt?: Date | null;
+  /** Branches its runner reported (payload.branches). */
+  payload?: unknown;
 };
 
 /** Bound GitHub API work per sweep — a backlog of dead runs must not turn the
@@ -92,7 +96,9 @@ export async function correctTimeoutReapsWithRepoEvidence(
       const gitUrl = project?.gitUrl ?? registration?.gitUrl;
       if (!gitUrl) continue;
 
-      const token = await getGithubToken(run.userId);
+      // The token that can read this repository (a person's own is refused
+      // on the organisation's repositories), as run-outcome-post asks.
+      const token = await repoTokenFor(run.userId, gitUrl).catch(() => null);
       if (!token) continue;
 
       const evidence = await findRepoWorkEvidence(
@@ -100,6 +106,7 @@ export async function correctTimeoutReapsWithRepoEvidence(
         token,
         run.startedAt.getTime(),
         runBranches(run),
+        runEvidenceUntilMs(run),
       );
       if (!evidence) continue;
 

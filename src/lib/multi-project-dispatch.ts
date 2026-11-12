@@ -17,7 +17,7 @@ import { isProjectBusy } from "@/db/queries/orchestration-runs";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
 import { APP_URL } from "@/config/brand";
 import { injectPrompt } from "@/lib/inject-core";
-import type { WhenBusy } from "@/lib/orchestration/busy-placement";
+import type { DispatchSession, WhenBusy } from "@/lib/orchestration/busy-placement";
 import type { ORCHESTRATION_ADAPTER_IDS } from "@/lib/orchestration";
 import {
   MAX_TASK_LENGTH,
@@ -74,6 +74,12 @@ export type MultiDispatchInput = {
    * stands apart from the open run). orchestration/busy-placement.ts.
    */
   whenBusy?: WhenBusy;
+  /**
+   * "fresh": each project gets a one-off session of its own for this task (a
+   * new agent in its own worktree, closed when it reports), whether or not
+   * the project is busy, and never its shared session (busy-placement.ts).
+   */
+  session?: DispatchSession;
 };
 
 /** Where one run is read: the same address the run card polls. */
@@ -84,7 +90,7 @@ export function runStatusUrl(runId: string): string {
 /** The refusal a person reads when a project is already at work. */
 export function busySentence(busy: string[]): string {
   const names = busy.join(", ");
-  return `${names} ${busy.length === 1 ? "is" : "are"} already working on a run. Nothing was sent. Wait for it to finish, or send again saying either to queue it behind the open run or to start a separate session for it.`;
+  return `${names} ${busy.length === 1 ? "is" : "are"} already working on a run. Nothing was sent. Wait for it to finish, or send again saying either to queue it behind the open run or to ask it in a fresh session of its own.`;
 }
 
 function str(v: unknown): string | undefined {
@@ -139,7 +145,9 @@ export async function dispatchToProjects(
   // the agents and the Control rail do.
   const canonical = requested.map((name) => byKey.get(name.toLowerCase()) as string);
 
-  if (input.refuseBusy) {
+  // A fresh session never touches the project's open run, so a busy project
+  // is no reason to refuse it.
+  if (input.refuseBusy && input.session !== "fresh") {
     const flags = await Promise.all(
       canonical.map((project) => isProjectBusy(userId, project).catch(() => false)),
     );
@@ -160,6 +168,7 @@ export async function dispatchToProjects(
             notifyOnClose: input.notifyOnClose,
             ...(input.builderChannel ? { builderChannel: input.builderChannel } : {}),
             ...(input.whenBusy ? { whenBusy: input.whenBusy } : {}),
+            ...(input.session ? { session: input.session } : {}),
           },
           userId,
         );
