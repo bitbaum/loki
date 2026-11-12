@@ -20,7 +20,7 @@ async function main() {
       import{TerminalIdleSession}from'./src/components/terminal/TerminalIdleSession';
       import{SessionComposer}from'./src/components/terminal/SessionComposer';
       const root=createRoot(document.getElementById('app'));window.written=[];
-      window.mount=(key,live=false)=>root.render(<div key={key} className="flex h-dvh min-w-0 flex-col bg-surface-page text-text-primary">{live?<SessionComposer tab="my-project" project="my-project" channel="cloud" agent="codex" agentLabel="Codex" live onKey={async bytes=>{window.written.push(bytes)}}/>:<TerminalIdleSession project={{name:'my-project',agentPref:'codex'}} channel="cloud" offline/>}</div>);`,
+      window.mount=(key,live=false)=>root.render(<div key={key} data-mount={key} className="flex h-dvh min-w-0 flex-col bg-surface-page text-text-primary">{live?<SessionComposer tab="my-project" project="my-project" channel="cloud" agent="codex" agentLabel="Codex" live onKey={async bytes=>{window.written.push(bytes)}}/>:<TerminalIdleSession project={{name:'my-project',agentPref:'codex'}} channel="cloud" offline/>}</div>);`,
     },
     bundle: true,
     write: false,
@@ -110,7 +110,13 @@ async function main() {
           (window as unknown as { mount: (key: string, live: boolean) => void }).mount(key, live),
         { key, live },
       );
-      await page.locator("textarea").waitFor();
+      // Wait for THIS mount's box, not any box. root.render commits in a later
+      // task, and the previous mount's textarea already satisfied a bare
+      // "textarea" wait: on a slow runner the next fill or file landed in the
+      // old tree, the remount then discarded it, and the step waited 30s for
+      // an answer that could not come (CI, 2026-11-11: 40s runs ending in a
+      // TimeoutError, against 8s when green).
+      await page.locator(`[data-mount="${key}"] textarea`).waitFor();
     };
     for (const width of [320, 390, 1440]) {
       await page.setViewportSize({ width, height: 844 });
