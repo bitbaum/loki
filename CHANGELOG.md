@@ -6,6 +6,30 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-12 — Small things that were in the way
+
+- **A short message stays on one line.** {#chat-bubble-width} A message you
+  sent was drawn narrower than its own words, so "yes" could appear as three
+  letters under each other. It takes the room it needs now.
+- **A wrong password says so.** {#wrong-password-says-so} The sign-in form
+  used to say nothing and show the same form again.
+- **Typing a project name keeps the box.** {#onboarding-name-stays} When you
+  added your first project by hand, the name box disappeared after the first
+  letter.
+- **A long first sentence is accepted.** {#long-brief} What you say on the
+  homepage may be up to 2,000 characters, and the new-project form now takes
+  all of it. It used to refuse anything over 300 with "Invalid body".
+- **Revoking a computer's token asks first.** {#revoke-asks} One tap on the
+  bin used to revoke it at once. And if the server refuses, the list no
+  longer pretends it is gone.
+- **Pages no longer slide when they load.** {#no-load-slide} On a desktop the
+  sidebar was drawn open and then folded, moving the whole page each time.
+- **Easier by keyboard.** {#keyboard-round-two} "Skip to content" is the
+  first Tab stop inside the app. The notifications panel, the More sheet, the
+  sessions list and the command box take the keyboard when they open, close
+  with Escape and give it back. A click beside the notifications panel closes
+  it and nothing else.
+
 ## 2026-11-12 — Say it on the first screen
 
 - **The homepage has a box to say it in.** {#say-it-first} Under "Say what

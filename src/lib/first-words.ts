@@ -1,3 +1,5 @@
+import { PROJECT_BRIEF_MAX } from "@/config/project-brief";
+
 /**
  * What a visitor said on the homepage before they had an account.
  *
@@ -13,9 +15,9 @@
  */
 const KEY = "loki:first-words";
 
-/** The new-project form caps a prefilled brief at 2000 characters
- *  (control/new-from-scratch MAX_PREFILL.brief); longer is cut there anyway. */
-const MAX = 2000;
+/** As long as the new-project form and its route take (one number for all
+ *  three: config/project-brief). */
+const MAX = PROJECT_BRIEF_MAX;
 
 /** A sentence older than this was for another visit: it is dropped unread. */
 const MAX_AGE_MS = 60 * 60 * 1000;

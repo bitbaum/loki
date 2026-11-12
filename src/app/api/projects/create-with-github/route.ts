@@ -19,13 +19,14 @@ import { createProject } from "@/db/queries/projects";
 import { SOURCE_LOKI_UI } from "@/lib/constants";
 import { TEMPLATES, renderTemplate } from "@/lib/project-templates";
 import { provisionGithubRepo } from "@/lib/github-provision";
+import { PROJECT_BRIEF_MAX, repoDescription } from "@/config/project-brief";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
 
 export const maxDuration = 60;
 
 const Body = z.object({
   name: z.string().trim().min(1, "name is required").max(80),
-  description: z.string().trim().max(300).optional(),
+  description: z.string().trim().max(PROJECT_BRIEF_MAX).optional(),
   visibility: z.enum(["private", "public"]).default("private"),
   init_readme: z.boolean().default(true),
   template: z
@@ -55,7 +56,8 @@ export async function POST(req: NextRequest) {
 
   const result = await provisionGithubRepo(token, {
     name,
-    description,
+    // The whole brief stays on the project; the repository gets a short one.
+    description: description ? repoDescription(description) : undefined,
     visibility,
     initReadme: init_readme,
     template,

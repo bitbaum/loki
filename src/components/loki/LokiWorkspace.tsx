@@ -607,7 +607,7 @@ export function LokiWorkspace({
       {isStart && !site.handoff && !demo.asked && (
         <StartScreen
           conversations={conversations}
-          railVisible={historyPinned && wide}
+          railPinned={historyPinned}
           loading={convosLoading}
           onResume={(id) => setActiveId(id)}
           onBrowseAll={() => (wide ? setHistoryPinned(true) : setHistoryOpen(true))}

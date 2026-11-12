@@ -21,6 +21,7 @@ import { LokiSignUp } from "@/components/auth/AccountKitAuth";
 import { postJson } from "@/lib/api/fetch";
 import { AUTH_COPY, fromSiteWidget, keepCallback, ROUTES } from "@/config/auth";
 import { goAfterSignIn } from "@/lib/auth/after-sign-in";
+import { signInSucceeded } from "@/lib/auth/sign-in-result";
 
 export function SignUpForm({
   oauthFlags,
@@ -68,7 +69,7 @@ export function SignUpForm({
       }
 
       const result = await signIn("email-password", { email, password, redirect: false });
-      if (result?.ok) {
+      if (signInSucceeded(result)) {
         // Claim before onboarding can redirect the new account. This preserves
         // the visitor's report even when onboarding takes place first.
         const claimUrl = new URL(safeCallback, window.location.origin);

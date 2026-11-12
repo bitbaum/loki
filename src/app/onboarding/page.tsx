@@ -67,6 +67,12 @@ export default function OnboardingPage() {
   const [installNote, setInstallNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  /** A repository was chosen from the picker. The confirmation row below is
+   *  for THAT, not for "the name is not empty": it used to test the name, so
+   *  the first letter typed into "Project name" replaced the field with a
+   *  read-only row reading that one letter, and the rest of the name went
+   *  nowhere. */
+  const [repoPicked, setRepoPicked] = useState(false);
   const [showFolder, setShowFolder] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -204,6 +210,7 @@ export default function OnboardingPage() {
   function handleRepoSelect(repo: GitHubRepo) {
     setProjectName(repo.name);
     setGitUrl(repo.html_url);
+    setRepoPicked(true);
     setShowManual(false);
   }
 
@@ -339,7 +346,7 @@ export default function OnboardingPage() {
           <AuthCard>
             <RepoPicker onSelect={handleRepoSelect} />
 
-            {projectName && !showManual ? (
+            {repoPicked && !showManual ? (
               <div className="space-y-3">
                 <div className="ui-auth-confirmation-row">
                   <GitBranch className="h-4 w-4 ui-auth-icon-muted" />
@@ -360,13 +367,16 @@ export default function OnboardingPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowManual(true)}
+                  onClick={() => {
+                    setRepoPicked(false);
+                    setShowManual(true);
+                  }}
                   className="ui-auth-muted-link"
                 >
                   Enter details manually instead
                 </button>
               </div>
-            ) : showManual || !projectName ? (
+            ) : (
               <div className="space-y-3">
                 <AuthField label="Project name">
                   <AuthInput
@@ -392,7 +402,7 @@ export default function OnboardingPage() {
                   />
                 </AuthField>
               </div>
-            ) : null}
+            )}
 
             {/* The website, for a project that is already online. It is what
                 makes the next step possible: Loki on that site, watching, and

@@ -28,6 +28,7 @@ import Link from "next/link";
 import type { SignInMethods } from "@bitbaum/accountkit/auth";
 import { LokiSignIn } from "@/components/auth/AccountKitAuth";
 import { DEFAULT_AUTH_LABELS as L } from "@bitbaum/accountkit/auth/react";
+import { signInSucceeded } from "@/lib/auth/sign-in-result";
 
 type Mode = "email" | "owner";
 
@@ -102,7 +103,7 @@ function FormInner({
     }
     const res = await signIn("email-password", { email, password, redirect: false });
     setLoading(false);
-    if (res?.ok) {
+    if (signInSucceeded(res)) {
       goAfterSignIn(router.push, safeCallback);
     } else {
       setError("Incorrect email or password.");
@@ -115,7 +116,7 @@ function FormInner({
     setLoading(true);
     const res = await signIn("local", { password: ownerPwd, redirect: false });
     setLoading(false);
-    if (res?.ok) {
+    if (signInSucceeded(res)) {
       goAfterSignIn(router.push, safeCallback);
     } else {
       setError("Wrong owner password.");
@@ -135,7 +136,7 @@ function FormInner({
       redirect: false,
     });
     setDemoLoading(false);
-    if (res?.ok) goAfterSignIn(router.push, safeCallback);
+    if (signInSucceeded(res)) goAfterSignIn(router.push, safeCallback);
     else setDemoError("The demo is being reset — try again in a moment.");
   }
 
@@ -223,7 +224,11 @@ function FormInner({
                 required
               />
             </AuthField>
-            {error && <p className="ui-error">{error}</p>}
+            {error && (
+              <p role="alert" className="ui-error">
+                {error}
+              </p>
+            )}
             <AuthSubmitButton loading={loading} label={L.signIn} loadingLabel="Signing in…" />
             {magicLinkEnabled && <SignInLinkButton email={email} callbackUrl={safeCallback} />}
             {/* AccountKit's order on every fleet app: password, the sign-in
@@ -260,7 +265,11 @@ function FormInner({
                 autoFocus
               />
             </AuthField>
-            {error && <p className="ui-error">{error}</p>}
+            {error && (
+              <p role="alert" className="ui-error">
+                {error}
+              </p>
+            )}
             <AuthSubmitButton
               loading={loading}
               disabled={!ownerPwd}

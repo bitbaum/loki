@@ -784,6 +784,11 @@
   .ui-skip-link {
     @apply fixed left-3 top-3 z-50 -translate-y-20 rounded-lg bg-surface-base px-4 py-3 text-sm font-medium text-text-primary shadow-panel-strong transition-transform focus-visible:translate-y-0;
   }
+  /* Where the skip link lands. It takes focus so the next Tab starts inside
+     the page; it is not a control, so it draws no ring of its own. */
+  #content:focus {
+    outline: none;
+  }
   .ui-public-nav-brand-row {
     @apply flex min-w-0 items-center gap-3 sm:gap-8;
   }
@@ -7796,11 +7801,25 @@
   }
   /* A sent message with pictures: the pictures first, right-aligned with the
      words under them, so a screenshot reads as part of what was said. */
+  /* The cap on how wide a sent message may be sits HERE, on the stack, as a
+     share of the row. It used to sit on the bubble as a share of the stack,
+     and the stack shrinks to fit its content: every bubble was capped at
+     75-90% of its own words and always wrapped ("What's going on?" measured
+     106px on two lines where one line needs 141px; "yes" was y / e / s). */
   .ui-loki-turn-user-stack {
-    @apply flex max-w-full flex-col items-end gap-1.5;
+    @apply flex flex-col items-end gap-1.5;
+    max-width: 90%;
+  }
+  @media (min-width: 640px) {
+    .ui-loki-turn-user-stack {
+      max-width: 75%;
+    }
+  }
+  .ui-loki-turn-user-stack > .ui-loki-bubble {
+    max-width: 100%;
   }
   .ui-loki-msg-images {
-    @apply flex max-w-full flex-wrap justify-end gap-1.5 sm:max-w-[75%];
+    @apply flex max-w-full flex-wrap justify-end gap-1.5;
   }
   .ui-loki-msg-image {
     @apply block overflow-hidden rounded-xl border border-border-subtle bg-surface-raised;
@@ -8680,9 +8699,13 @@
   .ui-page-action {
     @apply inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted;
   }
+  /* On a phone: a 44px box for the finger with the 40px circle drawn inside
+     it (the fill is clipped to the content box), the way .ui-topbar-btn does
+     it. It was a 40px box, beside two 44px ones. */
   @media (max-width: 47.99rem) {
     .ui-page-action {
-      @apply w-10 px-0;
+      @apply h-11 w-11 p-0.5;
+      background-clip: content-box;
     }
     .ui-page-action-label {
       @apply sr-only;
@@ -9358,12 +9381,16 @@
    in a borderless bar. Unlayered on purpose: the package's stylesheet is
    imported unlayered, and a rule inside @layer components can never beat it. */
 .ui-app-topbar .acct-trigger {
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  min-inline-size: 2.5rem;
-  margin-inline-start: 0.25rem;
+  /* 44px for the finger, the 40px circle drawn inside it: the fill is clipped
+     to the content box. It was a 40px box, the narrowest control in the bar. */
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  padding: 2px;
+  margin-inline-start: 0.125rem;
   border-color: transparent;
   background: var(--surface-raised);
+  background-clip: content-box;
 }
 
 /* The workbench is a focus screen (hooks/use-workbench-focus.ts): no
