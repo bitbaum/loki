@@ -111,6 +111,26 @@ signed-in browser. What it could use:
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
 | 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
 
+## 18:20 to 19:05: 5 of 5
+
+- #1691 (delivery falls back to the claim time) merged 18:20, live 18:27.
+- 18:27 loop check: 4 of 5. The run's `deliveredAt` was now the claim time
+  (18:27:45), but the session's handoff was still the 17:00:00 one: the probe
+  asked for the same words the session had already written, and Claude left
+  the file as it was.
+- The probe now asks for a summary with a token per run
+  (`scripts/test/loki-loop-e2e.ts`).
+- **18:50 loop check from the branch (run 43283193186): 5 of 5.** Loki routed
+  the task from Grok (spent) to Claude Code, Claude did it on the box, and the
+  thread got "✅ orangecat — done. e2e ok — no changes (mwdwf70c)".
+- OrangeCat #1672 merged 18:08, but its migration shared version
+  `20261112200000` with another session's; main went red and the deploy did
+  not run. OrangeCat #1692 gives it `20261112202000`.
+
+Still open: the runner on the box has the morning's code (its drain waits on
+the substrata Gemini run open since 13:45, which cannot progress while Gemini
+is off); the owner's Grok Build balance; the old Gemini key.
+
 ## 17:45 to 18:10: #1690 live; what still holds the runner; Change 11
 
 - #1690 merged 17:39, Loki served `74183f94` at 17:45. The new drain counts
