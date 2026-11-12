@@ -13,6 +13,7 @@ import {
   RUN_QUESTION_MAX_CHARS,
   RUN_STEP_MAX_CHARS,
   SHIPPED_PR_URL_RE,
+  isWorkingBeat,
 } from "@/lib/run-progress";
 
 /**
@@ -79,9 +80,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const branch = cleanBranchName(body.branch);
   const upstream = cleanBranchName(body.upstream);
 
-  const live = await stampRunProgress(id, userId, blocked, step, question, [branch, upstream]);
-  if (live) {
+  // A trickle from an agent idle at its prompt is not work: it keeps the run
+  // alive (live), but does not move lastProgressAt, which is what Working,
+  // the lane and the reaper read.
+  const working = isWorkingBeat({ outputBytes, blocked });
+  const live = await stampRunProgress(
+    id,
+    userId,
+    blocked,
+    step,
+    question,
+    [branch, upstream],
+    working,
+  );
+  if (live && working) {
     void emitRunEvent(id, userId, "progress", { outputBytes, lastOutputAt });
+  }
+  if (live) {
     // Once per stretch of being blocked, not once per beat: the runner clears
     // the flag as soon as the agent prints, so a new event means a new block.
     if (blocked)
