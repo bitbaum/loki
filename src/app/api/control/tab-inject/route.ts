@@ -19,7 +19,7 @@ import {
   offlineFallbackChannel,
   resolveQueuedExecution,
 } from "@/lib/execution-access";
-import { rerouteNotice } from "@/lib/dispatch-status";
+import { queuedBehindSentence, rerouteNotice } from "@/lib/dispatch-status";
 import {
   DEFAULT_ADAPTER_ID,
   ORCHESTRATION_ADAPTER_IDS,
@@ -134,24 +134,29 @@ async function recordTabDispatch(opts: {
  *
  * On the cloud builder a task for a project whose last run is still open waits
  * its turn: the claim gate (pending-commands fifoEligibilitySql) holds it
- * until that run closes, so it is never typed into an agent mid-task. The
- * answer said only `ok`, and a caller took "queued" for "the agent has it".
- * findQueueBlockers reads the same predicate the gate enforces.
+ * until that run closes or goes idle, so it is never typed into an agent
+ * mid-task. The answer said only `ok`, and a caller took "queued" for "the
+ * agent has it". Same fields and sentence as /api/inject (inject-core):
+ * findQueueBlockers reads the gate's own predicate, queuedBehindSentence says it.
  */
 async function withHold(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const runId = typeof body.runId === "string" ? body.runId : null;
-  if (!runId || body.mode === "pty") return body;
+  // A live PTY here waits for nothing; inject-core already said it for its answers.
+  if (!runId || body.mode === "pty" || body.waitingOn || body.queuedBehind) return body;
   const blocker = (await findQueueBlockers([runId]).catch(() => new Map())).get(runId);
   if (!blocker) return body;
-  const started = new Date(blocker.startedAt);
   return {
     ...body,
-    heldBehind: {
+    queuedBehind: true,
+    waitingOn: {
       runId: blocker.runId,
-      startedAt: started.toISOString(),
       label: blocker.label,
+      since: blocker.startedAt.toISOString(),
+      lastProgressAt: blocker.lastProgressAt?.toISOString() ?? null,
     },
-    message: `${typeof body.message === "string" ? `${body.message} ` : ""}Waiting for the project's open run${blocker.label ? ` (${blocker.label})` : ""}, started ${started.toISOString()}, to finish; this task starts after it. To reach the running agent now, type into the session (POST /api/control/tab-inject-raw).`,
+    message: [typeof body.message === "string" ? body.message : null, queuedBehindSentence(blocker)]
+      .filter(Boolean)
+      .join(" "),
   };
 }
 

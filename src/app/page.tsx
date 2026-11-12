@@ -11,6 +11,10 @@ import {
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { ProblemsSection } from "@/components/public/ProblemsSection";
+import { HOME_PROBLEMS, PROBLEMS_SECTION } from "@/config/problems-we-solve";
+import { HeroComposer } from "@/components/public/HeroComposer";
+import { LoopFigure, type LoopFigureKind } from "@/components/public/LoopFigure";
+import { FinalCta } from "@/components/public/FinalCta";
 import {
   HOME_HERO_CONSOLE,
   HOME_PRODUCT_SURFACES,
@@ -32,6 +36,9 @@ import { landingRedirect } from "@/lib/landing-destination";
 import { COMMISSION } from "@/config/commission";
 import { BUILD_PAGE } from "@/config/build-paths";
 import { BuildPaths } from "@/components/public/BuildPaths";
+
+/** The picture for each of HOME_STEPS, in order. */
+const LOOP_FIGURES: readonly LoopFigureKind[] = ["say", "build", "change"];
 
 export default async function LandingPage({
   searchParams,
@@ -90,8 +97,8 @@ export default async function LandingPage({
     ? await getShippedFromFeedbackSnapshot(owner.id).catch(() => emptyShipped)
     : emptyShipped;
 
-  const primaryHref = signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP;
-  const primaryLabel = signedIn ? `Open ${APP_NAME}` : "Start a project";
+  // The evidence line under the hero: counts that are not zero.
+  const proof = fleet.metrics.filter((m) => String(m.value) !== "0");
 
   // One page, read top to bottom on a phone: the promise and the one action,
   // the evidence, then each section a plain heading over rows — no eyebrow
@@ -115,13 +122,9 @@ export default async function LandingPage({
 
           <p className="ui-public-hero-lede">{MARKETING_TAGLINE}</p>
 
-          {/* One primary action, and the other way in as a plain link under
-              it — two full-width buttons read as two equal choices. */}
-          <div className="ui-public-hero-actions mx-auto">
-            <Link href={primaryHref} className="ui-public-cta">
-              {primaryLabel}
-            </Link>
-          </div>
+          {/* One primary action: say it. The other way in is a plain link
+              under it — two full-width buttons read as two equal choices. */}
+          <HeroComposer signedIn={signedIn} />
           <p className="mt-4">
             <Link href={COMMISSION.path} className="ui-public-text-link">
               Or change a website you have →
@@ -133,7 +136,15 @@ export default async function LandingPage({
               featured) plus fleet-wide counts. Public-safe fields only; "Agent
               working" shows only when an agent is actually running. Hidden if
               there's no fleet data, so we never render an empty/fake box. */}
-          {fleet.metrics.length > 0 && (
+          {/* With nothing showcased the box held three counters and a "Beta"
+              pill: a frame around "0 agents running". Then it is one quiet
+              line of the same real numbers, zeros left out. */}
+          {fleet.projects.length === 0 && proof.length > 0 && (
+            <p className="ui-public-hero-proof">
+              {HOME_HERO_CONSOLE.label}: {proof.map((m) => `${m.value} ${m.label}`).join(" · ")}
+            </p>
+          )}
+          {fleet.projects.length > 0 && fleet.metrics.length > 0 && (
             <div className="ui-public-hero-console">
               <div className="ui-public-hero-console-bar">
                 <span className="ui-public-hero-console-label">{HOME_HERO_CONSOLE.label}</span>
@@ -198,8 +209,9 @@ export default async function LandingPage({
             From a sentence to a working site.
           </h2>
           <ol className="ui-public-section-gap ui-public-howto">
-            {HOME_STEPS.map((step) => (
+            {HOME_STEPS.map((step, i) => (
               <li key={step.number} className="ui-public-howto-step">
+                <LoopFigure kind={LOOP_FIGURES[i]} />
                 <span className="ui-public-howto-num" aria-hidden="true">
                   {step.number}
                 </span>
@@ -215,7 +227,7 @@ export default async function LandingPage({
       {/* What it solves — concrete problems, a person's first, then society's.
           Right after "how it works" so the mechanism is followed by what it
           is for. Copy: config/problems-we-solve.ts. */}
-      <ProblemsSection signedIn={signedIn} />
+      <ProblemsSection featured={HOME_PROBLEMS} />
 
       {/* 2 — Proof: real fixes that shipped because someone asked. */}
       {shipped.entries.length > 0 && (
@@ -281,44 +293,24 @@ export default async function LandingPage({
               How Loki compares with Claude Code, Codex, Lovable and others →
             </Link>
           </p>
-        </div>
-      </section>
-
-      {/* 5 — Where the work runs, honest about who can use the cloud. */}
-      <section className="ui-public-band ui-public-section" aria-labelledby="runs-title">
-        <div className="ui-public-container">
-          <h2 id="runs-title" className="ui-public-h2">
-            {WHERE_IT_RUNS.title}
-          </h2>
-          <p className="ui-public-section-lede mt-3">{WHERE_IT_RUNS.lede}</p>
-          <ul className="ui-public-section-gap ui-public-rows ui-public-rows-2">
+          {/* Where the work runs, honest about who can use the cloud. It was
+              a section of its own (a heading, a paragraph and two cards, most
+              of a phone screen) for one sentence and two links. */}
+          <p className="ui-public-howto-note">{PROBLEMS_SECTION.closer.note}</p>
+          <p className="mt-1 flex flex-wrap gap-x-6">
             {WHERE_IT_RUNS.options
               .filter((option) => !(insideRunner && option.cta.href === "/download"))
               .map((option) => (
-                <li key={option.label} className="flex">
-                  <Link href={option.cta.href} className="ui-public-start-card w-full">
-                    <span className="ui-public-surface-card-label">{option.label}</span>
-                    <span className="ui-public-start-card-title">{option.title}</span>
-                    <span className="ui-public-start-card-body">{option.body}</span>
-                    <span className="ui-public-start-card-link">{option.cta.label} →</span>
-                  </Link>
-                </li>
+                <Link key={option.label} href={option.cta.href} className="ui-public-text-link">
+                  {option.cta.label} →
+                </Link>
               ))}
-          </ul>
+          </p>
         </div>
       </section>
 
-      <div className="ui-public-container border-t border-border-subtle py-14 text-center sm:py-20">
-        <Link href={primaryHref} className="ui-public-cta-lg w-full sm:w-auto">
-          {primaryLabel}
-        </Link>
-        <p className="ui-public-meta mt-4">
-          Free while {APP_NAME} is in beta. Open source under the MIT licence.{" "}
-          <Link href={BUILD_PAGE.path} className="ui-public-link-standalone">
-            Or have it built →
-          </Link>
-        </p>
-      </div>
+      {/* The shared closing block, not a hand-copied variant of it. */}
+      <FinalCta signedIn={signedIn} />
     </PublicSurface>
   );
 }

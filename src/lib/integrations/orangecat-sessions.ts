@@ -17,6 +17,7 @@
  */
 import { APP_URL } from "@/config/brand";
 import type { TranscriptItem } from "@/lib/claude-transcript";
+import { sessionOpenUrl } from "@/lib/dispatch-card";
 import type { RunHandoff } from "@/lib/run-handoff";
 
 /** Projects listed in one answer; the same ceiling as actor-status. */
@@ -52,6 +53,10 @@ export interface SessionRow {
   prUrl: string | null;
   /** Where a person watches this run. */
   statusUrl: string | null;
+  /** The session's name on its builder: the project, or a parallel lane of it. */
+  session: string;
+  /** The same session in Loki's Terminal, on any device the person is signed in on. */
+  openUrl: string;
   /**
    * What the agent reported when it finished (lib/run-handoff): what it did,
    * what it checked, what should come next. The answer to a one-off question
@@ -78,6 +83,10 @@ export interface SessionRowInput {
   } | null;
   /** Epoch ms of the newest cached transcript frame for the session. */
   transcriptAt: number | null;
+  /** The session's tab when it is not the project's own (a parallel lane). */
+  tab?: string | null;
+  /** The builder the session runs on, for its link; else the stored preference. */
+  channel?: "cloud" | "local" | null;
 }
 
 const STATES: ReadonlySet<string> = new Set([
@@ -136,6 +145,8 @@ export function shapeSessionRow(input: SessionRowInput): SessionRow {
     track: run?.track ?? null,
     prUrl: safeUrl(run?.prUrl),
     statusUrl: run ? runStatusUrl(run.id) : null,
+    session: input.tab || input.project,
+    openUrl: sessionOpenUrl(input.tab || input.project, input.channel ?? builder, run?.id ?? null),
     handoff: run?.handoff ?? null,
   };
 }

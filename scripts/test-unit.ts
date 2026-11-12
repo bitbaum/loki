@@ -14,6 +14,26 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { spawn, spawnSync } from "child_process";
+import { testEnv } from "./test/lib/test-env";
+
+// A hook run from a linked worktree exports an absolute GIT_DIR (and its
+// index and work tree). Every test inherits this environment, and an absolute
+// GIT_DIR overrides `git -C <sandbox>`: a test's throwaway repository becomes
+// the real one. It has happened twice (worktree-workspace.ts, then
+// dispatch-launch-dir.ts on 2026-11-12: a test@test commit on the branch being
+// pushed and `core.bare = true` in the real config). Cleared once, here, so a
+// new test with a git fixture is safe without knowing this. A test that reads
+// the real repository finds it from its working directory, as it always did.
+for (const k of [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_COMMON_DIR",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_PREFIX",
+]) {
+  delete process.env[k];
+}
 
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = join(SCRIPTS_DIR, "test");
@@ -33,6 +53,8 @@ const SKIP: Record<string, string> = {
     "end-to-end against a real deployment + LOKI_SESSION_TOKEN (pnpm run test:e2e:loki)",
   "rag-retrieval.ts": "needs EMBEDDINGS_BASE_URL (fastembed service)",
   "lane-and-reaper.ts":
+    "needs a real Postgres it may write to (TEST_DATABASE_URL, or CI) — runs in CI as `pnpm run test:db` after the migrate step",
+  "token-scope.ts":
     "needs a real Postgres it may write to (TEST_DATABASE_URL, or CI) — runs in CI as `pnpm run test:db` after the migrate step",
   // push-notifications.ts was here, excluded as "needs push/web-push env —
   // run manually". It never needed env: every check is a static file read. It
@@ -169,10 +191,14 @@ const FAIL_TAIL_LINES = 40;
 
 type Result = { file: string; ok: boolean; tail: string; skipped?: string };
 
+/** Every test runs with no pointer to a real repository (lib/test-env.ts). */
+const CHILD_ENV = testEnv();
+
 function run(file: string): Promise<Result> {
   return new Promise((resolve) => {
     const child = spawn(runner, [...baseArgs, join(TEST_DIR, file)], {
       stdio: ["ignore", "pipe", "pipe"],
+      env: CHILD_ENV,
     });
     let out = "";
     let settled = false;

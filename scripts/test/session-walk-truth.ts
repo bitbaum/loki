@@ -24,7 +24,8 @@ assert.match(
   /findQueueBlockers\(\[runId\]\)/,
   "the hold is read from the gate's own predicate",
 );
-assert.match(inject, /heldBehind: \{/);
+assert.match(inject, /waitingOn: \{/, "the same fields as /api/inject");
+assert.match(inject, /queuedBehindSentence\(blocker\)/, "and the same sentence");
 assert.equal(
   (inject.match(/await withHold\(/g) ?? []).length,
   3,
@@ -38,7 +39,8 @@ assert.match(
 
 const walk = read("docs/foundation/LOOP-WALK.md");
 assert.doesNotMatch(walk, /gets the prompt\s+typed into it/, "the old claim is gone");
-assert.match(walk, /heldBehind/);
+assert.match(walk, /waitingOn/);
+assert.doesNotMatch(walk, /heldBehind/);
 assert.match(walk, /\\u001b\[200~/, "how to type a message mid-task");
 assert.match(walk, /in lowercase/, "open-tabs names are lowercased by the runner");
 assert.match(

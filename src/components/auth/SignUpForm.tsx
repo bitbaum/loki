@@ -11,6 +11,7 @@ import {
   AuthHeading,
   AuthDivider,
 } from "@/components/auth/AuthShell";
+import { FirstWordsNote } from "@/components/auth/FirstWordsNote";
 import { OAuthButtons, hasAnyOAuth, type OAuthEnabledFlags } from "@/components/auth/OAuthButtons";
 import { SignInLinkButton } from "@/components/auth/SharedWaysIn";
 import { DEFAULT_AUTH_LABELS } from "@bitbaum/accountkit/auth/react";
@@ -88,6 +89,7 @@ export function SignUpForm({
   return (
     <AuthShell>
       <AuthHeading title={DEFAULT_AUTH_LABELS.createAccount} />
+      <FirstWordsNote />
       {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signUp}</p>}
 
       {accountKit ? (

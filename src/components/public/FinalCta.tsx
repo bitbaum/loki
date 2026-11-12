@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ROUTES } from "@/config/auth";
+import { APP_NAME } from "@/config/brand";
 import { FINAL_CTA } from "@/config/marketing-content";
 import { BUILD_PAGE } from "@/config/build-paths";
 
-export function FinalCta() {
+export function FinalCta({ signedIn = false }: { signedIn?: boolean } = {}) {
   return (
     <div className="ui-public-container ui-public-section border-t border-border-subtle text-center">
       <h2 className="ui-public-display-lg">{FINAL_CTA.title}</h2>
@@ -14,8 +15,11 @@ export function FinalCta() {
             not a centred pill the size of its own label. */}
         {/* Sign-UP: a newcomer at the bottom of a marketing page has no
             account to sign in to. This sent them to sign-in for months. */}
-        <Link href={ROUTES.SIGN_UP} className="ui-public-cta-lg w-full sm:w-auto">
-          {FINAL_CTA.cta}
+        <Link
+          href={signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP}
+          className="ui-public-cta-lg w-full sm:w-auto"
+        >
+          {signedIn ? `Open ${APP_NAME}` : FINAL_CTA.cta}
         </Link>
         <p className="ui-public-meta mt-4">
           <Link href={BUILD_PAGE.path} className="ui-public-link-standalone">
