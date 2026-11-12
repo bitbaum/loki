@@ -16,7 +16,8 @@
  * can follow the run it started (and read it back over
  * /api/orangecat/sessions). `builderChannel: "cloud"` asks for the always-on
  * runner. A project that already has an open run refuses the whole task with
- * 409 and a sentence, unless the body says `queueIfBusy`.
+ * 409 and a sentence, unless the body says `queueIfBusy` (wait behind the open
+ * run) or `separateSession` (a parallel session in its own worktree).
  *
  * Every close outcome is announced: the person typed this into OrangeCat and
  * is not watching a Loki tab.
@@ -42,6 +43,12 @@ const Body = z.object({
   builderChannel: z.enum(BUILDER_CHANNELS).optional(),
   /** Queue behind a project's open run. Without it a busy project refuses the task (409). */
   queueIfBusy: z.boolean().optional(),
+  /**
+   * A busy project starts a separate agent session for this task, in its own
+   * worktree, instead of refusing or queueing: for a one-off question that
+   * should not wait for, or be folded into, the open run.
+   */
+  separateSession: z.boolean().optional(),
   /** Where on OrangeCat this was sent from — for attribution, not routing. */
   originUrl: z.string().trim().url().max(500).optional(),
 });
@@ -49,7 +56,8 @@ const Body = z.object({
 export async function POST(req: NextRequest) {
   const dataOrResp = await readSignedOrangeCatBody(req, Body, "task dispatch not configured");
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { actorId, task, projects, originUrl, builderChannel, queueIfBusy } = dataOrResp;
+  const { actorId, task, projects, originUrl, builderChannel, queueIfBusy, separateSession } =
+    dataOrResp;
 
   const user = await getUserByOrangeCatActorId(actorId);
   if (!user) {
@@ -87,7 +95,8 @@ export async function POST(req: NextRequest) {
       ...(builderChannel ? { builderChannel } : {}),
       // A person on OrangeCat is not watching Control: a busy project answers
       // with a sentence unless they asked to queue behind the open run.
-      refuseBusy: !queueIfBusy,
+      refuseBusy: !queueIfBusy && !separateSession,
+      ...(separateSession ? { whenBusy: "lane" as const } : {}),
     },
     user.id,
   );
