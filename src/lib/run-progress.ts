@@ -62,6 +62,10 @@ export type RunProgressBeat = {
   /** The agent's own open PR, at its checked-out HEAD, while it sits idle:
    *  the run closes Done with this link (lib/salvage-plan shippedPr). */
   shipped?: string;
+  /** The branch the agent's checkout is on now. The server keeps every one a
+   *  run reported (lib/run-branches); a pull request is the run's only when
+   *  its head is one of them. */
+  branch?: string;
 };
 
 /** The longest step a beat may carry. */

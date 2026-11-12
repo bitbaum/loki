@@ -6,11 +6,17 @@
  * first (strongest signal, has a linkable URL), then repo events (a branch
  * push without a PR). Any failure degrades to null: evidence is a bonus,
  * never a blocker.
+ *
+ * The window alone is not an attribution: a pull request somebody else opened
+ * while the run was live is not the run's. Only a pull request whose head
+ * branch, or a push whose ref, is one of the run's own branches counts
+ * (lib/run-branches).
  */
 
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { parseGithubRepo } from "@/lib/github-commits";
 import type { RepoWorkEvidence } from "@/lib/repo-evidence";
+import { refBelongsToRun } from "@/lib/run-branches";
 
 export type { RepoWorkEvidence } from "@/lib/repo-evidence";
 export { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
@@ -37,9 +43,12 @@ export async function findRepoWorkEvidence(
   gitUrl: string,
   token: string,
   sinceMs: number,
+  /** The run's own branches (runBranches). */
+  branches: readonly string[],
 ): Promise<RepoWorkEvidence | null> {
   const parsed = parseGithubRepo(gitUrl);
   if (!parsed) return null;
+  if (branches.length === 0) return null;
   const base = `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}`;
 
   try {
@@ -53,6 +62,7 @@ export async function findRepoWorkEvidence(
         title?: string;
         created_at?: string;
         user?: { type?: string; login?: string } | null;
+        head?: { ref?: string | null } | null;
       }>;
       for (const row of Array.isArray(rows) ? rows : []) {
         const atMs = row.created_at ? Date.parse(row.created_at) : NaN;
@@ -62,6 +72,9 @@ export async function findRepoWorkEvidence(
         // "Pull request opened: bump 24 packages" about their font-size
         // change is worse than saying nothing.
         if (isBot(row.user)) continue;
+        // Opened in the window, on a branch that is not this run's: another
+        // run's, or a person's. Not this run's work.
+        if (!refBelongsToRun(row.head?.ref, branches)) continue;
         if (row.html_url)
           return { kind: "pr", url: row.html_url, title: row.title ?? "pull request", atMs };
       }
@@ -88,6 +101,7 @@ export async function findRepoWorkEvidence(
           typeof row.payload?.ref === "string"
             ? row.payload.ref.replace(/^refs\/heads\//, "")
             : null;
+        if (!refBelongsToRun(ref, branches)) continue;
         return {
           kind: "push",
           url: `https://github.com/${parsed.owner}/${parsed.repo}${ref ? `/tree/${ref}` : ""}`,

@@ -7,6 +7,7 @@ import {
   stampRunProgress,
 } from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
+import { cleanBranchName } from "@/lib/run-branches";
 import {
   RUN_BLOCKED,
   RUN_QUESTION_MAX_CHARS,
@@ -32,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     step?: unknown;
     question?: unknown;
     shipped?: unknown;
+    branch?: unknown;
   };
   const outputBytes =
     typeof body.outputBytes === "number" && Number.isFinite(body.outputBytes)
@@ -69,7 +71,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           .slice(0, RUN_STEP_MAX_CHARS) || null
       : null;
 
-  const live = await stampRunProgress(id, userId, blocked, step, question);
+  // The branch the agent's checkout is on: what ties a pull request to this
+  // run, instead of "the newest one opened since it started".
+  const branch = cleanBranchName(body.branch);
+
+  const live = await stampRunProgress(id, userId, blocked, step, question, branch);
   if (live) {
     void emitRunEvent(id, userId, "progress", { outputBytes, lastOutputAt });
     // Once per stretch of being blocked, not once per beat: the runner clears
