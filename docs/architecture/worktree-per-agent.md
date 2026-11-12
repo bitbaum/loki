@@ -21,8 +21,9 @@ dispatch(tab, dir, runId)                       primary checkout: <dir>
         │     git worktree add -B fc/<runId> … HEAD
         │     symlink node_modules + .env* from the primary
         └─ prompt := worktreePromptNote(runId) + prompt
-                     ("you are on branch fc/<runId>; land with
-                       git pull --rebase origin main && git push origin HEAD:main")
+                     ("you are on branch fc/<runId>; ship with
+                       git push -u origin HEAD and a pull request,
+                       never a push to main")
 ```
 
 - **Verification follows the agent.** Transcript/auth checks
@@ -90,8 +91,9 @@ falls back to the project's shared tab. Nothing of the shared session goes into 
 writes to the shared tab's files), and nothing of it goes back: its close
 leaves the project's escalation ladder alone, Control never closes it from
 the shared session's handoff, and a retry is a one-off again
-(`scripts/test/one-off-stays.ts`). A run that the reaper closes (no
-report) keeps its tab until it is closed by hand or the builder restarts.
+(`scripts/test/one-off-stays.ts`). However the run closes (its report,
+the reaper, a refused ack, a runner restart), `notifyRunClosed` queues
+`close_tab` for the lane (`src/lib/orchestration/one-off-close.ts`).
 
 Trade-off (deliberate): parallel alias runs have no live project card — they
 surface in Activity/runs, not /control cards. Net: `scripts/test/run-tab.ts`.

@@ -7,6 +7,7 @@
  * Callers express intent once. The executor routes to the correct mechanism.
  */
 
+import { countOpenParallelLanes } from "@/db/queries/orchestration-runs";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { DEFAULT_ADAPTER_ID } from "@/lib/orchestration";
 import { enqueueInjectCommand, enqueueDispatchCommand } from "@/db/queries/pending-commands";
@@ -145,7 +146,7 @@ export async function executeInject(
         ok: false,
         mode: "queued",
         code: "fresh-session-unavailable",
-        error: freshSessionRefusal(payload),
+        error: await freshSessionRefusal(userId, payload),
       };
     }
     const commandId = dir
@@ -179,12 +180,18 @@ export async function executeInject(
   }
 }
 
-/** Why a fresh one-off session could not start, and that nothing was sent. */
-function freshSessionRefusal(payload: {
-  dir?: string | null;
-  projectKey?: string;
-  runId?: string;
-}): string {
+/** Why a fresh one-off session could not start, and that nothing was sent.
+ *  The lane count is read again: planParallelRun answers null for a full
+ *  project and for a database error alike, and "wait for one to close" is
+ *  wrong advice when none is open. */
+async function freshSessionRefusal(
+  userId: string,
+  payload: {
+    dir?: string | null;
+    projectKey?: string;
+    runId?: string;
+  },
+): Promise<string> {
   const name = payload.projectKey ?? "this project";
   if (!payload.dir || !payload.projectKey) {
     return `A fresh session needs a checkout of ${name} to copy, and there is none. Nothing was sent to the project's own session.`;
@@ -192,5 +199,11 @@ function freshSessionRefusal(payload: {
   if (!payload.runId) {
     return `A fresh session needs a tracked run, and this request has none. Nothing was sent to the project's own session.`;
   }
-  return `${name} already has ${MAX_PARALLEL_LANES_PER_PROJECT} extra sessions open; a fresh one can start when one of them closes. Nothing was sent to the project's own session.`;
+  const open = await countOpenParallelLanes(userId, payload.projectKey, payload.runId).catch(
+    () => null,
+  );
+  if (open !== null && open >= MAX_PARALLEL_LANES_PER_PROJECT) {
+    return `${name} already has ${MAX_PARALLEL_LANES_PER_PROJECT} extra sessions open; a fresh one can start when one of them closes. Nothing was sent to the project's own session.`;
+  }
+  return `Loki could not set up a fresh session for ${name} just now. Nothing was sent to the project's own session; send it again in a moment.`;
 }

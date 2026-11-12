@@ -4,6 +4,7 @@
  * request headers), then delegates to injectPrompt() — the same dispatcher the
  * Loki messages route calls in-process, so the two never drift.
  */
+import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 import { NextRequest, NextResponse } from "next/server";
 import { ORCHESTRATION_ADAPTER_IDS } from "@/lib/orchestration";
 import { getApiActor } from "@/lib/session";
@@ -29,13 +30,19 @@ const InjectBody = z
     // "fresh": a new session in its own worktree for this one prompt, closed
     // when it reports; never the project's shared session (inject-core).
     session: z.enum(["shared", "fresh"]).optional(),
+    // "cloud": the always-on builder; "local": the owner's own computer.
+    // Wins over the project's stored choice unless the project can only run
+    // on one of them. Unknown keys are dropped silently by zod, so a caller
+    // asking for cloud used to get the stored builder without a word.
+    builderChannel: z.enum(BUILDER_CHANNELS).optional(),
   })
   .refine((d) => d.promptKey || d.customPrompt, { message: "promptKey or customPrompt required" });
 
 export async function POST(req: NextRequest) {
   const dataOrResp = await readJsonBody(req, InjectBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { tab, promptKey, adapter, runId, notifyOnClose, attachments, session } = dataOrResp;
+  const { tab, promptKey, adapter, runId, notifyOnClose, attachments, session, builderChannel } =
+    dataOrResp;
   // Screenshots become text before anything downstream sees the prompt, so the
   // agent, prompt history and Activity all record the same instruction.
   const customPrompt = dataOrResp.customPrompt
@@ -76,7 +83,16 @@ export async function POST(req: NextRequest) {
   const announce = shouldAnnounceOnClose(actor, notifyOnClose);
 
   const { status, body } = await injectPrompt(
-    { tab, promptKey, customPrompt, adapter, runId, notifyOnClose: announce, session },
+    {
+      tab,
+      promptKey,
+      customPrompt,
+      adapter,
+      runId,
+      notifyOnClose: announce,
+      session,
+      ...(builderChannel ? { builderChannel } : {}),
+    },
     userId,
   );
   return NextResponse.json(body, { status });

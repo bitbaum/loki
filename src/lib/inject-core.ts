@@ -56,7 +56,10 @@ import { promptFingerprint, recordControlAuditEvent } from "@/db/queries/control
 import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
-import { rerouteNotice } from "@/lib/dispatch-status";
+import { QUEUED_BEHIND_SENTENCE, rerouteNotice } from "@/lib/dispatch-status";
+import { builderHoldsNewWork } from "@/lib/builder-presence";
+import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
+import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { sessionOpenUrl } from "@/lib/dispatch-card";
@@ -792,9 +795,13 @@ async function executeAndReport(
     // (2026-10-15) an account with no builder piled up six "waiting" runs, and
     // Loki told it its work was queued when none of it ever could start.
     if (runId) {
-      await closeRunUndelivered(runId, userId, result.error, { notify: false }).catch((err) =>
-        console.error("[inject] close refused run failed:", err),
-      );
+      await closeRunUndelivered(runId, userId, result.error, {
+        notify: false,
+        // "No free lane for a fresh session" is a choice the caller can
+        // retry, not a sign the project is failing: four of them used to
+        // reach the human rung and page the owner, with no agent ever run.
+        ladder: (result as { code?: string }).code !== "fresh-session-unavailable",
+      }).catch((err) => console.error("[inject] close refused run failed:", err));
     }
     return recordInjectFailure(userId, result, outcome);
   }
@@ -860,6 +867,19 @@ async function executeAndReport(
   }
 
   const notice = rerouteNotice(channel, reroutedFrom);
+  // Queued in the project's own session behind its open run (not given a
+  // lane of its own): the claim gate holds it until that run has closed.
+  const queuedBehind = result.mode === "queued" && projectBusy && !queued?.parallelTab;
+  // Queued for a cloud runner that is behind the deploy: it holds new work
+  // until it has restarted (lib/runner-update-hold). Say so now, with the
+  // bound, instead of "starting shortly" over a task that sits for minutes.
+  const builderUpdating =
+    result.mode === "queued" &&
+    !queuedOffline &&
+    channel === "cloud" &&
+    builderHoldsNewWork(
+      (await getRuntimeSnapshot(userId, "cloud").catch(() => null))?.runnerVersion,
+    );
   return {
     status: 200,
     body: {
@@ -869,6 +889,21 @@ async function executeAndReport(
       // take a project pinned to an offline computer for one that runs on the
       // cloud. A runner-offline message further down replaces it.
       ...(notice ? { message: notice } : {}),
+      // Waiting behind the project's open run, or held for the runner's
+      // update: said after the reroute, in the order they will be lived.
+      ...(queuedBehind || builderUpdating
+        ? {
+            ...(queuedBehind ? { queuedBehind: true } : {}),
+            ...(builderUpdating ? { builderUpdating: true } : {}),
+            message: [
+              notice,
+              queuedBehind ? QUEUED_BEHIND_SENTENCE : null,
+              builderUpdating ? BUILDER_UPDATING_SENTENCE : null,
+            ]
+              .filter(Boolean)
+              .join(" "),
+          }
+        : {}),
       mode: result.mode,
       // Which builder this went to. The operator should never have to guess
       // which machine has their work — especially when it queues.
@@ -1029,6 +1064,22 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
   const projectBusy =
     !lifecycleIntent &&
     (await isProjectBusy(userId, canonical, { excludeRunId: runId }).catch(() => false));
+
+  // The queue holds a busy project's dispatch back by its run: the claim gate
+  // releases it once it is the oldest open run (fifoEligibilitySql). A row
+  // with no run has nothing to hold it by and is claimable at once, so a
+  // message whose run could not be recorded would be typed into the session
+  // it was meant to wait for. Refuse it instead; nothing was sent.
+  if (projectBusy && trackableIntent && !runId) {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        error: `${canonical} is busy, and Loki could not record this request, so it cannot wait its turn. Nothing was sent; send it again in a moment.`,
+        code: "run-not-recorded",
+      },
+    };
+  }
 
   // Name the builder that will run this. A command with no channel is claimable
   // by EVERY runner at once, so leaving it open is a race the always-on box

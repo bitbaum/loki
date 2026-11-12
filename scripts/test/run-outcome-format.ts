@@ -9,7 +9,9 @@
  * Run: npx tsx scripts/test/run-outcome-format.ts
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { formatRunOutcomeMessage } from "@/lib/orchestration/run-outcome-format";
+import { reportedPrEvidence } from "@/lib/repo-evidence";
 import { ORCHESTRATION_OUTCOME } from "@/db/schema/orchestration-runs";
 
 const base = {
@@ -48,7 +50,11 @@ check("a successful run with a PR names it and says it merges on its own", () =>
   assert.match(m.content, /Renamed the product; PR opened\./);
   assert.match(m.content, /Pull request: https:\/\/github\.com\/bitbaum\/loki\/pull\/700/);
   assert.match(m.content, /merges on its own once its checks are green/);
-  assert.match(m.content, /Live: https:\/\/loki\.orangecat\.ch/);
+  assert.match(
+    m.content,
+    /The site: https:\/\/loki\.orangecat\.ch \(the change is there after the merge and the deploy\)/,
+  );
+  assert.doesNotMatch(m.content, /^Live:/m, "a pull request is not yet live");
   assert.equal(m.meta.prUrl, "https://github.com/bitbaum/loki/pull/700");
   assert.equal(m.meta.runId, "run-1");
 });
@@ -139,6 +145,38 @@ check("a runner's own result text still wins over the handoff", () => {
   assert.ok(m);
   assert.match(m.content, /Renamed the product; PR opened\./);
   assert.doesNotMatch(m.content, /handoff words/);
+});
+
+// ── Where the pull request comes from ────────────────────────────────────
+// 2026-11-12: closeRunShipped stored the runner's own pull request address and
+// nothing read it; the post then asked GitHub with the person's OAuth token,
+// which the organisation's repositories refuse, and a run that shipped read
+// "No pull request or push was found — the work may not have left the runner".
+check("a pull request the runner reported is evidence without asking GitHub", () => {
+  const url = "https://github.com/bitbaum/loki/pull/1663";
+  assert.deepEqual(reportedPrEvidence({ prUrl: url }, 5), {
+    kind: "pr",
+    url,
+    title: "",
+    atMs: 5,
+  });
+  for (const bad of [null, {}, { prUrl: 7 }, { prUrl: "" }, { prUrl: "https://github.com/a/b" }])
+    assert.equal(reportedPrEvidence(bad, 5), null, `not a pull request: ${JSON.stringify(bad)}`);
+  const m = formatRunOutcomeMessage(base as never, {
+    evidence: reportedPrEvidence({ prUrl: url }, 5),
+  });
+  assert.ok(m);
+  assert.match(m.content, /Pull request: https:\/\/github\.com\/bitbaum\/loki\/pull\/1663/);
+  assert.doesNotMatch(m.content, /may not have left the runner/);
+});
+
+check("the post and the reaper ask GitHub with the token that can read the repository", () => {
+  const post = readFileSync("src/lib/orchestration/run-outcome-post.ts", "utf8");
+  assert.match(post, /evidence \?\?= reportedPrEvidence\(/, "the runner's report comes first");
+  assert.match(post, /repoTokenFor\(run\.userId, project\.gitUrl\)/);
+  const reap = readFileSync("src/lib/orchestration/reap-evidence.ts", "utf8");
+  assert.match(reap, /repoTokenFor\(run\.userId, gitUrl\)/);
+  assert.doesNotMatch(reap, /getGithubToken/, "never the person's own token alone");
 });
 
 console.log(`\nrun-outcome-format: ${pass} passed`);

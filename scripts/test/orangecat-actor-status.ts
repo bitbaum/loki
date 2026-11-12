@@ -64,7 +64,12 @@ async function main(): Promise<void> {
   assert.deepEqual(ceramics.feedback, { new: 3, open: 4 }, "feedback matched by entity id");
   assert.deepEqual(ceramics.orangecat, [{ entityType: "product", entityId: "oc-1" }]);
   assert.equal(ceramics.recentOutcomes.length, 5, "outcomes capped at 5");
-  assert.match(ceramics.lokiUrl, /^https:\/\/.+\/projects\/p1$/);
+  assert.match(
+    ceramics.lokiUrl,
+    /^https:\/\/.+\/projects\/e1$/,
+    "the project page is keyed by the entity id, not the user_projects row",
+  );
+  assert.match(quiet.lokiUrl, /\/projects\/go\/Quiet$/, "no entity: the by-name link, not a 404");
   console.log("  ✓ blocked project, feedback by entity id, links, outcome cap");
 
   assert.equal(blog.status, "working", "state lookup is case-insensitive");
@@ -83,6 +88,7 @@ async function main(): Promise<void> {
     "liveUrl",
     "status",
     "blockReason",
+    "needsYou",
     "queueDepth",
     "currentWork",
     "recentOutcomes",
@@ -139,6 +145,63 @@ async function main(): Promise<void> {
   );
   assert.equal(ordered[2].id, "c0", "the rest keep their list order");
   console.log("  ✓ ordered by attention before the cap");
+
+  const { parseBlockReason, needsYouSentence, shapeActorNeedsYou } =
+    await import("../../src/lib/integrations/orangecat-actor-status");
+  assert.deepEqual(parseBlockReason("awaiting_user"), { code: "awaiting_user", detail: null });
+  assert.deepEqual(
+    parseBlockReason("awaiting_user — no high-impact work remains; the shop is live"),
+    { code: "awaiting_user", detail: "no high-impact work remains; the shop is live" },
+  );
+  assert.deepEqual(parseBlockReason(null), { code: null, detail: null });
+  const braked = shapeActorStatus({
+    ...base,
+    states: [
+      {
+        ...base.states[0],
+        sessionBlockReason: "awaiting_user — no high-impact work remains; shop is live",
+      },
+    ],
+  })[0];
+  assert.equal(braked.blockReason, "awaiting_user", "the code crosses, not the agent's prose");
+  assert.match(braked.needsYou ?? "", /Pick what comes next/);
+  console.log("  ✓ block reason split into its code and words; the brake hands back direction");
+
+  assert.equal(
+    needsYouSentence("awaiting_user", null, "approve the new pricing page copy"),
+    "Approve the new pricing page copy",
+    "the agent's own next step is the line",
+  );
+  assert.equal(needsYouSentence("external_dependency", "DNS", "x"), null, "not waiting on them");
+  assert.equal(needsYouSentence("awaiting_user", null, null), null, "nothing said: no line");
+  console.log("  ✓ needsYou is a sentence only when the project waits on its owner");
+
+  const lines = shapeActorNeedsYou([
+    { key: "approval:a1", label: "Email Anna", href: "/approvals", weight: 1, tier: "decide" },
+    {
+      key: "widget",
+      label: "1 site is missing the widget",
+      href: "/feedback",
+      weight: 1,
+      tier: "tidy",
+    },
+    { key: "alert:x", label: "Nowhere to go", href: null, weight: 1, tier: "decide" },
+    {
+      key: "alert:y",
+      label: "Site down",
+      href: "javascript:alert(1)",
+      urgent: true,
+      weight: 1,
+      tier: "urgent",
+    },
+  ]);
+  assert.deepEqual(
+    lines.map((l) => l.key),
+    ["approval:a1"],
+    "housekeeping, linkless and non-http lines never cross",
+  );
+  assert.match(lines[0].href, /^https:\/\/.+\/approvals$/, "hrefs cross absolute");
+  console.log("  ✓ needs-you lines: counted tiers only, each with an absolute link");
 
   const now = Date.parse("2026-09-24T12:00:00Z");
   assert.ok(isFreshIssuedAt("2026-09-24T11:57:00Z", now));

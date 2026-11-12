@@ -11,8 +11,11 @@ import { readSignedOrangeCatBody } from "@/lib/integrations/orangecat-webhook";
 import {
   isFreshIssuedAt,
   shapeActorModelKeys,
+  shapeActorNeedsYou,
   shapeActorStatus,
 } from "@/lib/integrations/orangecat-actor-status";
+import { composeNeedsYou } from "@/lib/needs-you";
+import { loadNeedsYouExtras } from "@/lib/needs-you-server";
 import { listOwnModels } from "@/db/queries/user-model-keys";
 
 /**
@@ -44,13 +47,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, linked: false, projects: [] });
     }
 
-    const [own, org, states, feedback, links, models] = await Promise.all([
+    const [own, org, states, feedback, links, models, extras] = await Promise.all([
       getUserProjects(user.id).catch(() => []),
       getOrgProjects(user.id).catch(() => []),
       getProjectStatesByUserId(user.id).catch(() => []),
       listFeedbackSummary(user.id).catch(() => []),
       getOrangeCatLinksForUser(user.id).catch(() => []),
       listOwnModels(user.id).catch(() => []),
+      loadNeedsYouExtras(user.id).catch(() => null),
     ]);
     const projects = mergeVisibleProjects(own, org);
     const outcomes = await getRecentOutcomesByProjectKeys(
@@ -63,6 +67,21 @@ export async function POST(req: NextRequest) {
       linked: true,
       generatedAt: new Date().toISOString(),
       projects: shapeActorStatus({ projects, states, outcomes, feedback, links }),
+      // Approvals and the owner's alerts, one actionable line each, from the
+      // same composition /today shows. Projects and feedback are NOT composed
+      // here: they already cross per project above, so they would be said twice.
+      needsYou: extras
+        ? shapeActorNeedsYou(
+            composeNeedsYou({
+              projects: [],
+              approvals: extras.approvals,
+              feedbackCount: 0,
+              widgetCount: 0,
+              alerts: extras.alerts,
+              systemAlertCount: 0,
+            }).items,
+          )
+        : [],
       // Names only, never a key (shapeActorModelKeys).
       modelKeys: shapeActorModelKeys(models),
     });

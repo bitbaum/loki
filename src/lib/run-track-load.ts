@@ -19,6 +19,7 @@
  * own view (`ownerView`), and only while a card is open — never from a timer
  * (scripts/test/no-free-background-ai.ts).
  */
+import { getFeedbackByRunId } from "@/db/queries/site-feedback";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { promptHistory } from "@/db/schema/prompt-history";
@@ -34,6 +35,11 @@ import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 import { buildTerminalRunView, type TerminalRunView } from "@/lib/terminal-run-view";
 import { humanizeRunFailure } from "@/lib/project-watch";
 import { buildRunTrack, type RunTrack } from "@/lib/run-track";
+import { builderHoldsNewWork } from "@/lib/builder-presence";
+import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
+import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
+import { isProjectBusy } from "@/db/queries/orchestration-runs";
+import { QUEUED_BEHIND_SENTENCE } from "@/lib/dispatch-status";
 import { isPreviewDir } from "@/lib/previews/root";
 import { findLiveRunEvidence, repoTokenFor } from "@/lib/run-evidence-live";
 import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
@@ -119,6 +125,12 @@ export async function loadRunTrack(
     hydrateFeedbackSnapshot(userId, run),
     run.projectId ? getUserProjectByEntityId(userId, run.projectId).catch(() => null) : null,
   ]);
+  // A run whose fix ledger is a feedback report's: the one kind of run that
+  // owes a change. Unknown (lookup failed): treated as owing one, as before.
+  const feedbackFix = await getFeedbackByRunId(userId, run.id).then(
+    (row) => row !== null,
+    () => true,
+  );
 
   const work = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap);
   const view = buildTerminalRunView({
@@ -178,7 +190,29 @@ export async function loadRunTrack(
   // A pull request the ledger discounted (opened before the run) is not this
   // change's; the track must not point at it.
   const ownPr = fix && !fix.foreignPr ? (fix.pr ?? null) : null;
+  // Still unclaimed while the cloud runner is behind the deploy: it is
+  // holding new work for its restart, and the track says that.
+  const waitingOnUpdate =
+    !finished &&
+    !eventTimes.claimed &&
+    snap?.builderChannel === "cloud" &&
+    builderHoldsNewWork(
+      (await getRuntimeSnapshot(userId, "cloud").catch(() => null))?.runnerVersion,
+    );
+  // Still unclaimed because the project's earlier run is open: the claim
+  // gate holds this one until that has closed. Said before the update.
+  const waitingBehind =
+    !finished &&
+    !eventTimes.claimed &&
+    !run.payload?.sessionTab &&
+    (await isProjectBusy(userId, run.projectKey, { excludeRunId: run.id }).catch(() => false));
   const track = buildRunTrack({
+    queueLabel: waitingBehind ? "Next in line for this project" : null,
+    queueNote: waitingBehind
+      ? QUEUED_BEHIND_SENTENCE
+      : waitingOnUpdate
+        ? BUILDER_UPDATING_SENTENCE
+        : null,
     eventKinds: events.map((e) => e.kind),
     eventTimes,
     run: {
@@ -209,7 +243,12 @@ export async function loadRunTrack(
           prNumber: ownPr?.number ?? null,
           mergedAt: ownPr?.mergedAt ?? null,
           deploy: fix.deploy
-            ? { name: fix.deploy.name, url: fix.deploy.url, at: fix.deploy.at ?? null }
+            ? {
+                name: fix.deploy.name,
+                url: fix.deploy.url,
+                at: fix.deploy.at ?? null,
+                served: fix.liveVia === "served_release",
+              }
             : null,
           liveUrl: follow?.liveUrl ?? null,
           looked: fix.verify
@@ -235,7 +274,13 @@ export async function loadRunTrack(
     events,
     snap,
     view,
-    canonical: canonicalStatus(work, { liveUrl: project?.liveUrl ?? null }),
+    // Only a feedback fix is asked to ship a change; any other run that
+    // finished well with nothing pushed is Done (a read-only probe was
+    // "Needs you, nothing shipped").
+    canonical: canonicalStatus(work, {
+      liveUrl: project?.liveUrl ?? null,
+      expectsChange: Boolean(feedbackFix),
+    }),
     prompt,
     project: project ? { id: project.id, gitUrl, liveUrl: project.liveUrl ?? null } : null,
     provider,
