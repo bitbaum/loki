@@ -190,11 +190,11 @@ runs-db)
   case "$P" in ""|*[!a-z0-9-]*) echo "✗ runs must be one project key"; exit 1 ;; esac
   q() { sudo -u postgres psql -d "${LOKI_DB:-loki}" -qtAX -F ' | ' -c "$1" </dev/null 2>&1 | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-300; }
   echo "--- last runs of $P ---"
-  q "SELECT left(id::text,8), adapter, state, coalesce(outcome,'-'), to_char(started_at,'HH24:MI:SS'), coalesce(to_char(finished_at,'HH24:MI:SS'),'open'), coalesce(payload->>'deliveredAt','no deliveredAt'), coalesce(payload->>'sessionTab','-'), left(coalesce(summary,''),80) FROM orchestration_runs WHERE project_key='$P' ORDER BY started_at DESC LIMIT 6"
+  q "SELECT left(id::text,8), adapter, state, coalesce(outcome,'-'), to_char(started_at,'HH24:MI:SS'), coalesce(to_char(finished_at,'HH24:MI:SS'),'open'), coalesce(payload->>'deliveredAt','no deliveredAt'), coalesce(payload->>'sessionTab','-'), left(coalesce(summary::text,''),80) FROM orchestration_runs WHERE project_key='$P' ORDER BY started_at DESC LIMIT 6"
   echo "--- payload keys of the newest ---"
-  q "SELECT string_agg(k, ' ') FROM (SELECT jsonb_object_keys(payload) k FROM orchestration_runs WHERE project_key='$P' ORDER BY started_at DESC LIMIT 1) x"
+  q "SELECT string_agg(k, ' ') FROM (SELECT jsonb_object_keys(payload::jsonb) k FROM orchestration_runs WHERE project_key='$P' ORDER BY started_at DESC LIMIT 1) x"
   echo "--- stored session of $P ---"
-  q "SELECT tab_name, session_status, to_char(session_updated_at,'HH24:MI:SS'), to_char(ready_at,'HH24:MI:SS'), agent_running, left(coalesce(session_done::text,''),100), coalesce(session_block_reason,'-') FROM project_states WHERE project_key='$P'" ;;
+  q "SELECT tab_name, session_status, to_char(session_updated_at,'HH24:MI:SS'), to_char(ready_at,'HH24:MI:SS'), agent_running, left(coalesce(session_done::text,''),100), coalesce(session_block_reason,'-') FROM project_states WHERE project_key ILIKE '%$P%' OR tab_name ILIKE '%$P%' LIMIT 5" ;;
 agent-probe)
   # Read-only, about one cent. Open ONE agent CLI (RUNS: claude|codex|cursor-agent|
   # grok|gemini) in a sealed container the way the runner does, as the unit's
