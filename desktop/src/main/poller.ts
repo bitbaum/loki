@@ -55,6 +55,7 @@ import {
   peekPtyBuffer,
   writeRawKey,
   resizePty,
+  ptyDirForTab,
 } from './pty-runtime'
 import { pushNow } from './pusher'
 import { trackRunUsage } from './usage-reporter'
@@ -63,9 +64,11 @@ import {
   WORKTREE_DISPATCH_ENABLED,
   ensureWorktreeWorkspace,
   pruneWorktrees,
+  primaryCheckoutOf,
   worktreePromptNote,
 } from '@/lib/agent-execution/worktree-workspace'
 import { dispatchLaunchDir, laneLaunchDir } from './lane-workspace'
+import { isDerivedRunTab } from '@/lib/run-tab'
 import { materializeImages } from '@/lib/agent-attachments-fs'
 
 /** Commands that change the open-tab / agent set → trigger an immediate
@@ -93,11 +96,31 @@ const worktreeByTab = new Map<string, { primaryDir: string; launchDir: string }>
 
 /** This builder's own checkout of a project. The cloud builder keeps one under
  *  its dev root and clones on demand (LOKI_BOX_PREPARE); a laptop works in the
- *  directory it was given. Throws when the box can neither find nor clone it. */
-async function builderCheckoutDir(projectKey: string, requestedDir: string): Promise<string> {
+ *  directory it was given. Throws when the box can neither find nor clone it.
+ *  For a lane it only fetches: the project's own session may be working in
+ *  that checkout (ensureBoxWorkspace `pull`). */
+async function builderCheckoutDir(
+  projectKey: string,
+  requestedDir: string,
+  opts: { forLane?: boolean } = {},
+): Promise<string> {
   if (process.env.LOKI_BOX_PREPARE !== 'true') return requestedDir
   const { ensureBoxWorkspace } = await import('@/lib/agent-execution/box-workspace')
-  return ensureBoxWorkspace(projectKey, requestedDir, await fetchWorkspaceSource(projectKey))
+  return ensureBoxWorkspace(projectKey, requestedDir, await fetchWorkspaceSource(projectKey), {
+    pull: !opts.forLane,
+  })
+}
+
+/**
+ * Where a live session of `tab` runs. After a builder restart the bookkeeping
+ * above is empty but the session was reopened in its own folder
+ * (tab-memory), and that folder is what pty-runtime recorded. The dispatch's
+ * own dir is the last resort: on the cloud builder it is another machine's
+ * path, so a live lane's dialog check, generating check and transcript all
+ * looked in a folder that does not exist.
+ */
+function liveLaunchDir(tab: string, dispatchDir: string): string {
+  return worktreeByTab.get(tab)?.launchDir ?? ptyDirForTab(tab) ?? dispatchDir
 }
 
 const COMMAND_DEDUP_DIR = path.join(os.tmpdir())
@@ -540,7 +563,8 @@ async function handleCommand(
         // A second session of a project (the terminal's "+") is a lane tab and
         // gets its own worktree — see lane-workspace.ts.
         const lane = await laneLaunchDir(tab, dir, {
-          baseDir: builderCheckoutDir,
+          // Only ever called for a lane tab.
+          baseDir: (project, requested) => builderCheckoutDir(project, requested, { forLane: true }),
           worktree: (laneTab, primaryDir, runKey) => {
             pruneWorktrees(laneTab, primaryDir)
             return ensureWorktreeWorkspace(laneTab, primaryDir, runKey)
@@ -592,16 +616,18 @@ async function handleCommand(
         // prompt. Escape closes it; if Claude still says a dialog is open, a
         // fresh session (resumed by id) is the only way to reach the composer.
         if (ptyAlreadyLive && agent === 'claude') {
-          const liveDir = resolveRunnerWorkspaceDir(tab, worktreeByTab.get(tab)?.launchDir ?? dir)
+          const liveDir = resolveRunnerWorkspaceDir(tab, liveLaunchDir(tab, dir))
           if (!(await dismissClaudeDialog(tab, liveDir))) {
             console.warn(`[poller] ${tab}: claude is stuck on a dialog; starting a fresh session`)
             await terminatePty(tab)
             ptyAlreadyLive = false
           }
         }
-        let effDir = ptyAlreadyLive ? (worktreeByTab.get(tab)?.launchDir ?? dir) : dir
+        let effDir = ptyAlreadyLive ? liveLaunchDir(tab, dir) : dir
         let effPrompt = prompt
-        let primaryDir = worktreeByTab.get(tab)?.primaryDir ?? dir
+        let primaryDir =
+          worktreeByTab.get(tab)?.primaryDir ??
+          (ptyAlreadyLive ? (primaryCheckoutOf(effDir) ?? effDir) : dir)
         // A fresh launch runs in THIS builder's checkout of the project, found
         // by project name — never in the path another machine registered — and
         // a derived run-tab ("<project>~<runId8>", same-project parallel
@@ -610,7 +636,8 @@ async function handleCommand(
         // See dispatchLaunchDir for the order and why it refuses.
         if (!ptyAlreadyLive) {
           const placed = await dispatchLaunchDir(tab, dir, runId, {
-            baseDir: builderCheckoutDir,
+            baseDir: (project, requested) =>
+              builderCheckoutDir(project, requested, { forLane: isDerivedRunTab(tab) }),
             worktree: (laneTab, base, runKey) => {
               pruneWorktrees(laneTab, base) // sweep clean leftovers before adding one
               return ensureWorktreeWorkspace(laneTab, base, runKey)

@@ -137,8 +137,8 @@ check("a fresh session never falls back to the shared tab", () => {
     "a fresh session can be typed straight into the live shared PTY",
   );
   assert(
-    /plan && placement === "fresh" \? \{\} : \{ sessionId: payload\.sessionId \}/.test(src),
-    "a fresh session resumes an earlier conversation",
+    /\.\.\.\(plan \? \{\} : \{ sessionId: payload\.sessionId \}\),/.test(src),
+    "a lane (fresh or parallel) resumes an earlier conversation",
   );
 });
 
