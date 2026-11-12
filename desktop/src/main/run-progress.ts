@@ -176,18 +176,23 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   // stop the agent, instead of "Working" until a reaper.
   if (!t.blocked && shouldCheckShipped(t)) {
     t.shipCheckedAt = Date.now()
-    const url = await findShippedPr(t.tab, t.dir)
+    const url = await findShippedPr(t.tab, t.dir, t.startedAt)
     if (url && tracks.get(runId) === t && Date.now() - t.lastOutputAt >= SHIPPED_IDLE_MS) {
       stopRunProgress(runId)
       console.log(`[run-done] ${t.tab} run ${runId}: agent shipped ${url} and is idle; closing Done`)
-      await sendBeat(base, token, runId, {
+      const answer = await sendBeat(base, token, runId, {
         outputBytes: 0,
         lastOutputAt: new Date(t.lastOutputAt).toISOString(),
         blocked: null,
         shipped: url,
         ...(await currentBranches(t.dir)),
       })
-      await terminatePty(t.tab).catch((e) => console.warn('[run-done] stop failed:', (e as Error).message))
+      // Stop the agent only when the server closed THIS run with that pull
+      // request. A run already closed another way answers live:false too, and
+      // its session may by now be serving the next run.
+      if (answer?.closed === true) {
+        await terminatePty(t.tab).catch((e) => console.warn('[run-done] stop failed:', (e as Error).message))
+      }
       return
     }
   }
@@ -209,7 +214,12 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   await sendBeat(base, token, runId, beat)
 }
 
-async function sendBeat(base: string, token: string, runId: string, beat: RunProgressBeat): Promise<void> {
+async function sendBeat(
+  base: string,
+  token: string,
+  runId: string,
+  beat: RunProgressBeat,
+): Promise<{ live?: boolean; closed?: boolean } | null> {
   try {
     const res = await fetch(`${base}/api/control/runs/${runId}/progress`, {
       method: 'PATCH',
@@ -219,12 +229,14 @@ async function sendBeat(base: string, token: string, runId: string, beat: RunPro
     })
     // The cloud answers live:false once the run is closed — nothing left to
     // report on. A 404 means the same (run pruned).
-    if (res.status === 404) { stopRunProgress(runId); return }
-    const body = (await res.json().catch(() => null)) as { live?: boolean } | null
+    if (res.status === 404) { stopRunProgress(runId); return null }
+    const body = (await res.json().catch(() => null)) as { live?: boolean; closed?: boolean } | null
     if (body && body.live === false) stopRunProgress(runId)
+    return body
   } catch (e) {
     // Telemetry: the next tick retries; bytes since then are counted again.
     console.warn('[run-progress] beat failed:', (e as Error).message)
+    return null
   }
 }
 

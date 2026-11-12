@@ -100,8 +100,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ? body.shipped
       : null;
   if (live && shipped) {
-    await closeRunShipped(id, userId, shipped);
-    return NextResponse.json({ ok: true, live: false });
+    const closed = await closeRunShipped(id, userId, shipped);
+    // `closed`: this beat closed the run, so the runner may stop the agent.
+    return NextResponse.json({ ok: true, live: false, closed: closed !== null });
   }
   if (live && blocked === RUN_BLOCKED.EXITED) {
     await closeRunAgentExited(id, userId, question ?? "its process ended");

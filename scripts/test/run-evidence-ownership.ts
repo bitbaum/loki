@@ -25,6 +25,7 @@ import {
   runReportedBranches,
 } from "@/lib/run-branches";
 import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
+import { openedDuringRun } from "@/lib/salvage-plan";
 
 let failures = 0;
 async function check(name: string, fn: () => void | Promise<void>) {
@@ -290,6 +291,36 @@ async function main() {
       /if \(evidence && !evidence\.branch && !ownerView\) \{/.test(track),
       "other views trust old evidence",
     );
+  });
+
+  // ── the runner's own "shipped" close ───────────────────────────────────
+  // A session carrying on from an earlier run sits on that run's branch; the
+  // runner took that branch's pull request as the new run's, closed the run
+  // Done with it, and stopped the shared session.
+  await check(
+    "the runner closes a run as shipped only with a pull request opened during it",
+    () => {
+      const began = Date.parse("2026-11-12T03:50:00Z");
+      assert(!openedDuringRun("2026-11-12T03:10:00Z", began), "an earlier run's pull request");
+      assert(openedDuringRun("2026-11-12T03:55:00Z", began), "the run's own");
+      assert(openedDuringRun("2026-11-12T03:49:30Z", began), "a little clock difference");
+      assert(!openedDuringRun(undefined, began), "unknown counts as earlier");
+      const src = read("desktop/src/main/run-progress.ts");
+      assert(
+        /findShippedPr\(t\.tab, t\.dir, t\.startedAt\)/.test(src),
+        "the run's start is not passed",
+      );
+    },
+  );
+
+  await check("the runner stops the agent only when the server closed this run", () => {
+    const src = read("desktop/src/main/run-progress.ts");
+    assert(
+      /if \(answer\?\.closed === true\) \{\s*await terminatePty/.test(src),
+      "the session is stopped whatever the server answered",
+    );
+    const route = read("src/app/api/control/runs/[id]/progress/route.ts");
+    assert(/closed: closed !== null/.test(route), "the server does not say it closed the run");
   });
 
   if (failures) {
