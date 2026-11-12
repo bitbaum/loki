@@ -13,6 +13,7 @@
  * live workspace has no agent; inject fails loudly and the cloud dispatches a
  * cold start instead. There is no zellij path to fall back to.
  */
+import fs from "fs";
 import { executor } from "@/lib/agent-execution";
 import { isShellTab } from "@/lib/shell-session";
 import { agentLimitRefusal } from "@/lib/agent-session-limit";
@@ -21,6 +22,7 @@ import type { AgentOption } from "@/lib/agent-registry";
 import { missingAgentReason } from "@/lib/agents/launch-check";
 import { ensureGrokWorkspaceTrusted } from "./grok-prep";
 import { fetchWorkspaceSource, repoTokenEnv } from "./workspace-source";
+import { baseProjectKey } from "@/lib/run-tab";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
 import { EXIT_SETTLE_MS, forgetTab, rememberTab } from "./tab-memory";
 import { stripReportResidue, stripTerminalReports } from "@/lib/terminal-reports";
@@ -108,7 +110,9 @@ export async function launchAgentPty(
       const { ensureBoxWorkspace, startRunBranch } = await import(
         "@/lib/agent-execution/box-workspace"
       );
-      const source = await fetchWorkspaceSource(tab);
+      // The PROJECT's repository and token: a parallel run's tab
+      // ("<project>~<run>") names no project of its own.
+      const source = await fetchWorkspaceSource(baseProjectKey(tab));
       runEnv = repoTokenEnv(source);
       effectiveDir = await ensureBoxWorkspace(tab, dir, source);
       if (opts.runId) {
@@ -116,8 +120,14 @@ export async function launchAgentPty(
         if (branch) console.log(`[box-prepare] ${tab}: run ${opts.runId} starts on ${branch}`);
       }
     } catch (e) {
-      console.error(`[box-prepare] ${tab}: ${e instanceof Error ? e.message : String(e)}`);
-      // Fall through with the requested dir; provision will surface the failure.
+      const reason = e instanceof Error ? e.message : String(e);
+      console.error(`[box-prepare] ${tab}: ${reason}`);
+      // A directory that is not on this builder is another machine's path.
+      // Handing it on used to end as "Sandbox cwd does not exist:
+      // /home/g/dev/<project>", which names the laptop and hides the cause.
+      if (!effectiveDir || !fs.existsSync(effectiveDir)) {
+        throw new Error(`no checkout of "${baseProjectKey(tab)}" on this builder: ${reason}`);
+      }
     }
   }
   // Unattended-launch prep for claude on EVERY runner (not just the box):

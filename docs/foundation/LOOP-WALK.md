@@ -80,7 +80,9 @@ at `POST /api/agent-tokens` with its own session. Any seat may file.
    `{id, source, state, label, cause, reason, nextAction}` for a report it filed
    (on Needs you the reason and next step are never empty: a filed, unstarted
    report is `awaiting_implement`, "nothing to do, the owner decides"; no
-   request, no evidence); another seat's report is
+   request, no evidence; a closed report, `closed_without_change` or
+   `done_unproven`, says nobody is acting on it: `nextAction.kind` is `none`,
+   so stop polling); another seat's report is
    `404`. Owner and editor seats get the whole status: `cause`, `reason`,
    `nextAction` (with the exact `request` when there is one) and `evidence`.
 4. **Read the state.** `state` is one of `queued starting working needs_you

@@ -132,8 +132,28 @@ export type SeatStatus = Pick<CanonicalStatus, "state" | "label" | "reason"> & {
 const SEAT_CAUSES: ReadonlySet<CanonicalCause> = new Set([
   CANONICAL_CAUSE.AWAITING_IMPLEMENT,
   CANONICAL_CAUSE.CLOSED_WITHOUT_CHANGE,
+  CANONICAL_CAUSE.DONE_UNPROVEN,
   CANONICAL_CAUSE.CONFIRMED,
 ]);
+
+/**
+ * The report is closed (archived, or marked done without proof on record):
+ * nobody is going to act on it, so a seat is never told the owner "has to act"
+ * or to poll again. What it can still do is its own: look, and file anew.
+ */
+const SEAT_CLOSED: Partial<Record<CanonicalCause, { reason: string; label: string }>> = {
+  [CANONICAL_CAUSE.CLOSED_WITHOUT_CHANGE]: {
+    reason: "The report was closed and no change was made for it.",
+    label:
+      "Nothing is pending: the report is closed and nobody is working on it. File a new report if the problem is still there.",
+  },
+  [CANONICAL_CAUSE.DONE_UNPROVEN]: {
+    reason:
+      "The report was closed as done, but no change reaching the live site is on record for it.",
+    label:
+      "Nothing is pending: the report is closed. Look at the live page yourself, and file a new report if the problem is still there.",
+  },
+};
 
 export function seatStatus(full: CanonicalStatus): SeatStatus {
   const { state, label } = full;
@@ -149,6 +169,13 @@ export function seatStatus(full: CanonicalStatus): SeatStatus {
   const base = { state, label, cause };
   if (state === CANONICAL_STATE.DONE)
     return { ...base, reason: null, nextAction: { kind: "none", who: "nobody", label: "Nothing" } };
+  const closed = SEAT_CLOSED[full.cause];
+  if (closed)
+    return {
+      ...base,
+      reason: closed.reason,
+      nextAction: { kind: "none", who: "nobody", label: closed.label },
+    };
   if (state === CANONICAL_STATE.NEEDS_YOU || state === CANONICAL_STATE.FAILED) {
     const unstarted = cause === CANONICAL_CAUSE.AWAITING_IMPLEMENT;
     return {

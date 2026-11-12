@@ -241,6 +241,10 @@ export async function implementFeedback(
       projectId: row.feedback.projectId,
       allowHostedFallback: true,
       refuseOfflineQueue: true,
+      // A fix for one feedback item stands apart from whatever the project is
+      // doing: when it is busy, take a parallel lane rather than wait (a fix
+      // once waited 47 minutes behind another task, 2026-09-17).
+      whenBusy: "lane",
       // Honor user_projects.builder_pref via pickDispatchChannel — do not force cloud.
       adapter,
       sessionId: currentSession?.sessionId,

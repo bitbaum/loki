@@ -65,8 +65,7 @@ import {
   pruneWorktrees,
   worktreePromptNote,
 } from '@/lib/agent-execution/worktree-workspace'
-import { isDerivedRunTab } from '@/lib/run-tab'
-import { laneLaunchDir } from './lane-workspace'
+import { dispatchLaunchDir, laneLaunchDir } from './lane-workspace'
 import { materializeImages } from '@/lib/agent-attachments-fs'
 
 /** Commands that change the open-tab / agent set → trigger an immediate
@@ -91,6 +90,15 @@ const SESSIONS_DIR = fleetSessionsDir()
  *  the agent into its worktree, and (b) close_tab knows where to prune. Runner
  *  restart empties the map; the next dispatch re-prunes, so nothing leaks. */
 const worktreeByTab = new Map<string, { primaryDir: string; launchDir: string }>()
+
+/** This builder's own checkout of a project. The cloud builder keeps one under
+ *  its dev root and clones on demand (LOKI_BOX_PREPARE); a laptop works in the
+ *  directory it was given. Throws when the box can neither find nor clone it. */
+async function builderCheckoutDir(projectKey: string, requestedDir: string): Promise<string> {
+  if (process.env.LOKI_BOX_PREPARE !== 'true') return requestedDir
+  const { ensureBoxWorkspace } = await import('@/lib/agent-execution/box-workspace')
+  return ensureBoxWorkspace(projectKey, requestedDir, await fetchWorkspaceSource(projectKey))
+}
 
 const COMMAND_DEDUP_DIR = path.join(os.tmpdir())
 function dedupSentinelPath(commandId: string): string {
@@ -532,11 +540,7 @@ async function handleCommand(
         // A second session of a project (the terminal's "+") is a lane tab and
         // gets its own worktree — see lane-workspace.ts.
         const lane = await laneLaunchDir(tab, dir, {
-          baseDir: async (projectKey, requestedDir) => {
-            if (process.env.LOKI_BOX_PREPARE !== 'true') return requestedDir
-            const { ensureBoxWorkspace } = await import('@/lib/agent-execution/box-workspace')
-            return ensureBoxWorkspace(projectKey, requestedDir, await fetchWorkspaceSource(projectKey))
-          },
+          baseDir: builderCheckoutDir,
           worktree: (laneTab, primaryDir, runKey) => {
             pruneWorktrees(laneTab, primaryDir)
             return ensureWorktreeWorkspace(laneTab, primaryDir, runKey)
@@ -597,15 +601,31 @@ async function handleCommand(
         }
         let effDir = ptyAlreadyLive ? (worktreeByTab.get(tab)?.launchDir ?? dir) : dir
         let effPrompt = prompt
-        // Derived run-tabs ("<project>~<runId8>", same-project parallel dispatch)
-        // FORCE worktree isolation regardless of the env flag — two agents in one
-        // checkout is the incident this feature exists to kill.
-        if ((WORKTREE_DISPATCH_ENABLED || isDerivedRunTab(tab)) && runId && !ptyAlreadyLive) {
-          pruneWorktrees(tab, dir) // sweep clean leftovers before adding one
-          effDir = ensureWorktreeWorkspace(tab, dir, runId)
-          if (effDir !== dir) effPrompt = `${worktreePromptNote(runId)}\n\n${prompt}`
+        let primaryDir = worktreeByTab.get(tab)?.primaryDir ?? dir
+        // A fresh launch runs in THIS builder's checkout of the project, found
+        // by project name — never in the path another machine registered — and
+        // a derived run-tab ("<project>~<runId8>", same-project parallel
+        // dispatch) FORCES a worktree of it regardless of the env flag: two
+        // agents in one checkout is the incident this feature exists to kill.
+        // See dispatchLaunchDir for the order and why it refuses.
+        if (!ptyAlreadyLive) {
+          const placed = await dispatchLaunchDir(tab, dir, runId, {
+            baseDir: builderCheckoutDir,
+            worktree: (laneTab, base, runKey) => {
+              pruneWorktrees(laneTab, base) // sweep clean leftovers before adding one
+              return ensureWorktreeWorkspace(laneTab, base, runKey)
+            },
+            worktreeEveryRun: WORKTREE_DISPATCH_ENABLED,
+          })
+          if (placed.kind === 'refused') {
+            error = placed.error
+            break
+          }
+          effDir = placed.dir
+          primaryDir = placed.primaryDir
+          if (placed.isolated && runId) effPrompt = `${worktreePromptNote(runId)}\n\n${prompt}`
         }
-        worktreeByTab.set(tab, { primaryDir: dir, launchDir: effDir })
+        worktreeByTab.set(tab, { primaryDir, launchDir: effDir })
         // A workspace that is not on this machine cannot be worked on here.
         // The box clones on demand (LOKI_BOX_PREPARE); a laptop runner
         // does not, and launching claude in a directory that does not exist
