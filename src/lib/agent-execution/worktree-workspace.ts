@@ -16,7 +16,8 @@
  *
  *   primary checkout        <dir>                    (human's / never dispatched-into)
  *   worktree per dispatch   ~/.loki/worktrees/<tab>/<runId>
- *   branch per dispatch     fc/<runId>  (from the primary's current HEAD)
+ *   branch per dispatch     fc/<runId>  (from the primary's current HEAD; a
+ *                           lane tab from the remote default branch)
  *
  * Untracked essentials (node_modules, .env*) are symlinked from the primary so
  * the agent can build/test immediately — a bare worktree without deps would
@@ -27,6 +28,7 @@
  * never destroyed. `pruneWorktrees` sweeps stale clean ones (crashed runs).
  */
 import { sanitizeRunKey, worktreeBranchName } from "@/lib/run-branches";
+import { isDerivedRunTab } from "@/lib/run-tab";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -118,7 +120,8 @@ function linkArtifacts(primaryDir: string, wtDir: string): void {
 /**
  * Resolve the effective working dir for a dispatch: an isolated worktree at
  * ~/.loki/worktrees/<tab>/<runId> on branch fc/<runId>, created from the
- * primary checkout's current HEAD.
+ * primary checkout's current HEAD — except for a lane tab (`<project>~<run>`),
+ * which starts from the remote default branch (laneBaseRef).
  *
  * Graceful degradation: any failure (not a git repo, git missing, disk full)
  * logs and returns the primary dir — the dispatch proceeds exactly as before
@@ -141,15 +144,64 @@ export function ensureWorktreeWorkspace(tab: string, primaryDir: string, runId: 
     const branch = worktreeBranch(runId);
     // -B: a crashed earlier attempt may have left the branch without a
     // worktree; reuse it rather than failing the launch.
-    git(primaryDir, ["worktree", "add", "-B", branch, wtDir, "HEAD"], 120_000);
+    const base = isDerivedRunTab(tab) ? laneBaseRef(primaryDir) : "HEAD";
+    git(primaryDir, ["worktree", "add", "-B", branch, wtDir, base], 120_000);
     linkArtifacts(primaryDir, wtDir);
-    console.log(`[worktree] ${tab}: dispatch runs in ${wtDir} (branch ${branch})`);
+    console.log(`[worktree] ${tab}: dispatch runs in ${wtDir} (branch ${branch} from ${base})`);
     return wtDir;
   } catch (e) {
     console.warn(
       `[worktree] ${tab}: falling back to primary checkout: ${e instanceof Error ? e.message : String(e)}`,
     );
     return primaryDir;
+  }
+}
+
+/**
+ * Where a lane's own branch starts: the tip of the remote default branch
+ * ("origin/main"), or HEAD when the checkout has no such ref.
+ *
+ * A lane is a run beside the project's own session, in a worktree of the same
+ * checkout. That checkout's HEAD is the shared session's run branch (the cloud
+ * builder puts every new run on `loki/run-<id8>`, box-workspace
+ * startRunBranch), so a lane cut from HEAD began with another run's unmerged
+ * commits, and its pull request carried them. A fresh one-off asked for a
+ * clean look at the project and got the other session's work instead.
+ *
+ * As fresh as the checkout's last fetch: the cloud builder fetches it just
+ * before a lane is cut (ensureBoxWorkspace).
+ */
+export function laneBaseRef(primaryDir: string): string {
+  try {
+    const ref = git(primaryDir, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+    if (ref.startsWith("origin/")) return ref;
+  } catch {
+    // origin/HEAD unset (an old clone): try the usual names.
+  }
+  for (const name of ["main", "master"]) {
+    try {
+      git(primaryDir, ["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${name}`]);
+      return `origin/${name}`;
+    } catch {
+      // not this one
+    }
+  }
+  return "HEAD";
+}
+
+/**
+ * The checkout a worktree belongs to, or null when `dir` is not a linked
+ * worktree. Lets close_tab prune a lane that was reopened after a builder
+ * restart, when the runner no longer remembers which checkout it came from.
+ */
+export function primaryCheckoutOf(dir: string): string | null {
+  try {
+    const common = git(dir, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+    const own = git(dir, ["rev-parse", "--path-format=absolute", "--git-dir"]);
+    if (!common || common === own || path.basename(common) !== ".git") return null;
+    return path.dirname(common);
+  } catch {
+    return null;
   }
 }
 

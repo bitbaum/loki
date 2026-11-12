@@ -15,12 +15,16 @@
  *   - the branch the cloud builder starts every new run on (`loki/run-<id8>`),
  *   - its worktree branch when it has a lane of its own (`fc/<runId>`),
  *   - every branch its runner reported the agent's checkout on while the run
- *     was live (the progress beat, payload.branches): a session that keeps an
- *     earlier branch, or an agent that names its own.
+ *     was live (the progress beat, payload.branches): the checkout's branch,
+ *     and the remote branch it pushes to when that is named differently.
  * The default branch is never one of them, even when the agent sat on it:
  * every merge is a push to `main`, so "a push to main while the run was
- * open" says nothing about the run. Work landed straight on main is tied to
- * its run by the commit the handoff names, not by this.
+ * open" says nothing about the run. The cost: an agent that pushes straight
+ * to main and dies without a handoff leaves no evidence a run can claim, and
+ * its run reads as a timeout.
+ *
+ * A run's window ends RUN_EVIDENCE_AFTER_FINISH_MS after it finished: the
+ * next run of the same session can keep working on its branch.
  *
  * Nothing else. A run whose runner reported no branch and that used neither
  * named branch has no live repo evidence, and its page says so rather than
@@ -53,13 +57,21 @@ export function worktreeBranchName(runId: string): string {
 /** How many reported branches a run keeps. An agent rarely uses two. */
 export const RUN_BRANCHES_MAX = 8;
 
-/** A branch name as git allows it, or null. `HEAD` is a detached checkout. */
+/**
+ * A branch name as git allows it (git check-ref-format), or null. `HEAD` is a
+ * detached checkout. Names like `feature/#412-header` or `fix+a` are legal and
+ * kept; a stricter pattern dropped them, and with them the run's own PR.
+ */
 export function cleanBranchName(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const name = value.trim().replace(/^refs\/heads\//, "");
-  if (!name || name.length > 200 || name === "HEAD") return null;
-  if (!/^[A-Za-z0-9._/-]+$/.test(name)) return null;
-  if (name.includes("..") || name.startsWith("/") || name.endsWith("/")) return null;
+  if (!name || name.length > 200 || name === "HEAD" || name === "@") return null;
+  // Control characters, space and ~ ^ : ? * [ \ are never part of a ref.
+  if (/[\x00-\x20\x7f~^:?*[\\]/.test(name)) return null;
+  if (name.includes("..") || name.includes("@{") || name.includes("//")) return null;
+  if (name.startsWith("/") || name.endsWith("/") || name.startsWith("-") || name.endsWith("."))
+    return null;
+  if (name.split("/").some((part) => part.startsWith(".") || part.endsWith(".lock"))) return null;
   return name;
 }
 
@@ -83,6 +95,30 @@ export function runBranches(run: { id: string; payload?: unknown }): string[] {
     null,
   ).filter((b) => !SHARED_BRANCHES.has(b));
   return [...new Set([runBranchName(run.id), worktreeBranchName(run.id), ...reported])];
+}
+
+/** Did this run's runner report any branch? A runner older than 0.8.66
+ *  reports none, and then only the two names Loki gives a run are known. */
+export function runReportedBranches(run: { payload?: unknown }): boolean {
+  return (
+    withReportedBranch((run.payload as { branches?: unknown } | null | undefined)?.branches, null)
+      .length > 0
+  );
+}
+
+/** A pull request may be followed and acted on for a run until this long
+ *  after the run finished: an agent's last push can land just after its
+ *  handoff closed the run. */
+export const RUN_EVIDENCE_AFTER_FINISH_MS = 15 * 60_000;
+
+/** The end of a run's evidence window, or null while it is open. Consecutive
+ *  runs of one session can share a branch, and without an end the earlier
+ *  run claimed the later run's pull request. */
+export function runEvidenceUntilMs(run: { finishedAt?: Date | string | null }): number | null {
+  if (!run.finishedAt) return null;
+  const at =
+    typeof run.finishedAt === "string" ? Date.parse(run.finishedAt) : run.finishedAt.getTime();
+  return Number.isFinite(at) ? at + RUN_EVIDENCE_AFTER_FINISH_MS : null;
 }
 
 /** Is a pull request's head branch, or a pushed ref, one of the run's own? */

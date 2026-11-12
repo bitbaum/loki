@@ -103,16 +103,57 @@ const signin = snap("solon", "working", {
 });
 const order = buildNowJobs([working, asking, signin], NOW);
 ok(order[0]?.tone === "you" && order[1]?.tone === "you", "what needs you comes first");
+const asked = order.find((j) => j.tab === "heidi");
+// Owner, 2026-11-12: the row read "Waiting for you · Waiting for your answer"
+// and never said what answer was needed.
+ok(asked?.status === "Needs you", "the state is the canonical word, once");
+ok(asked?.question === "Which logo should I use?", "then the question itself");
+ok(asked?.reply === true, "and it can be answered from the row");
 ok(
-  order.some(
-    (j) => j.title === "Which logo should I use?" && j.status === "Waiting for your answer",
-  ),
-  "a question leads with the question",
+  order.find((j) => j.tab === "solon")?.question === "Someone has to sign the agent in" &&
+    order.find((j) => j.tab === "solon")?.reply === false,
+  "a sign-in wait is named, and is not answered by typing",
 );
 ok(
-  order.some((j) => j.status === "Waiting for someone to sign in"),
-  "a sign-in wait is named",
+  order.every((j) => j.tone !== "you" || j.status === "Needs you"),
+  "no surface word but the canonical one on a row that needs you",
 );
+
+// No block reason: the agent's own next step, then the run's.
+const nextOnly = snap("evig", "awaiting_you", {
+  session: { next: "Tell me which domain to use\n  for the shop" } as ProjectState["session"],
+});
+ok(
+  buildNowJobs([nextOnly], NOW)[0]?.question === "Tell me which domain to use for the shop",
+  "the session's next, in one line",
+);
+const runNext = snap("kivvi", "awaiting_you", {
+  latestOrchestrationRun: run({
+    finishedAt: ago(2),
+    summary: { next: "Confirm the price list" } as Run["summary"],
+  }),
+});
+ok(
+  buildNowJobs([runNext], NOW)[0]?.question === "Confirm the price list",
+  "else the run's handoff next",
+);
+const bare = snap("solon2", "awaiting_you");
+ok(
+  (buildNowJobs([bare], NOW)[0]?.question ?? "").length > 0,
+  "never a bare 'Needs you' with nothing after it",
+);
+
+// A permission prompt shows what it asks; it is answered in the session.
+const perm = snap("printcraft", "working", {
+  latestOrchestrationRun: run({
+    id: "r3",
+    blocked: "permission",
+    blockedQuestion: "Run  pnpm install?",
+  }),
+});
+const permJob = buildNowJobs([perm], NOW)[0];
+ok(permJob?.question === "It asks: Run pnpm install?", "the permission it asks for");
+ok(permJob?.reply === false, "a keypress in a dialog is not a typed reply");
 
 // Idle projects are not jobs.
 ok(buildNowJobs([snap("idle", "not_running")], NOW).length === 0, "idle is not a job");

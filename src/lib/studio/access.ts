@@ -43,3 +43,36 @@ export function studioReviewOriginAllowed(request: Request, publicBaseUrl: strin
     return false;
   }
 }
+
+/**
+ * Headers for what the studio site reads WITH the reader's Loki session: who
+ * is signed in, and the owner's private list. bitbaum.orangecat.ch and
+ * loki.orangecat.ch are one site, so the page's `credentials: "include"`
+ * fetch carries the session cookie; only that one origin may read the answer.
+ *
+ * The origin is named, never echoed and never "*": a wildcard cannot carry
+ * credentials, and an echo would hand the answer to every sibling subdomain
+ * (a customer preview, another product). GET only: these routes change
+ * nothing, so there is nothing for a forged request to do.
+ */
+export const STUDIO_SESSION_HEADERS = {
+  "Access-Control-Allow-Origin": COMMISSION.studioOrigin,
+  "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Cache-Control": "no-store",
+  Vary: "Origin, Cookie",
+} as const;
+
+/**
+ * A page of the studio site to send someone back to, from a `to` in a link.
+ *
+ * Only a path, only in the shape the static site serves (lowercase directory
+ * names, a trailing slash), and always on the studio's own origin: never a
+ * host, a scheme, a "//" or a backslash, so the return cannot be turned into
+ * a redirect to somewhere else. Anything that does not fit is the home page.
+ */
+export function studioReturnUrl(to: string | null | undefined): string {
+  const path =
+    typeof to === "string" && /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\/){0,4}$/.test(to) ? to : "/";
+  return `${COMMISSION.studioOrigin}${path}`;
+}

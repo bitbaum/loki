@@ -130,6 +130,9 @@ export async function retryProjectRun(
       allowHostedFallback: false,
       customPrompt: prompt,
       adapter: resolveImplementAdapter(agent),
+      // A one-off is retried as a one-off. Without this the retry was an
+      // ordinary message: typed into the shared session, or queued for it.
+      ...(run.payload?.oneOff === true ? { session: "fresh" as const } : {}),
     },
     userId,
   );

@@ -114,6 +114,9 @@ export type OrchestrationRunPayload = {
   lastProgressAt?: string;
   /** Why a quiet agent is quiet, when the runner could tell ("auth"). */
   blocked?: string | null;
+  /** With `blocked`: the agent's question, or why it stopped, as the runner
+   *  read it off the screen (stampRunProgress). */
+  blockedQuestion?: string | null;
   /** What the agent was doing at the last beat that could read its log
    *  (lib/run-step) — the line a Control job card shows. */
   lastStep?: { text: string; at: string };
