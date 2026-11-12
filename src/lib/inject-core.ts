@@ -1051,6 +1051,22 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
     !lifecycleIntent &&
     (await isProjectBusy(userId, canonical, { excludeRunId: runId }).catch(() => false));
 
+  // The queue holds a busy project's dispatch back by its run: the claim gate
+  // releases it once it is the oldest open run (fifoEligibilitySql). A row
+  // with no run has nothing to hold it by and is claimable at once, so a
+  // message whose run could not be recorded would be typed into the session
+  // it was meant to wait for. Refuse it instead; nothing was sent.
+  if (projectBusy && trackableIntent && !runId) {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        error: `${canonical} is busy, and Loki could not record this request, so it cannot wait its turn. Nothing was sent; send it again in a moment.`,
+        code: "run-not-recorded",
+      },
+    };
+  }
+
   // Name the builder that will run this. A command with no channel is claimable
   // by EVERY runner at once, so leaving it open is a race the always-on box
   // loses to whatever desktop is polling — and closing the lid then kills the
