@@ -26,6 +26,7 @@ import {
 } from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
 import { closeRunSuperseded, olderOpenRunSql } from "./orchestration-runs";
+import { releaseQuietLanes } from "./quiet-lane";
 import { dispatchSupersededReason } from "@/lib/dispatch-superseded";
 import { requireNotDemo } from "@/lib/demo-guard";
 import type { BrowserTaskPayload } from "@/config/browser-tasks";
@@ -757,6 +758,11 @@ export async function claimNextPendingCommand(
   await reclaimStalePendingCommands(userIds);
   await retireSupersededDispatches(userIds).catch((e) =>
     console.error("[pending-commands] retire superseded failed:", e),
+  );
+  // Before the gate reads the lane: a message waiting behind a run whose
+  // agent has gone silent takes its turn now (lib/orchestration/quiet-lane).
+  await releaseQuietLanes(userIds).catch((e) =>
+    console.error("[pending-commands] release quiet lanes failed:", e),
   );
   const userFilter =
     userIds.length === 1

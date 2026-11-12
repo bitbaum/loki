@@ -97,9 +97,15 @@ export function laneLifeFloorSql(alias: RunAlias) {
  * identity as SQL, because the gate reads it out of a command payload while
  * the reaper and the lookup read it off the run row.
  */
-export function olderOpenRunSql(ownTuple: SQL, userId: SQL, projectKey: SQL) {
+export function olderOpenRunSql(
+  ownTuple: SQL,
+  userId: SQL,
+  projectKey: SQL,
+  /** What to read off each holder; the rule itself is the WHERE. */
+  select: SQL = sql`1`,
+) {
   return sql`
-      SELECT 1 FROM orchestration_runs r
+      SELECT ${select} FROM orchestration_runs r
       WHERE r.user_id = ${userId}
         AND r.project_key = ${projectKey}
         AND r.finished_at IS NULL
@@ -112,7 +118,9 @@ export function olderOpenRunSql(ownTuple: SQL, userId: SQL, projectKey: SQL) {
         -- it must keep blocking until the run CLOSES (finished_at). Releasing
         -- on ack (executed_at), or on a timer shorter than the reaper's, is
         -- the documented merged-sessions regression: dispatch B's prompt typed
-        -- into A's still-working PTY.
+        -- into A's still-working PTY. A run whose agent has gone SILENT with a
+        -- message waiting is closed first, by its own rule and from the
+        -- runner's beats, not by a clock here (lib/orchestration/quiet-lane).
         AND EXISTS (
           SELECT 1 FROM pending_commands pc
           WHERE pc.user_id = r.user_id
@@ -527,7 +535,7 @@ export async function getRunsByIdsForReporter(ids: string[]) {
  *  evidence the agent worked. Shared by every janitor that closes a run it did
  *  not see finish (the time reaper, the runner-restart close), so they cannot
  *  disagree about what counts as work. */
-function handoffAfterRunStartSql() {
+export function handoffAfterRunStartSql() {
   const effectiveStart = runLifeStartSql("orchestration_runs");
   return sql`EXISTS (
     SELECT 1 FROM project_states ps

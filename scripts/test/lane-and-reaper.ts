@@ -276,6 +276,143 @@ async function main(): Promise<number> {
     },
   );
 
+  // ── a silent run does not hold its project against a waiting message ──────
+  // lib/orchestration/quiet-lane. Production, 2026-11-12: messages to `loki`
+  // and `orangecat` sat 25 to 35 minutes behind a run whose agent was idle at
+  // its prompt, sheltered by the project's heartbeat for up to MAX_RUN_HOURS.
+  async function setPayload(runId: string, key: string, value: ReturnType<typeof sql>) {
+    await db.execute(sql`
+      UPDATE orchestration_runs
+         SET payload = jsonb_set(payload, ARRAY[${key}]::text[], ${value})
+       WHERE id = ${runId}`);
+  }
+  async function payloadOf(runId: string) {
+    const [row] = await db.execute<{ payload: Record<string, unknown> }>(
+      sql`SELECT payload FROM orchestration_runs WHERE id = ${runId}`,
+    );
+    return row!.payload;
+  }
+  const minsAgo = (n: number) => sql`to_jsonb(NOW() - make_interval(mins => ${n}))`;
+
+  await check("a silent run gives its lane to a waiting message, on the second look", async () => {
+    const user = await newUser("quiet");
+    // Delivered 90 min ago, printed for 50, silent for 40. No handoff, no PR.
+    const a = await openRun({
+      user,
+      key: "quiet",
+      createdAgo: 95,
+      deliveredAgo: 90,
+      lastOutputAgo: 40,
+      command: "executed",
+    });
+    const b = await openRun({ user, key: "quiet", createdAgo: 10, command: "waiting" });
+
+    const first = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(first === null, "the first look only notes the silence; nothing is claimed yet");
+    assert((await runRow(a.runId)).finished_at === null, "A was closed on the first look");
+    assert(
+      typeof (await payloadOf(a.runId)).quietSeenAt === "string",
+      "the first look must note when A was seen silent",
+    );
+
+    // The confirmation window passes with A still silent.
+    await setPayload(a.runId, "quietSeenAt", minsAgo(2));
+    const second = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(second?.id === b.commandId, "B must be claimed in the request that closed A");
+
+    const ra = await runRow(a.runId);
+    assert(ra.outcome === "timeout", `A closed as ${ra.outcome}; no handoff means timeout`);
+    const endAgo = Number(ra.finished_mins_ago);
+    assert(
+      endAgo >= 39 && endAgo <= 41,
+      `A's end is ${endAgo.toFixed(1)} min ago; it ended when it last printed (40 min ago)`,
+    );
+    const error = String((await payloadOf(a.runId)).error ?? "");
+    assert(/printed nothing for 40 minutes/.test(error), `A's reason reads: ${error}`);
+    assert(
+      (await isProjectBusy(user, "quiet", { excludeRunId: b.runId })) === false,
+      "with A closed nothing is ahead of B",
+    );
+  });
+
+  await check("a run whose agent is printing keeps its lane, at any age", async () => {
+    const user = await newUser("loud");
+    const a = await openRun({
+      user,
+      key: "loud",
+      createdAgo: 11 * 60 + 5,
+      deliveredAgo: 11 * 60,
+      lastOutputAgo: 1,
+      command: "executed",
+    });
+    await openRun({ user, key: "loud", createdAgo: 30, command: "waiting" });
+    for (let look = 0; look < 2; look++) {
+      const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+      assert(claimed === null, `look ${look + 1}: the message was typed into a working session`);
+    }
+    assert((await runRow(a.runId)).finished_at === null, "a working run was closed");
+    assert((await payloadOf(a.runId)).quietSeenAt === undefined, "a working run was noted silent");
+  });
+
+  await check("a beat between the two looks keeps the run", async () => {
+    const user = await newUser("woke");
+    const a = await openRun({
+      user,
+      key: "woke",
+      createdAgo: 95,
+      deliveredAgo: 90,
+      lastOutputAgo: 40,
+      command: "executed",
+    });
+    await openRun({ user, key: "woke", createdAgo: 10, command: "waiting" });
+    await claimNextPendingCommand([user], ["dispatch"], "local");
+    // Noted silent two minutes ago, and the runner has beaten since.
+    await setPayload(a.runId, "quietSeenAt", minsAgo(2));
+    await setPayload(a.runId, "lastProgressAt", minsAgo(1));
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(
+      claimed === null,
+      "the message was typed into a session that had started printing again",
+    );
+    assert((await runRow(a.runId)).finished_at === null, "a run that beat again was closed");
+  });
+
+  await check("an agent waiting for a person at an approval keeps its lane", async () => {
+    const user = await newUser("asks");
+    const a = await openRun({
+      user,
+      key: "asks",
+      createdAgo: 95,
+      deliveredAgo: 90,
+      lastOutputAgo: 40,
+      command: "executed",
+    });
+    await openRun({ user, key: "asks", createdAgo: 10, command: "waiting" });
+    await setPayload(a.runId, "blocked", sql`'"permission"'::jsonb`);
+    await setPayload(a.runId, "quietSeenAt", minsAgo(5));
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(
+      claimed === null,
+      "text typed at an approval prompt answers it instead of starting work",
+    );
+    assert((await runRow(a.runId)).finished_at === null, "a run waiting for a person was closed");
+  });
+
+  await check("a silent run nobody waits behind is left to the reaper", async () => {
+    const user = await newUser("alone");
+    const a = await openRun({
+      user,
+      key: "alone",
+      createdAgo: 50,
+      deliveredAgo: 45,
+      lastOutputAgo: 40,
+      command: "executed",
+    });
+    await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert((await runRow(a.runId)).finished_at === null, "closed with no message waiting");
+    assert((await payloadOf(a.runId)).quietSeenAt === undefined, "noted with no message waiting");
+  });
+
   // ── parallel lanes ─────────────────────────────────────────────────────────
   // A run row with no command yet — the state planParallelRun is called in.
   async function bareRun(user: string, key: string, createdAgo: number): Promise<string> {

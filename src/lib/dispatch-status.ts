@@ -3,6 +3,7 @@ import type { RunTrack } from "@/lib/run-track";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
+import { QUIET_LANE_MINUTES } from "@/lib/orchestration/quiet-lane";
 import { AGENT_LABELS } from "@/lib/agent-labels";
 import { BUILDER_UPDATING_LABEL, BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
 
@@ -31,11 +32,11 @@ export type DispatchStatusInput = {
  * What a person is told when their task waits behind the project's open run.
  * It read "a runner is online and will claim it shortly" while the task
  * could wait for hours: the claim gate holds a project's next command until
- * its older run has closed. One wording for the chat, the API answer and the
- * run's track.
+ * its older run has closed, or has gone silent for QUIET_LANE_MINUTES
+ * (orchestration/quiet-lane). One wording for the chat, the API answer and
+ * the run's track.
  */
-export const QUEUED_BEHIND_SENTENCE =
-  "This project is still on an earlier task. Yours is next in line and starts when that one ends. To start it now, open the project's session and send it there, or stop the earlier task.";
+export const QUEUED_BEHIND_SENTENCE = `This project is still on an earlier task. Yours is next in line: it starts when that one ends, or once that one has printed nothing for ${QUIET_LANE_MINUTES} minutes. To start it now, open the project's session and send it there, or stop the earlier task.`;
 
 /** The same fact as a short label under a sent task. */
 export const QUEUED_BEHIND_LABEL = "Next in line — starts when the earlier task ends";

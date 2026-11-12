@@ -72,7 +72,13 @@ signed-in browser. What it could use:
 | 10:04 | The check prints Loki's own reason (the run route's `detail`, the chat reply's words); short re-run from the branch (run 43196890919, project `loki`, 8 minutes) | 4 of 5 again, and now it says why: 'Sent **loki** to the cloud runner. This project is still on an earlier task. Yours is next in line and starts when that one ends. To start it now, open the project's session and send it there, or stop the earlier task.' That is #1663's sentence, live. The `loki` project has had an earlier run open for at least 45 minutes; whether its agent is working or idle at its prompt is not known. The journal shows automated incident dispatches (`incident-dispatch.sh`) and a sibling session's probe going to that project. |
 | 10:14 | Asked the runner/queue session whether it takes the stuck lane and the session cap | no answer yet |
 | 10:14 | Same check asked for project `orangecat` (run 43198552471, 20 minutes) | 4 of 5, and it had not reached `orangecat`: 'Sent **loki** to the cloud runner.' A project named in a message outranks the selected one, and the probe's marker was `[loki-e2e]`. So all three runs had probed the busy `loki` project. |
-| 10:38 | Routing fix and a marker that names no project, pushed to #1678; fourth run asked for `orangecat` (25 minutes) | result below when it is in |
+| 10:38 | Routing fix and a marker that names no project, pushed to #1678; fourth run asked for `orangecat` (run 43202154115, 25 minutes) | 4 of 5, and this time it reached the project: 'Sent **orangecat** to the cloud runner. This project is still on an earlier task. Yours is next in line…'. Still queued after 25 minutes. |
+| 11:11 | The runner/queue session answered | it has nothing open and is not changing the gate, the close paths or the runner's launch; this session takes the stuck lane. It also flagged that `capacityFailureFromScreen` may read an agent's own tool output as a usage wall, so the three 09:06 rejections may not have been real limits. |
+| 11:14 | `sealed-builds.yml` `mode=journal` on main (run 43206767629), the hour 10:14–11:14 UTC | **The owner's own work went through Loki end to end.** 10:26:55 `claimed dispatch`, `[box-prepare] orangecat: run … starts`, the message was an addition to the bot-platform workstream; 10:29 the agent had committed `docs/PARITY.md`; 10:41 it opened bitbaum/orangecat #1664; the sweep merged it at 10:53:41. 10:41:38 the next message for `orangecat` was claimed, and 10:59:55 a third one started in a lane of its own (`orangecat~ed39e1e1`). So `orangecat` really was on earlier tasks while the fourth probe waited: the sentence it got was true. |
+| 11:14 | Same journal | That third message reports an outage: since 09:49 UTC every OrangeCat bot send answers 502 `AI_ERROR`, two minutes after the Gemini API was switched off, and asks for the bot and Cat provider chain to leave Google. An agent on the box is on it. The 09:04 rehearsal (success) was before the outage. |
+| 11:14 | Same journal | `[run-progress] beat failed: The operation was aborted due to timeout` at 10:57 and 11:03, and `[workspace-source] …: aborted due to timeout` nine times between 10:56 and 11:09: the server answered the runner slowly in that window. Not looked into. The drain read 7 then 8 agents working; they are. |
+| 11:17 | OrangeCat `live-rehearsal.yml` started again, to see whether bots answer now | result below when it is in |
+| 11:20 | Change 5 written and tested (below) | `scripts/test/quiet-lane.ts` 14 checks; `scripts/test/lane-and-reaper.ts` 13 of 13 against a local Postgres 16 with pgvector, migrated with `drizzle-kit push` as CI does |
 | 09:40 | The drain reads "8 agent(s) working" | eight is the cap on open agent sessions (`src/lib/agent-session-limit.ts`); the drain's clock restarted at 09:11, 09:22, 09:29 and 09:34 with each deploy |
 | 06:31 | OrangeCat `cat-diagnostics.yml` (read-only) | no Cat failure logged in the last hour |
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
@@ -110,6 +116,50 @@ What it does not do: make the restart land. The drain still counts every
 sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
+
+## Change 5 (Loki): a silent run gives its project to the waiting message
+
+A project's shared session takes one message at a time; the claim gate holds
+the next one until the run ahead has closed. A run closes when its agent
+reports (a handoff, a pull request). An agent that ended its turn without
+reporting still has a process at its prompt, and the reaper shelters a run
+with a live process for up to `MAX_RUN_HOURS` (12). So the next message could
+wait twelve hours behind a session doing nothing, with "Next in line" on the
+screen the whole time.
+
+- `src/lib/orchestration/quiet-lane.ts`: the rule, pure. The runner beats
+  while the terminal prints and while the agent waits at a sign-in or an
+  approval. No beat for 20 minutes (twice the window after which every
+  surface already says Stalled), not waiting for a person, no command
+  outstanding, and still so 90 seconds after it was first seen: release. The
+  second look is there because a runner that lost its connection cannot beat,
+  and its first request back may be the claim.
+- `src/db/queries/quiet-lane.ts`: gathers those facts for the run at the head
+  of each lane a message waits in (through `olderOpenRunSql`, the gate's own
+  definition) and closes it: `partial` with the handoff note when the project
+  pushed a handoff, else `timeout` with "The agent printed nothing for N
+  minutes and did not report back, so this run was ended and the next message
+  for the project started." The end time is the last beat. No escalation.
+- `claimNextPendingCommand` calls it before the gate, so the waiting message
+  is claimed in the request that closed the run.
+- The sentence a person reads while waiting now carries the bound: "…it
+  starts when that one ends, or once that one has printed nothing for 20
+  minutes."
+
+What it does not do: release a working agent. A working agent prints, so its
+beat is seconds old at any age. Nothing is closed when nobody is waiting.
+
+Tests: `scripts/test/quiet-lane.ts` (the rule), and five scenarios in
+`scripts/test/lane-and-reaper.ts` against a real Postgres (released on the
+second look and claimed at once; a printing run keeps its lane at eleven
+hours; a beat between the two looks keeps it; an approval prompt keeps it;
+nothing happens with nobody waiting). To run the second one locally:
+`pg_ctlcluster 16 main start`, `apt-get install postgresql-16-pgvector`,
+create a database, `CREATE EXTENSION vector`, `DATABASE_URL=… npx drizzle-kit
+push --force`, then `TEST_DATABASE_URL=… npx tsx scripts/test/lane-and-reaper.ts`.
+
+Not proven on the live site yet: it needs a project whose earlier run has
+gone silent while a message waits.
 
 ## Change 4 (Loki): the on-demand check can sign in (#1678)
 
@@ -224,7 +274,13 @@ only, plus one prompt line the runner reads at its next start; no file under
 3. **The drain's rule** for sealed sessions is change 3. Still to measure:
    what a working sealed session relays, and whether unsealed agents that are
    not Claude can be told idle the same way.
-4. **The session cap**: a ninth dispatch is accepted and then refused.
+4. **The session cap**: a ninth dispatch is accepted and then refused with
+   "8 agent sessions are already open on the cloud builder… Close one you are
+   not using, then try again." Nobody has taken this. The way forward that
+   fits a phone: at the cap, Loki closes the session that has been idle
+   longest (no open run, quiet at its prompt) and starts the new one. It is
+   runner code (`desktop/src/main/pty-runtime.ts`), so it lands only with a
+   runner restart.
 5. **"Create project X and build it"** from the chat queues a command no
    runner can start; it should start the kickoff.
 6. The project composer for an idle project (`/api/control/tab-inject`) does
@@ -256,6 +312,11 @@ only, plus one prompt line the runner reads at its next start; no file under
   four minutes each. This exercises a new person's bots, not a bot working in
   its owner's Loki (#1615, which needs an account linked to a Loki account
   that has projects).
+- 09:49 UTC onward: the journal on the box carries a dispatched task saying
+  every bot send answers 502 `AI_ERROR` since the Gemini API was switched
+  off, with an agent working on moving the provider chain off Google
+  (`orangecat~ed39e1e1`, claimed 10:59:55 UTC). `live-rehearsal.yml` was
+  started again at 11:17 UTC to read the state from outside.
 - What is not proven on the live site: a bot of a Loki-linked person sending
   a task, following the run and reporting the agent's answer.
 - A bot's task to Loki rides the same queue as the chat, so change 1 is a
@@ -304,11 +365,15 @@ Every runner change must bump `desktop/package.json` and prepend to `src/config/
 
 ## Next action
 
-1. Open the pull request for change 1, follow it through the sweep and the
-   deploy, then prove it on production: `loki-loop-check.yml` with
-   `dispatch=true`, and `sealed-builds.yml` `mode=journal` to see a
-   `claimed dispatch` line.
-2. `sealed-builds.yml` `mode=activity`, then the drain's rule.
-3. Journey B: read the bot's Loki tools against Loki's merged endpoints, run
-   OrangeCat's `live-rehearsal.yml` / `cat-diagnostics.yml`, fix what stops a
-   bot from sending a task and reading it back.
+1. Get change 5 through CI and the sweep (it rides #1678 if that is still
+   open, else a new pull request from a branch restarted on main), then
+   watch the deploy.
+2. Read the 11:17 `live-rehearsal.yml` run on bitbaum/orangecat. If bots
+   still answer 502, look at what the agent in `orangecat~ed39e1e1` opened
+   before writing anything: do not write a second fix for the same outage.
+3. Prove the loop with a probe on a project that is idle and already has a
+   session, or wait for `orangecat` to be free:
+   `loki-loop-check.yml`, `dispatch=true`, `project=<key>`, `minutes=25`.
+   The owner's own task of 10:26 UTC (orangecat #1664, merged 10:53) is the
+   loop working; the probe is the repeatable proof.
+4. Report to the owner with full addresses and exact taps.
