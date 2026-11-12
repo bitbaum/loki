@@ -112,6 +112,8 @@ export type OrchestrationRunPayload = {
   kitPlan?: KitRunRecord;
   /** The runner's last progress beat (stampRunProgress, lib/run-progress). */
   lastProgressAt?: string;
+  /** A project member who drove the owner's session by the owner's grant (lib/session-drive). */
+  drivenBy?: string;
   /** Why a quiet agent is quiet, when the runner could tell ("auth"). */
   blocked?: string | null;
   /** What the agent was doing at the last beat that could read its log

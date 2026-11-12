@@ -7,6 +7,7 @@ import path from "path";
 import { SESSIONS_DIR } from "@/lib/agent-config";
 import { parseSessionFile } from "@/lib/session-content";
 import { getApiUserId } from "@/lib/session";
+import { resolveDriveTarget } from "@/db/queries/session-drive";
 
 // readFileSync has no Next.js dynamic signal — force dynamic so middleware runs.
 export const dynamic = "force-dynamic";
@@ -63,9 +64,13 @@ export async function GET(req: NextRequest) {
   // a project this account owns, and only where the server's files can be
   // this account's at all: its own machine, or an account the box builds for.
   // Until 2026-10-17 any account could read any handoff by guessing a name.
+  // A member reads the handoff of the one project whose session its owner
+  // lets it drive (lib/session-drive.ts), as that owner.
+  const target = await resolveDriveTarget(userId, project).catch(() => null);
+  const readerId = target?.kind === "granted" ? target.ownerId : userId;
   const [mayReadBox, projects] = await Promise.all([
-    isRuntimeAvailable() ? Promise.resolve(true) : isFleetInfrastructureAllowed(userId),
-    getUserProjects(userId).catch(() => []),
+    isRuntimeAvailable() ? Promise.resolve(true) : isFleetInfrastructureAllowed(readerId),
+    getUserProjects(readerId).catch(() => []),
   ]);
   const normalize = (s: string) => s.toLowerCase().replace(/[-_\s]/g, "");
   if (!mayReadBox || !projects.some((p) => normalize(p.name) === normalize(project))) {

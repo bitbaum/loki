@@ -12,6 +12,7 @@ import {
   listProjectMembers,
   removeProjectMember,
   revokeProjectInvitation,
+  setMemberDrivesSession,
   upsertProjectMember,
 } from "@/db/queries/project-access";
 import { jsonError, jsonOk, readIdParam, readJsonBody, z } from "@/lib/api/route-helpers";
@@ -31,6 +32,8 @@ const AddBody = z.object({
     .or(z.literal("").transform(() => undefined)),
   role: z.enum(PROJECT_ROLE_VALUES).default("viewer"),
 });
+// The owner lets a member drive the project's own session (lib/session-drive.ts).
+const PatchBody = z.object({ userId: z.string().uuid(), drivesSession: z.boolean() });
 const DeleteBody = z.union([
   z.object({ userId: z.string().uuid() }),
   z.object({ invitationId: z.string().uuid() }),
@@ -196,4 +199,22 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if ("invitationId" in body)
     return jsonOk({ revoked: await revokeProjectInvitation(result.id, body.invitationId) });
   return jsonOk({ removed: await removeProjectMember(result.id, body.userId) });
+}
+
+/**
+ * PATCH { userId, drivesSession } — the owner lets a member drive this
+ * project's own agent session on the owner's builder, or takes it back. A
+ * signed-in owner only: it is the owner agreeing to pay for that member's
+ * requests (docs/architecture/private-builders.md).
+ */
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const result = await ownerAccess(params);
+  if ("error" in result) return result.error;
+  if (!result.access.canManageMembers)
+    return jsonError("Only the project owner can manage who has access", 403);
+  const body = await readJsonBody(req, PatchBody);
+  if (body instanceof NextResponse) return body;
+  const updated = await setMemberDrivesSession(result.id, body.userId, body.drivesSession);
+  if (!updated) return jsonError("Not a member of this project", 404);
+  return jsonOk({ userId: body.userId, drivesSession: body.drivesSession });
 }
