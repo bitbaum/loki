@@ -18,5 +18,9 @@ q "select coalesce(nullif(application_name,''),'(none)'), coalesce(datname,'-'),
 if [ "$MODE" = "reap" ]; then
   echo "=== reaping client backends idle > ${IDLE_MIN} min"
   q "select coalesce(datname,'-'), count(*) filter (where pg_terminate_backend(pid)) from pg_stat_activity where backend_type='client backend' and state='idle' and usename <> 'postgres' and now()-state_change > interval '${IDLE_MIN} minutes' group by 1 order by 2 desc"
+  # Guard until Loki's pool is bounded in code: the server closes a loki
+  # session idle for 15 minutes (postgres.js reconnects on the next query).
+  echo "=== loki role idle_session_timeout"
+  q "alter role loki set idle_session_timeout = '15min'" && q "select rolname, rolconfig from pg_roles where rolname='loki'"
   echo "=== total after"; q "select count(*) from pg_stat_activity where backend_type='client backend'"
 fi
