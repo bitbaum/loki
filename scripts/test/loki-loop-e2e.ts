@@ -16,7 +16,7 @@
  *
  * Every check prints PASS/FAIL with the evidence; the exit code is the verdict.
  * A dispatch that never returns is aborted (user_abort) so a test never leaves
- * a run hanging in the operator's queue; its prompt carries the [loki-e2e]
+ * a run hanging in the operator's queue; its prompt carries the [e2e-probe]
  * marker so it is recognisable in the ledger.
  *
  *   LOKI_AGENT_TOKEN=ck_… npx tsx scripts/test/loki-loop-e2e.ts [--dispatch]
@@ -45,7 +45,14 @@ const DISPATCH = process.argv.includes("--dispatch");
  * check must outlast the slowest healthy path it exercises.
  */
 const DISPATCH_MINUTES = Number(process.env.E2E_DISPATCH_MINUTES ?? 30);
-const MARKER = "[loki-e2e]";
+/**
+ * It was "[loki-e2e]". A project named in a message outranks the selected
+ * one (lib/project-mention, on purpose), and "loki" is a project: every probe
+ * went to the loki project whatever E2E_PROJECT said, and on 2026-11-12 three
+ * runs in a row waited behind that project's open run while this file
+ * reported on a project it had never reached. The marker names no project.
+ */
+const MARKER = "[e2e-probe]";
 /** The handoff summary the probe asks for, and the proof that it came back. */
 const PROBE_SUMMARY = "e2e ok — no changes";
 
@@ -309,6 +316,18 @@ async function checkClosesTheLoop() {
   // What Loki told the person who sent it, and what the run says of itself a
   // moment later: both are the product's own words, and both say why when a
   // task is not about to start.
+  // The task has to have gone where it was sent, or everything after this
+  // line reports on another project.
+  const went = String(dispatch?.meta?.projectKey ?? "");
+  if (went && went.toLowerCase() !== PROJECT.toLowerCase()) {
+    await abortRun(runId, `sent to ${PROJECT}, dispatched to ${went}`);
+    record(
+      "closes the loop: dispatch accepted",
+      false,
+      `asked for project ${PROJECT}, Loki dispatched to ${went}: "${(dispatch?.content ?? "").replace(/\s+/g, " ").trim().slice(0, 200)}"`,
+    );
+    return;
+  }
   const said = (dispatch?.content ?? "").replace(/\s+/g, " ").trim().slice(0, 260);
   await new Promise((r) => setTimeout(r, 15_000));
   const first = await runState(runId);

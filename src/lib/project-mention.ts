@@ -28,6 +28,8 @@
  * contains both.
  */
 
+import { APP_NAME } from "@/config/brand";
+
 /** Alphanumeric runs, lowercased. `Orange Cat!` → ["orange", "cat"]. */
 function tokenize(value: string): string[] {
   return value.toLowerCase().match(/[a-z0-9]+/g) ?? [];
@@ -56,15 +58,58 @@ export function textMentionsProject(text: string, projectName: string): boolean 
 }
 
 /**
+ * The text with every place it ADDRESSES the assistant taken out.
+ *
+ * The assistant is called Loki and so is one of the projects. A name in the
+ * text outranks the selected project (lib/loki-fleet-commands, on purpose), so
+ * "Loki, add a dark mode toggle" typed with orangecat selected is sent to
+ * the loki project: the greeting is read as the place to build. Found on
+ * 2026-11-12, when a probe sent on the live site with orangecat selected and
+ * the word "loki" in its marker came back "Sent loki to the cloud runner" and
+ * sat behind that project's open run. That was the rule working as written;
+ * an address to the assistant is the case where it should not apply.
+ *
+ * Only an address is removed: the name at the very start followed by
+ * punctuation, the name after a greeting, "@loki", and the name set off by a
+ * comma at the end. "Loki's sidebar", "in loki" and "the loki repo" still
+ * name the project, and so does a bare "Loki fix the header" — with no
+ * punctuation it cannot be told from a mention, and the old reading stands.
+ */
+const ADDRESS_GREETING =
+  "(?:hey|hi|hello|hallo|ok|okay|yo|dear|please|thanks|thank you|danke|bitte|salut|ciao)";
+export function withoutAddressTo(text: string, assistantName: string = APP_NAME): string {
+  const name = assistantName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!name) return text;
+  return (
+    text
+      // "@loki" anywhere.
+      .replace(new RegExp(`@${name}\\b`, "gi"), " ")
+      // "Hey Loki", "Thanks Loki," at the start of the message or a sentence.
+      .replace(
+        new RegExp(`(^|[.!?\\n]\\s*)${ADDRESS_GREETING}[\\s,]+${name}\\b[\\s,:;!?.—–-]*`, "gi"),
+        "$1",
+      )
+      // "Loki, …" / "Loki: …" / "Loki — …" at the start.
+      .replace(new RegExp(`^\\s*${name}\\s*[,:;!?—–]\\s*`, "i"), "")
+      // "…, Loki." at the end.
+      .replace(new RegExp(`,\\s*${name}\\s*[.!?]*\\s*$`, "i"), "")
+  );
+}
+
+/**
  * The registered project this text names, or null.
  *
  * Longest name first so a sentence mentioning both `aoz` and `aoz-begleitung`
  * resolves to the more specific one rather than whichever the caller listed
  * first — list order is a registry accident, not operator intent.
+ *
+ * An address to the assistant ("Loki, …") is not a mention of the project
+ * that shares its name (withoutAddressTo).
  */
 export function projectMentionedIn(text: string, projectNames: string[]): string | null {
+  const said = withoutAddressTo(text);
   const ranked = [...projectNames].sort((a, b) => squash(b).length - squash(a).length);
-  return ranked.find((name) => textMentionsProject(text, name)) ?? null;
+  return ranked.find((name) => textMentionsProject(said, name)) ?? null;
 }
 
 /**

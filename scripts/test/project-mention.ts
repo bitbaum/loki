@@ -24,6 +24,7 @@ import {
   projectMentionedIn,
   resolveProjectFromContext,
   textMentionsProject,
+  withoutAddressTo,
   unknownProjectMention,
 } from "@/lib/project-mention";
 import { looksLikeDispatchTask } from "@/lib/command-resolve";
@@ -223,5 +224,50 @@ eq(
 );
 eq(projectShownInScreenshot(analysis("unknown"), SITES), null, "unknown stays unknown");
 eq(projectShownInScreenshot("", SITES), null, "no analysis, no guess");
+
+// ── An address to the assistant is not a mention of the loki project ────────
+// The assistant is called Loki and so is a project, and a name in the text
+// outranks the selected project. So "Loki, add a dark mode toggle" typed with
+// orangecat selected was sent to the loki project (found 2026-11-12).
+{
+  const names = ["loki", "orangecat", "solon"];
+  for (const said of [
+    "Loki, add a dark mode toggle to the profile page",
+    "Hey Loki, add a dark mode toggle",
+    "hi loki can you fix the header",
+    "@loki fix the header",
+    "Fix the header on the profile page, Loki.",
+    "Thanks Loki! Now do the footer.",
+    "Loki: the footer overlaps on a phone",
+    "Great. Thanks Loki, now the footer too",
+  ]) {
+    eq(projectMentionedIn(said, names), null, `an address names no project: "${said}"`);
+    eq(
+      resolveFleetCommandProjectKey(said, "orangecat", names),
+      "orangecat",
+      `so the selected project takes it: "${said}"`,
+    );
+  }
+  // Still a mention: the project is what the sentence is about.
+  for (const said of [
+    "Loki's sidebar is broken",
+    "fix the sidebar in loki",
+    "the loki repo needs a lockfile bump",
+    "Loki fix the header",
+    "Loki, fix loki's sidebar",
+    "Hey Loki, the loki project has a red check",
+  ])
+    eq(projectMentionedIn(said, names), "loki", `the project is still named: "${said}"`);
+  // An address, and another project named after it.
+  eq(
+    projectMentionedIn("Hey Loki, what is left to do on Orange Cat?", names),
+    "orangecat",
+    "the address is dropped and the named project is found",
+  );
+  // Only the assistant's own name is an address; another project's name is not.
+  eq(projectMentionedIn("Solon, add a quorum rule", names), "solon", "another name is a mention");
+  eq(withoutAddressTo("Hey Loki, fix it"), "fix it", "the address is taken out, the rest is left");
+  eq(withoutAddressTo("no address here"), "no address here", "text with no address is untouched");
+}
 
 console.log(`\n${passed}/${passed} project-mention cases passed`);
