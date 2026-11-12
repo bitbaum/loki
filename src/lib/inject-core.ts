@@ -59,6 +59,7 @@ import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { findInjectProject } from "@/lib/inject-project";
+import type { WhenBusy } from "@/lib/orchestration/busy-placement";
 
 type ResolvedAdapter = (typeof ORCHESTRATION_ADAPTER_IDS)[number];
 
@@ -102,6 +103,14 @@ export type InjectParams = {
    *  A prompt carrying them is always queued for a runner — typing it straight
    *  into a live PTY would leave the placeholders unresolved. */
   attachments?: AgentImage[];
+  /**
+   * What to do when the project already has a run open. Default "queue": the
+   * message waits its turn behind that run, in the project's own session.
+   * "lane" asks for a parallel run in its own worktree when one is free
+   * (LOKI_PARALLEL_DISPATCH), for work that stands apart from the open run.
+   * See orchestration/busy-placement.ts.
+   */
+  whenBusy?: WhenBusy;
 };
 
 export type InjectResult = { status: number; body: Record<string, unknown> };
@@ -741,6 +750,7 @@ async function executeAndReport(
       // over INJECT (tab puppeting) by whether `dir` is present.
       dir: projectPath ?? coldStartWorkspaceDir(canonical, dbMatch.gitUrl),
       projectBusy,
+      whenBusy: params.whenBusy,
       ...(pinnedChannel ? { channel: pinnedChannel } : {}),
       // Lifecycle commands act on a PTY that exists on one machine; they never
       // fall through.

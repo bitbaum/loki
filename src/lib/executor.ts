@@ -13,6 +13,7 @@ import { enqueueInjectCommand, enqueueDispatchCommand } from "@/db/queries/pendi
 import type { InjectPayload, RunnerChannel } from "@/db/schema/pending-commands";
 import { resolveQueuedExecution } from "@/lib/execution-access";
 import { planParallelRun } from "@/lib/orchestration/parallel-run";
+import { busyPlacement, type WhenBusy } from "@/lib/orchestration/busy-placement";
 
 export type ExecuteResult =
   | { ok: true; mode: "direct" }
@@ -60,6 +61,11 @@ export async function executeInject(
      *  runner claims it once the project frees (claimNextPendingCommand gates on
      *  the open run). */
     projectBusy?: boolean;
+    /** What a busy project does with this dispatch: wait its turn (the
+     *  default), or take a parallel lane when one is free. Only a caller whose
+     *  work stands apart from the open run asks for a lane
+     *  (orchestration/busy-placement.ts). */
+    whenBusy?: WhenBusy;
     /** Local runtime with NO live owned PTY for this tab: there is nothing to
      *  type at, so queue (a dispatch cold-starts the agent) instead of calling
      *  injectFn. The queued row is visible in Control; a guessed terminal tab
@@ -98,13 +104,21 @@ export async function executeInject(
     // Rerouted work runs in the directory the fallback builder will clone
     // into, not the path the chosen builder had.
     const dir = decision.reroutedFrom ? (payload.offlineFallback?.dir ?? payload.dir) : payload.dir;
-    // A busy project would make this dispatch wait for the run ahead of it.
-    // When a parallel lane is free, it gets its own tab and worktree instead
-    // and starts now — the case that matters is a person pressing Implement
-    // and watching. Only for a DISPATCH (it has a dir to put a worktree in);
-    // a bare inject types into an existing session and has no lane to fork.
+    // A busy project makes this dispatch wait for the run ahead of it: the
+    // queued row keeps the project's own tab, and the runner claims it when
+    // the project frees. A caller that asked for a lane (a person pressing
+    // Implement and watching) gets its own tab and worktree instead and starts
+    // now, when one is free. Only for a DISPATCH (it has a dir to put a
+    // worktree in); a bare inject types into an existing session and has no
+    // lane to fork.
+    const placement = busyPlacement({
+      projectBusy: payload.projectBusy,
+      whenBusy: payload.whenBusy,
+      hasDir: Boolean(payload.dir),
+      hasProjectKey: Boolean(payload.projectKey),
+    });
     const plan =
-      payload.projectBusy && payload.dir && payload.projectKey
+      placement === "lane" && payload.projectKey
         ? await planParallelRun(userId, payload.runId, {
             projectKey: payload.projectKey,
             prompt: payload.prompt,
