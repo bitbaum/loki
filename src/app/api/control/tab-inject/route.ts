@@ -21,6 +21,7 @@ import { createOrchestrationRun } from "@/db/queries/orchestration-runs";
 import { createOrchestrationEvent } from "@/db/queries/orchestration-events";
 import { emitRunEvent } from "@/db/queries/run-events";
 import { injectPrompt } from "@/lib/inject-core";
+import { sessionOpenUrl } from "@/lib/dispatch-card";
 import type { UserProject } from "@/db/schema";
 
 const Body = z.object({
@@ -188,7 +189,13 @@ export async function POST(req: NextRequest) {
       promptLabel,
       delivered: true,
     });
-    return NextResponse.json({ ok: true, mode: "pty", tab, ...(runId ? { runId } : {}) });
+    return NextResponse.json({
+      ok: true,
+      mode: "pty",
+      tab,
+      openUrl: sessionOpenUrl(tab, null, runId ?? null),
+      ...(runId ? { runId } : {}),
+    });
   }
 
   // No live owned PTY here (cloud host, or local runtime with no session for
@@ -253,6 +260,7 @@ export async function POST(req: NextRequest) {
       mode: "dispatch",
       commandId,
       tab,
+      openUrl: sessionOpenUrl(tab, execution.channel ?? null, runId ?? null),
       ...(runId ? { runId } : {}),
     });
   }
@@ -272,6 +280,7 @@ export async function POST(req: NextRequest) {
     mode: "queued",
     commandId,
     tab,
+    openUrl: sessionOpenUrl(tab, execution.channel ?? null, runId ?? null),
     ...(runId ? { runId } : {}),
   });
 }
