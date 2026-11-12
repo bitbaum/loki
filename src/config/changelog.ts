@@ -39,6 +39,17 @@ export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
     notes: "",
   },
   {
+    version: "0.8.68",
+    tag: "fleet-runner-v0.8.68",
+    date: "2026-11-12T07:30:00Z",
+    highlights: [
+      "A task counts as delivered only once Claude Code's own conversation shows your request. If the agent is busy with something else, the task says so instead of reading as delivered.",
+      "The builder reports the moment a task reached the agent, so a quick task's report is matched to it.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.67",
     tag: "fleet-runner-v0.8.67",
     date: "2026-11-12T05:30:00Z",

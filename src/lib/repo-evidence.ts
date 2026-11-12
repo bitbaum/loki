@@ -34,3 +34,19 @@ export function normalizeRepoWorkEvidence(value: unknown): RepoWorkEvidence | nu
   if (typeof e.atMs !== "number" || !Number.isFinite(e.atMs)) return null;
   return { kind: e.kind, url: e.url, title: e.title, atMs: e.atMs };
 }
+
+/**
+ * The pull request a runner reported when it closed a run on it
+ * (closeRunShipped writes `payload.prUrl`: the agent's own pull request, seen
+ * at its HEAD), as evidence. Nothing read that field, so the message posted
+ * for a run that shipped could say no pull request was found. Null when the
+ * payload carries no pull request address.
+ */
+export function reportedPrEvidence(payload: unknown, atMs: number): RepoWorkEvidence | null {
+  if (!payload || typeof payload !== "object") return null;
+  const url = (payload as { prUrl?: unknown }).prUrl;
+  if (typeof url !== "string" || !/^https:\/\/[^\s/]+\/[^\s/]+\/[^\s/]+\/pull\/\d+/.test(url)) {
+    return null;
+  }
+  return { kind: "pr", url, title: "", atMs };
+}

@@ -62,3 +62,51 @@ export function containerStartFailure(raw: string): string | null {
     .trim()
     .slice(0, 240);
 }
+
+/** How much of a prompt has to be found: its opening, which is its own. */
+const PROMPT_PROBE_CHARS = 120;
+/** A transcript line written up to this long before the inject still counts:
+ *  the runner's clock and the log's timestamps can disagree a little. */
+const TRANSCRIPT_CLOCK_SLACK_MS = 5_000;
+
+const squash = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/**
+ * How Claude Code logs a paste. Measured 2026-11-12 with Claude Code 2.1.322
+ * driven like the runner drives it (bracketed paste, then Enter): the
+ * message is the pasted text inside `<pasted_content id="…">` tags. Older
+ * versions logged a `[Pasted text #1 +N lines]` placeholder instead; that is
+ * still a person's turn, written after the inject, which nobody but the
+ * runner types on a builder.
+ */
+const PASTE_TAG_RE = /<\/?pasted_content\b[^>]*>/g;
+const PASTE_PLACEHOLDER_RE = /^\[Pasted text #\d+[^\]]*\]/;
+
+/**
+ * Pure: whether the agent's own conversation log holds the prompt Loki just
+ * typed, as a message from the person, written after the inject.
+ *
+ * RUN-STATUS-SSOT: a run is not "delivered" because the CLI looks busy. A
+ * session that resumes its own plan is busy too, with none of the request in
+ * it (probe 9e3658d9, 2026-11-12). The log is the agent's record of what it
+ * was asked, so the request has to be there.
+ *
+ * Matches the opening of the prompt (whitespace folded, paste tags removed),
+ * because the log keeps the text as typed and a long paste is still one
+ * message.
+ */
+export function transcriptShowsPrompt(
+  items: readonly { kind: string; text?: string; at?: string | null }[],
+  prompt: string,
+  sinceMs: number,
+): boolean {
+  const probe = squash(prompt).slice(0, PROMPT_PROBE_CHARS);
+  if (probe.length < 8) return false;
+  return items.some((item) => {
+    if (item.kind !== "user" || typeof item.text !== "string") return false;
+    const at = item.at ? Date.parse(item.at) : NaN;
+    if (Number.isFinite(at) && at < sinceMs - TRANSCRIPT_CLOCK_SLACK_MS) return false;
+    const said = squash(item.text.replace(PASTE_TAG_RE, " "));
+    return said.includes(probe) || PASTE_PLACEHOLDER_RE.test(said);
+  });
+}
