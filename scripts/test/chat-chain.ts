@@ -47,8 +47,13 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void): void
   }
 }
 
-const KEYS = { GROQ_API_KEY: undefined, OPENROUTER_API_KEY: undefined } as const;
-const NO_OVERRIDES = { LOKI_GROQ_MODELS: undefined, LOKI_OPENROUTER_MODELS: undefined } as const;
+// Every key and model override the chain reads, from the chain itself: a list
+// written by hand missed GEMINI_API_KEY once Gemini joined the chain, so a
+// machine that held one failed "unkeyed provider leaked into the chain".
+const unset = (names: (string | undefined)[]): Record<string, undefined> =>
+  Object.fromEntries(names.filter((k): k is string => !!k).map((k) => [k, undefined]));
+const KEYS = unset(CHAT_CHAIN.map((p) => p.keyEnv));
+const NO_OVERRIDES = unset(CHAT_CHAIN.map((p) => p.modelsEnv));
 const groq = CHAT_CHAIN.find((p) => p.id === "groq") as ChatProvider;
 const openrouter = CHAT_CHAIN.find((p) => p.id === "openrouter") as ChatProvider;
 
