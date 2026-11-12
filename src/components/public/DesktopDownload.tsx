@@ -169,19 +169,23 @@ export function DesktopDownload() {
           <p className="ui-public-download-compare-note">{DESKTOP_DOWNLOAD.comparison.note}</p>
         </details>
 
-        {/* 3-step "what happens next" — only relevant once a CTA is in view */}
-        <div className="ui-public-download-steps">
-          <div className="ui-public-download-steps-heading">After install</div>
-          <div className="ui-public-download-steps-grid">
-            {DESKTOP_DOWNLOAD.setupSteps.map((step) => (
-              <div key={step.number} className="ui-public-download-step">
-                <div className="ui-public-download-step-num">{step.number}</div>
-                <div className="ui-public-download-step-title">{step.title}</div>
-                <p className="ui-public-download-step-body">{step.body}</p>
-              </div>
-            ))}
+        {/* 3-step "what happens next" — only once the downloads are in view.
+            On a phone they are folded away, and these steps (Gatekeeper,
+            SmartScreen, a terminal line) were still printed below them. */}
+        {showInstall && (
+          <div className="ui-public-download-steps">
+            <div className="ui-public-download-steps-heading">After install</div>
+            <div className="ui-public-download-steps-grid">
+              {DESKTOP_DOWNLOAD.setupSteps.map((step) => (
+                <div key={step.number} className="ui-public-download-step">
+                  <div className="ui-public-download-step-num">{step.number}</div>
+                  <div className="ui-public-download-step-title">{step.title}</div>
+                  <p className="ui-public-download-step-body">{step.body}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* What it uses on your computer — plain-language prereqs */}
         <div className="ui-public-download-prereqs">
@@ -273,11 +277,6 @@ export function DesktopDownload() {
           )}
         </div>
       </div>
-
-      <p className="ui-public-download-footer">
-        The desktop app, the web, and your phone all connect to the same fleet. Use whichever
-        surface is in front of you.
-      </p>
     </div>
   );
 }
@@ -300,10 +299,9 @@ function HandheldHandoff() {
         Fleet Runner installs on a computer — but you don&apos;t need it to start.
       </h3>
       <p className="ui-public-download-handoff-body">
-        {APP_NAME} on the web is the full control plane: watch every agent, dispatch work, approve
-        decisions, and drive a live terminal from this phone. Fleet Runner is what lets those agents
-        touch files and run commands on your own machine — so install it there, whenever you&apos;re
-        next in front of it.
+        Everything in {APP_NAME} works from this phone: start work, watch every agent while it
+        works, and say yes or no when one asks. Fleet Runner only adds your own computer as a place
+        for agents to work, so install it there whenever you&apos;re next in front of it.
       </p>
       <div className="ui-public-download-handoff-actions">
         <Link href={ROUTES.SIGN_UP} className="ui-public-download-handoff-primary">

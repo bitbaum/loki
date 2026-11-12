@@ -5,7 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/shell/ThemeProvider";
 import { DogfoodFeedbackWidget } from "@/components/shell/DogfoodFeedbackWidget";
 import { APP_DESCRIPTION, APP_NAME, APP_URL } from "@/config/brand";
-import { PALETTE } from "@/lib/palette";
+import { themeColorFor } from "@/lib/palette";
 import "./globals.css";
 
 // Geist (a modern technical grotesk) + Geist Mono — the x.ai / grok / modern
@@ -54,10 +54,10 @@ export const viewport: Viewport = {
   // it, so a bottom-anchored composer (Loki, Terminal) stays visible above the
   // keyboard rather than being covered by it.
   interactiveWidget: "resizes-content",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: PALETTE.light.surfacePage },
-    { media: "(prefers-color-scheme: dark)", color: PALETTE.dark.surfacePage },
-  ],
+  // The page is dark until the reader picks light (ThemeProvider's
+  // defaultTheme), whatever the OS says, so the first paint's chrome is dark.
+  // ThemeProvider then keeps it in step with the theme actually rendered.
+  themeColor: themeColorFor(undefined),
 };
 
 // Client auth/onboarding pages use hooks; avoid static prerender failures (Next 16 + React 19).

@@ -1,4 +1,5 @@
 import { APP_DOMAIN } from "./brand";
+import { PUBLIC_WHERE } from "./executor-copy";
 
 // Central source of truth for all public marketing copy.
 // Rebrand, reposition, or A/B test by editing this file — no component changes.
@@ -52,7 +53,7 @@ export const WHERE_IT_RUNS = {
   lede: "Loki itself runs in your browser and on your phone. The agents need a computer to work on — you choose which one, per project.",
   options: [
     {
-      label: "Cloud runner",
+      label: "Loki's computers",
       title: "Nothing to install",
       body: "An always-on server does the work, even while your laptop is closed. During the beta it is open to invited accounts.",
       cta: {
@@ -101,8 +102,7 @@ export const PHILOSOPHY = {
     },
     {
       name: "Choose where agents run.",
-      description:
-        "Connect Fleet Runner for work on your computer. Eligible accounts can also use the shared cloud runner. Keep project context and control in one place.",
+      description: `Fleet Runner, a free desktop app, lets agents work on ${PUBLIC_WHERE.local}. Invited accounts can also use ${PUBLIC_WHERE.cloud}. Either way, every project is steered from one place.`,
     },
     {
       name: "Humans in the loop, by default.",
@@ -126,7 +126,7 @@ export const PHILOSOPHY = {
       // 2026-08. So the claim keeps the half it earns and states the other as
       // the direction it is.
       description:
-        "Frontier subscriptions are not the destination. Open-weight models — gpt-oss and qwen — answer Loki's own chat first today, and running them locally is where this is going.",
+        "Frontier subscriptions are not the destination. Open-weight models, which anyone may run, answer Loki's own chat first today, and running them on your own machine is where this is going.",
     },
     {
       name: "Nothing hidden.",
@@ -134,7 +134,7 @@ export const PHILOSOPHY = {
         "You always know what each agent is doing and why. No black boxes inside your own fleet.",
     },
     {
-      name: "Built for serious operators.",
+      name: "Built for real work.",
       // Said "infrastructure for builders running many agents at once across
       // multiple projects — not a friendly chat assistant" until 2026-09-21.
       // That is the narrow framing #801 removed everywhere else on the same
@@ -144,7 +144,7 @@ export const PHILOSOPHY = {
       // surfaces read as scope creep. That rename pinned the three places it
       // lives internally and never reached the page the public reads.
       description:
-        "Loki is where an operator's work actually gets done — commanding agent fleets is the largest part of it, alongside the people you work with, what you owe, and what you spend.",
+        "Loki is where your work actually gets done — directing AI agents is the largest part of it, alongside the people you work with, what you owe, and what you spend.",
     },
   ],
   closer:
@@ -271,11 +271,11 @@ export const FINAL_CTA = {
 export const DESKTOP_DOWNLOAD = {
   // Top-level back-compat fields (used by /download page metadata + homepage).
   title: "Get Fleet Runner",
-  lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Home to see the execution options available to your account.",
+  lede: "You don't need this to start: Loki works in your browser and on your phone. Fleet Runner is a free desktop app that lets agents work on your own computer, with your own files.",
 
   hero: {
     title: "Get Fleet Runner",
-    lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Home to see the execution options available to your account.",
+    lede: "You don't need this to start: Loki works in your browser and on your phone. Fleet Runner is a free desktop app that lets agents work on your own computer, with your own files.",
   },
 
   // Web vs. desktop — answers "do I need this?" in plain language.
@@ -284,23 +284,23 @@ export const DESKTOP_DOWNLOAD = {
       label: `Web (${APP_DOMAIN})`,
       tagline: "Already available — no install",
       bullets: [
-        "Full fleet visibility across all projects",
-        "Browse history, projects, and queues",
-        "Dispatch commands from any browser or phone",
-        "Create projects, hand out work, and follow cloud runner sessions where your account has it",
+        "See every project and what each agent is doing",
+        "Look back through past work and see what is waiting",
+        "Send work from any browser or phone",
+        "Create projects, hand out work, and watch it done on Loki's computers where your account has them",
       ],
     },
     desktop: {
       label: "Desktop (Fleet Runner)",
-      tagline: "Adds local execution",
+      tagline: "Adds your own computer",
       bullets: [
         "Runs agents on your own computer",
-        "Runs agents in terminals it owns, plus handoffs",
+        "Each agent works in its own window, and hands back to you when it needs you",
         "Native notifications when an agent finishes",
         "Keeps working after you close your browser",
       ],
     },
-    note: "You can start on the web today. If your account does not have the cloud runner, add Fleet Runner so agents have a computer to work on.",
+    note: "You can start on the web today. If your account cannot use Loki's computers yet, add Fleet Runner so agents have a computer to work on.",
   },
 
   // Three steps that answer "what happens after I click download?"
@@ -333,7 +333,7 @@ export const DESKTOP_DOWNLOAD = {
     {
       number: "03",
       title: "Give it your first piece of work",
-      body: "In Control, set the project's Runs on to This computer, then write what you want done and send it. Fleet Runner needs at least one agent installed and signed in on this computer.",
+      body: "Open your project in Loki, choose This computer under Runs on, then write what you want done and send it. At least one agent needs to be installed and signed in on this computer.",
     },
   ],
 
@@ -366,7 +366,7 @@ export const DESKTOP_DOWNLOAD = {
         },
       ],
       afterDownload:
-        "Open a terminal and paste this one line. It installs Fleet Runner system-wide, then launches it. No file-manager dance, no KDE security popup:",
+        "Open a terminal and paste this one line. It installs Fleet Runner and opens it, with no other steps:",
       command: "sudo dpkg -i ~/Downloads/Fleet-Runner-linux-amd64.deb && fleet-runner",
     },
     {
@@ -421,14 +421,14 @@ export const DESKTOP_DOWNLOAD = {
   prerequisites: {
     title: "What Fleet Runner uses on your computer",
     description:
-      "Fleet Runner runs the agent you choose; install that agent and sign in with its provider. The current agent list appears in Loki and may vary by runner.",
+      "Fleet Runner runs the agent you choose; install that agent and sign in to it. Loki shows which agents you can use.",
     items: [
       {
         title: "Choose an agent",
         role: "Claude Code · Codex · Cursor · Antigravity · Grok",
         required: true,
         whyYouNeedIt:
-          "Install and sign in to at least one supported agent CLI on the computer that will run it. Loki shows which agents are available for each runner.",
+          "Install at least one of these agents on the computer that will do the work, and sign in to it. Loki shows which ones it can use there.",
         command: "",
         href: "",
         installLabel: "",

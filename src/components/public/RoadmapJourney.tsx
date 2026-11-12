@@ -1,4 +1,6 @@
-import { Check } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
+import { Check, ChevronDown } from "lucide-react";
+import { APP_DOMAIN } from "@/config/brand";
 import type { Journey, JourneyStop } from "@/lib/register/roadmap-journey";
 import { recordText, type RecordLinks } from "@/lib/register/record-links";
 
@@ -72,7 +74,7 @@ export function RoadmapJourney({ journey, links }: { journey: Journey; links?: R
                 {journey.later.map((s) => (
                   <li key={s.title}>
                     <span className="ui-journey-prose-strong">{recordText(s.title)}</span>
-                    {s.line && <span className="ui-journey-line"> — {s.line}</span>}
+                    {s.line && <span className="ui-journey-line"> — {withLinks(s.line)}</span>}
                   </li>
                 ))}
               </ul>
@@ -84,7 +86,33 @@ export function RoadmapJourney({ journey, links }: { journey: Journey; links?: R
   );
 }
 
-/** How far along, before anything else: one number and one bar. */
+/**
+ * A bare address in a roadmap line, as a link. "Essay: https://…" printed as
+ * plain text that broke mid-word and could not be tapped (2026-11-12). An
+ * address on this site links by its path, which is all a reader needs to see.
+ */
+export function withLinks(text: string): ReactNode {
+  return text.split(/(https?:\/\/[^\s)]+[^\s).,;:])/).map((part, i) => {
+    if (!/^https?:\/\//.test(part)) return <Fragment key={i}>{part}</Fragment>;
+    const url = new URL(part);
+    const own = url.hostname === APP_DOMAIN;
+    const href = own ? `${url.pathname}${url.search}${url.hash}` : part;
+    return (
+      <a key={i} href={href} className="ui-public-link">
+        {own ? href : `${url.hostname}${url.pathname === "/" ? "" : url.pathname}`}
+      </a>
+    );
+  });
+}
+
+/**
+ * How far along, before anything else: one count and one bar. It used to lead
+ * with "47% of the road is shipped" (items) beside "22 of 59 steps done"
+ * (37%, steps) and rings reading a bare "67", "25": three measures that
+ * disagreed on one screen (2026-11-12). The headline counts items; the steps
+ * line says it is the work inside the open ones; a ring is a picture, and its
+ * card's "6/9 steps" is the number.
+ */
 function JourneyHeadline({ journey, total }: { journey: Journey; total: number }) {
   const segments: { phase: string; count: number; label: string; href: string }[] = [
     { phase: "shipped", count: journey.shipped.length, label: "shipped", href: "#shipped" },
@@ -95,8 +123,8 @@ function JourneyHeadline({ journey, total }: { journey: Journey; total: number }
   return (
     <div className="ui-journey-headline">
       <div className="flex items-baseline gap-3">
-        <span className="ui-journey-percent">{journey.percentShipped}%</span>
-        <span className="ui-journey-percent-label">of the road is shipped</span>
+        <span className="ui-journey-percent">{journey.shipped.length}</span>
+        <span className="ui-journey-percent-label">of {total} items shipped</span>
       </div>
       <div className="ui-journey-bar" role="img" aria-label={barLabel(segments, total)}>
         {segments
@@ -122,7 +150,8 @@ function JourneyHeadline({ journey, total }: { journey: Journey; total: number }
       </nav>
       {journey.stepsTotal > 0 && (
         <p className="ui-journey-steps-total">
-          {journey.stepsDone} of {journey.stepsTotal} steps done on the road ahead
+          Inside the {total - journey.shipped.length} items still open: {journey.stepsDone} of{" "}
+          {journey.stepsTotal} steps done
         </p>
       )}
     </div>
@@ -165,7 +194,7 @@ function Stop({
           <span className="ui-journey-kicker">Also being built</span>
         )}
         <h3 className="ui-journey-title">{recordText(stop.title)}</h3>
-        {stop.line && <p className="ui-journey-line">{stop.line}</p>}
+        {stop.line && <p className="ui-journey-line">{withLinks(stop.line)}</p>}
         {stop.nextStep && (
           <p className="ui-journey-next">
             <span className="ui-journey-next-label">Next step</span> {recordText(stop.nextStep)}
@@ -176,6 +205,7 @@ function Stop({
             <summary className="ui-journey-summary-inline">
               {stop.done}/{stop.total} steps
               {stop.targetDate ? ` · target ${stop.targetDate}` : ""}
+              <ChevronDown className="ui-disclosure-chevron" aria-hidden />
             </summary>
             <ul className="ui-journey-step-list">
               {stop.milestones.map((m) => {
@@ -210,7 +240,7 @@ function Stop({
           </details>
         )}
         {stop.total === 0 && stop.targetDate && (
-          <p className="ui-journey-summary-inline">target {stop.targetDate}</p>
+          <p className="ui-journey-hint">target {stop.targetDate}</p>
         )}
       </div>
     </li>
@@ -235,17 +265,6 @@ function Ring({ percent }: { percent: number | null }) {
           strokeDasharray={`${filled} ${C}`}
           transform="rotate(-90 20 20)"
         />
-      )}
-      {percent !== null && (
-        <text
-          x="20"
-          y="20"
-          className="ui-journey-ring-text"
-          dominantBaseline="central"
-          textAnchor="middle"
-        >
-          {percent}
-        </text>
       )}
     </svg>
   );

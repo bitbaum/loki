@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
@@ -226,8 +227,9 @@ function ChangelogMonth({
     <details id={id} className="ui-changelog-month border-t border-border-subtle pt-8 sm:pt-12">
       <summary className="ui-changelog-month-summary">
         <h2 className="ui-public-h2">{label}</h2>
-        <span className="ui-public-meta">
+        <span className="ui-public-meta inline-flex items-center gap-1.5">
           {count} {count === 1 ? "entry" : "entries"}
+          <ChevronDown className="ui-disclosure-chevron" aria-hidden />
         </span>
       </summary>
       {children}

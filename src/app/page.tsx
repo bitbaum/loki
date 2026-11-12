@@ -232,10 +232,13 @@ export default async function LandingPage({
               {shipped.entries.map((entry) => (
                 <li key={`${entry.project}-${entry.resolvedAt}`} className="ui-public-surface-card">
                   <div className="ui-public-surface-card-label">
-                    {entry.project} · {entry.page ? `${entry.page} · ` : ""}fixed{" "}
+                    {/* No raw page path ("/pricing"), and the year: "fixed Jul 31"
+                        read as this summer's news in November (2026-11-12). */}
+                    {entry.project} · fixed{" "}
                     {new Date(entry.resolvedAt).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
+                      year: "numeric",
                     })}
                   </div>
                   <p className="ui-public-surface-card-body">“{entry.excerpt}”</p>
@@ -253,7 +256,7 @@ export default async function LandingPage({
           <h2 id="paths-title" className="ui-public-h2">
             {BUILD_PAGE.title}
           </h2>
-          <BuildPaths className="ui-public-section-gap" />
+          <BuildPaths className="ui-public-section-gap" signedIn={signedIn} />
         </div>
       </section>
 

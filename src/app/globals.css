@@ -876,7 +876,7 @@
     @apply h-4 w-4 shrink-0 text-text-muted;
   }
   .ui-public-drawer-footer {
-    @apply flex shrink-0 items-center justify-between gap-3 border-t border-border-subtle px-4 py-3;
+    @apply flex shrink-0 items-center justify-start gap-3 border-t border-border-subtle px-4 py-3;
   }
   .ui-public-badge {
     @apply inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-raised px-4 py-1.5 text-xs font-medium tracking-[0.02em] text-text-tertiary;
@@ -1090,6 +1090,13 @@
      address was not scrolled off, it was gone. */
   .ui-public-link {
     @apply break-words text-text-secondary;
+  }
+  /* A link inside a sentence took its paragraph's colour and had no
+     underline, so "whitepaper" and "docs" on /how-it-works read as plain
+     words (2026-11-12). In prose it is underlined, in a token colour that
+     does not depend on the paragraph's. */
+  :is(p, li, .ui-journey-line) > .ui-public-link {
+    @apply text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
   }
   /* Standalone variant, for a link that is its own row rather than a word
      inside a sentence — "Forgot password?", "← Back to homepage".
@@ -2003,11 +2010,6 @@
   .ui-journey-stop[data-phase="now"] .ui-journey-ring-fill {
     stroke: var(--text-primary);
   }
-  .ui-journey-ring-text {
-    @apply font-semibold tabular-nums;
-    fill: var(--text-secondary);
-    font-size: 11px;
-  }
   .ui-journey-card {
     @apply flex min-w-0 flex-1 flex-col gap-2 pb-4 pt-2.5;
   }
@@ -2346,31 +2348,35 @@
   .ui-public-drawer-item-label {
     @apply block text-base font-medium text-text-primary;
   }
+  /* Wraps, at most two lines. One truncated line cut every description off
+     mid-sentence ("From a sentence to a working site — and under t…"), so the
+     text meant to say where a link goes was never readable (2026-11-12). */
   .ui-public-drawer-item-desc {
-    @apply mt-0.5 block truncate text-sm text-text-tertiary;
+    @apply mt-0.5 line-clamp-2 text-sm text-text-tertiary;
   }
 
-  /* Desktop Fleet Runner download/install promo — x.ai-style pure-black band for the
-     local authoritative runtime CTA. All color, typography, and opacity decisions live
-     inside these class definitions (per design system Layer 3). JSX uses only the
-     semantic names + layout utilities. */
+  /* Desktop Fleet Runner download/install band. It follows the page theme:
+     it used to be hard-coded black with white text, so in Light the band stayed
+     black and the accent button (black in Light) vanished into it (2026-11-12).
+     Surface, text and border tokens only. JSX uses only the semantic names +
+     layout utilities. */
   .ui-public-download {
-    @apply border-t border-white/10 bg-black py-14 text-white sm:py-20;
+    @apply border-t border-border-subtle bg-surface-page py-14 text-text-primary sm:py-20;
   }
   .ui-public-download-title {
     font-size: clamp(2rem, 9vw, 3.5rem);
     line-height: 1.02;
     font-weight: 600;
     letter-spacing: -0.035em;
-    @apply mb-3 text-white;
+    @apply mb-3 text-text-primary;
     text-wrap: balance;
   }
   .ui-public-download-lede {
-    @apply mx-auto max-w-sm text-base text-white/60 sm:text-lg;
+    @apply mx-auto max-w-sm text-base text-text-secondary sm:text-lg;
     text-wrap: pretty;
   }
   .ui-public-download-note {
-    @apply text-center text-xs text-white/40 mb-8;
+    @apply text-center text-xs text-text-tertiary mb-8;
   }
   /* Stacks label over note and goes full width on a phone. Side by side, the
      ~30-character label and its ~45-character note each wrapped to three lines
@@ -2385,31 +2391,31 @@
     @apply text-xs font-medium opacity-90 sm:ml-2;
   }
   .ui-public-download-secondary {
-    @apply inline-flex min-h-11 items-center rounded-full border border-white/20 px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:border-white/40 hover:text-white;
+    @apply inline-flex min-h-11 items-center rounded-full border border-border-default px-4 py-2 text-xs font-medium text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary;
   }
   .ui-public-download-platform-bar {
-    @apply mx-auto mb-8 flex w-full max-w-sm gap-1 rounded-full border border-white/15 p-1 sm:mb-12;
+    @apply mx-auto mb-8 flex w-full max-w-sm gap-1 rounded-full border border-border-subtle p-1 sm:mb-12;
   }
   .ui-public-download-platform {
     @apply inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-sm font-medium transition-colors;
   }
   .ui-public-download-platform-active {
-    @apply bg-white text-black;
+    @apply bg-accent-primary text-on-accent;
   }
   .ui-public-download-platform-idle {
-    @apply text-white/70 hover:text-white;
+    @apply text-text-secondary hover:text-text-primary;
   }
   .ui-public-download-command {
-    @apply mb-10 rounded-2xl border border-white/10 bg-white/5 p-4 text-left;
+    @apply mb-10 rounded-2xl border border-border-subtle bg-surface-raised p-4 text-left;
   }
   /* Sentence case at readable size. This slot carries two full sentences of
      instructions, and tracked 10px uppercase turned them into four lines of
      shouting that nobody reads before pasting a sudo command. */
   .ui-public-download-command span {
-    @apply mb-3 block text-sm leading-relaxed text-white/60;
+    @apply mb-3 block text-sm leading-relaxed text-text-secondary;
   }
   .ui-public-download-command code {
-    @apply block whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-white/70;
+    @apply block whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-text-secondary;
   }
   /* Command above, Copy below-right on a phone: side by side the copy button
      stole a third of the width and the command broke every ~22 characters. */
@@ -2417,55 +2423,52 @@
     @apply flex flex-col items-stretch gap-2 sm:flex-row sm:items-start sm:gap-3;
   }
   .ui-public-download-command-row code {
-    @apply block flex-1 whitespace-pre-wrap break-all rounded-lg bg-black/40 p-3 font-mono text-xs leading-relaxed text-white/85 sm:bg-transparent sm:p-0;
+    @apply block flex-1 whitespace-pre-wrap break-all rounded-lg bg-surface-base p-3 font-mono text-xs leading-relaxed text-text-primary sm:bg-transparent sm:p-0;
   }
   .ui-public-download-command-copy {
-    @apply inline-flex shrink-0 items-center justify-center gap-1.5 self-end rounded-lg border border-white/15 bg-white/10 px-3.5 py-2.5 text-xs font-medium text-white/80 transition hover:border-white/30 hover:bg-white/15 hover:text-white sm:self-auto sm:rounded-md sm:px-2.5 sm:py-1.5;
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 self-end rounded-lg border border-border-subtle bg-surface-overlay px-3.5 py-2.5 text-xs font-medium text-text-secondary transition hover:border-border-strong hover:bg-surface-overlay hover:text-text-primary sm:self-auto sm:rounded-md sm:px-2.5 sm:py-1.5;
   }
   .ui-public-download-prereqs {
-    @apply mb-10 border-t border-white/10 pt-9 text-left;
+    @apply mb-10 border-t border-border-subtle pt-9 text-left;
   }
   .ui-public-download-prereqs-heading {
-    @apply mb-4 text-center text-micro font-mono text-white/40;
+    @apply mb-4 text-center text-micro font-mono text-text-tertiary;
   }
   .ui-public-download-prereq-card {
-    @apply border-t border-white/10 py-5;
+    @apply border-t border-border-subtle py-5;
   }
   .ui-public-download-prereq-title {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-prereq-role {
-    @apply mt-0.5 text-xs text-white/40;
+    @apply mt-0.5 text-xs text-text-tertiary;
   }
   .ui-public-download-prereq-card p {
-    @apply mt-3 text-xs leading-relaxed text-white/55;
+    @apply mt-3 text-xs leading-relaxed text-text-secondary;
   }
   .ui-public-download-prereq-card code {
-    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white/65;
+    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-base px-3 py-2 font-mono text-xs text-text-secondary;
   }
   .ui-public-download-prereq-link {
-    @apply mt-3 inline-flex text-xs font-medium text-white underline underline-offset-4;
+    @apply mt-3 inline-flex text-xs font-medium text-text-primary underline underline-offset-4;
   }
   .ui-public-download-fallback {
-    @apply border-t border-white/10 pt-9 text-center text-sm;
+    @apply border-t border-border-subtle pt-9 text-center text-sm;
   }
   .ui-public-download-fallback-label {
-    @apply text-white/50 mb-1;
+    @apply text-text-tertiary mb-1;
   }
   .ui-public-download-fallback-desc {
-    @apply text-white/40 text-xs max-w-xs mx-auto mb-4;
+    @apply text-text-tertiary text-xs max-w-xs mx-auto mb-4;
   }
   .ui-public-download-fallback-code {
-    @apply font-mono text-xs bg-white/5 border border-white/10 px-3 py-1.5 rounded text-white/70 inline-block;
+    @apply font-mono text-xs bg-surface-raised border border-border-subtle px-3 py-1.5 rounded text-text-secondary inline-block;
   }
   .ui-public-download-build {
-    @apply mt-8 text-micro text-white/40;
+    @apply mt-8 text-micro text-text-tertiary;
   }
   .ui-public-download-build-step {
-    @apply font-mono text-white/60;
-  }
-  .ui-public-download-footer {
-    @apply text-center text-white/40 text-xs mt-16 tracking-wide max-w-md mx-auto;
+    @apply font-mono text-text-secondary;
   }
 
   /* ── Download page additions ──────────────────────────────────────────
@@ -2474,7 +2477,7 @@
      band, a status-aware platform panel, a numbered post-install step grid,
      plain-language prereq cards with required/optional badges, and a
      collapsed developer drawer. All live inside the same dark Fleet Runner
-     band, so they keep the existing white-on-black token vocabulary. */
+     band, so they use the same surface/text/border tokens. */
   .ui-public-download-compare {
     @apply mb-3 grid md:grid-cols-2 md:gap-x-8;
   }
@@ -2692,33 +2695,33 @@
     display: none;
   }
   .ui-public-download-compare-card {
-    @apply border-t border-white/12 py-5 text-left;
+    @apply border-t border-border-subtle py-5 text-left;
   }
   .ui-public-download-compare-card-emphasis {
-    @apply border-white/30;
+    @apply border-border-strong;
   }
   .ui-public-download-compare-label {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-compare-tagline {
-    @apply mt-1 text-xs text-white/45;
+    @apply mt-1 text-xs text-text-tertiary;
   }
   .ui-public-download-compare-list {
-    @apply mt-4 space-y-2 text-sm text-white/65;
+    @apply mt-4 space-y-2 text-sm text-text-secondary;
   }
   .ui-public-download-compare-list li {
     @apply relative pl-4;
   }
   .ui-public-download-compare-list li::before {
     content: "·";
-    @apply absolute left-0 text-white/40;
+    @apply absolute left-0 text-text-tertiary;
   }
   .ui-public-download-compare-note {
-    @apply mb-10 mt-3 text-center text-sm leading-relaxed text-white/55 max-w-2xl mx-auto;
+    @apply mb-10 mt-3 text-center text-sm leading-relaxed text-text-secondary max-w-2xl mx-auto;
   }
 
   .ui-public-download-platform-soon {
-    @apply ml-1.5 rounded-full bg-white/10 px-1.5 py-0.5 text-micro font-medium text-white/55;
+    @apply ml-1.5 rounded-full bg-surface-overlay px-1.5 py-0.5 text-micro font-medium text-text-secondary;
   }
 
   .ui-public-download-panel {
@@ -2731,73 +2734,73 @@
      downloads folder, name the situation and give them the two things that do
      work from here: open the web control plane, or send themselves the link. */
   .ui-public-download-handoff {
-    @apply mb-10 rounded-2xl border border-white/12 bg-white/[0.06] p-5 text-left sm:p-6;
+    @apply mb-10 rounded-2xl border border-border-subtle bg-surface-raised p-5 text-left sm:p-6;
   }
   .ui-public-download-handoff-badge {
-    @apply mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-micro font-medium text-white/65;
+    @apply mb-3 inline-flex items-center gap-2 rounded-full bg-surface-overlay px-3 py-1 text-micro font-medium text-text-secondary;
   }
   .ui-public-download-handoff-title {
-    @apply text-xl font-semibold leading-snug text-white;
+    @apply text-xl font-semibold leading-snug text-text-primary;
     text-wrap: pretty;
   }
   .ui-public-download-handoff-body {
-    @apply mt-2 text-sm leading-relaxed text-white/60;
+    @apply mt-2 text-sm leading-relaxed text-text-secondary;
     text-wrap: pretty;
   }
   .ui-public-download-handoff-actions {
     @apply mt-5 flex flex-col gap-2.5;
   }
   .ui-public-download-handoff-primary {
-    @apply inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-white px-5 text-[15px] font-medium text-black transition active:scale-[0.985];
+    @apply inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent-primary px-5 text-[15px] font-medium text-on-accent transition active:scale-[0.985];
   }
   .ui-public-download-handoff-secondary {
-    @apply inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/20 px-5 text-[15px] font-medium text-white/80 transition hover:border-white/40 hover:text-white active:scale-[0.985];
+    @apply inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border-default px-5 text-[15px] font-medium text-text-secondary transition hover:border-border-strong hover:text-text-primary active:scale-[0.985];
   }
   .ui-public-download-handoff-link {
-    @apply mt-4 block w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-center font-mono text-xs text-white/50;
+    @apply mt-4 block w-full rounded-lg border border-border-subtle bg-surface-base px-3 py-2 text-center font-mono text-xs text-text-tertiary;
   }
   /* Everything the phone cannot use, behind one deliberate tap. */
   .ui-public-download-reveal {
-    @apply mb-10 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-white/60 transition-colors hover:border-white/25 hover:text-white;
+    @apply mb-10 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface-raised px-4 text-sm text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary;
   }
 
   .ui-public-download-soon {
-    @apply rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center;
+    @apply rounded-2xl border border-border-subtle bg-surface-raised p-8 text-center;
   }
   .ui-public-download-soon-badge {
-    @apply mb-3 inline-block rounded-full bg-white/10 px-3 py-1 text-micro font-medium text-white/65;
+    @apply mb-3 inline-block rounded-full bg-surface-overlay px-3 py-1 text-micro font-medium text-text-secondary;
   }
   .ui-public-download-soon-message {
-    @apply mx-auto mb-6 max-w-md text-sm leading-relaxed text-white/65;
+    @apply mx-auto mb-6 max-w-md text-sm leading-relaxed text-text-secondary;
   }
 
   .ui-public-download-steps {
-    @apply mb-12 border-t border-white/10 pt-10;
+    @apply mb-12 border-t border-border-subtle pt-10;
   }
   .ui-public-download-steps-heading {
-    @apply mb-6 text-center text-micro font-mono text-white/40;
+    @apply mb-6 text-center text-micro font-mono text-text-tertiary;
   }
   .ui-public-download-steps-grid {
     @apply grid md:grid-cols-3 md:gap-x-8;
   }
   .ui-public-download-step {
-    @apply border-t border-white/10 py-5 text-left;
+    @apply border-t border-border-subtle py-5 text-left;
   }
   .ui-public-download-step-num {
-    @apply mb-3 font-mono text-xs text-white/40;
+    @apply mb-3 font-mono text-xs text-text-tertiary;
   }
   .ui-public-download-step-title {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-step-body {
-    @apply mt-2 text-sm leading-relaxed text-white/65;
+    @apply mt-2 text-sm leading-relaxed text-text-secondary;
   }
 
   .ui-public-download-prereqs-title {
-    @apply mb-2 text-center text-base font-medium text-white;
+    @apply mb-2 text-center text-base font-medium text-text-primary;
   }
   .ui-public-download-prereqs-desc {
-    @apply mx-auto mb-6 max-w-xl text-center text-sm leading-relaxed text-white/60;
+    @apply mx-auto mb-6 max-w-xl text-center text-sm leading-relaxed text-text-secondary;
   }
   .ui-public-download-prereqs-grid {
     @apply grid gap-x-8 grid-cols-[repeat(auto-fit,minmax(16rem,1fr))];
@@ -2806,47 +2809,47 @@
     @apply mb-3 flex items-start justify-between gap-3;
   }
   .ui-public-download-prereq-required {
-    @apply rounded-full bg-white/10 px-2 py-0.5 text-micro font-medium text-white;
+    @apply rounded-full bg-surface-overlay px-2 py-0.5 text-micro font-medium text-text-primary;
   }
   .ui-public-download-prereq-optional {
-    @apply rounded-full border border-white/15 px-2 py-0.5 text-micro font-medium text-white/45;
+    @apply rounded-full border border-border-subtle px-2 py-0.5 text-micro font-medium text-text-tertiary;
   }
   .ui-public-download-prereq-why {
-    @apply mb-3 text-sm leading-relaxed text-white/65;
+    @apply mb-3 text-sm leading-relaxed text-text-secondary;
   }
   .ui-public-download-prereq-command {
-    @apply mb-3 block whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white/65;
+    @apply mb-3 block whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-base px-3 py-2 font-mono text-xs text-text-secondary;
   }
   .ui-public-download-prereq-link-icon {
     @apply ml-1 h-3 w-3 inline-block;
   }
 
   .ui-public-download-dev {
-    @apply mt-4 border-t border-white/10 pt-8;
+    @apply mt-4 border-t border-border-subtle pt-8;
   }
   .ui-public-download-dev-toggle {
-    @apply flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white/70 transition-colors hover:border-white/20 hover:text-white;
+    @apply flex w-full items-center justify-between rounded-xl border border-border-subtle bg-surface-raised px-4 py-3 text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
   .ui-public-download-dev-toggle-icon {
-    @apply font-mono text-base leading-none text-white/40;
+    @apply font-mono text-base leading-none text-text-tertiary;
   }
   .ui-public-download-dev-body {
     @apply mt-4 space-y-6 text-left;
   }
   .ui-public-download-dev-desc {
-    @apply text-xs leading-relaxed text-white/50;
+    @apply text-xs leading-relaxed text-text-tertiary;
   }
   .ui-public-download-dev-block {
-    @apply rounded-xl border border-white/10 bg-white/[0.02] p-4;
+    @apply rounded-xl border border-border-subtle bg-surface-raised p-4;
   }
   .ui-public-download-dev-block-title {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-dev-block-body {
-    @apply mt-2 text-xs leading-relaxed text-white/55;
+    @apply mt-2 text-xs leading-relaxed text-text-secondary;
   }
   .ui-public-download-dev-command {
-    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white/65;
+    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-base px-3 py-2 font-mono text-xs text-text-secondary;
   }
 
   .ui-brand-mark {
@@ -8759,6 +8762,8 @@
      thing), so they were the worst possible link to leave un-tappable. */
   .ui-public-fleet-name,
   .ui-public-fleet-site,
+  /* bip-kit's Copy button on code blocks (/whitepaper, /docs): 30px tall. */
+  .bp-copy,
   .ui-auth-hint-link,
   .ui-auth-footer-link,
   .ui-auth-muted-link,

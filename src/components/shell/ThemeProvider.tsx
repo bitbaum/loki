@@ -1,7 +1,22 @@
 "use client";
 
-import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { useEffect } from "react";
+import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { APP_SLUG } from "@/config/brand";
+import { themeColorFor } from "@/lib/palette";
+
+/** Keeps <meta name="theme-color"> on the theme actually rendered. */
+function ThemeColorSync() {
+  const { resolvedTheme } = useTheme();
+  useEffect(() => {
+    const color = themeColorFor(resolvedTheme);
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.setAttribute("content", color);
+      meta.removeAttribute("media");
+    });
+  }, [resolvedTheme]);
+  return null;
+}
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +32,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       enableSystem={true}
       storageKey={`${APP_SLUG}-theme`}
     >
+      <ThemeColorSync />
       {children}
     </NextThemesProvider>
   );

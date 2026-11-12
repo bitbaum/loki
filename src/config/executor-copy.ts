@@ -9,6 +9,18 @@ import { NAV } from "@/config/navigation";
  * "Builder" is a person: the role on a project and an approved builder.
  * Internal code, Settings, and /download may still say "Fleet Runner".
  */
+/**
+ * The two places agents work, named for someone who has never seen Loki.
+ * Public pages said "cloud runner", "cloud builder" and "Loki's engine" for
+ * one machine (2026-11-12); a first-time reader could not tell whether that
+ * was one thing or three. Public copy names it with these words only. In the
+ * app the same places are `EXECUTOR_COPY.cloud` / `thisComputer`.
+ */
+export const PUBLIC_WHERE = {
+  cloud: "Loki's computers",
+  local: "your own computer",
+} as const;
+
 export const EXECUTOR_COPY = {
   /** Unified executor — cloud (box-runner) and/or this computer (desktop app) */
   builder: {

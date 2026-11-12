@@ -148,7 +148,7 @@ export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
         value: String(totals.running),
         label: totals.running === 1 ? "agent running" : "agents running",
       },
-      { value: String(totals.weekRuns), label: "runs this week" },
+      { value: String(totals.weekRuns), label: "tasks this week" },
     ],
   };
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { APP_NAME } from "@/config/brand";
 import { ROUTES } from "@/config/auth";
 import { PROBLEMS_SECTION, PROBLEM_SCALES } from "@/config/problems-we-solve";
+import { visitorLink } from "@/lib/visitor-link";
 
 /**
  * Homepage "What it solves": one person's problems first, then the ones
@@ -25,15 +26,18 @@ export function ProblemsSection({ signedIn }: { signedIn: boolean }) {
           <div key={scale.id} className="ui-public-section-gap">
             <h3 className="ui-public-h3">{scale.title}</h3>
             <ul className="ui-public-rows mt-2">
-              {scale.items.map((item) => (
-                <li key={item.id} className="flex min-w-0">
-                  <Link href={item.link.href} className="ui-public-start-card w-full min-w-0">
-                    <span className="ui-public-start-card-title">{item.problem}</span>
-                    <span className="ui-public-start-card-body">{item.solution}</span>
-                    <span className="ui-public-start-card-link">{item.link.label} →</span>
-                  </Link>
-                </li>
-              ))}
+              {scale.items.map((item) => {
+                const link = visitorLink(item.link, signedIn);
+                return (
+                  <li key={item.id} className="flex min-w-0">
+                    <Link href={link.href} className="ui-public-start-card w-full min-w-0">
+                      <span className="ui-public-start-card-title">{item.problem}</span>
+                      <span className="ui-public-start-card-body">{item.solution}</span>
+                      <span className="ui-public-start-card-link">{link.label} →</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}
