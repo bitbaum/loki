@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.66",
+    tag: "fleet-runner-v0.8.66",
+    date: "2026-11-12T04:45:00Z",
+    highlights: [
+      'A new session is no longer failed as "not signed in" because an older session in the same folder once was. Only what this run\'s agent says counts.',
+      "Grok, Antigravity and other agents are checked from their own output, and a sign-in error names that agent and its own fix instead of Claude's token.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.64",
     tag: "fleet-runner-v0.8.64",
     date: "2026-11-11T14:00:00Z",
