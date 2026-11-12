@@ -1,3 +1,4 @@
+import fs from 'fs'
 import { baseProjectKey, isDerivedRunTab, runLaneOfTab } from '@/lib/run-tab'
 
 /**
@@ -61,6 +62,8 @@ export async function laneLaunchDir(tab: string, dir: string, deps: LaneDirDeps)
 export type DispatchDirDeps = LaneDirDeps & {
   /** Every run gets a worktree, not only lanes (LOKI_WORKTREE_DISPATCH). */
   worktreeEveryRun: boolean
+  /** Whether a folder is on this machine (tests pass their own). */
+  exists?: (dir: string) => boolean
 }
 
 export type DispatchDir =
@@ -81,7 +84,18 @@ export async function dispatchLaunchDir(
   } catch (e) {
     return {
       kind: 'refused',
-      error: `no checkout of "${project}" on this builder: ${e instanceof Error ? e.message : String(e)}; nothing was launched`,
+      // "nothing was launched here" is what auto-reimplement-policy reads as
+      // a workspace problem: a retry on this builder cannot help.
+      error: `no checkout of "${project}" on this builder: ${e instanceof Error ? e.message : String(e)}; nothing was launched here`,
+    }
+  }
+  // A laptop runner works in the folder it was given; when that folder is not
+  // on this machine, say so in the words the retry policy knows, rather than
+  // as a worktree failure it would retry.
+  if (lane && !(deps.exists ?? fs.existsSync)(primaryDir)) {
+    return {
+      kind: 'refused',
+      error: `workspace ${primaryDir} does not exist on this machine — the project lives on another builder; nothing was launched here`,
     }
   }
   const runKey = runId || runLaneOfTab(tab)?.runPrefix || ''
