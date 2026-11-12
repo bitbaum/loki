@@ -39,6 +39,7 @@ export type ActivityOutcome =
   | "silent"
   /** Unfinished, sent long ago and never picked up. */
   | "not_started"
+  | "replaced"
   | "dispatched";
 
 /** Reading order for the outcome filter — worst first, because triage is the
@@ -47,8 +48,9 @@ export const ACTIVITY_OUTCOME_LABEL: Record<ActivityOutcome, string> = {
   error: "Failed",
   unconfirmed: "Never confirmed",
   timeout: "Timed out",
-  hang: "Hung",
-  user_abort: "Stopped",
+  hang: "Stopped answering",
+  replaced: "Replaced",
+  user_abort: "Stopped by you",
   partial: "Partial",
   waiting: "Waiting for you",
   silent: "Gone quiet",
@@ -57,6 +59,16 @@ export const ACTIVITY_OUTCOME_LABEL: Record<ActivityOutcome, string> = {
   success: "Done",
   dispatched: "Sent",
 };
+
+/**
+ * Closes that need nobody. Live on 2026-11-12, "33 runs need you" counted
+ * briefs a newer one replaced ("superseded: the same brief was typed into the
+ * live solon session…") and waits the owner cancelled himself ("you stopped
+ * waiting from Control after no runner picked it up"). Neither is a failure
+ * to act on, so they read as what they are and leave the needs-you count.
+ */
+const REPLACED_ERROR = /^superseded\b/i;
+const STOPPED_BY_YOU_ERROR = /\byou stopped waiting\b/i;
 
 export type RunVerification = { judge: string; met: boolean; gap?: string | null };
 
@@ -147,7 +159,9 @@ export function formatDuration(startMs: number, endMs: number): string | null {
   return `${h}h ${m % 60}m`;
 }
 
-function runOutcome(run: RunSource, nowMs: number): ActivityOutcome {
+function runOutcome(run: RunSource, error: string, nowMs: number): ActivityOutcome {
+  if (REPLACED_ERROR.test(error)) return "replaced";
+  if (STOPPED_BY_YOU_ERROR.test(error)) return "user_abort";
   const known: ActivityOutcome[] = [
     "success",
     "partial",
@@ -223,8 +237,8 @@ export function buildActivityEvents(input: {
 
   for (const run of runs) {
     const prompt = claimPromptFor(run);
-    const outcome = runOutcome(run, nowMs);
     const rawError = (blockedReasons.get(run.id) || run.payload?.error || "").trim();
+    const outcome = runOutcome(run, rawError, nowMs);
     const done = run.summary?.done?.trim() || null;
     const next = run.summary?.next?.trim() || null;
     const resultText = run.payload?.resultText?.trim() || null;
@@ -238,7 +252,12 @@ export function buildActivityEvents(input: {
       agentLabel: getAdapterLabel(run.adapter),
       intentLabel: getIntentLabel(run.intent),
       intentId: run.intent,
-      status: runStatus(run),
+      status:
+        outcome === "hang"
+          ? "negative"
+          : outcome === "replaced" || outcome === "user_abort"
+            ? "neutral"
+            : runStatus(run),
       outcome,
       outcomeLabel: ACTIVITY_OUTCOME_LABEL[outcome],
       durationLabel: run.finishedAt

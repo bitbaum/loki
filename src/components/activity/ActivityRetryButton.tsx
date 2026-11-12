@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
@@ -35,7 +35,20 @@ const CUSTOM_PROMPT_MAX = 4000;
  *     never the preview, which is shortened for display and would silently
  *     re-run a truncated instruction.
  */
-export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
+export type RetryNote = { tone: StatusTone; text: string };
+
+export function ActivityRetryButton({
+  event,
+  label = "Run again",
+  onNote,
+}: {
+  event: ActivityEvent;
+  /** The resting word. A grouped row names the one run it resends. */
+  label?: string;
+  /** Where the state line goes, so a phone (which never shows a title
+   *  tooltip) can read why a retry failed. */
+  onNote?: (note: RetryNote | null) => void;
+}) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [commandId, setCommandId] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
@@ -48,7 +61,6 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
   // there is literally nothing to send. Offering the button anyway would be
   // the same broken promise in a new place.
   const canRetry = !event.isLocalChat && (!isCustom || replayTask.length > 0);
-  if (!canRetry) return null;
 
   const run = async () => {
     setState("sending");
@@ -101,7 +113,7 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
   // accept time, so it takes over — same tone vocabulary the Loki transcript,
   // the terminal composer and the prompt Run modal already render, because a
   // retry watched from Activity is the same dispatch watched from anywhere.
-  const note: { tone: StatusTone; text: string } | null =
+  const note: RetryNote | null =
     state === "error" && message
       ? { tone: "warning", text: message }
       : state === "sent" && live
@@ -110,10 +122,18 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
           ? { tone: "neutral", text: message ?? "Checking status…" }
           : null;
 
+  // The row shows the note as its grey line (NeedsYouRow). A title alone was a
+  // dead end on a phone: "Try again" with no reason (2026-11-12).
+  const noteKey = note ? `${note.tone}:${note.text}` : "";
+  useEffect(() => {
+    onNote?.(note);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the note's content
+  }, [noteKey]);
+
+  if (!canRetry) return null;
+
   // At the end of a list row: one small button whose word is the state —
-  // "Run again", "Sending…", "Sent", "Running", "Try again". The line of
-  // status words that used to sit beside it does not fit a row; it is the
-  // button's title instead.
+  // "Run again", "Sending…", "Sent", "Running", "Try again".
   const word =
     state === "sending"
       ? "Sending…"
@@ -127,7 +147,7 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
               : live?.terminal
                 ? "Done"
                 : "Sent"
-          : "Run again";
+          : label;
   return (
     <button
       type="button"
@@ -135,14 +155,14 @@ export function ActivityRetryButton({ event }: { event: ActivityEvent }) {
       disabled={state === "sending" || (state === "sent" && live?.status !== "failed")}
       title={note?.text}
       aria-label={`${word}: ${projectTitle({ name: event.projectKey })}`}
-      className="ui-row-verb"
+      className="ui-row-verb max-w-44"
     >
       {state === "sending" ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
       ) : state === "idle" || state === "error" ? (
         <RotateCcw className="h-3.5 w-3.5" aria-hidden />
       ) : null}
-      {word}
+      <span className="truncate">{word}</span>
     </button>
   );
 }

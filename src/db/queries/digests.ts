@@ -466,6 +466,7 @@ export async function getProjectDigest(
     runs: rows.runs.slice(0, MAX_RUN_SAMPLES_FOR_EVENTS),
     localChats: rows.localChats.slice(0, MAX_LOCAL_CHAT_SAMPLES_FOR_EVENTS),
     blockedReasons,
+    nowMs: until.getTime(),
   }).slice(0, MAX_EVENTS);
   // The headline and agent time count every row fetched, so a week is not
   // summed from the same 60 rows as a day.
@@ -473,6 +474,7 @@ export async function getProjectDigest(
     prompts: rows.prompts,
     runs: rows.runs,
     localChats: rows.localChats,
+    nowMs: until.getTime(),
   });
   const currentCount = Math.max(stats.promptsSent, stats.runsStarted);
 

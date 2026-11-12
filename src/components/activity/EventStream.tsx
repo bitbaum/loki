@@ -1,4 +1,5 @@
 import {
+  eventNeedsAttention,
   filterActivityEvents,
   groupEventsByDay,
   tallyActivityEvents,
@@ -18,7 +19,7 @@ const SHOW_LABEL: Record<ActivityFilter, string> = {
   all: "Everything",
   attention: "Needs you",
   running: "Running",
-  queued: "Waiting",
+  queued: "Sent, no word back",
   done: "Done",
 };
 
@@ -43,7 +44,11 @@ export function EventStream({
   names: ProjectNames;
 }) {
   const tallies = tallyActivityEvents(events);
-  const visible = filterActivityEvents(events, filter);
+  // Running runs have their own section at the top (RunningNowCard); the
+  // mixed feed does not repeat them unless "Running" is what was asked for.
+  const visible = filterActivityEvents(events, filter).filter(
+    (e) => filter !== "all" || e.outcome !== "running",
+  );
   const groups = groupEventsByDay(visible);
   const titleOf = (key: string) => titleFor(names, key);
   const count: Record<ActivityFilter, number> = {
@@ -62,8 +67,9 @@ export function EventStream({
     <ListRow
       key={event.id}
       href={watchHref(event, names)}
-      // Red is the only colour here: running is not something to act on.
-      status={event.status === "negative" ? "negative" : undefined}
+      // Red is the only colour here, and every run counted as needing you
+      // carries it — Partial rows were counted without the dot (2026-11-12).
+      status={event.status === "negative" || eventNeedsAttention(event) ? "negative" : undefined}
       title={titleOf(event.projectKey)}
       secondary={eventLine(event)}
       trailing={formatClockTime(event.occurredAt)}

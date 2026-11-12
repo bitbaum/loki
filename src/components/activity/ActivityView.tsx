@@ -10,6 +10,7 @@ import { projectTitle } from "@/lib/project-display";
 import { ActivityScope } from "./ActivityScope";
 import { ActivityReport } from "./ActivityReport";
 import { NeedsYouCard } from "./NeedsYouCard";
+import { RunningNowCard } from "./RunningNowCard";
 import { EventStream } from "./EventStream";
 import { RANGE_LABEL, activityHref, titleFor, type ProjectNames } from "./activity-shared";
 
@@ -22,8 +23,8 @@ import { RANGE_LABEL, activityHref, titleFor, type ProjectNames } from "./activi
  * eight boxes before the first thing that happened.
  *
  * Now: one line of scope (time and project, each a menu), the answer as a
- * sentence, what needs you as rows, then what happened as rows under day
- * headings. The page's one action is the written report.
+ * sentence, what is running now, what needs you as rows, then what happened
+ * as rows under day headings. The page's one action is the written report.
  */
 export async function ActivityView({
   userId,
@@ -51,7 +52,11 @@ export async function ActivityView({
 
   // From every row in the window, not the 60 the list shows (2026-11-12).
   const summary = summarizeActivity(digest.summaryEvents);
-  const momentum = computeMomentum(digest.currentCount, digest.previousCount);
+  const momentum = computeMomentum(
+    digest.currentCount,
+    digest.previousCount,
+    `${RANGE_LABEL[digest.window].replace(/^the last /, "the ")} before`,
+  );
   const attentionEvents = digest.summaryEvents.filter(eventNeedsAttention);
   const context = [
     summary.agentLabel ? `${summary.agentLabel} of agent time` : null,
@@ -85,7 +90,9 @@ export async function ActivityView({
 
       {hasActivity ? (
         <>
+          <RunningNowCard events={digest.events} names={names} now={new Date(digest.until)} />
           <NeedsYouCard
+            filter={filter}
             events={attentionEvents}
             digestWindow={digest.window}
             projectKey={digest.projectKey}

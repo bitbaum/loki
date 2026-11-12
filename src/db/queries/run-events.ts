@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, max } from "drizzle-orm";
 import { db } from "@/db";
 import { runEvents, type NewRunEvent, type RunEventKind } from "@/db/schema/run-events";
 
@@ -64,6 +64,22 @@ export async function getLatestRunEventKinds(runIds: string[]): Promise<Map<stri
     .orderBy(asc(runEvents.createdAt));
   const out = new Map<string, RunEventKind>();
   for (const r of rows) out.set(r.runId, r.kind);
+  return out;
+}
+
+/**
+ * When each run was last heard from (any ledger hop, heartbeats included) —
+ * so Activity can tell a run that is working from one that went quiet.
+ */
+export async function getLastRunEventTimes(runIds: string[]): Promise<Map<string, Date>> {
+  if (runIds.length === 0) return new Map();
+  const rows = await db
+    .select({ runId: runEvents.runId, at: max(runEvents.createdAt) })
+    .from(runEvents)
+    .where(inArray(runEvents.runId, runIds))
+    .groupBy(runEvents.runId);
+  const out = new Map<string, Date>();
+  for (const r of rows) if (r.at) out.set(r.runId, new Date(r.at));
   return out;
 }
 

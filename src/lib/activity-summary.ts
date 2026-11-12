@@ -114,7 +114,13 @@ const MOMENTUM_MIN_BASE = 3;
 const MOMENTUM_MIN_SWING_PCT = 15;
 const MOMENTUM_COUNTS_ABOVE_PCT = 200;
 
-export function computeMomentum(current: number, previous: number): ActivityMomentum {
+export function computeMomentum(
+  current: number,
+  previous: number,
+  /** The window before, in words ("the 24 hours before"). A bare "up from 9"
+   *  said nothing of what was counted (2026-11-12). */
+  before = "the window before",
+): ActivityMomentum {
   if (previous === 0 && current === 0) {
     return { current, previous, deltaPct: null, label: null };
   }
@@ -145,12 +151,11 @@ export function computeMomentum(current: number, previous: number): ActivityMome
   // live 2026-10-01) and starts reading as noise. The two counts are the
   // same fact in words a person can check against the feed below.
   if (deltaPct > MOMENTUM_COUNTS_ABOVE_PCT) {
-    // With its unit: "up from 9" beside agent time read as 9 hours (2026-11-12).
     return {
       current,
       previous,
       deltaPct,
-      label: `${current} tasks, up from ${previous} the window before`,
+      label: `up from ${previous} ${previous === 1 ? "run" : "runs"} ${before}`,
     };
   }
   return {
@@ -256,7 +261,7 @@ export function activityHeadline(summary: ActivitySummary): string {
     // Runs, not things: the front door owns "N things need you" (lib/needs-you).
     const subject = runsNeedYouSentence(attention);
     if (shipped > 0) {
-      return `${subject} — and ${shipped} ${shipped === 1 ? "task" : "tasks"} shipped anyway.`;
+      return `${subject} — and ${shipped} ${shipped === 1 ? "task" : "tasks"} shipped.`;
     }
     return `${subject}.`;
   }

@@ -1,6 +1,7 @@
 // Activity says why a run failed in a person's words (activity-words).
 import assert from "node:assert/strict";
-import { plainFailure } from "../../src/components/activity/activity-words";
+import { eventLine, plainFailure, plainLine } from "../../src/components/activity/activity-words";
+import type { ActivityEvent } from "../../src/lib/activity-events";
 
 const said = (error: string | null, outcome = "failed") =>
   plainFailure({ error, outcome } as Parameters<typeof plainFailure>[0]);
@@ -35,11 +36,11 @@ assert.equal(
 );
 assert.equal(
   said("Sandbox cwd does not exist: /home/g/dev/orangecat"),
-  "The project's folder is missing on the builder.",
+  "The project folder is missing on that computer.",
 );
 assert.equal(
   said("agent stopped: the agent process exited (code 129)"),
-  "The agent quit unexpectedly.",
+  "The agent stopped partway.",
 );
 assert.equal(
   said(
@@ -57,4 +58,48 @@ assert.equal(said("ENOENT /var/x --flag"), "It failed — open it to see why.");
 for (const line of [said("x (pty) + injected, but Loki could not verify generation.")]) {
   assert.ok(!/pty|inject/i.test(line));
 }
+// The builder's sentences still on the page on 2026-11-12.
+assert.equal(
+  said("agent stopped: the agent process exited (code 129)"),
+  "The agent stopped partway.",
+);
+assert.equal(
+  said("Sandbox cwd does not exist: /home/g/dev/orangecat"),
+  "The project folder is missing on that computer.",
+);
+assert.equal(
+  said(
+    "8 agent sessions are already open on the cloud builder, which is as many as it runs at once.",
+  ),
+  "Too many tasks were running at once. Run it again when one finishes.",
+);
+assert.equal(
+  said("Dispatch failed: no runner picked it up within 5 minutes"),
+  "No computer was free to take it.",
+);
+assert.equal(
+  said("superseded: the same brief was typed into the live solon session by Grok Bot"),
+  "Replaced by a newer request.",
+);
+
+// A row's line carries no links, session ids, hashes, setting names or paths.
+assert.equal(
+  plainLine(
+    "MOVED HERE from a claude.ai cloud session (https://claude.ai/code/session_019MDtmXYZ). Continue the chat audit.",
+  ),
+  "Continue the chat audit.",
+);
+assert.equal(
+  plainLine("QUEUE BEHIND CURRENT WORK (from Grok Bot for G / Cato). Finish what you started."),
+  "Finish what you started.",
+);
+const partial = eventLine({
+  status: "warning",
+  outcomeLabel: "Partial",
+  done: "Root cause: the cron route rejected the CRON_SECRET header — commit: 1be367d",
+  ask: null,
+  intentLabel: "Next best",
+} as unknown as ActivityEvent);
+assert.ok(!/CRON_SECRET|1be367d/.test(partial), partial);
+assert.ok(partial.startsWith("Partial · Root cause:"), partial);
 console.log("✓ activity-words");

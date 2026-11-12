@@ -310,4 +310,52 @@ check("a locally-typed prompt is marked custom and flagged as local", () => {
   );
 });
 
+console.log("\nbuildActivityEvents - open runs and quiet closes (2026-11-12)");
+
+check("an open run that just started is Running", () => {
+  const [event] = buildActivityEvents({ prompts: [], runs: [run()], nowMs: at(60_000).getTime() });
+  assert.equal(event.outcome, "running");
+});
+
+check("an open run never picked up hours later is not Running (lib/open-run-state)", () => {
+  const [event] = buildActivityEvents({
+    prompts: [],
+    runs: [run()],
+    nowMs: at(2 * 60 * 60_000).getTime(),
+  });
+  assert.notEqual(event.outcome, "running");
+  assert.equal(filterActivityEvents([event], "running").length, 0);
+});
+
+check("a brief a newer one replaced does not need you", () => {
+  const [event] = buildActivityEvents({
+    prompts: [],
+    runs: [
+      run({
+        outcome: "error",
+        finishedAt: at(1000),
+        payload: { error: "superseded: the same brief was typed into the live solon session" },
+      }),
+    ],
+  });
+  assert.equal(event.outcome, "replaced");
+  assert.equal(event.outcomeLabel, "Replaced");
+  assert.equal(tallyActivityEvents([event]).attention, 0);
+});
+
+check("a wait the owner cancelled reads Stopped by you, not Failed", () => {
+  const [event] = buildActivityEvents({
+    prompts: [],
+    runs: [
+      run({
+        outcome: "error",
+        finishedAt: at(1000),
+        payload: { error: "you stopped waiting from Control after no runner picked it up" },
+      }),
+    ],
+  });
+  assert.equal(event.outcomeLabel, "Stopped by you");
+  assert.equal(tallyActivityEvents([event]).attention, 0);
+});
+
 console.log(`\n${passed}/${passed} activity-events cases passed`);

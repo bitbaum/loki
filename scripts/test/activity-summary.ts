@@ -134,7 +134,8 @@ check("failures lead, always", () => {
 check("a window with failures never opens by celebrating", () => {
   const line = activityHeadline({ ...base, attention: 1, shipped: 9, projects: 4 });
   assert.ok(!line.startsWith("9"), line);
-  assert.ok(line.includes("shipped anyway"), line);
+  // Plain: no "anyway" scolding the shipped work (2026-11-12).
+  assert.ok(line.endsWith("— and 9 tasks shipped."), line);
 });
 
 check("a clean window leads with what shipped", () => {
@@ -171,7 +172,12 @@ check("reports a real swing with its direction", () => {
 });
 
 check("a huge swing is told as counts, not '967% busier'", () => {
-  assert.equal(computeMomentum(64, 6).label, "64 tasks, up from 6 the window before");
+  assert.equal(computeMomentum(64, 6).label, "up from 6 runs the window before");
+  // The count says what it counts and over what (2026-11-12).
+  assert.equal(
+    computeMomentum(40, 9, "the 24 hours before").label,
+    "up from 9 runs the 24 hours before",
+  );
   assert.equal(computeMomentum(30, 10).label, "200% busier than last window");
 });
 
