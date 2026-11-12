@@ -120,6 +120,8 @@ export async function autoRetryStuckFeedbackQueues(): Promise<{
           sessionId: currentSession?.sessionId,
           customPrompt: composeFeedbackFixPrompt(row.feedback, row.projectName),
           notifyOnClose: true,
+          // The retry of an Implement asks for what Implement asked for.
+          whenBusy: "lane",
         },
         userId,
       );

@@ -92,6 +92,27 @@ check("a message through the API or MCP never asks for a lane", () => {
   }
 });
 
+check("every way a feedback fix starts asks for a lane, as Implement does", () => {
+  // "Implement all" and the widget's "Build all" (batch-dispatch), and the
+  // automatic retry of a stuck Implement (retry-queued), queued behind the
+  // project's open run after #1639 while single-item Implement got a lane.
+  for (const rel of ["src/lib/feedback/batch-dispatch.ts", "src/lib/feedback/retry-queued.ts"]) {
+    assert(/whenBusy: "lane",/.test(read(rel)), `${rel} waits behind the open run`);
+  }
+});
+
+check("a busy project never queues a message it has no run for", () => {
+  // The claim gate holds a busy project's row back by its run; a row without
+  // one is claimable at once and would be typed into the session it was
+  // meant to wait for.
+  const src = read("src/lib/inject-core.ts");
+  const busy = src.indexOf("const projectBusy =");
+  const guard = src.indexOf("if (projectBusy && trackableIntent && !runId) {");
+  const execute = src.indexOf("return await executeAndReport(");
+  assert(busy > 0 && guard > busy && guard < execute, "an unrecorded busy message is queued");
+  assert(/code: "run-not-recorded",/.test(src), "the refusal has no code");
+});
+
 check("feedback Implement still asks for its own lane", () => {
   assert(/whenBusy: "lane"/.test(read("src/lib/feedback/implement.ts")), "Implement would queue");
 });
