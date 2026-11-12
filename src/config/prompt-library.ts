@@ -169,7 +169,7 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
     id: "next-best-step",
     name: "Next Best Step",
     featured: true,
-    description: "Autonomously determine and execute the single highest-impact task right now",
+    description: "Pick the most useful next job for this project and do it now",
     category: "fleet",
     scope: "project",
     template: `Autonomously determine and execute the single highest-impact task for {{project_name}}.
@@ -211,7 +211,7 @@ Don't re-introduce yourself or summarize what you're about to do. Just do it.`,
     id: "test-and-fix",
     name: "Test & Fix",
     featured: true,
-    description: "Run the full test suite, fix every failure, verify primary flows end-to-end",
+    description: "Run every test, fix what fails, and check the main pages still work",
     category: "fleet",
     scope: "project",
     template: `Run the full test suite for {{project_name}} and fix every failure.
@@ -230,7 +230,7 @@ Report: N passed · N failed → N fixed · N remaining`,
     id: "commit-push",
     name: "Commit & Push",
     featured: true,
-    description: "Verify types + tests pass, write a conventional commit, push to origin",
+    description: "Check the finished work, then save and publish it",
     category: "fleet",
     scope: "project",
     template: `Commit and push the current changes for {{project_name}}.
@@ -411,7 +411,7 @@ Output: vulnerability table (package · severity · CVE · fix), then run \`npm 
   {
     id: "owasp-top-10",
     name: "OWASP Top 10 Check",
-    description: "Systematic check against the OWASP Top 10 web application security risks",
+    description: "Check the site for the ten most common security holes",
     category: "security",
     scope: "project",
     template: `Check {{project_name}} against the OWASP Top 10 web application security risks.
@@ -512,7 +512,7 @@ Give specific optimization recommendations with estimated impact.`,
   {
     id: "component-review",
     name: "Component Architecture Review",
-    description: "Check component boundaries, prop drilling, state management patterns",
+    description: "Check the screens are built from clean, reusable parts",
     category: "frontend",
     scope: "project",
     template: `Review {{project_name}} component architecture.
@@ -569,7 +569,7 @@ Provide specific file locations and fixes.`,
   {
     id: "query-optimization",
     name: "Query Performance Review",
-    description: "Find N+1 queries, missing indexes, slow queries, and over-fetching",
+    description: "Find what makes pages wait on the database, and speed it up",
     category: "database",
     scope: "project",
     template: `Review {{project_name}} database queries for performance issues.
@@ -943,7 +943,7 @@ Be direct. If nothing shipped, say so. If you could not see something, say what.
     id: "next-best",
     name: "Next best task",
     description:
-      "Autopilot loop — read ground truth, pick the single highest-impact next action, execute fully. Self-throttles when productivity is low.",
+      "What autopilot runs on its own: picks the most useful next job and does it, and stops when nothing useful is left.",
     category: "fleet",
     scope: "global",
     template: `[autopilot · loop=next_best — this prompt was auto-injected by the local dispatch loop, NOT typed by a human. Treat it as a regularly-scheduled review task; if the conversation seems off, suspect the loop, not the human.]
@@ -1015,7 +1015,7 @@ Worked examples (read these once; they replace 200 lines of edge-case rules):
     id: "autopilot-test-and-fix",
     name: "Test & fix",
     description:
-      "Run the test suite, walk affected flows in the browser, fix every failure to root cause.",
+      "What autopilot runs on its own: runs the tests, tries the changed pages, and fixes what fails.",
     category: "fleet",
     scope: "global",
     template: `[autopilot · loop=test_and_fix — this prompt was auto-injected by the local dispatch loop, NOT typed by a human. Treat it as a regularly-scheduled review task; if the conversation seems off, suspect the loop, not the human.]
@@ -1105,8 +1105,7 @@ Do not implement either path yet. Hand off to the user with these four answers s
   {
     id: "roadmap-check",
     name: "Roadmap check",
-    description:
-      "Audit ~/.loki/sessions/<P>.roadmap.md for stale entries, duplicates, completed items still marked open.",
+    description: "Tidy the project's plan: drop what is done, duplicated or out of date.",
     category: "fleet",
     scope: "global",
     template: `Read ~/.loki/sessions/<P>.roadmap.md end-to-end. For every T0/T1/T2 entry, verify against git log + current code state:
@@ -1181,7 +1180,7 @@ Next loop iteration: next_best Setup detects the file, Rule 0 surfaces it, and o
   {
     id: "hard-stop",
     name: "Hard stop",
-    description: "Kill switch — agent stops immediately, writes nothing, runs no tools.",
+    description: "Stop the agent at once — it changes nothing more.",
     category: "fleet",
     scope: "global",
     template: `HARD STOP. Stop all work immediately. Do not run any more tools. Do not write any code. Do not make any changes. Say only "Stopped." and stop.`,
