@@ -4,26 +4,29 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, CheckCheck, Loader2, MessagesSquare, X } from "lucide-react";
+import { AlertTriangle, Loader2, MessagesSquare, X } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { postJson } from "@/lib/api/fetch";
 import type { FeedbackRead } from "@/lib/feedback/read-report";
-import { compactDurationHours, compactRelativeDate } from "@/lib/dates";
+import { compactRelativeDate } from "@/lib/dates";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { FEEDBACK_WORK_PHASE, WAITING_ON } from "@/lib/feedback/work-phase";
 import type { FeedbackLoopMetrics, UserFeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { decisionFacts } from "@/lib/feedback/decision-facts";
+import { reportTitle as titleFromText } from "@/lib/feedback/report-title";
 import { rowStory } from "@/lib/feedback/row-story";
 import { projectTitle } from "@/lib/project-display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageLayout } from "@/components/ui/page-layout";
-import { PageActionButton } from "@/components/ui/page-action";
 import { Section } from "@/components/ui/section-heading";
 import { List, ListRow } from "@/components/ui/list-row";
 import { ChoiceMenu } from "@/components/ui/choice-menu";
 import { Modal } from "@/components/ui/modal";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
+import { AGENT_MAX_OPEN_DEFAULT } from "@/lib/agent-session-limit";
+import { NAV } from "@/config/navigation";
+import { NIGHT_NOT_APPROVED } from "@/config/autopilot-night";
 import { DecisionCard } from "@/components/feedback/DecisionCard";
 import { useFeedbackActions } from "@/components/feedback/use-feedback-actions";
 import {
@@ -279,15 +282,24 @@ export function FeedbackInbox() {
   const opened = openId ? all.find((f) => f.id === openId) : null;
   const openedDecision = opened ? decisions.find((d) => d.f.id === opened.id) : null;
 
+  // The most consequential tap on the page — 106 agent runs on 2026-11-12 —
+  // was an unlabelled round icon in the top bar. It is a labelled button
+  // under the sentence now; the top bar keeps icon-only actions for things
+  // that change nothing.
   const doAll =
     open > 0 && summary.takeable > 0 ? (
-      <PageActionButton
-        label={batch ? `${batch.done} of ${batch.total}` : doAllLabel(summary)}
-        icon={CheckCheck}
+      <button
+        type="button"
         onClick={() => setConfirmAll(true)}
         disabled={batch !== null || busyId !== null}
-      />
-    ) : undefined;
+        className="ui-btn-secondary min-h-11 w-full"
+      >
+        {batch && <Loader2 className="ui-spinner-xs" />}
+        {batch ? `${batch.done} of ${batch.total} done` : doAllLabel(summary)}
+      </button>
+    ) : null;
+  const [allDecisions, setAllDecisions] = useState(false);
+  const shownDecisions = allDecisions ? decisions : decisions.slice(0, DECISIONS_SHOWN);
 
   const body = (() => {
     if (loading && all.length === 0) {
@@ -349,18 +361,45 @@ export function FeedbackInbox() {
             {(night || (open > 0 && looksLine(summary))) && (
               <p className="ui-activity-lede-sub">
                 {[open > 0 ? looksLine(summary) : null, night?.note].filter(Boolean).join(" ")}
+                {/* A plan nobody approved is a problem with a way forward:
+                    say where, on the same line (2026-11-12). */}
+                {night?.note.includes(NIGHT_NOT_APPROVED) && (
+                  <>
+                    {" "}
+                    <Link
+                      href={`${NAV.settings.href}#autopilot`}
+                      className="font-medium text-text-primary underline underline-offset-2"
+                    >
+                      Autopilot settings
+                    </Link>
+                  </>
+                )}
               </p>
             )}
           </div>
+          {doAll}
         </div>
 
         {error && <p className="ui-prompt-sheet-error">{error}</p>}
         {notice && <p className="text-sm text-text-secondary">{notice}</p>}
 
         {open > 0 && (
-          <Section title="Needs a yes">
+          <Section
+            title="Needs a yes"
+            right={
+              decisions.length > DECISIONS_SHOWN ? (
+                <button
+                  type="button"
+                  onClick={() => setAllDecisions((v) => !v)}
+                  className="ui-section-link"
+                >
+                  {allDecisions ? "Show fewer" : `See all ${decisions.length}`}
+                </button>
+              ) : undefined
+            }
+          >
             <List aria-label="Needs a yes">
-              {decisions.map(({ f, rec }) => (
+              {shownDecisions.map(({ f, rec }) => (
                 <ListRow
                   key={f.id}
                   onClick={() => setOpenId(f.id)}
@@ -434,16 +473,22 @@ export function FeedbackInbox() {
           <span className="min-w-0">
             {metrics && metrics.total > 0 ? metricsLine(metrics) : null}
           </span>
-          <Link href="/feedback/studio" className="ui-link-muted whitespace-nowrap">
-            Studio requests
-          </Link>
+          <span className="flex items-center gap-4">
+            {/* Reports the owner sent himself, as their reporter sees them. */}
+            <Link href="/my-feedback" className="ui-link-muted min-h-11 whitespace-nowrap">
+              Reports you sent
+            </Link>
+            <Link href="/feedback/studio" className="ui-link-muted min-h-11 whitespace-nowrap">
+              Studio requests
+            </Link>
+          </span>
         </p>
       </>
     );
   })();
 
   return (
-    <PageLayout title="Feedback" maxWidth="max-w-2xl" action={doAll}>
+    <PageLayout title="Feedback" maxWidth="max-w-2xl">
       {body}
 
       {/* One report, opened: Loki's decision with everything behind it, or the
@@ -520,6 +565,12 @@ export function FeedbackInbox() {
                 Loki takes its own advice on every report in the list. Anything filed away comes
                 back with one tap.
               </p>
+              {summary.runs > AGENT_MAX_OPEN_DEFAULT && (
+                <p className="mt-2 text-sm text-text-secondary">
+                  The cloud builder runs {AGENT_MAX_OPEN_DEFAULT} at a time. Runs past that are
+                  turned away and show on Activity, to send again later.
+                </p>
+              )}
             </div>
             <div className="ui-sheet-foot">
               <button
@@ -530,7 +581,7 @@ export function FeedbackInbox() {
                 }}
                 className="ui-btn-primary min-h-12 w-full"
               >
-                Do it
+                {doAllConfirmWord(summary)}
               </button>
             </div>
           </Modal>,
@@ -542,9 +593,19 @@ export function FeedbackInbox() {
 
 const ALL_PROJECTS = "__all__";
 
+/** Past this, "Needs a yes" stops being a list to decide and becomes a wall:
+ *  112 rows, about 9000px on a phone (2026-11-12). */
+const DECISIONS_SHOWN = 10;
+
+/** The confirm button says what happens: "Start 106 runs", not "Do it". */
+export function doAllConfirmWord(s: { runs: number; takeable: number }): string {
+  if (s.runs > 0) return `Start ${s.runs} ${s.runs === 1 ? "run" : "runs"}`;
+  return `Do all ${s.takeable}`;
+}
+
 /** What was reported, in the reporter's words — the row's title. */
 function reportTitle(f: InboxItem): string {
-  return decisionFacts(f).asked || "A report with no words";
+  return titleFromText(decisionFacts(f).asked ?? "") || "A report with no words";
 }
 
 /** The kinds a row's own button can take in one tap; the rest open the sheet. */
@@ -559,8 +620,12 @@ function kindWord(rec: Recommendation): string {
       return "Live, close it";
     case RECOMMEND.BUILD:
       return rec.runs ? "Build it, one agent run" : "Build it";
-    case RECOMMEND.RETRY:
-      return "Last try failed";
+    case RECOMMEND.RETRY: {
+      // Why the last try failed, not just that it did: 60 rows read "Last try
+      // failed · Try again" with the reason only inside the sheet.
+      const first = rec.why.split(/(?<=[.!?])\s/)[0]?.replace(/\.$/, "");
+      return first || "Last try failed";
+    }
     case RECOMMEND.CLOUD:
       return "Waiting for this computer";
     case RECOMMEND.FILE:
@@ -629,7 +694,13 @@ function ItemSection({
               ]
                 .filter(Boolean)
                 .join(" · ")}
-              trailing={compactRelativeDate(f.createdAt)}
+              // The line already carries a time ("you confirmed it 30d ago"):
+              // a second, unlabelled one beside it was the report's own age.
+              trailing={
+                /\bago\b|\bjust now\b/.test(story.headline)
+                  ? undefined
+                  : compactRelativeDate(f.createdAt)
+              }
             />
           );
         })}
@@ -638,15 +709,25 @@ function ItemSection({
   );
 }
 
+/** "6 days" / "9 hours": a footer a person reads, not "6d median". */
+function fixedInWords(hours: number): string {
+  if (hours < 1) return "an hour";
+  if (hours < 48) {
+    const h = Math.round(hours);
+    return `${h} ${h === 1 ? "hour" : "hours"}`;
+  }
+  return `${Math.round(hours / 24)} days`;
+}
+
 /** The fleet-wide loop as one sentence. Pure; pinned by feedback-numbers-add-up. */
 export function metricsLine(m: FeedbackLoopMetrics): string {
   const parts = [
     `${m.total} reports`,
     m.open > 0 ? `${m.open} open` : null,
     `${m.resolved} done${m.resolved30d > 0 ? ` (${m.resolved30d} in the last 30 days)` : ""}`,
-    m.archived > 0 ? `${m.archived} archived` : null,
+    m.archived > 0 ? `${m.archived} filed away` : null,
     m.medianResolutionHours != null
-      ? `${compactDurationHours(m.medianResolutionHours)} median to confirmed`
+      ? `usually fixed in about ${fixedInWords(m.medianResolutionHours)}`
       : null,
   ].filter((p): p is string => p !== null);
   return parts.join(" · ");

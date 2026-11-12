@@ -302,7 +302,7 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
   });
   assert.equal(
     held,
-    "Last night Loki built nothing — its plan was never approved, filed away 2 old reports.",
+    "Last night Loki built nothing (the plan was not approved), filed away 2 old reports.",
   );
   assert.equal(
     nightNoteText({

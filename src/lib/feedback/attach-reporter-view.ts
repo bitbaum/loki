@@ -74,6 +74,7 @@ export async function attachReporterView(
       status: reporterStatusFor(work, {
         liveHref,
         tourHref,
+        now: new Date(),
         client: {
           previewFirst: item.previewFirst,
           liveApprovedAt: item.liveApprovedAt,

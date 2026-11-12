@@ -174,6 +174,18 @@ export const NAV = {
     active: true,
     mobile: false,
   },
+  // Not in any menu: reached from a report's mail and from /feedback
+  // ("Reports you sent"). Listed so the top bar names it like its siblings —
+  // it was the one page with a blank bar (2026-11-12).
+  myFeedback: {
+    id: "my-feedback",
+    label: "My feedback",
+    description: "Reports you sent, and where each one is",
+    href: "/my-feedback",
+    icon: MessagesSquare,
+    active: true,
+    mobile: false,
+  },
   prompts: {
     id: "prompts",
     label: "Prompts",
