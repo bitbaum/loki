@@ -29,6 +29,26 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.66",
+    tag: "fleet-runner-v0.8.66",
+    date: "2026-11-12T04:45:00Z",
+    highlights: [
+      "The builder reports which branch the agent is working on, so a task only shows a pull request that is really its own.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.65",
+    tag: "fleet-runner-v0.8.65",
+    date: "2026-11-12T04:30:00Z",
+    highlights: [
+      "A second task for a busy project starts in the builder's own copy of that project. On the cloud builder it used to fail before the agent saw the task, because it was given a folder that only exists on another computer.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.64",
     tag: "fleet-runner-v0.8.64",
     date: "2026-11-11T14:00:00Z",

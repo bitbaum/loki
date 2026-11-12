@@ -23,6 +23,10 @@ import { countOpenParallelLanes, mergeRunPayload } from "@/db/queries/orchestrat
  * watch — went through inject-core and queued behind whatever the project was
  * already doing. Measured 2026-09-17: a feedback fix waited 47 minutes behind
  * a Next Best Task before an agent saw it. Both paths now share this.
+ *
+ * A lane is for work that stands apart from the open run. A message to the
+ * project's session is not: it waits its turn. Which one a dispatch is, the
+ * caller says (busy-placement.ts); the default is to wait.
  */
 
 /** Opt-in: a worktree per run is a real cost on the builder's disk. */

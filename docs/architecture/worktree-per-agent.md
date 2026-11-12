@@ -51,8 +51,12 @@ dispatches. What changed is only *where the agent's index lives*.
 **Flag:** `LOKI_PARALLEL_DISPATCH=true` on the SERVER (flip only after the
 worktree flag has been dogfooded). **SSOT:** `src/lib/run-tab.ts`.
 
-When a project is busy, instead of queueing (`queuedBehind`) the dispatch fires
-immediately under a **derived tab alias** `<project>~<runId8>`. Because the
+When a project is busy, a dispatch that asked for its own lane (`whenBusy:
+"lane"`: feedback Implement, and the run route) fires immediately under a
+**derived tab alias** `<project>~<runId8>` instead of queueing
+(`queuedBehind`). Every other dispatch, including `POST /api/inject` and the
+MCP `loki_dispatch`, is a message to the project's session and waits its turn
+behind the open run (`src/lib/orchestration/busy-placement.ts`). Because the
 whole loop is tab-keyed, every mechanism composes unchanged: own PTY workspace
 (`runner:<alias>`), own session file (`<alias>.md`), own sentinels, own
 worktree. The pieces that ARE alias-aware:

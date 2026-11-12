@@ -106,7 +106,7 @@ export const config = {
      *   api/share/task/            – the assignee's read + accept/decline/deliver, by token;
      *                                the path segment keeps every other /api/share child protected
      *   api/telegram/webhook       – Loki's notification bot; verifies Telegram's secret-token header
-     *   api/orangecat/             – OrangeCat webhooks (entitlement, events, site, task, ask, actor-status, feedback); each verifies its own HMAC
+     *   api/orangecat/             – OrangeCat webhooks (entitlement, events, site, task, ask, actor-status, sessions, feedback); each verifies its own HMAC
      *                                signature. One exception, deliberately unsigned:
      *                                api/orangecat/project-link answers "is this OrangeCat project
      *                                being built here" and returns only what /fleet already

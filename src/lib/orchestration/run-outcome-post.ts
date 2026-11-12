@@ -1,3 +1,4 @@
+import { runBranches } from "@/lib/run-branches";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { userProjects } from "@/db/schema";
@@ -46,9 +47,12 @@ export async function postRunOutcomeToConversation(run: OrchestrationRun): Promi
     const token = await getGithubToken(run.userId).catch(() => null);
     if (!evidence && project?.gitUrl && run.startedAt) {
       if (token) {
-        evidence = await findRepoWorkEvidence(project.gitUrl, token, run.startedAt.getTime()).catch(
-          () => null,
-        );
+        evidence = await findRepoWorkEvidence(
+          project.gitUrl,
+          token,
+          run.startedAt.getTime(),
+          runBranches(run),
+        ).catch(() => null);
       }
     }
 

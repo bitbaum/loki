@@ -1,3 +1,4 @@
+import { withReportedBranch } from "@/lib/run-branches";
 import type { FixShipping } from "@/lib/feedback/fix-shipping";
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
@@ -1026,12 +1027,30 @@ export async function stampRunProgress(
   step: string | null = null,
   /** With blocked=permission: the agent's question. Cleared with blocked. */
   question: string | null = null,
+  /** The branch the agent's checkout is on now (lib/run-branches). */
+  branch: string | null = null,
 ): Promise<boolean> {
   const now = new Date().toISOString();
-  const base = sql`jsonb_set(jsonb_set(
+  const beat = sql`jsonb_set(jsonb_set(
         jsonb_set(COALESCE(payload, '{}'), '{lastProgressAt}', ${JSON.stringify(now)}::jsonb),
         '{blocked}', ${JSON.stringify(blocked)}::jsonb),
         '{blockedQuestion}', ${JSON.stringify(question)}::jsonb)`;
+  // Read, then set: the list only changes when the agent changes branch, so
+  // nearly every beat skips this.
+  let branches: string[] | null = null;
+  if (branch) {
+    const [row] = await db
+      .select({ payload: orchestrationRuns.payload })
+      .from(orchestrationRuns)
+      .where(and(eq(orchestrationRuns.id, runId), eq(orchestrationRuns.userId, userId)))
+      .limit(1);
+    const before = withReportedBranch(row?.payload?.branches, null);
+    const after = withReportedBranch(before, branch);
+    if (after.join("\n") !== before.join("\n")) branches = after;
+  }
+  const base = branches
+    ? sql`jsonb_set(${beat}, '{branches}', ${JSON.stringify(branches)}::jsonb)`
+    : beat;
   const rows = await db
     .update(orchestrationRuns)
     .set({

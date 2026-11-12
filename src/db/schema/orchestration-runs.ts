@@ -80,6 +80,9 @@ export type OrchestrationRunPayload = {
    *  the run's window. Written by the reaper when it corrects a timeout
    *  (reap-evidence.ts) and by Watch the moment it appears (run-evidence-live.ts). */
   evidence?: { kind: string; url: string; title: string; atMs: number };
+  /** Branches the runner reported the agent's checkout on while the run was
+   *  live (lib/run-branches): what ties a pull request or push to this run. */
+  branches?: string[];
   /** The fix ledger — where the change got to AFTER the run closed: pull
    *  request, merge, deploy, Loki's look (lib/feedback/fix-shipping, written
    *  by stampRunFix). Every reader used to cast for it. */

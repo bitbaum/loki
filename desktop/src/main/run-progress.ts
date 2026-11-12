@@ -13,6 +13,11 @@ import { findShippedPr, salvageShip } from './salvage-ship'
 import { newestLog, readRange } from './transcript-streamer'
 import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
 import { latestRunStep } from '@/lib/run-step'
+import { cleanBranchName } from '@/lib/run-branches'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+
+const execFileAsync = promisify(execFile)
 import {
   RUN_BLOCKED,
   RUN_PROGRESS_BEAT_MS,
@@ -184,12 +189,14 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   if (decision === 'stop') { stopRunProgress(runId); return }
   if (decision === 'wait') return
   const step = await currentStep(t.dir).catch(() => null)
+  const branch = await currentBranch(t.dir)
   const beat: RunProgressBeat = {
     outputBytes: t.bytesSinceBeat,
     lastOutputAt: new Date(t.lastOutputAt).toISOString(),
     blocked: t.blocked,
     ...(t.question ? { question: t.question } : {}),
     ...(step ? { step } : {}),
+    ...(branch ? { branch } : {}),
   }
   t.bytesSinceBeat = 0
   t.lastBeatAt = Date.now()
@@ -212,6 +219,22 @@ async function sendBeat(base: string, token: string, runId: string, beat: RunPro
   } catch (e) {
     // Telemetry: the next tick retries; bytes since then are counted again.
     console.warn('[run-progress] beat failed:', (e as Error).message)
+  }
+}
+
+/**
+ * The branch the agent's checkout is on, so the server can tell this run's
+ * pull request from one somebody else opened meanwhile (lib/run-branches).
+ * Null outside a repository or on a detached HEAD.
+ */
+async function currentBranch(dir: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', dir, 'rev-parse', '--abbrev-ref', 'HEAD'], {
+      timeout: 5000,
+    })
+    return cleanBranchName(stdout)
+  } catch {
+    return null
   }
 }
 

@@ -33,7 +33,12 @@ Honesty rules for agent callers, pinned by `scripts/test/canonical-status.ts`:
   live URL, all in `evidence`. A report marked done without them reads
   **Needs you**, cause `done_unproven`, with `missing` listing which of
   `pr merge deploy live_url` is absent and the next action to confirm the live
-  page. A pull request that is another run's is not proof.
+  page. A pull request that is another run's is not proof. A pull request or
+  push is a run's only when it is on one of the run's own branches
+  (`lib/run-branches`: `loki/run-<id8>`, its worktree branch, and every
+  branch its runner reported the agent's checkout on); "the newest one opened
+  since the run started" is not an attribution, and `main` is never one of
+  them. Pinned by `scripts/test/run-branches.ts`.
 - **An open pull request or a deploy under way is Working**, whoever's move it is.
   Never Done, never Needs you.
 - **Closed without a change is Failed**, cause `closed_without_change`, empty
