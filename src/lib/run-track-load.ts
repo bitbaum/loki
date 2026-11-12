@@ -19,6 +19,7 @@
  * own view (`ownerView`), and only while a card is open — never from a timer
  * (scripts/test/no-free-background-ai.ts).
  */
+import { getFeedbackByRunId } from "@/db/queries/site-feedback";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { promptHistory } from "@/db/schema/prompt-history";
@@ -124,6 +125,12 @@ export async function loadRunTrack(
     hydrateFeedbackSnapshot(userId, run),
     run.projectId ? getUserProjectByEntityId(userId, run.projectId).catch(() => null) : null,
   ]);
+  // A run whose fix ledger is a feedback report's: the one kind of run that
+  // owes a change. Unknown (lookup failed): treated as owing one, as before.
+  const feedbackFix = await getFeedbackByRunId(userId, run.id).then(
+    (row) => row !== null,
+    () => true,
+  );
 
   const work = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap);
   const view = buildTerminalRunView({
@@ -283,7 +290,13 @@ export async function loadRunTrack(
     events,
     snap,
     view,
-    canonical: canonicalStatus(work, { liveUrl: project?.liveUrl ?? null }),
+    // Only a feedback fix is asked to ship a change; any other run that
+    // finished well with nothing pushed is Done (a read-only probe was
+    // "Needs you, nothing shipped").
+    canonical: canonicalStatus(work, {
+      liveUrl: project?.liveUrl ?? null,
+      expectsChange: Boolean(feedbackFix),
+    }),
     prompt,
     project: project ? { id: project.id, gitUrl, liveUrl: project.liveUrl ?? null } : null,
     provider,

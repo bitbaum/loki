@@ -48,6 +48,12 @@ Honesty rules for agent callers, pinned by `scripts/test/canonical-status.ts`:
   carried its branch is checked with GitHub once and removed when it is
   another branch's. Pinned by `scripts/test/run-branches.ts` and
   `scripts/test/run-evidence-ownership.ts`.
+- **Only a feedback fix owes a change.** Any other run (a question, a
+  read-only check, a one-off) that finished well with nothing pushed is
+  **Done**, cause `finished_no_change`, next action none
+  (`canonicalStatus(..., { expectsChange: false })`, from `run-track-load`).
+  A pushed branch with no pull request still reads Needs you. Pinned by
+  `scripts/test/probe-path.ts`.
 - **An open pull request or a deploy under way is Working**, whoever's move it is.
   Never Done, never Needs you.
 - **Closed without a change is Failed**, cause `closed_without_change`, empty

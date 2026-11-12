@@ -260,7 +260,12 @@ export async function closeRunUndelivered(
   reason: string,
   /** False when the caller is already telling the person, in the same reply,
    *  that the dispatch failed — a second "run closed" message is noise. */
-  opts: { notify?: boolean } = {},
+  opts: {
+    notify?: boolean;
+    /** False for a refusal by choice, not a failure: nothing was sent and
+     *  nothing is wrong with the project (a fresh session with no free lane). */
+    ladder?: boolean;
+  } = {},
 ): Promise<void> {
   const [closed] = await db
     .update(orchestrationRuns)
@@ -309,7 +314,7 @@ export async function closeRunUndelivered(
     // use — one rule for what a close does to a ladder. `lastOutcome` keeps
     // this honest downstream: the ladder already distinguishes a streak built
     // from undelivered dispatches from one built from an agent's failing work.
-    if (ladderEffectForClose(closed.outcome).kind === "advance") {
+    if (opts.ladder !== false && ladderEffectForClose(closed.outcome).kind === "advance") {
       void advanceEscalation({
         userId,
         projectKey: closed.projectKey,
