@@ -17,7 +17,10 @@
  * /api/orangecat/sessions). `builderChannel: "cloud"` asks for the always-on
  * runner. A project that already has an open run refuses the whole task with
  * 409 and a sentence, unless the body says `queueIfBusy` (wait behind the open
- * run) or `separateSession` (a parallel session in its own worktree).
+ * run). `session: "fresh"` (or the older `separateSession: true`) gives each
+ * project a one-off session of its own for this task: a new agent in its own
+ * worktree, closed when it reports, never typed into the project's shared
+ * session, busy or not. Without a lane of its own it is refused (409).
  *
  * Every close outcome is announced: the person typed this into OrangeCat and
  * is not watching a Loki tab.
@@ -31,6 +34,7 @@ import { dispatchToProjects } from "@/lib/multi-project-dispatch";
 import { MAX_TASK_LENGTH, MAX_TASK_PROJECTS } from "@/lib/multi-dispatch-prompt";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 import { getExecutionAccess } from "@/lib/execution-access";
+import { isFreshIssuedAt } from "@/lib/integrations/orangecat-actor-status";
 
 const Body = z.object({
   actorId: z.string().uuid(),
@@ -44,13 +48,21 @@ const Body = z.object({
   /** Queue behind a project's open run. Without it a busy project refuses the task (409). */
   queueIfBusy: z.boolean().optional(),
   /**
-   * A busy project starts a separate agent session for this task, in its own
-   * worktree, instead of refusing or queueing: for a one-off question that
-   * should not wait for, or be folded into, the open run.
+   * "fresh": a one-off session of its own for this task, in its own
+   * worktree, closed when it reports (busy-placement.ts). For a question
+   * that must neither wait for the open run nor be folded into it.
    */
+  session: z.enum(["shared", "fresh"]).optional(),
+  /** The first name of `session: "fresh"`; kept so a caller that sends it still gets it. */
   separateSession: z.boolean().optional(),
   /** Where on OrangeCat this was sent from — for attribution, not routing. */
   originUrl: z.string().trim().url().max(500).optional(),
+  /**
+   * When the request was signed. A task starts agents, so a captured request
+   * must not be replayable: when present it must be within the same window as
+   * the read doors. Optional only until every OrangeCat sends it.
+   */
+  issuedAt: z.string().datetime().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -58,6 +70,10 @@ export async function POST(req: NextRequest) {
   if (dataOrResp instanceof NextResponse) return dataOrResp;
   const { actorId, task, projects, originUrl, builderChannel, queueIfBusy, separateSession } =
     dataOrResp;
+  const session = separateSession ? "fresh" : dataOrResp.session;
+  if (dataOrResp.issuedAt && !isFreshIssuedAt(dataOrResp.issuedAt)) {
+    return NextResponse.json({ error: "stale request" }, { status: 401 });
+  }
 
   const user = await getUserByOrangeCatActorId(actorId);
   if (!user) {
@@ -95,8 +111,8 @@ export async function POST(req: NextRequest) {
       ...(builderChannel ? { builderChannel } : {}),
       // A person on OrangeCat is not watching Control: a busy project answers
       // with a sentence unless they asked to queue behind the open run.
-      refuseBusy: !queueIfBusy && !separateSession,
-      ...(separateSession ? { whenBusy: "lane" as const } : {}),
+      refuseBusy: !queueIfBusy,
+      ...(session ? { session } : {}),
     },
     user.id,
   );
