@@ -49,6 +49,7 @@ import {
 import { WATCH_MAX_SECONDS, watchTab } from "@/lib/integrations/orangecat-watch";
 import type { BuilderChannel } from "@/lib/constants/statuses";
 import { runHandoff } from "@/lib/run-handoff";
+import { askedOf } from "@/lib/multi-dispatch-prompt";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
 import { loadRunTrack, type TrackableRun } from "@/lib/run-track-load";
 import {
@@ -119,7 +120,8 @@ async function rowFor(
               state: loaded.canonical.state,
               label: loaded.canonical.label,
               reason: loaded.canonical.reason,
-              task: loaded.prompt?.text ?? null,
+              // What was asked, not the cross-project preamble the agent got.
+              task: loaded.prompt?.text ? askedOf(loaded.prompt.text) : null,
               track: loaded.track.summary,
               prUrl: pr,
               lastProgressAt: loaded.snap?.lastProgressAt ?? null,
