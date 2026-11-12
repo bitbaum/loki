@@ -182,6 +182,45 @@ diag)
         --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
         loki-agent:latest gemini --skip-trust --yolo 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   done ;;
+agent-probe)
+  # Read-only, about one cent. Open ONE agent CLI (RUNS: claude|codex|cursor-agent|
+  # grok|gemini) in a sealed container the way the runner does, as the unit's
+  # user, with the credentials sandbox.ts passes through (names listed, values
+  # never printed), send "Reply with the single word PONG" and print the masked
+  # screen. Answers "is this agent really out of quota?" from the agent's own
+  # words: on 2026-11-12 the runner refused claude 16 times in 8 minutes and
+  # grok once, "usage limit is exhausted", and kept no screen to show why.
+  A="${RUNS:-}"
+  case "$A" in claude|codex|cursor-agent|grok|gemini) ;; *) echo "✗ runs must be one agent: claude codex cursor-agent grok gemini"; exit 1 ;; esac
+  U="$(unit_user)"; H="$(unit_home)"; EF="$(unit_envfile)"
+  RT=""; systemctl show -p Environment --value "$UNIT.service" | grep -q 'LOKI_SANDBOX_OCI_RUNTIME=runsc' && RT="--runtime runsc --runtime-flag ignore-cgroups"
+  proj="$H/.sealed-test"; mkdir -p "$proj"; echo "# sealed test" > "$proj/README.md"; chown -R "$U:$U" "$proj"; mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"
+  ensure_image "$U" "$H"; chmod 755 /tmp/sealed-pty-probe.py
+  props=(); envs=(); names=""
+  for k in GEMINI_API_KEY GOOGLE_API_KEY ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN OPENAI_API_KEY CURSOR_API_KEY XAI_API_KEY GROK_API_KEY OPENROUTER_API_KEY; do
+    v="$([ -n "$EF" ] && (set -a; . "$EF" 2>/dev/null; printf %s "${!k:-}"))"
+    [ -n "$v" ] || continue
+    props+=(-p "Environment=$k=$v"); envs+=(--env "$k"); names="$names $k"
+  done
+  echo "agent: $A; credentials passed:${names:- none}; ~/.${A%%-*}: $(ls -A "$H/.${A%%-*}" 2>/dev/null | wc -l) entries"
+  # One headless turn first (no terminal to negotiate): an agent out of quota
+  # says so here in plain text.
+  echo "--- headless: $A -p (first 25 lines, masked) ---"
+  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
+    -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${props[@]}" \
+    timeout 120 podman run --rm --userns=keep-id $RT --workdir "$proj" \
+      --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 --security-opt no-new-privileges --cap-drop ALL \
+      --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" "${envs[@]}" \
+      loki-agent:latest bash -lc "$A -p 'Reply with the single word PONG and nothing else.' </dev/null" 2>&1 \
+    | grep -v 'level=warn\|WARN\[' | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | head -25
+  echo "--- interactive, as the runner opens it ---"
+  case "$A" in grok) cmd="grok --always-approve --no-alt-screen" ;; gemini) cmd="gemini --skip-trust --yolo" ;; *) cmd="$A" ;; esac
+  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
+    -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${props[@]}" \
+    python3 /tmp/sealed-pty-probe.py "${PSECS:-40}" -- podman run --rm -it --userns=keep-id $RT --workdir "$proj" \
+      --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 --security-opt no-new-privileges --cap-drop ALL \
+      --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" "${envs[@]}" \
+      loki-agent:latest bash -lc "$cmd" 2>&1 | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | tail -90 ;;
 stop-sealed)
   # Stop the unit's sealed agent containers (fc-ws-*) so a waiting restart can
   # proceed. Only for a stuck session; the runner sees the PTY exit and closes

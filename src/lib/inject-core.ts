@@ -44,6 +44,7 @@ import {
   createOrchestrationRun,
   closeRunUndelivered,
   isProjectBusy,
+  mergeRunPayload,
   stampRunDelivered,
   stampRunCommandId,
 } from "@/db/queries/orchestration-runs";
@@ -64,6 +65,11 @@ import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { sessionOpenUrl } from "@/lib/dispatch-card";
 import { findInjectProject } from "@/lib/inject-project";
+import {
+  agentAvoidingSpent,
+  agentRerouteSentence,
+  type AgentReroute,
+} from "@/lib/dispatch-agent-route";
 import type { DispatchSession, WhenBusy } from "@/lib/orchestration/busy-placement";
 
 type ResolvedAdapter = (typeof ORCHESTRATION_ADAPTER_IDS)[number];
@@ -957,6 +963,34 @@ async function executeAndReport(
  * /api/inject route returns. `userId` is already authenticated by the caller.
  */
 export async function injectPrompt(params: InjectParams, userId: string): Promise<InjectResult> {
+  const sink: { reroute?: AgentReroute } = {};
+  const result = await injectPromptOnce(params, userId, sink);
+  const r = sink.reroute;
+  if (!r || result.status >= 400) return result;
+  const runId = typeof result.body.runId === "string" ? result.body.runId : null;
+  if (runId) {
+    await mergeRunPayload(runId, {
+      reroutedFrom: r.from,
+      reroutedBecause: r.because,
+      reroutedWhy: r.why,
+    }).catch(() => undefined);
+  }
+  return {
+    ...result,
+    body: {
+      ...result.body,
+      agent: r.to,
+      agentReroutedFrom: r.from,
+      agentNotice: agentRerouteSentence(r),
+    },
+  };
+}
+
+async function injectPromptOnce(
+  params: InjectParams,
+  userId: string,
+  sink: { reroute?: AgentReroute },
+): Promise<InjectResult> {
   const { promptKey, customPrompt, adapter } = params;
   const runtimeAvailable = isRuntimeAvailable();
   let runId = params.runId;
@@ -975,7 +1009,19 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
   const ptyHandle = ptyExecutor ? ptyExecutor.get(ptyWorkspaceId) : null;
   const ptyBacked = !!ptyHandle && ptyHandle.status !== "exited";
 
-  const eventAdapter = resolveEventAdapter(adapter, dbMatch);
+  let eventAdapter = resolveEventAdapter(adapter, dbMatch);
+  // Nobody pinned an agent (a chat message, a voice turn): do not walk into
+  // one Loki has just watched run out (lib/dispatch-agent-route).
+  if (!adapter) {
+    const routed = await agentAvoidingSpent(userId, dbMatch, eventAdapter);
+    if (
+      routed.rerouted &&
+      (ORCHESTRATION_ADAPTER_IDS as readonly string[]).includes(routed.agent)
+    ) {
+      eventAdapter = routed.agent as ResolvedAdapter;
+      sink.reroute = routed.rerouted;
+    }
+  }
 
   // Model override: a caller-supplied model (Loki's composer model picker) wins
   // over the project's stored modelPref. The runner's execute_inject auto-launch
