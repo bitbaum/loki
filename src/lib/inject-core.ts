@@ -59,6 +59,7 @@ import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { rerouteNotice } from "@/lib/dispatch-status";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
+import { sessionOpenUrl } from "@/lib/dispatch-card";
 import { findInjectProject } from "@/lib/inject-project";
 import type { DispatchSession, WhenBusy } from "@/lib/orchestration/busy-placement";
 
@@ -877,6 +878,8 @@ async function executeAndReport(
       // is a one-off that closes when it reports.
       ...(queued?.parallelTab ? { sessionTab: queued.parallelTab } : {}),
       ...(queued?.parallelTab && params.session === "fresh" ? { session: "fresh" } : {}),
+      // Where a person opens this session in Loki, on any device.
+      openUrl: sessionOpenUrl(queued?.parallelTab ?? effectiveTab, channel, runId ?? null),
       ...(result.mode === "queued" && {
         commandId: (result as { commandId: string }).commandId,
         runnerConnected: (result as { runnerConnected?: boolean }).runnerConnected ?? null,

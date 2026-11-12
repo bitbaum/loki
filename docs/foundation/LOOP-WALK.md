@@ -60,6 +60,14 @@ Handing a QA bot a seat: the project's owner gives the bot's own account a
 Viewer or Reporter seat (never Owner or Editor), and the bot mints its token
 at `POST /api/agent-tokens` with its own session. Any seat may file.
 
+A person's OrangeCat bot files through the same contract without a seat token
+of its own: `POST /api/orangecat/feedback` on the signed OrangeCat rail files
+as the Loki account linked to that person, with `{actorId, issuedAt, project
+(by name), suggestion, agentName, idempotencyKey?, page?, url?, pageTitle?}`
+(words only, no attachments), and reads a report back with `{actorId,
+issuedAt, feedbackId}`. Both doors call one body (`lib/feedback/agent-filing`),
+so the answers, the replay rule and the limit below are the same.
+
 1. **File.** `POST /api/projects/<id>/feedback` with
    `Authorization: Bearer ck_…`, JSON
    `{suggestion (1–2000), agentName (1–80, e.g. "QA · quality control"), idempotencyKey? (8–200), page?, url?, pageTitle?, screenshots?, context?, moments?, selectedElements?}`.
@@ -104,7 +112,8 @@ reaches its own account's sessions.
 1. **Start or continue.** `POST /api/control/tab-inject` `{tab, prompt}`, where
    `tab` is the project's name. A session that is running gets the prompt
    typed into it; otherwise the builder starts the project's agent and hands
-   it the prompt. Returns `commandId` and `runId`.
+   it the prompt. Returns `commandId`, `runId` and `openUrl`: the same
+   session in Loki's Terminal, on that run.
 2. **See it is up.** `GET /api/control/open-tabs?channel=cloud` lists the
    sessions open on the cloud builder, by name.
 3. **Read it.** `POST /api/control/peek-tab` `{tab, channel: "cloud"}` returns
@@ -115,10 +124,14 @@ reaches its own account's sessions.
    `{kind: "key", tab, data, channel: "cloud"}`, the bytes the Terminal page
    sends for a keystroke.
 5. **Close it.** `POST /api/control/close-tab` `{tab, channel: "cloud"}`.
-6. **Hand it to a person.** `openUrl` (`/terminal?project=<tab>`) is the same
-   session in Loki's Terminal, for whoever is signed in as the owner, on a
-   phone or a computer.
+6. **Hand it to a person.** `openUrl` (`/terminal?source=cloud&project=<tab>&run=<id>`,
+   from starting it or from a capture) is the same session in Loki's
+   Terminal, for whoever is signed in as the owner, on a phone or a computer.
 
 A plain shell (`loki-shell-…`) is never part of this: its screen and keys
 belong to a signed-in, unlocked browser, and a token gets `403` or `404`.
 `scripts/test/agent-session-read.ts` pins the read side.
+
+Over MCP (`docs/development/mcp.md`) the same walk is `loki_dispatch` to
+start or continue, `loki_sessions` to see what is open, and
+`loki_session_read` to read a session's output.

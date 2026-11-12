@@ -106,7 +106,11 @@ check("Control never closes a lane run from the shared session's handoff", () =>
 
 check("OrangeCat's separate session is a fresh session, never the shared queue", () => {
   const route = read("src/app/api/orangecat/task/route.ts");
-  assert(/separateSession \? \{ session: "fresh" as const \} : \{\}/.test(route), "not fresh");
+  assert(
+    /const session = separateSession \? "fresh" : dataOrResp\.session;/.test(route),
+    "not fresh",
+  );
+  assert(/\.\.\.\(session \? \{ session \} : \{\}\),/.test(route), "the session is not passed on");
   assert(!/whenBusy: "lane"/.test(route), "still a lane that can fall back");
   assert(
     /\.\.\.\(input\.session \? \{ session: input\.session \} : \{\}\),/.test(

@@ -1,6 +1,10 @@
 // One task, several projects — the pure half (src/lib/multi-dispatch-prompt.ts).
 // Run: npx tsx scripts/test/multi-dispatch-prompt.ts
-import { buildProjectTaskPrompt, normalizeTaskProjects } from "@/lib/multi-dispatch-prompt";
+import {
+  askedOf,
+  buildProjectTaskPrompt,
+  normalizeTaskProjects,
+} from "@/lib/multi-dispatch-prompt";
 
 let pass = 0;
 let fail = 0;
@@ -28,6 +32,11 @@ ok(p.includes("sent to 2 projects at once: OrangeCat, Loki"), "preamble lists al
 ok(p.includes("You are working in Loki."), "preamble names this project");
 ok(p.includes("OrangeCat is handling its own part"), "siblings exclude this project (singular)");
 ok(p.endsWith("Post prompts from both apps"), "task follows the preamble verbatim");
+ok(askedOf(p) === "Post prompts from both apps", "askedOf takes the preamble off");
+ok(
+  askedOf("Fix the header\n\n---\n\nmore") === "Fix the header\n\n---\n\nmore",
+  "askedOf leaves a plain prompt alone",
+);
 ok(p.includes("state the contract you assumed"), "asks for cross-repo contracts");
 
 const three = buildProjectTaskPrompt("x", "solon", ["OrangeCat", "Loki", "Solon"]);
