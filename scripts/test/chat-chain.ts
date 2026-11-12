@@ -10,6 +10,7 @@
  *
  * Run: npm run test:chat-chain
  */
+import { readFileSync } from "node:fs";
 import {
   CHAT_CHAIN,
   usableChatChain,
@@ -180,3 +181,17 @@ check("an unknown model with NO usable chain yields nothing to call", () => {
 });
 
 console.log(`\n${passed} passed`);
+
+// The platform's Gemini key spent with no cap on 2026-11-12. Loki has no cap
+// that refuses a call, so Google is not in its chain, and the platform key is
+// not copied to the builder or to the gateway.
+{
+  if (CHAT_CHAIN.some((p) => p.id === "google")) throw new Error("google is in Loki's chain");
+  const install = readFileSync("scripts/hetzner/install-builder-agents.sh", "utf8");
+  if (/\/opt\/orangecat\/app\/\.env/.test(install))
+    throw new Error("the builder copies OrangeCat's key");
+  const gateway = readFileSync(".github/workflows/openclaw-media.yml", "utf8");
+  if (/\/opt\/orangecat\/app\/\.env/.test(gateway))
+    throw new Error("the gateway copies OrangeCat's key");
+  console.log("✓ no uncapped platform Gemini key in Loki, the builder or the gateway");
+}

@@ -6,11 +6,10 @@
 # has both. It reuses exactly the SSH setup deploy.yml uses (HETZNER_SSH_KEY,
 # HETZNER_IP), so nothing new has to be provisioned for the connection.
 #
-# The key comes from the first of:
-#   1. the repo secret GEMINI_API_KEY (Settings → Secrets → Actions), or
-#   2. the GEMINI_API_KEY already in OrangeCat's env on the same box
-#      (/opt/orangecat/app/.env — OrangeCat's free-vendor chain uses it).
-# It is written to the openclaw user's ~/.openclaw/.env only if that file
+# The key comes from the repo secret GEMINI_API_KEY (Settings → Secrets →
+# Actions): a key of the gateway's own, from a Google project with a per-day
+# request quota. Never OrangeCat's platform key, which spent with no cap on
+# 2026-11-12. With no secret, media understanding stays off. It is written to the openclaw user's ~/.openclaw/.env only if that file
 # does not already carry one, and never printed.
 #
 # Run it from the Actions tab, or:  gh workflow run openclaw-media.yml
@@ -57,14 +56,14 @@ jobs:
           # Only fills the gap. A key already there wins, whatever its source.
           ssh "root@$HETZNER_IP" 'grep -qsE "^(export )?(GEMINI_API_KEY|GOOGLE_API_KEY)=.+" /home/openclaw/.openclaw/.env' \
             && { echo "the openclaw user already has a Google key"; exit 0; }
+          # Never OrangeCat's key: that is the platform's paid key, which on
+          # 2026-11-12 spent with no cap. The gateway reads images and video,
+          # the dearest calls there are, so it gets a key of its own in a
+          # Google project with a per-day request quota.
           key="$GEMINI_API_KEY"
           if [ -z "$key" ]; then
-            key=$(ssh "root@$HETZNER_IP" 'grep -m1 -oP "^GEMINI_API_KEY=\K.*" /opt/orangecat/app/.env 2>/dev/null | tr -d "\"\r"' || true)
-            [ -n "$key" ] && echo "using the Gemini key from OrangeCat's env on the box"
-          fi
-          if [ -z "$key" ]; then
-            echo "::error::no Gemini key: add the repo secret GEMINI_API_KEY (free at https://aistudio.google.com/apikey) and re-run"
-            exit 1
+            echo "::notice::no repo secret GEMINI_API_KEY: media understanding stays off. Add a key of its own, from a Google project with a daily request quota."
+            exit 0
           fi
           # Written via stdin so the key never appears in a process list.
           printf 'GEMINI_API_KEY=%s\n' "$key" | ssh "root@$HETZNER_IP" \

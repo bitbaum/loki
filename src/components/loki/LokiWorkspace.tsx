@@ -623,7 +623,7 @@ export function LokiWorkspace({
       {isStart && !site.handoff && !demo.asked && (
         <StartScreen
           conversations={conversations}
-          railVisible={historyPinned && wide}
+          railPinned={historyPinned}
           loading={convosLoading}
           error={convosError}
           onRetry={() => void reloadConversations()}

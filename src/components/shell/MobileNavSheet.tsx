@@ -15,6 +15,7 @@ import { usePrivateZone } from "@/hooks/use-private-zone";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 import { useOverlayLock } from "@/hooks/use-overlay-lock";
 import { FeedbackNavCount } from "@/components/feedback/FeedbackNavCount";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 
 const TAB_IDS = new Set(MOBILE_NAV_ITEMS.map((item) => item.id));
 
@@ -85,6 +86,9 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
   // Escape left the sheet open, and the page kept scrolling behind it.
   useEscapeToClose(onClose);
   useOverlayLock(true);
+  // And the keyboard: focus stayed on the page behind, and the 22nd Tab stop
+  // was a row under the backdrop.
+  const sheetRef = useDialogFocus();
 
   return (
     <>
@@ -96,7 +100,15 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
       {/* data-fc-place="hidden": the top bar (and its feedback button) hides
           under this sheet, and the widget then drew its own floating button
           on the sheet's header, beside the close × — like <Modal> does. */}
-      <div className="ui-mobile-nav-sheet" role="dialog" aria-label="More" data-fc-place="hidden">
+      <div
+        ref={sheetRef}
+        tabIndex={-1}
+        className="ui-mobile-nav-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="More"
+        data-fc-place="hidden"
+      >
         <div className="ui-mobile-nav-sheet-header">
           <span className="ui-mobile-nav-sheet-title">More</span>
           <button

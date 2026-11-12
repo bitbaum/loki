@@ -24,6 +24,7 @@ import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 import { runLaneOfTab } from "@/lib/run-tab";
 import {
   RUN_IDLE_RELEASE_MINUTES,
+  RUN_PROGRESS_HORIZON_SECONDS,
   RUN_WENT_QUIET_SENTENCE as RUN_WENT_QUIET,
 } from "@/lib/run-progress";
 import {
@@ -97,17 +98,46 @@ export function laneLifeFloorSql(alias: RunAlias) {
  * for a person. Its session is sitting at a ready prompt, so it no longer
  * holds its project's lane, and the reaper may close it.
  *
- * Unknown is not idle: a run that never beat (lastProgressAt NULL) keeps its
- * lane until the reaper's verdict, as before. Measured from the run's own
- * beats, never from a timer on the run's age: the merged-sessions regression
- * this file guards against was a lane released while the agent was printing.
+ * Unknown is not idle: a run the runner never reported on at all (no beat of
+ * any size) keeps its lane until the reaper's verdict, as before. Measured
+ * from the run's own beats, never from a timer on the run's age: the
+ * merged-sessions regression this file guards against was a lane released
+ * while the agent was printing.
+ *
+ * Two cases the first version of this rule got wrong (review, 2026-11-12):
+ *
+ * - The runner stops beating RUN_PROGRESS_MAX_MS into a run, whatever the
+ *   agent is doing. A run whose last working beat came at that horizon is not
+ *   known to be quiet: half an hour later it read as idle while it printed,
+ *   and the next prompt went into a working session. Silence that begins at
+ *   the horizon proves nothing, so such a run holds, as it did before.
+ * - A turn that ended before the runner began reporting on it (the agent
+ *   answered inside the dispatch's own verification window) never produced a
+ *   working beat, only the idle trickle afterwards. It read as "unknown" and
+ *   held its project for up to MAX_RUN_HOURS, which is the case this rule was
+ *   written for. A run the runner IS reporting on (lastBeatAt, any beat) that
+ *   has printed no work since its delivery is idle too.
  */
 export function runIdleSql(alias: RunAlias) {
   const t = sql.raw(alias);
+  const quietFor = sql`NOW() - make_interval(mins => ${RUN_IDLE_RELEASE_MINUTES})`;
+  // The last moment a working beat can still be told from the runner's own stop.
+  const horizon = sql`${runLifeStartSql(alias)} + make_interval(secs => ${RUN_PROGRESS_HORIZON_SECONDS})`;
   return sql`(
-    (${t}.payload->>'lastProgressAt') IS NOT NULL
-    AND (${t}.payload->>'blocked') IS NULL
-    AND (${t}.payload->>'lastProgressAt')::timestamptz < NOW() - make_interval(mins => ${RUN_IDLE_RELEASE_MINUTES})
+    (${t}.payload->>'blocked') IS NULL
+    AND (
+      (
+        (${t}.payload->>'lastProgressAt') IS NOT NULL
+        AND (${t}.payload->>'lastProgressAt')::timestamptz < ${quietFor}
+        AND (${t}.payload->>'lastProgressAt')::timestamptz < ${horizon}
+      )
+      OR (
+        (${t}.payload->>'lastProgressAt') IS NULL
+        AND (${t}.payload->>'lastBeatAt') IS NOT NULL
+        AND (${t}.payload->>'deliveredAt') IS NOT NULL
+        AND (${t}.payload->>'deliveredAt')::timestamptz < ${quietFor}
+      )
+    )
   )`;
 }
 
@@ -1080,9 +1110,13 @@ export async function stampRunProgress(
   working = true,
 ): Promise<boolean> {
   const now = new Date().toISOString();
+  // Any beat says the runner is reporting on this run (lastBeatAt): that is
+  // what lets "no work since delivery" be read as idle rather than unknown
+  // (runIdleSql). Only a working beat moves lastProgressAt.
+  const seenBeat = sql`jsonb_set(COALESCE(payload, '{}'), '{lastBeatAt}', ${JSON.stringify(now)}::jsonb)`;
   const progressed = working
-    ? sql`jsonb_set(COALESCE(payload, '{}'), '{lastProgressAt}', ${JSON.stringify(now)}::jsonb)`
-    : sql`COALESCE(payload, '{}')`;
+    ? sql`jsonb_set(${seenBeat}, '{lastProgressAt}', ${JSON.stringify(now)}::jsonb)`
+    : seenBeat;
   const beat = sql`jsonb_set(jsonb_set(
         ${progressed},
         '{blocked}', ${JSON.stringify(blocked)}::jsonb),

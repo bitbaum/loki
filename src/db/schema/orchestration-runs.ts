@@ -92,6 +92,11 @@ export type OrchestrationRunPayload = {
    *  request, merge, deploy, Loki's look (lib/feedback/fix-shipping, written
    *  by stampRunFix). Every reader used to cast for it. */
   fix?: FixShipping;
+  /** What was said in the thread about this run's blocked pull request: for
+   *  each reason, the head commit it was said at (lib/feedback/fix-shipping
+   *  prBlockerNews). Beside `fix`, not in it: the ledger is rebuilt on every
+   *  refresh. Not `blocked`: that key is the runner's reason a session is quiet. */
+  prBlockerSaid?: Partial<Record<"conflict" | "checks_failed", string | null>>;
   /** Announce this run's outcome when it closes, on every configured channel
    *  (web push to the installed PWA, plus Telegram when a chat id is set).
    *
@@ -112,6 +117,9 @@ export type OrchestrationRunPayload = {
   kitPlan?: KitRunRecord;
   /** The runner's last progress beat (stampRunProgress, lib/run-progress). */
   lastProgressAt?: string;
+  /** ISO time of the runner's last beat of any size for this run: proof the
+   *  runner is reporting on it (db/queries/orchestration-runs runIdleSql). */
+  lastBeatAt?: string;
   /** Why a quiet agent is quiet, when the runner could tell ("auth"). */
   blocked?: string | null;
   /** With `blocked`: the agent's question, or why it stopped, as the runner

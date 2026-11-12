@@ -16,10 +16,11 @@
  *
  * Every check prints PASS/FAIL with the evidence; the exit code is the verdict.
  * A dispatch that never returns is aborted (user_abort) so a test never leaves
- * a run hanging in the operator's queue; its prompt carries the [loki-e2e]
+ * a run hanging in the operator's queue; its prompt carries the [e2e-probe]
  * marker so it is recognisable in the ledger.
  *
- *   LOKI_SESSION_TOKEN=… npx tsx scripts/test/loki-loop-e2e.ts [--dispatch]
+ *   LOKI_AGENT_TOKEN=ck_… npx tsx scripts/test/loki-loop-e2e.ts [--dispatch]
+ *   (LOKI_SESSION_TOKEN=… still works where sign-in is Auth.js)
  *   BASE=https://loki.orangecat.ch  E2E_DISPATCH_MINUTES=30  E2E_PROJECT=loki
  */
 import { config } from "dotenv";
@@ -44,21 +45,34 @@ const DISPATCH = process.argv.includes("--dispatch");
  * check must outlast the slowest healthy path it exercises.
  */
 const DISPATCH_MINUTES = Number(process.env.E2E_DISPATCH_MINUTES ?? 30);
-const MARKER = "[loki-e2e]";
+/**
+ * It was "[loki-e2e]". A project named in a message outranks the selected
+ * one (lib/project-mention, on purpose), and "loki" is a project: every probe
+ * went to the loki project whatever E2E_PROJECT said, and on 2026-11-12 three
+ * runs in a row waited behind that project's open run while this file
+ * reported on a project it had never reached. The marker names no project.
+ */
+const MARKER = "[e2e-probe]";
 /** The handoff summary the probe asks for, and the proof that it came back. */
 const PROBE_SUMMARY = "e2e ok — no changes";
 
+// A ck_ agent token signs in the way a runner does, and is what the box-side
+// check mints since sign-in moved to AccountKit (scripts/test/mint-check-
+// token.ts): the Auth.js cookie this file used to send is no session there.
+const agentToken = (process.env.LOKI_AGENT_TOKEN ?? "").trim();
 const token = smokeSessionToken();
-if (!token) {
+if (!token && !agentToken) {
   console.error(
-    "✗ no session: set LOKI_SESSION_TOKEN (mint one with scripts/test/print-session-token.ts)",
+    "✗ no session: set LOKI_AGENT_TOKEN (mint one with scripts/test/mint-check-token.ts) or LOKI_SESSION_TOKEN",
   );
   process.exit(2);
 }
 const cookieName = BASE.startsWith("https://")
   ? "__Secure-authjs.session-token"
   : "authjs.session-token";
-const headers = { cookie: `${cookieName}=${token}`, "content-type": "application/json" };
+const headers: Record<string, string> = agentToken
+  ? { authorization: `Bearer ${agentToken}`, "content-type": "application/json" }
+  : { cookie: `${cookieName}=${token}`, "content-type": "application/json" };
 
 type Verdict = { name: string; ok: boolean; skipped?: boolean; evidence: string };
 const verdicts: Verdict[] = [];
@@ -147,18 +161,29 @@ async function thread(conversationId: string): Promise<Turn[]> {
  */
 const CLOSED_STATUSES = new Set(["completed", "partial", "stopped", "failed"]);
 
-async function runState(runId: string): Promise<{ label: string; closed: boolean }> {
+async function runState(
+  runId: string,
+): Promise<{ label: string; closed: boolean; detail: string | null }> {
   try {
     const res = await fetch(`${BASE}/api/orchestration/runs/${runId}`, { headers });
-    if (!res.ok) return { label: `unreadable (HTTP ${res.status})`, closed: false };
-    const v = (await res.json()) as { status?: string; label?: string; terminal?: boolean };
+    if (!res.ok) return { label: `unreadable (HTTP ${res.status})`, closed: false, detail: null };
+    const v = (await res.json()) as {
+      status?: string;
+      label?: string;
+      terminal?: boolean;
+      detail?: string | null;
+    };
     const status = v.status ?? "?";
     return {
       label: `${status}${v.label ? ` (${v.label})` : ""}`,
       closed: CLOSED_STATUSES.has(status) && v.terminal === true,
+      // The track's own sentence for an open run: WHY it is where it is
+      // (next in line behind an earlier task, held for the runner's update,
+      // no runner). The check used to guess instead of reading it.
+      detail: typeof v.detail === "string" && v.detail.trim() ? v.detail.trim() : null,
     };
   } catch (e) {
-    return { label: `unreadable (${(e as Error).message})`, closed: false };
+    return { label: `unreadable (${(e as Error).message})`, closed: false, detail: null };
   }
 }
 
@@ -288,10 +313,28 @@ async function checkClosesTheLoop() {
     );
     return;
   }
+  // What Loki told the person who sent it, and what the run says of itself a
+  // moment later: both are the product's own words, and both say why when a
+  // task is not about to start.
+  // The task has to have gone where it was sent, or everything after this
+  // line reports on another project.
+  const went = String(dispatch?.meta?.projectKey ?? "");
+  if (went && went.toLowerCase() !== PROJECT.toLowerCase()) {
+    await abortRun(runId, `sent to ${PROJECT}, dispatched to ${went}`);
+    record(
+      "closes the loop: dispatch accepted",
+      false,
+      `asked for project ${PROJECT}, Loki dispatched to ${went}: "${(dispatch?.content ?? "").replace(/\s+/g, " ").trim().slice(0, 200)}"`,
+    );
+    return;
+  }
+  const said = (dispatch?.content ?? "").replace(/\s+/g, " ").trim().slice(0, 260);
+  await new Promise((r) => setTimeout(r, 15_000));
+  const first = await runState(runId);
   record(
     "closes the loop: dispatch accepted",
     true,
-    `run ${runId} via ${String(dispatch?.meta?.channel ?? "?")}`,
+    `run ${runId} via ${String(dispatch?.meta?.channel ?? "?")}\n      Loki said: "${said}"\n      the run, 15 s on: ${first.label}${first.detail ? ` — "${first.detail}"` : ""}`,
   );
 
   const deadline = Date.now() + DISPATCH_MINUTES * 60_000;
@@ -305,7 +348,7 @@ async function checkClosesTheLoop() {
   if (!outcome) {
     // Name WHICH half broke. A closed run with no turn is a lost notification
     // (the work happened); an open run is a stuck builder.
-    const { label: state, closed } = await runState(runId);
+    const { label: state, closed, detail } = await runState(runId);
     if (!closed) {
       await abortRun(
         runId,
@@ -317,7 +360,9 @@ async function checkClosesTheLoop() {
       false,
       closed
         ? `run ${runId} CLOSED (${state}) but wrote no outcome turn — the work happened, the notification was lost. Suspect a process that exits before its fire-and-forget close notification (see settle-background-work.ts).`
-        : `run ${runId} still ${state} after ${DISPATCH_MINUTES} min — aborted. First suspect: the box builder cannot authenticate (see /opt/monitoring/builder-auth-check.sh --report).`,
+        : detail
+          ? `run ${runId} still ${state} after ${DISPATCH_MINUTES} min — aborted. Loki's own word for it: "${detail}"`
+          : `run ${runId} still ${state} after ${DISPATCH_MINUTES} min — aborted. First suspect: the box builder cannot authenticate (see /opt/monitoring/builder-auth-check.sh --report).`,
     );
     return;
   }

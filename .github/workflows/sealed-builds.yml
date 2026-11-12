@@ -27,13 +27,18 @@ on:
             "launch-check",
             "clean-dead",
             "reset-runtime",
+            "memory",
+            "memory-set",
+            "memory-clear",
+            "stop-idle",
+            "agent-probe",
           ]
       unit:
         description: "Runner unit (owner: loki-box-runner)"
         required: false
         default: loki-box-runner
       runs:
-        description: "diag: space-separated run ids to pull from the runner journal"
+        description: "diag: space-separated run ids to pull from the runner journal. memory-set: the ceiling in GiB (and the word force to set one below what the builder holds now)"
         required: false
         default: ""
 

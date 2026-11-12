@@ -4,6 +4,10 @@
 #   sealed-builds-ctl.sh test <unit>   # one agent build inside the container, as that unit runs it
 #   sealed-builds-ctl.sh on   <unit>   # drop-in + .on flag, then drain-restart
 #   sealed-builds-ctl.sh off  <unit>   # drop-in removed, then drain-restart
+#   sealed-builds-ctl.sh memory <unit>             # read: what the builder holds and what bounds it
+#   RUNS="9" sealed-builds-ctl.sh memory-set <unit>  # ceiling in GiB; the builder gives first
+#   sealed-builds-ctl.sh memory-clear <unit>       # undo memory-set
+#   sealed-builds-ctl.sh stop-idle <unit>          # stop sealed sessions with no open run (RUNS=dry lists only)
 # Prints verdicts only, never a secret (public Action logs).
 set -uo pipefail
 MODE="${1:-read}"; UNIT="${2:-loki-box-runner}"; UNIT="${UNIT%.service}"
@@ -30,7 +34,108 @@ runtime_reset_cmd() {
   printf '%s' "b=\$(cat /proc/sys/kernel/random/boot_id); [ \"\$(cat $1/.run/.boot-id 2>/dev/null)\" = \"\$b\" ] || { rm -rf $1/.run/containers $1/.run/libpod; echo \"\$b\" > $1/.run/.boot-id; echo reset; }"
 }
 
+# memory_set_decision <held bytes> <ceiling GiB> [force] — apply | refuse:<why>.
+# Pure, pinned by test-sealed-builds-memory.sh. A ceiling below what the
+# builder holds makes the kernel stop sessions the moment it is set; that is
+# never done by accident, only with "force".
+memory_set_decision() {
+  local held="${1:-0}" gib="${2:-}" force="${3:-}"
+  case "$gib" in ''|*[!0-9]*) echo "refuse:the ceiling is a whole number of GiB"; return ;; esac
+  if [ "$gib" -lt 2 ] || [ "$gib" -gt 64 ]; then echo "refuse:the ceiling is between 2 and 64 GiB"; return; fi
+  case "$held" in ''|*[!0-9]*) held=0 ;; esac
+  # A quarter GiB of room, so the write itself does not push a session over.
+  if [ $((gib * 1073741824)) -lt $((held + 268435456)) ] && [ "$force" != force ]; then
+    echo "refuse:the builder holds more than that now, so sessions would be stopped at once"; return
+  fi
+  echo apply
+}
+# What "the builder gives first" means to the kernel: when the whole box is out
+# of memory it stops the process with the highest score. 300 puts a sandbox
+# ahead of a site or the gateway of the same size, and behind nothing of ours.
+BUILDER_OOM_ADJ=300
+set_builder_oom_adj() { # <value>: every process the unit holds now
+  local cg p n=0
+  cg="/sys/fs/cgroup$(systemctl show -p ControlGroup --value "$UNIT.service")"
+  for p in $(find "$cg" -name cgroup.procs -exec cat {} + 2>/dev/null); do
+    echo "$1" > "/proc/$p/oom_score_adj" 2>/dev/null && n=$((n + 1))
+  done
+  echo "$n"
+}
+memory_report() {
+  systemctl show "$UNIT.service" -p MemoryCurrent -p MemorySwapCurrent -p MemoryHigh -p MemoryMax 2>/dev/null \
+    | awk -F= '$2 ~ /^[0-9]+$/ {printf "  %s=%.1fGiB\n", $1, $2/1073741824; next} {printf "  %s=%s\n", $1, $2}'
+  awk '/MemTotal|MemAvailable|SwapTotal|SwapFree/ {printf "  box %s %.1f GiB\n", $1, $2/1048576}' /proc/meminfo
+  echo "  stopped for memory since boot: $(journalctl -k -b --no-pager 2>/dev/null | grep -ci 'out of memory')"
+}
+
+# between_tasks <container> <containers with an open run, one a line> <age s> <fresh s>
+# — stop | open-run | fresh. Pure, pinned by test-sealed-builds-memory.sh.
+between_tasks() {
+  grep -qx -- "$1" <<<"$2" && { echo open-run; return; }
+  [ "${3:-0}" -lt "$4" ] 2>/dev/null && { echo fresh; return; }
+  echo stop
+}
+
+if [ -n "${SEALED_CTL_LIB_ONLY:-}" ]; then return 0 2>/dev/null || exit 0; fi
+
 case "$MODE" in
+stop-idle)
+  # Free memory without touching work: stop the sealed sessions (fc-ws-*) whose
+  # project has NO open run in Loki's database, i.e. sessions between tasks.
+  # An agent mid-task always has an open run, even one that prints nothing
+  # while it waits on CI. Bytes are not the signal: on 2026-11-12 eight
+  # sessions at their prompt each relayed 3 to 10 KB a minute through podman.
+  # A session younger than FRESH_SECS is left alone (its run may not be
+  # recorded yet). RUNS="dry" lists without stopping. About 1 GiB each; the
+  # runner reopens a session on the next message to that project.
+  FRESH_SECS="${FRESH_SECS:-900}"
+  U="$(unit_user)"; H="$(unit_home)"
+  CG="/sys/fs/cgroup$(systemctl show -p ControlGroup --value "$UNIT.service")/cgroup.procs"
+  open_tabs="$(sudo -u postgres psql -d "${LOKI_DB:-loki}" -qtAX -c "SELECT DISTINCT COALESCE(payload->>'sessionTab', project_key) FROM orchestration_runs WHERE finished_at IS NULL AND started_at > NOW() - INTERVAL '12 hours'" </dev/null 2>/dev/null)" \
+    || { echo "✗ could not read open runs: nothing stopped"; exit 1; }
+  keep="$(printf '%s\n' "$open_tabs" | while read -r t; do [ -n "$t" ] && printf 'fc-ws-%s\n' "$(printf '%s' "runner:$t" | sha256sum | cut -c1-24)"; done)"
+  echo "open runs in: $(printf '%s\n' "$open_tabs" | grep -c .) projects or lanes"
+  echo "before:"; memory_report
+  for p in $(cat "$CG" 2>/dev/null); do
+    [ "$(cat "/proc/$p/comm" 2>/dev/null)" = podman ] || continue
+    n="$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -oE -- '--name fc-ws-[0-9a-f]+' | head -1 | cut -d' ' -f2)"
+    [ -n "$n" ] || continue
+    age="$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')"
+    verdict="$(between_tasks "$n" "$keep" "${age:-0}" "$FRESH_SECS")"
+    if [ "$verdict" != stop ]; then echo "keep $n ($verdict)"; continue; fi
+    if [ "${RUNS:-}" = dry ]; then echo "would stop $n (no open run, ${age}s old)"; continue; fi
+    echo "stopping $n (no open run, ${age}s old)"
+    systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$n" 2>&1 | grep -v level= | tail -1
+  done
+  sleep 5; echo "after:"; memory_report ;;
+memory)
+  # Read-only. What the builder holds, what bounds it, what the box has left.
+  echo "$UNIT:"; memory_report ;;
+memory-set)
+  # RUNS="<ceiling GiB> [force]". The builder gets a ceiling (sealed sessions
+  # live in this unit's cgroup, src/lib/agent-execution/sandbox.ts) and is the
+  # first to give when the whole box runs out. Nothing is restarted.
+  set -- $RUNS; gib="${1:-}"; force="${2:-}"
+  held="$(systemctl show -p MemoryCurrent --value "$UNIT.service" 2>/dev/null)"
+  verdict="$(memory_set_decision "$held" "$gib" "$force")"
+  if [ "$verdict" != apply ]; then
+    echo "✗ not set: ${verdict#refuse:}"; echo "$UNIT:"; memory_report; exit 1
+  fi
+  # A ceiling only. No MemoryHigh below it: at the moment this is set the
+  # builder usually holds close to the ceiling, and a "high" mark under what
+  # it holds would slow every session at once, which nobody asked for.
+  systemctl set-property "$UNIT.service" "MemoryMax=${gib}G" MemoryHigh=infinity || { echo "✗ systemd refused the ceiling"; exit 1; }
+  mkdir -p "/etc/systemd/system/$UNIT.service.d"
+  printf '# Written by sealed-builds-ctl.sh memory-set. New agent processes inherit it.\n[Service]\nOOMScoreAdjust=%s\n' "$BUILDER_OOM_ADJ" \
+    > "/etc/systemd/system/$UNIT.service.d/20-oom-first.conf"
+  systemctl daemon-reload
+  echo "✓ $UNIT: ceiling ${gib}G; $(set_builder_oom_adj "$BUILDER_OOM_ADJ") running processes marked to give first"
+  echo "$UNIT:"; memory_report ;;
+memory-clear)
+  systemctl set-property "$UNIT.service" MemoryMax=infinity MemoryHigh=infinity
+  rm -f "/etc/systemd/system/$UNIT.service.d/20-oom-first.conf"; systemctl daemon-reload
+  echo "✓ $UNIT: no ceiling; $(set_builder_oom_adj 0) running processes back to the default"
+  echo "$UNIT:"; memory_report ;;
 reset-runtime)
   # By hand, for a runner that is already up after a reboot: same reset the
   # unit runs before it starts. Nothing is removed when the state is from this boot.
@@ -77,6 +182,45 @@ diag)
         --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
         loki-agent:latest gemini --skip-trust --yolo 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   done ;;
+agent-probe)
+  # Read-only, about one cent. Open ONE agent CLI (RUNS: claude|codex|cursor-agent|
+  # grok|gemini) in a sealed container the way the runner does, as the unit's
+  # user, with the credentials sandbox.ts passes through (names listed, values
+  # never printed), send "Reply with the single word PONG" and print the masked
+  # screen. Answers "is this agent really out of quota?" from the agent's own
+  # words: on 2026-11-12 the runner refused claude 16 times in 8 minutes and
+  # grok once, "usage limit is exhausted", and kept no screen to show why.
+  A="${RUNS:-}"
+  case "$A" in claude|codex|cursor-agent|grok|gemini) ;; *) echo "✗ runs must be one agent: claude codex cursor-agent grok gemini"; exit 1 ;; esac
+  U="$(unit_user)"; H="$(unit_home)"; EF="$(unit_envfile)"
+  RT=""; systemctl show -p Environment --value "$UNIT.service" | grep -q 'LOKI_SANDBOX_OCI_RUNTIME=runsc' && RT="--runtime runsc --runtime-flag ignore-cgroups"
+  proj="$H/.sealed-test"; mkdir -p "$proj"; echo "# sealed test" > "$proj/README.md"; chown -R "$U:$U" "$proj"; mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"
+  ensure_image "$U" "$H"; chmod 755 /tmp/sealed-pty-probe.py
+  props=(); envs=(); names=""
+  for k in GEMINI_API_KEY GOOGLE_API_KEY ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN OPENAI_API_KEY CURSOR_API_KEY XAI_API_KEY GROK_API_KEY OPENROUTER_API_KEY; do
+    v="$([ -n "$EF" ] && (set -a; . "$EF" 2>/dev/null; printf %s "${!k:-}"))"
+    [ -n "$v" ] || continue
+    props+=(-p "Environment=$k=$v"); envs+=(--env "$k"); names="$names $k"
+  done
+  echo "agent: $A; credentials passed:${names:- none}; ~/.${A%%-*}: $(ls -A "$H/.${A%%-*}" 2>/dev/null | wc -l) entries"
+  # One headless turn first (no terminal to negotiate): an agent out of quota
+  # says so here in plain text.
+  echo "--- headless: $A -p (first 25 lines, masked) ---"
+  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
+    -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${props[@]}" \
+    timeout 120 podman run --rm --userns=keep-id $RT --workdir "$proj" \
+      --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 --security-opt no-new-privileges --cap-drop ALL \
+      --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" "${envs[@]}" \
+      loki-agent:latest bash -lc "$A -p 'Reply with the single word PONG and nothing else.' </dev/null" 2>&1 \
+    | grep -v 'level=warn\|WARN\[' | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | head -25
+  echo "--- interactive, as the runner opens it ---"
+  case "$A" in grok) cmd="grok --always-approve --no-alt-screen" ;; gemini) cmd="gemini --skip-trust --yolo" ;; *) cmd="$A" ;; esac
+  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
+    -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${props[@]}" \
+    python3 /tmp/sealed-pty-probe.py "${PSECS:-40}" -- podman run --rm -it --userns=keep-id $RT --workdir "$proj" \
+      --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 --security-opt no-new-privileges --cap-drop ALL \
+      --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" "${envs[@]}" \
+      loki-agent:latest bash -lc "$cmd" 2>&1 | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | tail -90 ;;
 stop-sealed)
   # Stop the unit's sealed agent containers (fc-ws-*) so a waiting restart can
   # proceed. Only for a stuck session; the runner sees the PTY exit and closes

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Copy, Check, Plus, Trash2, Loader2, Terminal, ExternalLink, Cpu } from "lucide-react";
+import { DetailSheet, SheetAction, SheetActions } from "@/components/ui/detail-sheet";
 import { postJson, deleteJson } from "@/lib/api/fetch";
 import { APP_URL } from "@/config/brand";
 import { FEEDBACK_MEDIUM_MS } from "@/lib/constants/timings";
@@ -10,7 +11,6 @@ import { FEEDBACK_MEDIUM_MS } from "@/lib/constants/timings";
 // module pulls in the declare-global so we can use window.fleetRunner here.
 import "@/components/desktop/types";
 import { useInsideFleetRunner } from "@/hooks/use-inside-fleet-runner";
-import { longDate, timeAgo } from "@/lib/dates";
 
 type TokenMeta = {
   id: string;
@@ -44,11 +44,9 @@ export function AgentTokenSettings() {
   }, []);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  // Disconnecting a computer stops every agent on it, so the trash icon only
-  // ASKS; the row then states the consequence and offers Disconnect / Cancel.
-  // It used to revoke on one tap, a single mis-tap away from stopping the
-  // cloud runner.
-  const [confirming, setConfirming] = useState<string | null>(null);
+  /** The token whose "revoke?" sheet is open, and what went wrong in it. */
+  const [revoking, setRevoking] = useState<{ id: string; label: string } | null>(null);
+  const [revokeError, setRevokeError] = useState("");
   const interactiveInitCommand = `curl -fsSL ${APP_URL}/api/agent/install | node - init --base-url ${APP_URL}`;
 
   const create = async () => {
@@ -108,15 +106,26 @@ export function AgentTokenSettings() {
     );
   };
 
+  // Revoking is asked for first, in a sheet that says what it does. It used to
+  // be one tap on a bin with no question, and the row was taken off the list
+  // whether or not the server agreed: with the request refused the card read
+  // "No tokens yet" while the token still worked.
   const remove = async (id: string) => {
     setDeleting(id);
+    setRevokeError("");
     try {
-      await deleteJson("/api/agent-tokens", { id });
+      const res = await deleteJson("/api/agent-tokens", { id });
+      if (!res.ok) {
+        setRevokeError("It was not revoked. Try again.");
+        return;
+      }
       setTokens((prev) => prev.filter((t) => t.id !== id));
       if (revealed?.id === id) setRevealed(null);
+      setRevoking(null);
+    } catch {
+      setRevokeError("It was not revoked. Check your connection and try again.");
     } finally {
       setDeleting(null);
-      setConfirming(null);
     }
   };
 
@@ -283,65 +292,41 @@ export function AgentTokenSettings() {
       {/* Token list */}
       {tokens.length > 0 && (
         <div className="space-y-1.5">
-          {tokens.map((t) =>
-            confirming === t.id ? (
-              <div key={t.id} className="ui-card-shell space-y-3 px-4 py-3">
-                <p className="text-sm text-text-primary">
-                  Disconnect {t.label}? Agents on it stop until you connect it again.
+          {tokens.map((t) => (
+            <div key={t.id} className="ui-card-shell flex items-center gap-3 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="truncate text-sm font-medium text-text-primary">{t.label}</p>
+                  {t.prefix && (
+                    <code
+                      className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-micro text-text-tertiary shrink-0"
+                      title="Token prefix — match this against the ck_… in your .env to identify the right token"
+                    >
+                      {t.prefix}
+                    </code>
+                  )}
+                </div>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  Created {new Date(t.createdAt).toLocaleDateString()}
+                  {t.lastUsedAt
+                    ? ` · last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
+                    : " · never used"}
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => remove(t.id)}
-                    disabled={deleting === t.id}
-                    className="ui-btn-danger gap-1.5"
-                  >
-                    {deleting === t.id && <Loader2 className="ui-spinner-sm" />}
-                    Disconnect
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirming(null)}
-                    disabled={deleting === t.id}
-                    className="ui-btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
-            ) : (
-              <div key={t.id} className="ui-card-shell flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="truncate text-sm font-medium text-text-primary">{t.label}</p>
-                    {t.prefix && (
-                      <code
-                        className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-micro text-text-tertiary shrink-0"
-                        title="Token prefix — match this against the ck_… in your .env to identify the right token"
-                      >
-                        {t.prefix}
-                      </code>
-                    )}
-                  </div>
-                  <p className="text-xs text-text-tertiary mt-0.5">
-                    Added {longDate(t.createdAt)}
-                    {t.lastUsedAt
-                      ? ` · last used ${timeAgo(new Date(t.lastUsedAt).getTime())}`
-                      : " · never used"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setConfirming(t.id)}
-                  className="ui-icon-action-danger shrink-0"
-                  title={`Disconnect ${t.label}`}
-                  aria-label={`Disconnect ${t.label}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ),
-          )}
+              <button
+                type="button"
+                onClick={() => {
+                  setRevokeError("");
+                  setRevoking({ id: t.id, label: t.label });
+                }}
+                className="ui-icon-action shrink-0 min-h-11 min-w-11 p-1.5 text-status-negative/60 hover:text-status-negative"
+                aria-label={`Revoke ${t.label}`}
+                title={`Revoke ${t.label}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -349,6 +334,30 @@ export function AgentTokenSettings() {
         <p className="text-sm text-text-secondary">
           No tokens yet. Generate one to connect an agent.
         </p>
+      )}
+      {revoking && (
+        <DetailSheet
+          title={`Revoke ${revoking.label}?`}
+          subtitle="The computer that uses this token stops connecting. You can make a new one at any time."
+          onClose={() => setRevoking(null)}
+          size="sm"
+        >
+          {revokeError && (
+            <p role="alert" className="ui-error">
+              {revokeError}
+            </p>
+          )}
+          <SheetActions>
+            <SheetAction
+              icon={deleting === revoking.id ? Loader2 : Trash2}
+              danger
+              disabled={deleting === revoking.id}
+              onClick={() => remove(revoking.id)}
+            >
+              Revoke {revoking.label}
+            </SheetAction>
+          </SheetActions>
+        </DetailSheet>
       )}
     </section>
   );

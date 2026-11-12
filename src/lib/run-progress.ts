@@ -23,6 +23,13 @@ export const RUN_PROGRESS_FRESH_MS = 10 * 60_000;
  *  runaway; the runner stops beating and the phase turns Stalled, which is
  *  the honest state for something a human has to look at. */
 export const RUN_PROGRESS_MAX_MS = 6 * 60 * 60_000;
+/**
+ * Seconds into a run after which its silence can no longer be told from the
+ * runner's own stop at RUN_PROGRESS_MAX_MS: five minutes before it, so a
+ * last beat near the stop is read as "the runner stopped", not "the agent
+ * did" (db/queries/orchestration-runs runIdleSql).
+ */
+export const RUN_PROGRESS_HORIZON_SECONDS = RUN_PROGRESS_MAX_MS / 1000 - 5 * 60;
 
 /**
  * The least a beat must carry to count as work.

@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { groupBell, splitBell } from "@/lib/alerts/relevance";
 import { bellWords } from "@/lib/notify/intrusion-words";
 import { NotificationPanel } from "./NotificationPanel";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
+import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 import type { Alert } from "@/db/schema/alerts";
 
 /**
@@ -94,6 +96,8 @@ export function NotificationsPill() {
             ? `${totalCount > 9 ? "More than 9" : totalCount} notifications`
             : "Notifications"
         }
+        aria-haspopup="dialog"
+        aria-expanded={panelOpen}
       >
         <Bell className="h-5 w-5" />
         {hasAlerts && (
@@ -119,13 +123,37 @@ export function NotificationsPill() {
             document.body,
           )
         ) : (
-          <>
-            <div className="fixed inset-0 z-40" onClick={close} aria-hidden="true" />
-            <div className="ui-notification-panel">
-              <NotificationPanel onClose={close} />
-            </div>
-          </>
+          <DesktopPanel onClose={close} titleId={sheetTitleId} />
         ))}
     </>
+  );
+}
+
+/**
+ * The panel on a desk: a dialog on <body>, like the phone's sheet.
+ *
+ * It used to be drawn inside the top bar, whose backdrop blur makes the bar
+ * the containing block of anything `position: fixed` in it. So the click-away
+ * layer covered the bar's 64px and nothing else: a click on the page did not
+ * close the panel and went through to whatever was under it. Escape did
+ * nothing, and focus stayed on the bell.
+ */
+function DesktopPanel({ onClose, titleId }: { onClose: () => void; titleId: string }) {
+  const ref = useDialogFocus();
+  useEscapeToClose(onClose);
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={ref}
+        tabIndex={-1}
+        role="dialog"
+        aria-labelledby={titleId}
+        className="ui-notification-panel"
+      >
+        <NotificationPanel onClose={onClose} titleId={titleId} />
+      </div>
+    </>,
+    document.body,
   );
 }
