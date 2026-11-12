@@ -34,6 +34,11 @@ import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 import { buildTerminalRunView, type TerminalRunView } from "@/lib/terminal-run-view";
 import { humanizeRunFailure } from "@/lib/project-watch";
 import { buildRunTrack, type RunTrack } from "@/lib/run-track";
+import { builderHoldsNewWork } from "@/lib/builder-presence";
+import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
+import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
+import { isProjectBusy } from "@/db/queries/orchestration-runs";
+import { QUEUED_BEHIND_SENTENCE } from "@/lib/dispatch-status";
 import { isPreviewDir } from "@/lib/previews/root";
 import { findLiveRunEvidence, repoTokenFor } from "@/lib/run-evidence-live";
 import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
@@ -194,7 +199,29 @@ export async function loadRunTrack(
   // A pull request the ledger discounted (opened before the run) is not this
   // change's; the track must not point at it.
   const ownPr = fix && !fix.foreignPr ? (fix.pr ?? null) : null;
+  // Still unclaimed while the cloud runner is behind the deploy: it is
+  // holding new work for its restart, and the track says that.
+  const waitingOnUpdate =
+    !finished &&
+    !eventTimes.claimed &&
+    snap?.builderChannel === "cloud" &&
+    builderHoldsNewWork(
+      (await getRuntimeSnapshot(userId, "cloud").catch(() => null))?.runnerVersion,
+    );
+  // Still unclaimed because the project's earlier run is open: the claim
+  // gate holds this one until that has closed. Said before the update.
+  const waitingBehind =
+    !finished &&
+    !eventTimes.claimed &&
+    !run.payload?.sessionTab &&
+    (await isProjectBusy(userId, run.projectKey, { excludeRunId: run.id }).catch(() => false));
   const track = buildRunTrack({
+    queueLabel: waitingBehind ? "Next in line for this project" : null,
+    queueNote: waitingBehind
+      ? QUEUED_BEHIND_SENTENCE
+      : waitingOnUpdate
+        ? BUILDER_UPDATING_SENTENCE
+        : null,
     eventKinds: events.map((e) => e.kind),
     eventTimes,
     run: {
@@ -225,7 +252,12 @@ export async function loadRunTrack(
           prNumber: ownPr?.number ?? null,
           mergedAt: ownPr?.mergedAt ?? null,
           deploy: fix.deploy
-            ? { name: fix.deploy.name, url: fix.deploy.url, at: fix.deploy.at ?? null }
+            ? {
+                name: fix.deploy.name,
+                url: fix.deploy.url,
+                at: fix.deploy.at ?? null,
+                served: fix.liveVia === "served_release",
+              }
             : null,
           liveUrl: follow?.liveUrl ?? null,
           looked: fix.verify

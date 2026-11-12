@@ -167,7 +167,19 @@ async function main() {
           `${rel} does not pass them`,
         );
       }
+      assert(
+        /runBranches: \{ own: runBranches\(run\), reported: runReportedBranches\(run\) \}/.test(
+          read("src/lib/run-follow-notify.ts"),
+        ),
+        "run-follow-notify does not pass them",
+      );
       const src = read("src/lib/feedback/fix-shipping-refresh.ts");
+      // The pull request the runner itself reported closing the run on counts
+      // like one the handoff names (for a runner that reports no branches).
+      assert(
+        /parsePrRef\(input\.reportedPrUrl, input\.gitUrl\)\?\.number === pr\.number/.test(src),
+        "the runner's reported pull request is not recognised",
+      );
       assert(/fromOurDispatch: owner\.mayAct,/.test(src), "auto-ship decides by time");
       assert(/pr\.nodeId &&\s*owner\.mayAct/.test(src), "keepDraft decides by time");
       assert(/else if \(!owner\.runs\) \{/.test(src), "display decides by time");

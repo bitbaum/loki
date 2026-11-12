@@ -162,6 +162,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
           readyDraft: item.previewFirst && !!item.liveApprovedAt,
           keepDraft: item.previewFirst && !item.liveApprovedAt,
           deployBroken: brokenProjects.has(item.projectId),
+          liveUrl: item.liveUrl ?? null,
         });
         refreshed.set(run.id, fix);
         // The one place that knows a ledger CHANGED. Announcing from here (not

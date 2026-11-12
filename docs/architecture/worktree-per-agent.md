@@ -21,8 +21,9 @@ dispatch(tab, dir, runId)                       primary checkout: <dir>
         │     git worktree add -B fc/<runId> … HEAD
         │     symlink node_modules + .env* from the primary
         └─ prompt := worktreePromptNote(runId) + prompt
-                     ("you are on branch fc/<runId>; land with
-                       git pull --rebase origin main && git push origin HEAD:main")
+                     ("you are on branch fc/<runId>; ship with
+                       git push -u origin HEAD and a pull request,
+                       never a push to main")
 ```
 
 - **Verification follows the agent.** Transcript/auth checks

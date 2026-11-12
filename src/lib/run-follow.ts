@@ -21,6 +21,7 @@ import { refreshFixShipping } from "@/lib/feedback/fix-shipping-refresh";
 import { lookAndRecord } from "@/lib/feedback/verify-live";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
 import { runFollow, type RunFollow } from "@/lib/run-handoff";
+import { reportedPrEvidence } from "@/lib/repo-evidence";
 
 type FollowableRun = {
   id: string;
@@ -90,12 +91,19 @@ export async function followRunLedger(
       userId,
       cached: fix,
       summaryDone: run.summary?.done ?? null,
-      evidence: payload.evidence ?? null,
+      // The runner's own report counts: it closed the run on a pull request
+      // it saw at the agent's HEAD (payload.prUrl), and nothing read it.
+      evidence: payload.evidence ?? reportedPrEvidence(run.payload, run.finishedAt!.getTime()),
       gitUrl: project?.gitUrl ?? null,
       autoShip: null,
       deployBroken: false,
       runStartedAt: run.startedAt,
       runBranches: { own: runBranches(run), reported: runReportedBranches(run) },
+      reportedPrUrl:
+        typeof (run.payload as { prUrl?: unknown } | null)?.prUrl === "string"
+          ? (run.payload as { prUrl: string }).prUrl
+          : null,
+      liveUrl,
     }).catch(() => fix);
   }
   if (

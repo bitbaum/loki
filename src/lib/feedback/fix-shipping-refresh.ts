@@ -9,6 +9,12 @@
  * sitting in "needs verify"; a fleet with fifty such rows costs fifty small
  * GitHub calls a minute at worst.
  */
+import {
+  applyServedRelease,
+  awaitsServedRelease,
+  fetchServedRelease,
+  relationFromCompare,
+} from "@/lib/feedback/served-release";
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { findCodeCustodyByGitUrl } from "@/db/queries/user-projects";
@@ -67,6 +73,17 @@ export type FixRefreshInput = {
    * while the run was open, report it as the run's, and merge it.
    */
   runBranches: { own: readonly string[]; reported: boolean };
+  /** The pull request the runner reported when it closed the run on it
+   *  (payload.prUrl): seen at the agent's own HEAD, so as good as the handoff
+   *  naming it. */
+  reportedPrUrl?: string | null;
+  /**
+   * Where the project is served. REQUIRED for the reason autoShip is: left
+   * optional it is simply not passed, and "is it live" falls back to
+   * workflow-run labels that are wrong on this fleet (feedback/served-
+   * release.ts). Pass null for a project with no address.
+   */
+  liveUrl: string | null;
   /**
    * The client said "Make it live" on a change opened as a draft for them:
    * take it out of draft first, then decide as for any other pull request.
@@ -291,6 +308,46 @@ async function healFromLaterDeploy(
   return healDeployFailed(fix, { baseBranch: pr.baseRef, workflowId: own.workflow_id, runs });
 }
 
+async function compareCommits(
+  ref: PrRef,
+  base: string,
+  head: string,
+  token: string,
+): Promise<string | null> {
+  const res = await fetch(
+    `${GITHUB_API_BASE}/repos/${ref.owner}/${ref.repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}?per_page=1`,
+    ghInit(token),
+  );
+  if (!res.ok) return null;
+  const status = ((await res.json()) as { status?: unknown } | null)?.status;
+  return typeof status === "string" ? status : null;
+}
+
+/**
+ * A merged change that the workflow runs do not show as live: ask the site
+ * what it serves (feedback/served-release.ts). One public read and, when the
+ * served commit is not the merge itself, one GitHub compare; made only for a
+ * ledger that is merged and not yet live.
+ */
+async function liveFromServedRelease(
+  fix: FixShipping,
+  ref: PrRef,
+  liveUrl: string | null,
+  token: string,
+): Promise<FixShipping> {
+  if (!liveUrl || !awaitsServedRelease(fix)) return fix;
+  const served = await fetchServedRelease(liveUrl);
+  if (!served) return fix;
+  const mergeSha = fix.pr!.mergeSha!.toLowerCase();
+  const relation =
+    served.commit === mergeSha
+      ? "contains"
+      : relationFromCompare(
+          await compareCommits(ref, mergeSha, served.commit, token).catch(() => null),
+        );
+  return applyServedRelease(fix, served, relation, `${ref.owner}/${ref.repo}`);
+}
+
 /** Where the PR is named — resolveFixPrRef is the SSOT, shared with the
  *  cache-validity check in attach-work.ts so the two can never disagree. */
 function findPrRef(input: FixRefreshInput): PrRef | null {
@@ -356,7 +413,11 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
               headRef: pr.headRef,
               runStartedAt: input.runStartedAt,
               runBranches: input.runBranches,
-              namedInHandoff: parsePrRef(input.summaryDone, input.gitUrl)?.number === pr.number,
+              namedInHandoff:
+                parsePrRef(input.summaryDone, input.gitUrl)?.number === pr.number ||
+                (input.reportedPrUrl
+                  ? parsePrRef(input.reportedPrUrl, input.gitUrl)?.number === pr.number
+                  : false),
             })
           : null;
         if (!pr || !owner) fix = claimed;
@@ -396,6 +457,7 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
             ref,
             picked.token,
           );
+          fix = await liveFromServedRelease(fix, ref, input.liveUrl, picked.token);
           if (
             input.keepDraft &&
             fix.state === FIX_SHIP_STATE.PR_OPEN &&
