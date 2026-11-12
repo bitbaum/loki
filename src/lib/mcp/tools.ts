@@ -240,7 +240,7 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
       const how =
         body.mode === "queued"
           ? body.session === "fresh"
-            ? `Queued for ${where} as a fresh one-off session.`
+            ? `Queued for ${where} as a fresh one-off session${typeof body.sessionTab === "string" ? ` (${body.sessionTab})` : ""}.`
             : `Queued for ${where}.`
           : `Delivered to the ${String(body.tab ?? args.project)} agent.`;
       const warning = typeof body.message === "string" ? ` ${body.message}` : "";
@@ -250,6 +250,8 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
           mode: body.mode ?? null,
           channel: body.channel ?? null,
           runId: body.runId ?? null,
+          sessionTab: body.sessionTab ?? null,
+          session: body.session ?? null,
           warning: body.warning ?? null,
         },
       );

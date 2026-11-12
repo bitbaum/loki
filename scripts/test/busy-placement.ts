@@ -150,20 +150,15 @@ check("a fresh session's prompt says it is one-off and reports to its own file",
   assert(!/sessions\/orangecat\.md/.test(out), "it would report on the shared tab");
 });
 
-check("a fresh run is marked, and its tab is closed when it reports", () => {
+check("a fresh run is marked, and its tab is closed when its run closes", () => {
   const plan = read("src/lib/orchestration/parallel-run.ts");
   assert(/oneOff: true/.test(plan), "the run is not marked one-off");
   assert(/if \(!oneOff && !PARALLEL_DISPATCH_ENABLED\) return null;/.test(plan), "flag rule moved");
-  const close = read("src/lib/orchestration/close-sweep.ts");
+  // The close itself is pinned in scripts/test/one-off-close.ts.
   assert(
-    /if \(outcome != null\) await closeOneOffTab\(run, sessionTab\);/.test(close),
-    "not closed",
+    /void closeOneOffSession\(run\);/.test(read("src/lib/orchestration/notify-close.ts")),
+    "the close hook does not close the one-off's tab",
   );
-  assert(
-    /payload\?\.oneOff !== true\) return;/.test(close),
-    "an ordinary lane would be closed too",
-  );
-  assert(/enqueueTabCommand\(run\.userId, "close_tab"/.test(close), "no close_tab is queued");
 });
 
 check("the option is on POST /api/inject and on the MCP loki_dispatch", () => {
