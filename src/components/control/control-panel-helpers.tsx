@@ -40,12 +40,18 @@ export function BrainConfigPanel({
   headerRight?: React.ReactNode;
 }) {
   const modelSuggestions = selectedDefinition?.modelSuggestions ?? [];
+  // The free-text model box repeated the chip already selected ("sonnet"
+  // under "sonnet opus haiku"): it opens on purpose, or when the model is
+  // not one of the chips (2026-11-12).
+  const [otherModel, setOtherModel] = React.useState(false);
+  const showModelInput =
+    otherModel || modelSuggestions.length === 0 || (!!model && !modelSuggestions.includes(model));
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="ui-kicker">Default agent for new launches</p>
+          <p className="ui-kicker">AI used for new work</p>
           <div className="flex items-center gap-1.5 text-text-primary">
             <Bot className="h-3.5 w-3.5 shrink-0 text-accent-text" />
             <span className="text-sm font-semibold">
@@ -83,7 +89,7 @@ export function BrainConfigPanel({
           squeezed into its cell. */}
       {onRequestInstall && switchableRegistry.some((e) => !(e.available ?? true)) && (
         <div className="ui-filter-chip-row ui-scroll-fade-right items-center">
-          <span className="text-xs text-text-tertiary">Not on this computer:</span>
+          <span className="text-xs text-text-tertiary">Not on your computer yet:</span>
           {switchableRegistry
             .filter((e) => !(e.available ?? true))
             .map((e) => (
@@ -117,14 +123,26 @@ export function BrainConfigPanel({
                 {option}
               </button>
             ))}
+            {!showModelInput && (
+              <button
+                type="button"
+                onClick={() => setOtherModel(true)}
+                className="ui-chip-toggle-compact"
+              >
+                Other model…
+              </button>
+            )}
           </div>
-          <input
-            list={`model-options-${selectedAgent}`}
-            value={model}
-            onChange={(e) => onModelChange(e.target.value)}
-            className="ui-input min-w-0 text-sm py-1"
-            placeholder={selectedDefinition?.defaultModel ?? "Model (or type custom)"}
-          />
+          {showModelInput && (
+            <input
+              list={`model-options-${selectedAgent}`}
+              value={model}
+              onChange={(e) => onModelChange(e.target.value)}
+              className="ui-input min-w-0 text-sm py-1"
+              aria-label="Model name"
+              placeholder={selectedDefinition?.defaultModel ?? "Model name"}
+            />
+          )}
           <datalist id={`model-options-${selectedAgent}`}>
             {modelSuggestions.map((option) => (
               <option key={option} value={option} />
@@ -150,7 +168,7 @@ export function BrainConfigPanel({
               disabled={savingAgent || !model.trim()}
               className="ui-btn-primary"
             >
-              {savingAgent ? "…" : "Apply to open tabs"}
+              {savingAgent ? "…" : "Use it in running work too"}
             </button>
           </div>
         )}
@@ -167,7 +185,7 @@ export function BrainConfigPanel({
             </span>
           ))}
           {lastTabResults.some((r) => r.status === "queued") && (
-            <span className="ml-1 text-text-muted">· runner picks up within ~25s</span>
+            <span className="ml-1 text-text-muted">· takes effect within ~25s</span>
           )}
         </div>
       )}

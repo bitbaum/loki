@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { builderCompactLabel } from "@/lib/builder-presence";
+import { builderCompactLabel, builderPlainLine } from "@/lib/builder-presence";
 import { deriveRunnerStateKey } from "@/lib/control-states";
 import { timeAgo } from "@/lib/dates";
 import type { ControlData } from "@/lib/control-types";
@@ -86,18 +86,23 @@ function FleetSettingsSheet({
       refreshing={refreshing}
       onRefresh={onRefresh}
       lastUpdated={lastUpdated}
-      runnerLabel={builderCompactLabel(
-        deriveRunnerStateKey({
-          neverSeen: runnerNeverSeen,
-          offline: runnerOffline,
-          stateUnknown: runnerNeverSeen,
-        }),
-        runnerVersion,
-        builderPresence,
-      )}
+      // Where builds run, in words; the machine label only when it is not
+      // simply on ("Cloud runner online" read as jargon, 2026-11-12).
+      runnerLabel={
+        (builderPresence?.any && builderPlainLine(builderPresence)) ||
+        builderCompactLabel(
+          deriveRunnerStateKey({
+            neverSeen: runnerNeverSeen,
+            offline: runnerOffline,
+            stateUnknown: runnerNeverSeen,
+          }),
+          runnerVersion,
+          builderPresence,
+        )
+      }
       runnerDetail={
         runnerLastPushedAt && !runnerNeverSeen
-          ? `Runner sync ${timeAgo(new Date(runnerLastPushedAt).getTime())}`
+          ? `Last heard from ${timeAgo(new Date(runnerLastPushedAt).getTime())}`
           : null
       }
       versionDetail={

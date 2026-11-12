@@ -42,8 +42,13 @@ export function NewProjectModal({
     <Modal onClose={onClose} size="md">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-text-primary">New project</h3>
-        <button onClick={onClose} className="text-text-muted hover:text-text-primary">
-          <X className="h-4 w-4" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="ui-btn-icon text-text-muted hover:text-text-primary"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
       <div className="space-y-3">
@@ -52,23 +57,31 @@ export function NewProjectModal({
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onCreate()}
-          placeholder="Project name"
+          placeholder="Name your project"
           aria-label="Project name"
           className="ui-input w-full"
         />
-        <input
-          value={dir}
-          onChange={(e) => onDirChange(e.target.value)}
-          placeholder="Local path — e.g. ~/dev/my-project"
-          aria-label="Local path"
-          className="ui-input w-full"
-        />
-        <input
-          value={gitUrl}
-          onChange={(e) => onGitUrlChange(e.target.value)}
-          placeholder="Git URL — optional"
-          className="ui-input w-full"
-        />
+        {/* A folder on a computer and a Git address are for someone at a
+            desk: on a phone the name is the only thing asked (2026-11-12). */}
+        <details className="ui-sheet-details" open={Boolean(dir || gitUrl)}>
+          <summary className="ui-sheet-details-summary">Advanced</summary>
+          <div className="space-y-3">
+            <input
+              value={dir}
+              onChange={(e) => onDirChange(e.target.value)}
+              placeholder="Folder on your computer — e.g. ~/dev/my-project"
+              aria-label="Folder on your computer"
+              className="ui-input w-full"
+            />
+            <input
+              value={gitUrl}
+              onChange={(e) => onGitUrlChange(e.target.value)}
+              placeholder="Git address — optional"
+              aria-label="Git address"
+              className="ui-input w-full"
+            />
+          </div>
+        </details>
       </div>
       {error && <p className="ui-error">{error}</p>}
       <div className="flex gap-2 pt-1">

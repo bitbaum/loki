@@ -646,7 +646,9 @@ export function ControlPanel({
                     onAgentSelect={handleAgentSelect}
                     onModelChange={handleModelChange}
                     onSave={saveAgent}
-                    onRequestInstall={requestAgentInstall}
+                    // Installing opens a terminal on the desktop app: offered
+                    // only when one is connected, not to a phone (2026-11-12).
+                    onRequestInstall={builderPresence?.local ? requestAgentInstall : undefined}
                   />
                 ),
                 automationPolicy,

@@ -3726,6 +3726,13 @@
   .ui-sheet-hint {
     @apply mt-0.5 text-xs leading-snug text-text-muted;
   }
+  /* The sheet's own name, and a fold for the diagnostics nobody reads daily. */
+  .ui-sheet-title {
+    @apply text-base font-semibold text-text-primary;
+  }
+  .ui-sheet-details-summary {
+    @apply flex min-h-11 cursor-pointer items-center text-sm text-text-secondary;
+  }
   .ui-sheet-foot {
     @apply shrink-0 border-t border-border-subtle p-4;
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
@@ -5496,11 +5503,6 @@
   .ui-hero-answer {
     @apply min-w-0 flex-1;
   }
-  /* New-project and settings. Icons, top-right, out of the reading path —
-     they are how you get somewhere else, not part of the answer. */
-  .ui-hero-tools {
-    @apply flex shrink-0 items-center gap-1;
-  }
   /* The headline is the largest text on the page, because it is the answer to
      the only question the page exists to answer. It used to be a 14px bold
      "Fleet autopilot" — a section label, not an answer. */
@@ -5644,8 +5646,10 @@
   }
   /* The rail. Right-aligned on a phone (the thumb lives there and the text it
      acts on is directly above), inline on sm+ where the row is horizontal. */
+  /* Wraps: the buttons say what they do now ("Add the button", "Turn off
+     feedback", "Copy code"), and three labels do not fit one phone line. */
   .ui-inbox-actions {
-    @apply flex shrink-0 items-center justify-end gap-1.5 sm:justify-start;
+    @apply flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:justify-start;
   }
   .ui-inbox-batch {
     @apply mb-2 flex flex-wrap items-center gap-1.5;
