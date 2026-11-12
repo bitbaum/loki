@@ -38,6 +38,27 @@ const ask = read("src/app/api/control/peek-tab/route.ts");
 assert.match(ask, /resultUrl: `\/api\/control\/peek-tab\/\$\{peekId\}`/);
 assert.match(ask, /openUrl: sessionOpenUrl\(tab, channel \?\? null\)/);
 assert.equal(terminalHref("loki", "cloud"), "/terminal?project=loki");
+// The conversation: a token reads its sessions through the same reads as
+// OrangeCat's signed rail, and neither route keeps a copy of its own.
+const control = read("src/app/api/control/sessions/route.ts");
+assert.match(control, /getApiUserId\(\)/, "sessions and their conversation are read with a token");
+assert.match(control, /readSessions\(userId, \{ \.\.\.query, poll: Boolean\(poll\) \}\)/);
+const signed = read("src/app/api/orangecat/sessions/route.ts");
+assert.match(signed, /readSessions\(user\.id, \{ project, runId, items, watch, poll \}\)/);
+for (const src of [control, signed]) {
+  assert.doesNotMatch(src, /lastTranscript|addPeekViewer|loadRunTrack/, "one copy of the reads");
+}
+const reads = read("src/lib/session-reads.ts");
+assert.match(reads, /export async function readSessions\(/);
+assert.match(reads, /total: rows\.length,/, "a list cut at the cap says how many there were");
+// The conversation read is current, on the session's builder, and shares the
+// Terminal's viewer count (so it never ends a person's live view).
+assert.match(reads, /projectPreferredChannel\(project\)/, "an unrecorded builder is the project's");
+assert.match(reads, /const command = \{ tab, channel \};/, "peek commands name the builder");
+assert.match(reads, /addPeekViewer\(userId, tab, channel\)/);
+assert.match(reads, /removePeekViewer\(userId, tab, channel\)/);
+assert.match(reads, /frame\.at >= joinedAt/, "a copy from before the read is not the answer");
+
 // The live stream is still a browser's: it holds a viewer open on the runner.
 assert.match(read("src/app/api/control/peek-stream/route.ts"), /getSessionUserId\(\)/);
 

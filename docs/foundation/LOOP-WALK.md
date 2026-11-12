@@ -119,7 +119,13 @@ reaches its own account's sessions.
 3. **Read it.** `POST /api/control/peek-tab` `{tab, channel: "cloud"}` returns
    `resultUrl` and `openUrl`. `GET <resultUrl>` is `pending`, then `done` with
    `content` (the session's terminal output so far) or `error`. Ask again for
-   a newer capture.
+   a newer capture. For the conversation itself rather than the screen,
+   `GET /api/control/sessions?project=<name>` returns the session's row
+   (canonical state, the task, the road to live, `openUrl`) and the last
+   things said in it (`items`, default 12, at most 40). With no query it
+   lists the projects' sessions, at most 25 with what needs the person
+   first, and `total` says how many exist; `?runId=` reads one run. OrangeCat's
+   signed rail (`POST /api/orangecat/sessions`) answers the same.
 4. **Type a key or a command.** `POST /api/control/tab-inject-raw`
    `{kind: "key", tab, data, channel: "cloud"}`, the bytes the Terminal page
    sends for a keystroke.
