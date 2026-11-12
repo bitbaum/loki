@@ -82,6 +82,9 @@ signed-in browser. What it could use:
 | 11:31 | The same demo run from this session against the live site | `/auth` draws, but does not settle: `https://loki.orangecat.ch/api/widget-boot` took 7.3 s. |
 | 11:33 | "Start instantly" in a browser here | `POST https://supabase.orangecat.ch/auth/v1/signup` → **504 `request_timeout`** after 13 s; the page stays on `/auth` and says nothing. A new person cannot start. (OrangeCat #1667, open, is another session's fix for what the page says after a slow sign-in.) |
 | 11:36 | `https://orangecat.ch/api/health` sampled | connection reset twice, 503 for about 40 s, then 200 in 0.4 s. The served release is still `e18ee8de` (10:43), not #1664's merge. |
+| 11:39 | One bot turn from a browser here, as a brand-new person (sign-up took 11 s this time) | **a bot does not answer on the live site.** `POST /api/ai-assistants/<id>/conversations/<id>/messages` → `502 AI_ERROR`, "The AI service could not answer just now. Try again shortly." Under the composer: "That did not go through. Try again." The chain is Groq, then Google, then OpenRouter's free pool (`servingChain`, `src/services/cat/provider-catalog.ts` in OrangeCat); with Google off the free links behind it do not carry the load. |
+| 11:46 | OrangeCat **#1672** opened: the failed send says the truth with the "Use your own key" button, and `cat-diagnostics.yml` counts unanswered bot turns by vendor and status | CI running; it does not restore the pool |
+| 11:39 | Loki #1678 `check` | success on `0e48feb4` (the real-Postgres scenarios ran in CI). Waiting for the sweep; #1661 and #1673 merged ahead of it. |
 | 11:30 | `box-usage.yml` `mode=read` (run 43209749814) | still measuring after 7 minutes; result below when it is in |
 | 11:28 | Change 6 written and tested (below): a red or conflicted pull request is said in the thread with the repair | `scripts/test/run-follow-notify.ts`, and the eleven other tests that read the shipping ledger |
 | 11:20 | Change 5 written and tested (below) | `scripts/test/quiet-lane.ts` 14 checks; `scripts/test/lane-and-reaper.ts` 13 of 13 against a local Postgres 16 with pgvector, migrated with `drizzle-kit push` as CI does |
@@ -351,6 +354,12 @@ only, plus one prompt line the runner reads at its next start; no file under
   off, with an agent working on moving the provider chain off Google
   (`orangecat~ed39e1e1`, claimed 10:59:55 UTC). `live-rehearsal.yml` was
   started again at 11:17 UTC to read the state from outside.
+- **11:39 UTC, first hand: a new person's bot gets no answer** (502
+  `AI_ERROR`). A person's own key is asked before the shared pool
+  (`src/services/ai/sendMessage-internals.ts` in OrangeCat), so the owner's
+  bots answer on his own key whatever the pool does: add it at
+  https://orangecat.ch/settings/ai . OrangeCat #1672 makes the failed send
+  say that, with the button.
 - What is not proven on the live site: a bot of a Loki-linked person sending
   a task, following the run and reporting the agent's answer.
 - A bot's task to Loki rides the same queue as the chat, so change 1 is a
@@ -399,15 +408,18 @@ Every runner change must bump `desktop/package.json` and prepend to `src/config/
 
 ## Next action
 
-1. Get change 5 through CI and the sweep (it rides #1678 if that is still
-   open, else a new pull request from a branch restarted on main), then
-   watch the deploy.
-2. Read the 11:17 `live-rehearsal.yml` run on bitbaum/orangecat. If bots
-   still answer 502, look at what the agent in `orangecat~ed39e1e1` opened
-   before writing anything: do not write a second fix for the same outage.
-3. Prove the loop with a probe on a project that is idle and already has a
-   session, or wait for `orangecat` to be free:
-   `loki-loop-check.yml`, `dispatch=true`, `project=<key>`, `minutes=25`.
-   The owner's own task of 10:26 UTC (orangecat #1664, merged 10:53) is the
-   loop working; the probe is the repeatable proof.
-4. Report to the owner with full addresses and exact taps.
+1. Loki #1678 (changes 4, 5, 6): green, waiting for the sweep. After the
+   merge the branch is deleted: `git fetch --prune`, put the branch on
+   `origin/main`, and any later change is a new pull request.
+2. OrangeCat #1672: follow CI and the sweep. After its deploy, run
+   `cat-diagnostics.yml`: `bots.links` names which link fails with which
+   status.
+3. Bots answer again only when the shared pool has a link with capacity, or
+   on a person's own key. Another session was given the chain (10:59 UTC,
+   lane `orangecat~ed39e1e1`); look at what it opened before touching
+   `src/config/free-vendors.ts` or `provider-catalog.ts`.
+4. The box: read `box-usage.yml` run 43209749814 when it ends. Memory at 96%
+   is the common cause of the slow sign-up, the 503 window and the runner's
+   timeouts. What to do about it is the owner's call (fewer sessions at once
+   through `LOKI_AGENT_MAX_OPEN`, a bigger box, or a builder of its own).
+5. Then one more `loki-loop-check.yml` run on a project that is free.
