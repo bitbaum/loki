@@ -60,7 +60,13 @@ export function BillingSettings({
   grants,
   payUrls,
   reservedPlan,
-}: BillingView) {
+  operator = false,
+}: BillingView & {
+  /** The person who runs this Loki: no project limit, their own keys. Telling
+   *  them "You are on Free — get more room" was wrong for them, and said the
+   *  opposite of Settings → Projects, which shows no limit. */
+  operator?: boolean;
+}) {
   const priced = PRICING_PLANS.filter((p) => p.priceMonthly !== null && p.priceMonthly > 0);
   const buyable = priced.filter((p) => payUrls[p.key]);
   const expiry = planExpiresAt ? new Date(planExpiresAt) : null;
@@ -85,7 +91,9 @@ export function BillingSettings({
   return (
     <section className="ui-settings-section">
       <Section title="Your plan">
-        <p className="ui-settings-lede">You are on {planLine}</p>
+        <p className="ui-settings-lede">
+          {operator ? "You run this Loki. No limits apply." : <>You are on {planLine}</>}
+        </p>
         <List aria-label="Your plan">
           <ListRow
             href={OWN_MODEL_SETTINGS_PATH}
@@ -94,56 +102,59 @@ export function BillingSettings({
             secondary="A stronger model, paid to your provider"
             chevron
           />
-          <ListRow href="/pricing" icon={ListChecks} title="See plans" chevron />
+          {!operator && <ListRow href="/pricing" icon={ListChecks} title="See plans" chevron />}
         </List>
       </Section>
 
-      <Section title="Get more room">
-        <p className="ui-settings-lede">
-          A plan lifts the project limit and adds a monthly allowance of answers with no daily wait.
-          Paid in Bitcoin on OrangeCat, a month at a time; nothing renews by itself.
-        </p>
-        {buyable.length > 0 ? (
-          <List aria-label="Plans you can buy">
-            {buyable.map((p) => (
-              <ListRow
-                key={p.key}
-                href={payUrls[p.key]}
-                external
-                icon={Bitcoin}
-                title={`${plan === p.key && daysLeft !== null && daysLeft > 0 ? "Extend" : "Subscribe to"} ${p.name}`}
-                secondary="A month, paid in Bitcoin"
-                trailing={`${PRICING_CURRENCY} ${p.priceMonthly}`}
-              />
-            ))}
-          </List>
-        ) : priced.length > 0 ? (
-          <>
-            {reservedPlan && (
-              <p className="ui-settings-lede">
-                You reserved {PLAN_LABEL[reservedPlan]}. Your place is kept and nothing is charged
-                until checkout opens for your account.
-              </p>
-            )}
-            <List aria-label="Plans you can reserve">
-              {priced.map((p) => (
+      {!operator && (
+        <Section title="Get more room">
+          {/* How a plan is paid is said once, at the foot (PRICING_BILLING_NOTE). */}
+          <p className="ui-settings-lede">
+            A plan lifts the project limit and adds a monthly allowance of answers with no daily
+            wait.
+          </p>
+          {buyable.length > 0 ? (
+            <List aria-label="Plans you can buy">
+              {buyable.map((p) => (
                 <ListRow
                   key={p.key}
-                  href={planCheckoutPath(p.key)}
+                  href={payUrls[p.key]}
+                  external
                   icon={Bitcoin}
-                  title={`${reservedPlan === p.key ? "Reserved" : "Reserve"} ${p.name}`}
+                  title={`${plan === p.key && daysLeft !== null && daysLeft > 0 ? "Extend" : "Subscribe to"} ${p.name}`}
+                  secondary="A month, paid in Bitcoin"
                   trailing={`${PRICING_CURRENCY} ${p.priceMonthly}`}
-                  chevron
                 />
               ))}
             </List>
-          </>
-        ) : (
-          <p className="ui-settings-lede">
-            Prices are not announced yet — every plan is free until they are.
-          </p>
-        )}
-      </Section>
+          ) : priced.length > 0 ? (
+            <>
+              {reservedPlan && (
+                <p className="ui-settings-lede">
+                  You reserved {PLAN_LABEL[reservedPlan]}. Your place is kept and nothing is charged
+                  until checkout opens for your account.
+                </p>
+              )}
+              <List aria-label="Plans you can reserve">
+                {priced.map((p) => (
+                  <ListRow
+                    key={p.key}
+                    href={planCheckoutPath(p.key)}
+                    icon={Bitcoin}
+                    title={`${reservedPlan === p.key ? "Reserved" : "Reserve"} ${p.name}`}
+                    trailing={`${PRICING_CURRENCY} ${p.priceMonthly}`}
+                    chevron
+                  />
+                ))}
+              </List>
+            </>
+          ) : (
+            <p className="ui-settings-lede">
+              Prices are not announced yet — every plan is free until they are.
+            </p>
+          )}
+        </Section>
+      )}
 
       {grants.length > 0 && (
         <Section title="Passes">
@@ -161,7 +172,7 @@ export function BillingSettings({
         </Section>
       )}
 
-      <p className="ui-settings-lede">{PRICING_BILLING_NOTE}</p>
+      {!operator && <p className="ui-settings-lede">{PRICING_BILLING_NOTE}</p>}
     </section>
   );
 }

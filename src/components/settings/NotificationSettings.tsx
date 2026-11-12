@@ -91,7 +91,17 @@ export function NotificationSettings() {
       {error && <p className="mt-3 text-sm text-status-negative">{error}</p>}
       {lastSentAt && cadence !== "none" && (
         <p className="mt-3 text-sm text-text-tertiary">
-          The last one went out {new Date(lastSentAt).toLocaleString()}.
+          {/* The reader's own locale, no seconds — "11/10/2026, 7:00:04 AM" was
+              US order with seconds, for a reader in Switzerland. */}
+          The last one went out{" "}
+          {new Date(lastSentAt).toLocaleString(undefined, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          .
         </p>
       )}
       {!lastSentAt && cadence !== "none" && (

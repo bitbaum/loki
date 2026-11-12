@@ -62,8 +62,6 @@ export function ProfileSettings({ user }: Props) {
 
   return (
     <section className="ui-settings-section">
-      <h2 className="font-medium text-text-primary">Profile</h2>
-
       <Avatar src={user.image} name={name} size="md" />
 
       <div className="space-y-3">

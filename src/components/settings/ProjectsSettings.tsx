@@ -45,6 +45,12 @@ export function ProjectsSettings({ projects: initial, teamProjects, projectLimit
   const [sheetError, setSheetError] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(false);
 
+  // getOrgProjects includes the caller's own projects (a solo account would
+  // otherwise get none), so the same 37 rows were listed twice — once as
+  // "Your projects" and again as "Team projects". Team means other people's.
+  const ownIds = new Set(initial.map((p) => p.id));
+  const othersProjects = teamProjects.filter((p) => !ownIds.has(p.id));
+
   const atLimit = projectLimit !== null && projects.length >= projectLimit;
 
   const open = (target: UserProject | "new") => {
@@ -206,10 +212,10 @@ export function ProjectsSettings({ projects: initial, teamProjects, projectLimit
         )}
       </Section>
 
-      {teamProjects.length > 0 && (
+      {othersProjects.length > 0 && (
         <Section title="Team projects">
           <List aria-label="Team projects">
-            {teamProjects.map((p) => (
+            {othersProjects.map((p) => (
               <ListRow
                 key={p.id}
                 avatar={projectTitle(p).charAt(0).toUpperCase()}

@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, MessageSquare } from "lucide-react";
+import { Check, Loader2, MessageSquare } from "lucide-react";
 import { patchJson } from "@/lib/api/fetch";
 import type { UserPreferencesData } from "@/db/queries/user-preferences";
 import { TOAST_SHORT_MS } from "@/lib/constants/timings";
-import { Segmented } from "@/components/ui/segmented";
 
 // Quick-start voices — fill the textarea, then the user tunes from there.
 // These are starting points, not an enum; the field is free text.
@@ -65,11 +64,9 @@ export function VoiceSettings({ initialPrefs }: Props) {
 
   return (
     <section className="ui-settings-section">
-      <h2 className="font-medium text-text-primary">Voice</h2>
       <p className="text-sm text-text-secondary -mt-1">
-        How AI writes for you. This instruction layers on top of the house style and shapes
-        Loki&apos;s replies. Agents you dispatch do not read it. Leave it blank to use the default
-        voice.
+        How Loki writes to you. Agents building your projects don&apos;t use it. Leave it blank for
+        Loki&apos;s normal voice.
       </p>
 
       <div className="space-y-3">
@@ -78,13 +75,28 @@ export function VoiceSettings({ initialPrefs }: Props) {
           <h3 className="text-sm font-medium text-text-primary">Writing voice</h3>
         </div>
 
-        <Segmented
-          label="Start from a voice"
-          columns={2}
-          options={PRESETS.map((p) => ({ id: p.label, label: p.label }))}
-          value={PRESETS.find((p) => p.value === voice)?.label ?? null}
-          onChange={(id) => setVoice(PRESETS.find((p) => p.label === id)?.value ?? voice)}
-        />
+        {/* A pick-one list with a check, like the digest choice in
+            Notifications — it was a 2×2 wrapped grid of segments. */}
+        <div className="-mx-3 flex flex-col" role="radiogroup" aria-label="Start from a voice">
+          {PRESETS.map((p) => {
+            const active = p.value === voice;
+            return (
+              <button
+                key={p.label}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setVoice(p.value)}
+                className="ui-settings-choice"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="ui-settings-choice-title">{p.label}</span>
+                </span>
+                {active && <Check className="h-5 w-5 shrink-0 text-text-primary" />}
+              </button>
+            );
+          })}
+        </div>
 
         <div className="space-y-1.5">
           <textarea

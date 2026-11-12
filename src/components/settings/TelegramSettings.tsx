@@ -96,7 +96,11 @@ export function TelegramSettings({ operator }: { operator: boolean }) {
   const status = view.linked
     ? `Connected${view.username ? ` as @${view.username}` : ""}. Only what needs one tap from you, and nothing between 22:00 and 07:00.`
     : view.legacyChat
-      ? "Your messages go to your existing Telegram chat. Connect here to choose what you get and to use Loki's own bot."
+      ? // Promise connecting only where the Connect button is drawn: with no
+        // bot set up, "Connect here" pointed at a button that was not there.
+        view.available
+        ? "Your messages go to your existing Telegram chat. Connect below to choose what you get and to use Loki's own bot."
+        : "Your messages go to your Telegram chat."
       : view.available
         ? "Get what needs you on Telegram: one tap to open it, nothing to type, and nothing at night."
         : operator
@@ -150,16 +154,19 @@ export function TelegramSettings({ operator }: { operator: boolean }) {
           <SettingRows>
             {view.categories.map((c) => (
               <SettingRow key={c.id} title={c.label} note={c.note}>
+                {/* A switch, like every other on/off in Settings. It was a
+                    solid primary button reading "On" — six primary buttons on
+                    one screen, each naming a state rather than an action. */}
                 <button
                   type="button"
                   role="switch"
                   aria-checked={c.on}
-                  aria-label={`${c.label}: ${c.on ? "on" : "off"}`}
-                  className={c.on ? "ui-btn-primary min-h-11" : "ui-btn-secondary min-h-11"}
+                  aria-label={c.label}
+                  className={c.on ? "ui-switch ui-switch-on" : "ui-switch"}
                   disabled={busy !== null}
                   onClick={() => void toggle(c.id, !c.on)}
                 >
-                  {busy === c.id ? <Loader2 className="ui-spinner-xs" /> : c.on ? "On" : "Off"}
+                  <span className="ui-switch-knob" />
                 </button>
               </SettingRow>
             ))}
