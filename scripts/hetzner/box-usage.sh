@@ -66,6 +66,10 @@ if command -v docker >/dev/null 2>&1; then
   docker stats --no-stream --format '{{.MemUsage}}\t{{.Name}}' 2>/dev/null | sort -rh | head -25
 fi
 
+# `memory` as the first argument stops here: the disk walks below took the
+# whole 20 minutes on 2026-11-12, twice, when only the memory was wanted.
+if [ "${1:-all}" = "memory" ]; then exit 0; fi
+
 section "disk"
 df -h / 2>/dev/null
 echo
