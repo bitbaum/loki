@@ -836,6 +836,9 @@ export async function isProjectBusy(
     // lapses. This check decides inject-directly vs queue, so a floor shorter
     // than the reaper's typed a second prompt into a live agent's PTY.
     laneLifeFloorSql("orchestration_runs"),
+    // An agent idle at its prompt holds nothing (runIdleSql), as in the gate:
+    // the next message goes into that session instead of queuing behind it.
+    sql`NOT ${runIdleSql("orchestration_runs")}`,
     // A parallel lane (derived tab, own worktree) does not occupy the base
     // lane — the claim gate already skips it (olderOpenRunSql). Counting it
     // here made a project with a free base lane look busy, so the next

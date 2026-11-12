@@ -81,6 +81,11 @@ const runs = read("src/db/queries/orchestration-runs.ts");
 assert.match(runs, /AND NOT \$\{runIdleSql\("r"\)\}/, "the lane: an idle run does not hold it");
 assert.match(
   runs,
+  /sql`NOT \$\{runIdleSql\("orchestration_runs"\)\}`/,
+  "busy agrees with the gate: an idle run does not make its project busy",
+);
+assert.match(
+  runs,
   /OR \$\{idle\} OR \$\{effectiveStart\} < NOW\(\) - make_interval\(hours/,
   "no shelter for idle",
 );
