@@ -29,9 +29,11 @@ import {
   LayoutGrid,
   Lightbulb,
   Boxes,
+  Cpu,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ORANGECAT_PUBLIC_ORIGIN } from "@/config/orangecat";
+import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 
 export type NavItem = {
   id: string;
@@ -330,6 +332,17 @@ export const NAV = {
     mobile: false,
   },
 
+  // Not in any menu: Settings → AI opens it ("Compare providers and prices").
+  // Listed so the phone's top bar names the page and the palette finds it.
+  models: {
+    id: "models",
+    label: "Models",
+    description: "Every model, what it costs, and who you pay",
+    href: MODEL_STORE_PATH,
+    icon: Cpu,
+    active: true,
+    mobile: false,
+  },
   settings: {
     id: "settings",
     label: "Settings",

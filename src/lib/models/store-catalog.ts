@@ -292,11 +292,17 @@ function toStoreModel(
   };
 }
 
-/** Every lab in the catalogue, from the models themselves. */
+/**
+ * Every lab in the catalogue, from the models themselves — one entry per lab
+ * NAME. OpenRouter files Meta under both "meta" and "meta-llama"; keyed by
+ * namespace, the filter listed "Meta · 9" and "Meta · 7" and picking one hid
+ * the other's models (2026-11-12). The id is the first namespace seen;
+ * applyFilters matches every namespace with the same name.
+ */
 export function labsOf(models: readonly StoreModel[]): StoreLab[] {
   const byLab = new Map<string, StoreLab>();
   for (const m of models) {
-    const lab = byLab.get(m.lab) ?? {
+    const lab = byLab.get(m.labLabel) ?? {
       id: m.lab,
       label: m.labLabel,
       region: m.vendor ? (vendorById(m.vendor)?.region ?? null) : (LAB_REGIONS[m.lab] ?? "US"),
@@ -310,7 +316,7 @@ export function labsOf(models: readonly StoreModel[]): StoreLab[] {
     if (m.index !== null && (lab.topIndex === null || m.index > lab.topIndex)) {
       lab.topIndex = m.index;
     }
-    byLab.set(m.lab, lab);
+    byLab.set(m.labLabel, lab);
   }
   return [...byLab.values()].sort(
     (a, b) => (b.topIndex ?? -1) - (a.topIndex ?? -1) || b.count - a.count,

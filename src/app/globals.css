@@ -8076,17 +8076,6 @@
   .ui-store-toolbar {
     @apply flex flex-wrap items-center gap-3;
   }
-  /* Open weights earn the positive tone: it is the property that makes a
-     model free to run on your own machine. Closed is neutral, not negative. */
-  .ui-store-badge-open {
-    @apply inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium;
-    color: var(--status-positive);
-    background-color: var(--status-positive-subtle);
-    border-color: color-mix(in oklch, var(--status-positive) 25%, transparent);
-  }
-  .ui-store-badge-closed {
-    @apply inline-flex items-center rounded-full border border-border-subtle bg-surface-overlay px-2 py-0.5 text-xs font-medium text-text-muted;
-  }
   /* The intelligence index as a small bar beside its number. */
   .ui-store-index {
     @apply inline-block h-1.5 w-16 overflow-hidden rounded-full bg-surface-overlay;
@@ -8094,13 +8083,6 @@
   .ui-store-index > i {
     @apply block h-full rounded-full;
     background-color: var(--accent-primary);
-  }
-  /* One way to run the model: the lab's key, a router, your endpoint. Lit when the key is held. */
-  .ui-store-via {
-    @apply inline-flex items-center gap-1 rounded-md border border-border-subtle px-1.5 py-0.5 text-xs text-text-muted;
-  }
-  .ui-store-via-on {
-    @apply border-accent-primary/30 bg-accent-muted text-text-primary;
   }
   /* overflow-x-auto is the backstop: a table wider than its column scrolls
      inside its own box, never the page. */
@@ -8168,7 +8150,7 @@
   .ui-auto-pick {
     @apply flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-overlay/40 p-3;
   }
-  /* "On your own machine": a quiet panel with a numbered recipe. */
+  /* "Run a model on your own computer": a quiet panel with a numbered recipe. */
   .ui-store-local {
     @apply rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
   }

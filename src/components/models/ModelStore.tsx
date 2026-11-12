@@ -33,6 +33,18 @@ import { StoreToolbar } from "./StoreToolbar";
  */
 const PAGE = 60;
 
+/** A key's model by the name the list uses ("Grok 4.7"), not its id. */
+function keyModelName(
+  models: readonly StoreModel[],
+  key: { vendor: string; model: string | null },
+): string | null {
+  if (!key.model) return null;
+  const hit = models.find(
+    (m) => m.id === key.model || (m.vendor === key.vendor && m.model === key.model),
+  );
+  return hit?.name ?? key.model;
+}
+
 export function ModelStore({ initial }: { initial: ModelStoreData }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -161,13 +173,13 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
                   {c.vendor === CUSTOM_VENDOR_ID
                     ? (c.label ?? "Your endpoint")
                     : (vendorById(c.vendor)?.label ?? c.vendor)}{" "}
-                  <span className="text-text-muted">{c.model}</span>
+                  <span className="text-text-muted">{keyModelName(data.models, c)}</span>
                 </span>
               ))}
               .{" "}
               <Link
                 href={OWN_MODEL_SETTINGS_PATH}
-                className="text-accent-text underline-offset-2 hover:underline"
+                className="ui-tap inline-flex items-center text-accent-text underline-offset-2 hover:underline"
               >
                 Manage →
               </Link>
@@ -199,8 +211,12 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-text-muted" aria-live="polite">
-          {visible.length} of {data.models.length} models · {sort.label.toLowerCase()} first (
-          {sort.explains})
+          {/* What is on screen, of what matches: "343 of 343" sat over 60
+              cards and a "Show 60 more" (2026-11-12). */}
+          Showing {Math.min(shown, visible.length)} of {visible.length}
+          {visible.length < data.models.length
+            ? ` matching (${data.models.length} in all)`
+            : ""} · {sort.label.toLowerCase()} first ({sort.explains})
         </p>
         <button
           type="button"
@@ -229,7 +245,7 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
           className="ui-btn-secondary text-sm"
           onClick={() => setShown((n) => n + PAGE)}
         >
-          Show {Math.min(PAGE, visible.length - shown)} more
+          Show more ({visible.length - shown} left)
         </button>
       )}
 

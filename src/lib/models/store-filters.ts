@@ -1,4 +1,4 @@
-import { valueScore, type StoreModel } from "@/lib/models/store-catalog";
+import { labLabel, valueScore, type StoreModel } from "@/lib/models/store-catalog";
 import { filterByQuery, type SearchSpec } from "@/lib/search";
 
 /** "Search a model or a lab": the name, the routed id, then who made it. */
@@ -104,7 +104,8 @@ export function applyFilters(
     if (f.vision && !m.vision) return false;
     if (f.reasoning && !m.reasoning) return false;
     if (f.mine && !reachable(m)) return false;
-    if (f.lab && m.lab !== f.lab) return false;
+    // A lab is its name: "meta" and "meta-llama" are both Meta (labsOf).
+    if (f.lab && m.lab !== f.lab && m.labLabel !== labLabel(f.lab)) return false;
     if (f.max !== null && (m.outPerM === null || m.outPerM > f.max)) return false;
     return true;
   });
