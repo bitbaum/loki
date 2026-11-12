@@ -49,6 +49,7 @@ import {
 import { WATCH_MAX_SECONDS, watchTab } from "@/lib/integrations/orangecat-watch";
 import type { BuilderChannel } from "@/lib/constants/statuses";
 import { runHandoff } from "@/lib/run-handoff";
+import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
 import { loadRunTrack, type TrackableRun } from "@/lib/run-track-load";
 import {
   addPeekViewer,
@@ -102,22 +103,48 @@ async function rowFor(
     builderPref: project.builderPref ?? null,
     presence,
     run:
-      run && loaded
-        ? {
-            id: run.id,
-            state: loaded.canonical.state,
-            label: loaded.canonical.label,
-            reason: loaded.canonical.reason,
-            task: loaded.prompt?.text ?? null,
-            track: loaded.track.summary,
-            prUrl: pr,
-            lastProgressAt: loaded.snap?.lastProgressAt ?? null,
-            handoff: run.finishedAt ? runHandoff(run.summary) : null,
-          }
-        : null,
+      run && !loaded
+        ? runWithoutTrack(run)
+        : run && loaded
+          ? {
+              id: run.id,
+              state: loaded.canonical.state,
+              label: loaded.canonical.label,
+              reason: loaded.canonical.reason,
+              task: loaded.prompt?.text ?? null,
+              track: loaded.track.summary,
+              prUrl: pr,
+              lastProgressAt: loaded.snap?.lastProgressAt ?? null,
+              handoff: run.finishedAt ? runHandoff(run.summary) : null,
+            }
+          : null,
     transcriptAt: lastTranscript(userId, tab)?.at ?? null,
   });
   return { row, tab, channel: runChannel(run, loaded?.snap?.builderChannel) };
+}
+
+/**
+ * A run whose track could not be loaded still exists and is still open or
+ * closed: said from the run's own row, never as Idle with no run, which a
+ * follower would take for settled.
+ */
+function runWithoutTrack(run: RunRow): NonNullable<SessionRowInput["run"]> {
+  const open = !run.finishedAt;
+  const failed =
+    !open &&
+    run.outcome !== ORCHESTRATION_OUTCOME.SUCCESS &&
+    run.outcome !== ORCHESTRATION_OUTCOME.PARTIAL;
+  return {
+    id: run.id,
+    state: open ? "working" : failed ? "failed" : "done",
+    label: open ? "Working" : failed ? "Failed" : "Done",
+    reason: open ? null : failed ? "Its details could not be read just now." : null,
+    task: null,
+    track: null,
+    prUrl: null,
+    lastProgressAt: null,
+    handoff: open ? null : runHandoff(run.summary),
+  };
 }
 
 /**

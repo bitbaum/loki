@@ -77,6 +77,12 @@ async function main(): Promise<void> {
       assert.equal((await POST(request(bad, sign(JSON.stringify(bad))))).status, 400);
     }
     console.log("  ✓ an unknown builder, a non-boolean queue flag, no project, no task (400)");
+
+    const stale = { ...good, issuedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString() };
+    const staleRes = await POST(request(stale, sign(JSON.stringify(stale))));
+    assert.equal(staleRes.status, 401);
+    assert.equal((await staleRes.json()).error, "stale request");
+    console.log("  ✓ a signed task dated outside the window is refused (replay)");
   } finally {
     if (original === undefined) delete process.env.ORANGECAT_WEBHOOK_SECRET;
     else process.env.ORANGECAT_WEBHOOK_SECRET = original;

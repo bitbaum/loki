@@ -34,6 +34,7 @@ import { dispatchToProjects } from "@/lib/multi-project-dispatch";
 import { MAX_TASK_LENGTH, MAX_TASK_PROJECTS } from "@/lib/multi-dispatch-prompt";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 import { getExecutionAccess } from "@/lib/execution-access";
+import { isFreshIssuedAt } from "@/lib/integrations/orangecat-actor-status";
 
 const Body = z.object({
   actorId: z.string().uuid(),
@@ -56,6 +57,12 @@ const Body = z.object({
   separateSession: z.boolean().optional(),
   /** Where on OrangeCat this was sent from — for attribution, not routing. */
   originUrl: z.string().trim().url().max(500).optional(),
+  /**
+   * When the request was signed. A task starts agents, so a captured request
+   * must not be replayable: when present it must be within the same window as
+   * the read doors. Optional only until every OrangeCat sends it.
+   */
+  issuedAt: z.string().datetime().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -64,6 +71,9 @@ export async function POST(req: NextRequest) {
   const { actorId, task, projects, originUrl, builderChannel, queueIfBusy, separateSession } =
     dataOrResp;
   const session = separateSession ? "fresh" : dataOrResp.session;
+  if (dataOrResp.issuedAt && !isFreshIssuedAt(dataOrResp.issuedAt)) {
+    return NextResponse.json({ error: "stale request" }, { status: 401 });
+  }
 
   const user = await getUserByOrangeCatActorId(actorId);
   if (!user) {
