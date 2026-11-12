@@ -14,6 +14,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { spawn, spawnSync } from "child_process";
+import { testEnv } from "./test/lib/test-env";
 
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = join(SCRIPTS_DIR, "test");
@@ -169,10 +170,14 @@ const FAIL_TAIL_LINES = 40;
 
 type Result = { file: string; ok: boolean; tail: string; skipped?: string };
 
+/** Every test runs with no pointer to a real repository (lib/test-env.ts). */
+const CHILD_ENV = testEnv();
+
 function run(file: string): Promise<Result> {
   return new Promise((resolve) => {
     const child = spawn(runner, [...baseArgs, join(TEST_DIR, file)], {
       stdio: ["ignore", "pipe", "pipe"],
+      env: CHILD_ENV,
     });
     let out = "";
     let settled = false;
