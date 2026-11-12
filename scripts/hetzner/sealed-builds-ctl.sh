@@ -203,6 +203,17 @@ agent-probe)
     props+=(-p "Environment=$k=$v"); envs+=(--env "$k"); names="$names $k"
   done
   echo "agent: $A; credentials passed:${names:- none}; ~/.${A%%-*}: $(ls -A "$H/.${A%%-*}" 2>/dev/null | wc -l) entries"
+  # One headless turn first (no terminal to negotiate): an agent out of quota
+  # says so here in plain text.
+  echo "--- headless: $A -p (first 25 lines, masked) ---"
+  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
+    -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${props[@]}" \
+    timeout 120 podman run --rm --userns=keep-id $RT --workdir "$proj" \
+      --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 --security-opt no-new-privileges --cap-drop ALL \
+      --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" "${envs[@]}" \
+      loki-agent:latest bash -lc "$A -p 'Reply with the single word PONG and nothing else.' </dev/null" 2>&1 \
+    | grep -v 'level=warn\|WARN\[' | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | head -25
+  echo "--- interactive, as the runner opens it ---"
   case "$A" in grok) cmd="grok --always-approve --no-alt-screen" ;; gemini) cmd="gemini --skip-trust --yolo" ;; *) cmd="$A" ;; esac
   systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
     -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${props[@]}" \
