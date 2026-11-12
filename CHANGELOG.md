@@ -6,6 +6,35 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-12 — Say it on the first screen
+
+- **The homepage has a box to say it in.** {#say-it-first} Under "Say what
+  you want" there is now the same box and microphone as Loki's chat. Type or
+  say what you want built, and it is kept: sign-up shows your sentence back,
+  and it is waiting in the new-project form when you arrive. Before, the only
+  thing under the headline was a button to a form that never mentioned a
+  project.
+- **A shorter homepage, with something to look at.** {#homepage-shorter} It
+  was more than ten phone screens of text and is now seven and a half, with a
+  small picture for each of the three steps. The twelve problems Loki solves
+  are three on the homepage and all of them on Why Loki.
+- **The menu stays with you.** {#public-header-stays} The header on every
+  public page now stays at the top while you scroll. It was meant to and did
+  not. From a keyboard, the phone menu takes the focus when it opens and gives
+  it back when it closes, and the Product menu opens when pressed, not when
+  the pointer passes over it.
+- **A wrong address is not a dead end.** {#not-found} An address that leads
+  nowhere shows one line and the way back, inside and outside the app. It
+  used to be a bare "404" on a black screen.
+- **A microphone in more text boxes.** {#text-boxes-mic} Sixteen forms (a new
+  goal, a prompt, a project's brief, an event's notes and others) now take
+  dictation in their text boxes, the same way the chat does. The rest follow
+  with the next release of the shared field.
+- **Words a person would say.** {#plain-words-2026-11} The Terminal says who
+  the cloud computer is for and what works instead. Home's running rows lead
+  with what the agent is doing this minute. "Connect a runner" is "Connect
+  your computer".
+
 ## 2026-11-02 — Take over the browser
 
 - **You can take over Loki's browser.** {#review-take-over} In a project
