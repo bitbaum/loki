@@ -16,8 +16,16 @@ assert.doesNotMatch(schema, /agent_builds_unasked"\)\.(notNull|default)/);
 assert.doesNotMatch(schema, /editors_may_build"\)\.(notNull|default)/);
 
 // Ingest: builds only behind the opt-in, through the owner's own build path.
-const ingest = read("src/app/api/projects/[id]/feedback/route.ts");
-const post = ingest.slice(ingest.indexOf("export async function POST"));
+// The filing body both doors call (the seat's route and the OrangeCat rail).
+const ingest = read("src/lib/feedback/agent-filing.ts");
+const post = ingest.slice(
+  ingest.indexOf("export async function fileAgentFeedback"),
+  ingest.indexOf("export async function readFeedbackStatus"),
+);
+assert.match(
+  read("src/app/api/projects/[id]/feedback/route.ts"),
+  /fileAgentFeedback\(userId, idOrResp, access, data\)/,
+);
 assert.match(post, /agentBuildsUnasked !== true\) return respond\(stored\.row, false\)/);
 assert.match(post, /startOwnerBuild\(access\.ownerUserId/, "the owner's builder and daily limit");
 assert.ok(
