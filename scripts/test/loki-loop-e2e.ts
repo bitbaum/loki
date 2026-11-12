@@ -281,59 +281,6 @@ async function checkPublishesTheMap() {
   );
 }
 
-/**
- * The agent's own screen, as the Sessions page would paint it: a run that
- * goes quiet says "Needs you" and nothing about what the agent is showing.
- * On 2026-11-12 a probe to orangecat started on Claude Code at 16:30 and was
- * "No output for a while" at 16:55 with a clean checkout; this is the look
- * that tells a trust prompt, a question and a finished turn apart. Masked,
- * last lines only, best effort.
- */
-async function peekScreen(tab: string, channel: string | null, ms = 12_000): Promise<string> {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), ms);
-  let raw = "";
-  try {
-    const q = new URLSearchParams({ tab, ...(channel ? { channel } : {}) });
-    const res = await fetch(`${BASE}/api/control/peek-stream?${q}`, { headers, signal: ac.signal });
-    if (!res.ok || !res.body) return `(peek ${res.status})`;
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let i: number;
-      while ((i = buf.indexOf("\n\n")) >= 0) {
-        const ev = buf.slice(0, i);
-        buf = buf.slice(i + 2);
-        if (!ev.startsWith("event: frame")) continue;
-        const data = ev.split("\n").find((l) => l.startsWith("data: "));
-        if (!data) continue;
-        try {
-          const f = JSON.parse(data.slice(6)) as { frame?: string; append?: boolean };
-          raw = f.append ? raw + (f.frame ?? "") : (f.frame ?? "");
-        } catch {
-          /* a partial frame */
-        }
-      }
-    }
-  } catch {
-    /* the timer ends the stream */
-  } finally {
-    clearTimeout(timer);
-  }
-  const lines = raw
-    .replace(/\x1b\[[0-9;?>=<]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g, "")
-    .split(/\r?\n|\r/)
-    .map((l) => l.replace(/\s+/g, " ").trim())
-    .filter((l) => l.length > 1)
-    .slice(-20)
-    .map((l) => l.replace(/[A-Za-z0-9_-]{28,}/g, "<masked>").slice(0, 160));
-  return lines.length ? lines.map((l) => `        | ${l}`).join("\n") : "(no screen)";
-}
-
 // ── 3. closes the loop ──────────────────────────────────────────────────────
 async function checkClosesTheLoop() {
   const id = await createConversation(`${MARKER} loop`, [PROJECT]);
@@ -403,11 +350,6 @@ async function checkClosesTheLoop() {
     // (the work happened); an open run is a stuck builder.
     const { label: state, closed, detail } = await runState(runId);
     if (!closed) {
-      const screen = await peekScreen(
-        String(dispatch?.meta?.sessionTab ?? PROJECT),
-        typeof dispatch?.meta?.channel === "string" ? dispatch.meta.channel : null,
-      );
-      console.log(`      the agent's screen before the abort:\n${screen}`);
       await abortRun(
         runId,
         `no outcome within ${DISPATCH_MINUTES} min — check builder auth (loki-builder-auth timer) and the box-runner`,
