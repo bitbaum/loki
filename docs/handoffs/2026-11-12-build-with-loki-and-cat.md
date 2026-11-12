@@ -125,7 +125,11 @@ signed-in browser. What it could use:
   thread got "✅ orangecat — done. e2e ok — no changes (mwdwf70c)".
 - OrangeCat #1672 merged 18:08, but its migration shared version
   `20261112200000` with another session's; main went red and the deploy did
-  not run. OrangeCat #1692 gives it `20261112202000`.
+  not run. Another session's OrangeCat #1691 renamed it to `20261112206000`;
+  main went green and deployed at 19:09 (`bc7b44f`). `cat-diagnostics.yml`
+  after it: no Cat or bot failures logged. (My duplicate, OrangeCat #1692, was
+  closed.)
+- Loki #1692 (the probe's token) merged 19:08.
 
 Still open: the runner on the box has the morning's code (its drain waits on
 the substrata Gemini run open since 13:45, which cannot progress while Gemini
