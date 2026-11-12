@@ -3,9 +3,9 @@ import type { RunTrack } from "@/lib/run-track";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
-import { QUIET_LANE_MINUTES } from "@/lib/orchestration/quiet-lane";
 import { AGENT_LABELS } from "@/lib/agent-labels";
 import { BUILDER_UPDATING_LABEL, BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
+import { RUN_IDLE_RELEASE_MINUTES } from "@/lib/run-progress";
 
 export type DispatchStatusInput = {
   ok?: boolean;
@@ -32,14 +32,78 @@ export type DispatchStatusInput = {
  * What a person is told when their task waits behind the project's open run.
  * It read "a runner is online and will claim it shortly" while the task
  * could wait for hours: the claim gate holds a project's next command until
- * its older run has closed, or has gone silent for QUIET_LANE_MINUTES
- * (orchestration/quiet-lane). One wording for the chat, the API answer and
- * the run's track.
+ * its older run has closed. One wording for the chat, the API answer and the
+ * run's track.
  */
-export const QUEUED_BEHIND_SENTENCE = `This project is still on an earlier task. Yours is next in line: it starts when that one ends, or once that one has printed nothing for ${QUIET_LANE_MINUTES} minutes. To start it now, open the project's session and send it there, or stop the earlier task.`;
+export const QUEUED_BEHIND_SENTENCE =
+  "This project is still on an earlier task. Yours is next in line and starts when that one ends. To start it now, open the project's session and send it there, or stop the earlier task.";
 
 /** The same fact as a short label under a sent task. */
 export const QUEUED_BEHIND_LABEL = "Next in line — starts when the earlier task ends";
+
+/** The run a queued task waits behind, as the queue knows it (findQueueBlockers). */
+export type QueueBlockerFacts = {
+  label: string | null;
+  startedAt: Date | string;
+  lastProgressAt: Date | string | null;
+};
+
+const ZURICH_CLOCK = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Zurich",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const ZURICH_DAY_CLOCK = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Zurich",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** A time a person reads: Zurich, with the day when it is not within the last 20 hours. */
+export function zurichClock(at: Date | string, now: Date = new Date()): string {
+  const d = new Date(at);
+  return now.getTime() - d.getTime() > 20 * 60 * 60_000
+    ? ZURICH_DAY_CLOCK.format(d)
+    : ZURICH_CLOCK.format(d);
+}
+
+/**
+ * What a task queued behind the project's open run waits on, and since when.
+ *
+ * "This project is still on an earlier task" was the whole answer, so two
+ * orangecat prompts read Queued for over an hour behind a session that had
+ * been idle since 06:17 (2026-11-12) and nobody could tell from the answer.
+ * Now it names the run, when it opened, when its agent last printed work, and
+ * the rule that ends the wait (lib/run-progress RUN_IDLE_RELEASE_MINUTES).
+ * Without the facts, the general sentence.
+ */
+export function queuedBehindSentence(
+  blocker: QueueBlockerFacts | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (!blocker) return QUEUED_BEHIND_SENTENCE;
+  const what = blocker.label ? `“${blocker.label}”` : "an earlier task";
+  const heard = blocker.lastProgressAt
+    ? `; its agent last printed work at ${zurichClock(blocker.lastProgressAt, now)}`
+    : "";
+  return (
+    `This project is still on ${what}, open since ${zurichClock(blocker.startedAt, now)}${heard}. ` +
+    `Yours is next in line: it starts when that one ends, or once that session has printed no work for ${RUN_IDLE_RELEASE_MINUTES} minutes. ` +
+    "To start it now, open the project's session and send it there, or stop the earlier task."
+  );
+}
+
+/** The short label for the same fact. */
+export function queuedBehindLabel(
+  blocker: QueueBlockerFacts | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (!blocker) return "Next in line for this project";
+  const what = blocker.label ? `“${blocker.label}”` : "an earlier task";
+  return `Next in line, behind ${what} (open since ${zurichClock(blocker.startedAt, now)})`;
+}
 
 /**
  * The builder named for a sentence, or null when we genuinely don't know.

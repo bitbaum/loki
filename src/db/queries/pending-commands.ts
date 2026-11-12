@@ -26,7 +26,6 @@ import {
 } from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
 import { closeRunSuperseded, olderOpenRunSql } from "./orchestration-runs";
-import { releaseQuietLanes } from "./quiet-lane";
 import { dispatchSupersededReason } from "@/lib/dispatch-superseded";
 import { requireNotDemo } from "@/lib/demo-guard";
 import type { BrowserTaskPayload } from "@/config/browser-tasks";
@@ -214,6 +213,8 @@ export type QueueBlocker = {
   startedAt: Date;
   /** Its prompt label ("Next Best Task"), when the dispatch recorded one. */
   label: string | null;
+  /** The last time its agent printed work (lib/run-progress), when known. */
+  lastProgressAt: Date | null;
 };
 
 /**
@@ -236,11 +237,13 @@ export async function findQueueBlockers(runIds: string[]): Promise<Map<string, Q
     // and 500 /feedback whenever a run was queued behind another (2026-10-08).
     blocker_started_at: Date | string;
     blocker_label: string | null;
+    blocker_last_progress_at: string | null;
   }>(sql`
     SELECT own.id AS own_id,
            b.id AS blocker_id,
            b.started_at AS blocker_started_at,
-           b.payload->>'promptLabel' AS blocker_label
+           b.payload->>'promptLabel' AS blocker_label,
+           b.payload->>'lastProgressAt' AS blocker_last_progress_at
       FROM orchestration_runs own
       JOIN LATERAL (
         ${olderOpenRunSql(sql`(own.started_at, own.id)`, sql`own.user_id`, sql`own.project_key`)}
@@ -266,6 +269,7 @@ export async function findQueueBlockers(runIds: string[]): Promise<Map<string, Q
       runId: row.blocker_id,
       startedAt: new Date(row.blocker_started_at),
       label: row.blocker_label,
+      lastProgressAt: row.blocker_last_progress_at ? new Date(row.blocker_last_progress_at) : null,
     });
   }
   return out;
@@ -758,11 +762,6 @@ export async function claimNextPendingCommand(
   await reclaimStalePendingCommands(userIds);
   await retireSupersededDispatches(userIds).catch((e) =>
     console.error("[pending-commands] retire superseded failed:", e),
-  );
-  // Before the gate reads the lane: a message waiting behind a run whose
-  // agent has gone silent takes its turn now (lib/orchestration/quiet-lane).
-  await releaseQuietLanes(userIds).catch((e) =>
-    console.error("[pending-commands] release quiet lanes failed:", e),
   );
   const userFilter =
     userIds.length === 1

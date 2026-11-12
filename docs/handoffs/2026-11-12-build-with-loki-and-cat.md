@@ -87,6 +87,7 @@ signed-in browser. What it could use:
 | 11:39 | Loki #1678 `check` | success on `0e48feb4` (the real-Postgres scenarios ran in CI). Waiting for the sweep; #1661 and #1673 merged ahead of it. |
 | 11:30 | `box-usage.yml` `mode=read` (run 43209749814) | cancelled at its 20-minute limit inside the first `du`, after printing the memory facts: **MemAvailable 0.6 GiB of 15.2, swap 4.0 GiB of 4.0 used.** Resident memory by program: `gvisor_sentry` 25186 MiB over 1734 processes (the sealed agent sessions; shared pages are counted once per process, 6.5 GiB is shared), `next-server` 3847 MiB over 24, `postgres` 2112 MiB. **20 out-of-memory kills since boot**: `openclaw-gateway` 10, `gvisor_sentry` 3, and one each of `next-server`, `java`, `python`, `node`, `bash`, `MainThread`. |
 | 11:55 | Read `src/lib/agent-execution/sandbox.ts` and `scripts/hetzner/install-box-runner.sh` | A sealed session started with podman gets no `--memory` (only the docker shape does); the code says "MemoryMax still bounds them", meaning the runner unit's. `loki-box-runner.service` has `OOMPolicy=continue` and **no `MemoryHigh` or `MemoryMax`**. Every site unit has `MemoryMax=1G` (`scripts/hetzner/sync-infra.sh`). So the builder is the one service on the box with no ceiling. `AGENT_MAX_OPEN_DEFAULT = 8` was sized at 0.4 GB a session. |
+| 12:01 | `git fetch`: **#1680 merged at 11:56 UTC** (another session): an idle session does not hold its project's queue | it supersedes change 5; mine is removed from #1678 (see below). Both sites reset the connection for about 12 s at 12:01. |
 | 11:58 | `box-usage.sh` now prints the runner unit's memory, its ceiling and the sandboxes' cgroup, and gives each disk walk a minute; run from the branch | result below when it is in |
 | 11:28 | Change 6 written and tested (below): a red or conflicted pull request is said in the thread with the repair | `scripts/test/run-follow-notify.ts`, and the eleven other tests that read the shipping ledger |
 | 11:20 | Change 5 written and tested (below) | `scripts/test/quiet-lane.ts` 14 checks; `scripts/test/lane-and-reaper.ts` 13 of 13 against a local Postgres 16 with pgvector, migrated with `drizzle-kit push` as CI does |
@@ -157,51 +158,33 @@ needs a chat build whose pull request is red or conflicted.
 Not done: the run's card does not show the blocker (only the thread line and
 the push do), and there is no one-tap button for the repair.
 
-## Change 5 (Loki): a silent run gives its project to the waiting message
+## Change 5 (Loki): withdrawn; #1680, from another session, is the rule on main
 
-A project's shared session takes one message at a time; the claim gate holds
-the next one until the run ahead has closed. A run closes when its agent
-reports (a handoff, a pull request). An agent that ended its turn without
-reporting still has a process at its prompt, and the reaper shelters a run
-with a live process for up to `MAX_RUN_HOURS` (12). So the next message could
-wait twelve hours behind a session doing nothing, with "Next in line" on the
-screen the whole time.
+I wrote a rule that closed a silent run at claim time (20 minutes without a
+beat, a second look after 90 seconds). Another session merged **#1680** at
+11:56 UTC for the same problem, found from the same symptom on `orangecat`,
+and it rests on a fact mine missed: **an idle session still trickles 40 to
+96 bytes a minute** (measured for #1676), so `lastProgressAt` stays fresh and
+my rule would not have released it.
 
-- `src/lib/orchestration/quiet-lane.ts`: the rule, pure. The runner beats
-  while the terminal prints and while the agent waits at a sign-in or an
-  approval. At least one beat ever (a runner from before beats existed
-  reports nothing while its agent works, so its silence proves nothing),
-  then no beat for 20 minutes (twice the window after which every surface
-  already says Stalled), not waiting for a person, no command outstanding,
-  and still so 90 seconds after it was first seen: release. The
-  second look is there because a runner that lost its connection cannot beat,
-  and its first request back may be the claim.
-- `src/db/queries/quiet-lane.ts`: gathers those facts for the run at the head
-  of each lane a message waits in (through `olderOpenRunSql`, the gate's own
-  definition) and closes it: `partial` with the handoff note when the project
-  pushed a handoff, else `timeout` with "The agent printed nothing for N
-  minutes and did not report back, so this run was ended and the next message
-  for the project started." The end time is the last beat. No escalation.
-- `claimNextPendingCommand` calls it before the gate, so the waiting message
-  is claimed in the request that closed the run.
-- The sentence a person reads while waiting now carries the bound: "…it
-  starts when that one ends, or once that one has printed nothing for 20
-  minutes."
+What is on main (read it there, do not copy it here): a beat under 512 bytes
+is not work (`isWorkingBeat`, `src/lib/run-progress.ts`); a delivered run with
+no working beat for 30 minutes, and not blocked on a question for a person,
+no longer holds its project (`runIdleSql` inside `olderOpenRunSql`, so the
+claim gate, the blocker lookup and the reaper read one definition); a run that
+never beat keeps its place; a queued task names the run it waits behind.
 
-What it does not do: release a working agent. A working agent prints, so its
-beat is seconds old at any age. Nothing is closed when nobody is waiting.
+My version is removed from #1678: `src/lib/orchestration/quiet-lane.ts`,
+`src/db/queries/quiet-lane.ts`, `scripts/test/quiet-lane.ts`, the call in
+`claimNextPendingCommand`, my scenarios in `scripts/test/lane-and-reaper.ts`
+and the sentence change. Two mechanisms for one decision is what this
+codebase's own comments warn against.
 
-Tests: `scripts/test/quiet-lane.ts` (the rule), and five scenarios in
-`scripts/test/lane-and-reaper.ts` against a real Postgres (released on the
-second look and claimed at once; a printing run keeps its lane at eleven
-hours; a beat between the two looks keeps it; an approval prompt keeps it;
-a run that never beat keeps it; nothing happens with nobody waiting). To run the second one locally:
-`pg_ctlcluster 16 main start`, `apt-get install postgresql-16-pgvector`,
-create a database, `CREATE EXTENSION vector`, `DATABASE_URL=… npx drizzle-kit
-push --force`, then `TEST_DATABASE_URL=… npx tsx scripts/test/lane-and-reaper.ts`.
-
-Not proven on the live site yet: it needs a project whose earlier run has
-gone silent while a message waits.
+Kept for whoever touches this next: to run `scripts/test/lane-and-reaper.ts`
+locally, `pg_ctlcluster 16 main start`, `apt-get install
+postgresql-16-pgvector`, create a database, `CREATE EXTENSION vector`,
+`DATABASE_URL=… npx drizzle-kit push --force`, then `TEST_DATABASE_URL=… npx
+tsx scripts/test/lane-and-reaper.ts`.
 
 ## Change 4 (Loki): the on-demand check can sign in (#1678)
 
@@ -412,18 +395,23 @@ Every runner change must bump `desktop/package.json` and prepend to `src/config/
 
 ## Next action
 
-1. Loki #1678 (changes 4, 5, 6): green, waiting for the sweep. After the
-   merge the branch is deleted: `git fetch --prune`, put the branch on
-   `origin/main`, and any later change is a new pull request.
-2. OrangeCat #1672: follow CI and the sweep. After its deploy, run
+1. Loki #1678 now holds: the loop check's sign-in (change 4), the routing
+   fix, the blocked pull request notice (change 6) and the usage report.
+   Follow CI and the sweep. After the merge the branch is deleted:
+   `git fetch --prune`, put the branch on `origin/main`, and any later change
+   is a new pull request.
+2. An independent review of #1678 and OrangeCat #1672 was started at 11:50
+   UTC (workflow run `wf_22c0cc48-298`); two of its four parts reviewed the
+   withdrawn rule. Apply what it finds on the parts that remain.
+3. OrangeCat #1672: follow CI and the sweep. After its deploy, run
    `cat-diagnostics.yml`: `bots.links` names which link fails with which
    status.
-3. Bots answer again only when the shared pool has a link with capacity, or
+4. Bots answer again only when the shared pool has a link with capacity, or
    on a person's own key. Another session was given the chain (10:59 UTC,
    lane `orangecat~ed39e1e1`); look at what it opened before touching
    `src/config/free-vendors.ts` or `provider-catalog.ts`.
-4. The box: read `box-usage.yml` run 43209749814 when it ends. Memory at 96%
-   is the common cause of the slow sign-up, the 503 window and the runner's
-   timeouts. What to do about it is the owner's call (fewer sessions at once
-   through `LOKI_AGENT_MAX_OPEN`, a bigger box, or a builder of its own).
-5. Then one more `loki-loop-check.yml` run on a project that is free.
+5. The box: read `box-usage.yml` run 43213167515 (from the branch). The
+   builder has no memory ceiling; what to give it is the owner's call,
+   because a ceiling below what the agents hold stops some of them.
+6. Then one more `loki-loop-check.yml` run on a project that is free, now
+   that #1680 is live.
