@@ -12,6 +12,7 @@ import {
   type MissionBoardFilter,
   type MissionBoardItem,
 } from "@/lib/missions/mission-board";
+import { goalsLine } from "@/lib/missions/project-mission";
 
 const FILTERS: readonly { value: MissionBoardFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -27,7 +28,7 @@ const INITIAL_ROWS = 12;
  *  its goals have got — said as the project's owner reported it. */
 function missionLine(m: MissionBoardItem): string {
   if (m.alert) return m.alert.label;
-  if (m.goalsTotal > 0) return `${m.goalsReportedDone} of ${m.goalsTotal} goals reported done`;
+  if (m.goalsTotal > 0) return goalsLine(m.goalsReportedDone, m.goalsTotal);
   return m.statement ? "No goals yet" : "No objective yet";
 }
 
@@ -115,9 +116,6 @@ export function MissionsBoard({ missions }: { missions: readonly MissionBoardIte
               title={projectTitle({ name: mission.name })}
               secondary={missionLine(mission)}
               status={mission.alert ? "warning" : undefined}
-              trailing={
-                mission.reportedProgress !== null ? `${mission.reportedProgress}%` : undefined
-              }
               chevron
             />
           ))}

@@ -1,17 +1,18 @@
 import { notFound } from "next/navigation";
-import { NAV } from "@/config/navigation";
 import { CheckCircle2, Circle, Flag, MessageSquare, ShieldAlert, Target } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { List, ListRow } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
 import { requirePageUserId } from "@/lib/session";
 import { getProjectDossier } from "@/db/queries/project-dossier";
-import { missionFromProject } from "@/lib/missions/project-mission";
+import { goalsLine, missionFromProject } from "@/lib/missions/project-mission";
+import { missionRunRow } from "@/lib/missions/run-row";
+import { HandoffText } from "@/components/missions/HandoffText";
 import { MissionContinueAction } from "@/components/missions/MissionContinueAction";
 import { missionContinueOffer } from "@/lib/missions/continue-offer";
 import { getProjectAccess } from "@/db/queries/project-access";
 import { deriveBuildStatus } from "@/lib/project-build-status";
-import { answer, cleanDescription, projectTitle } from "@/lib/project-display";
+import { answer, cleanDescription, plainWords, projectTitle } from "@/lib/project-display";
 import { factReachesAgent } from "@/lib/project-signals";
 
 export const metadata = { title: "Mission control" };
@@ -62,12 +63,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   });
 
   const title = projectTitle({ name: mission.name });
+  // One progress measure (goalsLine): "4 of 14 goals reported done · 54%"
+  // put two numbers that disagree on one line (2026-11-12).
   const progressLine =
-    mission.goalsTotal > 0
-      ? `${mission.goalsReportedDone} of ${mission.goalsTotal} goals reported done${
-          mission.reportedProgress !== null ? ` · ${mission.reportedProgress}%` : ""
-        }`
-      : null;
+    mission.goalsTotal > 0 ? goalsLine(mission.goalsReportedDone, mission.goalsTotal) : null;
+  // One answer to "what is next": the handoff's, else the project's own
+  // next step, else the first open goal. The page showed the project's next
+  // step under "Next move" and the handoff's different one further down.
+  const nextMove = nextStep ?? mission.nextObjective;
+  const handoffNext = latest?.next?.trim() || null;
 
   return (
     <PageLayout title={title} back={{ href: "/missions", label: "Missions" }}>
@@ -89,13 +93,18 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       </Section>
 
       <Section title="Next move">
-        <List aria-label="Next move">
-          <ListRow
-            icon={Flag}
-            title={mission.nextObjective ?? "Write a next step or add a goal"}
-            secondary="Next step"
-          />
-        </List>
+        {nextMove ? (
+          <p className="text-base leading-relaxed text-text-primary">{plainWords(nextMove)}</p>
+        ) : (
+          <List aria-label="Next move">
+            <ListRow
+              href={`/projects/${id}#plan`}
+              icon={Flag}
+              title="Write a next step or add a goal"
+              chevron
+            />
+          </List>
+        )}
         <div className="mt-3">
           <MissionContinueAction
             projectId={id}
@@ -131,40 +140,52 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           <dl className="space-y-3 text-sm">
             <div>
               <dt className="text-text-tertiary">What was done</dt>
-              <dd className="mt-0.5 whitespace-pre-wrap text-text-primary">
-                {latest.done || "Not recorded"}
+              <dd className="mt-0.5 text-text-primary">
+                <HandoffText text={latest.done ? plainWords(latest.done) : "Not recorded"} />
               </dd>
             </div>
-            <div>
-              <dt className="text-text-tertiary">What is next</dt>
-              <dd className="mt-0.5 whitespace-pre-wrap text-text-primary">
-                {latest.next || "Not recorded"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-text-tertiary">Tests, as the agent reported them</dt>
-              <dd className="mt-0.5 whitespace-pre-wrap text-text-secondary">
-                {latest.tests || "No test report"}
-              </dd>
-            </div>
+            {/* Shown only when it says something the next move does not. */}
+            {handoffNext && answer(handoffNext) !== nextMove && (
+              <div>
+                <dt className="text-text-tertiary">The agent&apos;s own note on what is next</dt>
+                <dd className="mt-0.5 text-text-primary">
+                  <HandoffText text={plainWords(handoffNext)} />
+                </dd>
+              </div>
+            )}
+            {latest.tests && (
+              <div>
+                <dt className="text-text-tertiary">Tests, as the agent reported them</dt>
+                <dd className="mt-0.5 text-text-secondary">
+                  <HandoffText text={plainWords(latest.tests)} />
+                </dd>
+              </div>
+            )}
           </dl>
         ) : (
           <p className="text-sm text-text-secondary">No agent handoff yet.</p>
         )}
       </Section>
 
-      <Section title="Recent runs" link={{ href: NAV.terminal.href, label: NAV.terminal.label }}>
+      <Section title="Recent runs" link={{ href: `/projects/${id}/watch`, label: "Watch live" }}>
         {runHistory.length === 0 ? (
           <p className="text-sm text-text-secondary">No agent run yet.</p>
         ) : (
           <List aria-label="Recent runs">
-            {runHistory.map((run) => (
-              <ListRow
-                key={run.id}
-                title={run.finishedAt ? (run.outcome ?? "Finished") : "Running or queued"}
-                trailing={run.startedAt.toLocaleDateString("en-CH")}
-              />
-            ))}
+            {runHistory.map((run) => {
+              const row = missionRunRow(run, id);
+              return (
+                <ListRow
+                  key={run.id}
+                  href={row.href}
+                  title={row.title}
+                  secondary={row.status}
+                  status={row.tone}
+                  trailing={row.when}
+                  chevron
+                />
+              );
+            })}
           </List>
         )}
       </Section>

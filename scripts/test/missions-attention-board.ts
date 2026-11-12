@@ -154,7 +154,7 @@ assert.match(page, /missionAlertFromProject\(project\)/);
 // project — and progress stays "reported", never verified.
 assert.match(view, /<ListSearch/);
 assert.match(view, /<ChoiceMenu/);
-assert.match(view, /goals reported done/);
+assert.match(view, /goalsLine\(/);
 assert.doesNotMatch(view, /getProjects\(/);
 assert.doesNotMatch(page + view, /export async function (POST|PATCH|PUT|DELETE)\(/);
 

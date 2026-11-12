@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { missionFromProject } from "@/lib/missions/project-mission";
+import { goalsLine, missionFromProject } from "@/lib/missions/project-mission";
+import { missionRunRow } from "@/lib/missions/run-row";
 
 const base = {
   projectId: "project-1",
@@ -84,12 +85,50 @@ assert.match(index, /missionAlertFromProject\(project\)/);
 assert.match(detail, /requirePageUserId\(\)/);
 assert.match(detail, /getProjectDossier\(userId, id\)/);
 assert.match(detail, /if \(!dossier\) notFound\(\)/);
-assert.match(detail, /goals reported done/);
+assert.match(detail, /goalsLine\(/);
 assert.doesNotMatch(detail, /verified complete|independently verified/i);
 assert.match(nav, /href: "\/missions"/);
 // Missions is a view across projects, folded under that question since the
 // sidebar became three words + folds (2026-11-01, AGENTS.md "Why Loki exists").
 assert.match(nav, /NAV\.terminal, NAV\.missions, NAV\.activity, NAV\.prompts/);
 assert.doesNotMatch(index + detail, /export async function (POST|PATCH|PUT|DELETE)\(/);
+
+// One progress measure, said grammatically.
+assert.equal(goalsLine(0, 1), "0 of 1 goal reported done");
+assert.equal(goalsLine(4, 14), "4 of 14 goals reported done");
+assert.doesNotMatch(detail, /reportedProgress/, "the detail shows one measure, not two");
+
+// Recent runs: what it is, whether it started, when, and a way to watch it.
+const now = Date.now();
+const runBase = {
+  id: "r1",
+  intent: "custom",
+  outcome: null,
+  startedAt: new Date(now - 5 * 60_000),
+  finishedAt: null,
+  summary: null,
+  payload: null,
+};
+const waiting = missionRunRow({ ...runBase, state: "waiting" }, "p1");
+assert.equal(waiting.status, "Waiting to start");
+assert.equal(waiting.href, "/projects/p1/watch?run=r1");
+assert.match(waiting.when, /ago/);
+const working = missionRunRow(
+  {
+    ...runBase,
+    state: "waiting",
+    payload: { deliveredAt: new Date(now).toISOString(), lastStep: { text: "Fixing the header" } },
+  },
+  "p1",
+);
+assert.equal(working.status, "Working now");
+assert.equal(working.title, "Fixing the header");
+const failed = missionRunRow(
+  { ...runBase, state: "error", outcome: "error", finishedAt: new Date(now) },
+  "p1",
+);
+assert.equal(failed.status, "Stopped with a problem");
+assert.equal(failed.tone, "negative");
+assert.doesNotMatch(detail, /Running or queued/);
 
 console.log("✓ Missions — real project/goal sources, reported progress, tenant-scoped reads");
