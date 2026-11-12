@@ -152,7 +152,7 @@ for (const stalled of [false, true]) {
   const t = buildRunTrack({ ...queuedRun, stalled, queueNote: BUILDER_UPDATING_SENTENCE });
   assert.equal(t.summary, BUILDER_UPDATING_SENTENCE, "the track's headline is the reason");
   const builder = t.stages.find((x) => x.id === "builder");
-  assert.equal(builder?.label, "Waiting for the runner's update");
+  assert.equal(builder?.label, "Waiting for the computer's update");
   assert.notEqual(builder?.state, "attention", "a bounded wait is not a fault");
 }
 // ── The other silent wait: behind the project's own open run ────────────

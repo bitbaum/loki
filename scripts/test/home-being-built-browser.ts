@@ -30,7 +30,7 @@ async function main() {
       resolveDir: process.cwd(),
       loader: "jsx",
       contents: `import React from 'react';import{createRoot}from'react-dom/client';
-        import{ControlNow}from'./src/components/control/ControlNow';
+        import{ControlNow,ControlWaiting}from'./src/components/control/ControlNow';
         import{buildNowJobs}from'./src/components/control/control-now';
         const now=Date.now();
         const snap=(tab,phase,over)=>({phase,project:{tab,liveTab:tab,session:null,profile:null,currentPrompt:null,liveAgentTurns:null,latestOrchestrationRun:null,...over}});
@@ -40,7 +40,8 @@ async function main() {
         ],now);
         window.replies=[];
         createRoot(document.getElementById('app')).render(<main className="app-page space-y-6">
-          <ControlNow jobs={jobs} nowMs={now} onReply={async(t,x)=>{window.replies.push([t,x])}}/>
+          <ControlWaiting jobs={jobs} nowMs={now} onReply={async(t,x)=>{window.replies.push([t,x])}}/>
+          <ControlNow jobs={jobs} nowMs={now}/>
         </main>);`,
     },
     bundle: true,
@@ -96,11 +97,21 @@ async function main() {
       );
       await page.addScriptTag({ content: bundle.outputFiles[0].text });
 
-      const list = page.getByRole("list", { name: "Being built" });
+      // A project that waits on its owner is in "Needs you", not "Being
+      // built": a waiting row under "Being built" beside "nothing is building"
+      // gave two answers to "is anything running?" (2026-11-12). The section
+      // says it needs you; the row says what — the question.
+      const list = page.getByRole("list", { name: "Agents waiting for you" });
       await list.waitFor();
       const row = list.locator(".ui-listrow").first();
       const line = ((await row.locator(".ui-listrow-secondary-text").textContent()) ?? "").trim();
-      assert.equal(line, `Needs you · ${QUESTION}`, `${theme}: the state once, then the question`);
+      assert.equal(line, QUESTION, `${theme}: the question itself`);
+      const built = page.getByRole("list", { name: "Being built" });
+      assert.equal(
+        await built.locator(".ui-listrow").count(),
+        1,
+        `${theme}: only the working row is being built`,
+      );
       assert.doesNotMatch(line, /Waiting for/, `${theme}: no second word for the state`);
       assert.equal(
         await row.locator(".ui-listrow-secondary-text").evaluate((e) => {
