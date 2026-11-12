@@ -19,7 +19,8 @@
  * a run hanging in the operator's queue; its prompt carries the [loki-e2e]
  * marker so it is recognisable in the ledger.
  *
- *   LOKI_SESSION_TOKEN=… npx tsx scripts/test/loki-loop-e2e.ts [--dispatch]
+ *   LOKI_AGENT_TOKEN=ck_… npx tsx scripts/test/loki-loop-e2e.ts [--dispatch]
+ *   (LOKI_SESSION_TOKEN=… still works where sign-in is Auth.js)
  *   BASE=https://loki.orangecat.ch  E2E_DISPATCH_MINUTES=30  E2E_PROJECT=loki
  */
 import { config } from "dotenv";
@@ -48,17 +49,23 @@ const MARKER = "[loki-e2e]";
 /** The handoff summary the probe asks for, and the proof that it came back. */
 const PROBE_SUMMARY = "e2e ok — no changes";
 
+// A ck_ agent token signs in the way a runner does, and is what the box-side
+// check mints since sign-in moved to AccountKit (scripts/test/mint-check-
+// token.ts): the Auth.js cookie this file used to send is no session there.
+const agentToken = (process.env.LOKI_AGENT_TOKEN ?? "").trim();
 const token = smokeSessionToken();
-if (!token) {
+if (!token && !agentToken) {
   console.error(
-    "✗ no session: set LOKI_SESSION_TOKEN (mint one with scripts/test/print-session-token.ts)",
+    "✗ no session: set LOKI_AGENT_TOKEN (mint one with scripts/test/mint-check-token.ts) or LOKI_SESSION_TOKEN",
   );
   process.exit(2);
 }
 const cookieName = BASE.startsWith("https://")
   ? "__Secure-authjs.session-token"
   : "authjs.session-token";
-const headers = { cookie: `${cookieName}=${token}`, "content-type": "application/json" };
+const headers: Record<string, string> = agentToken
+  ? { authorization: `Bearer ${agentToken}`, "content-type": "application/json" }
+  : { cookie: `${cookieName}=${token}`, "content-type": "application/json" };
 
 type Verdict = { name: string; ok: boolean; skipped?: boolean; evidence: string };
 const verdicts: Verdict[] = [];
