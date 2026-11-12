@@ -13,7 +13,7 @@
  * node-only (the claude seam pulls in fs) — import from route handlers only.
  */
 import { listOpenRuns } from "@/db/queries/orchestration-runs";
-import { enqueueTabCommand, hasUndeliveredCommandForRun } from "@/db/queries/pending-commands";
+import { hasUndeliveredCommandForRun } from "@/db/queries/pending-commands";
 import { getProjectState } from "@/db/queries/project-states";
 import type { SessionState } from "@/lib/control-types";
 import { getRecentOutcomes } from "@/db/queries/orchestration-runs";
@@ -151,22 +151,6 @@ export async function closeOpenRunBySessionTab(
   const run = open.find((r) => r.userId === userId && runSessionTab(r) === sessionTab);
   if (!run) return false;
   const outcome = await tryCloseRun(run, session).catch(() => null);
-  if (outcome != null) await closeOneOffTab(run, sessionTab);
+  // A one-off's tab is closed by notifyRunClosed, like every other close.
   return outcome != null;
-}
-
-/** A fresh one-off session has reported: close its tab, so the agent cannot
- *  go on to anything else and its lane is free again. Best effort: the
- *  session limit and the reaper still hold if the command is lost. */
-async function closeOneOffTab(run: OpenRunRow, sessionTab: string): Promise<void> {
-  const payload = run.payload as { oneOff?: unknown; oneOffChannel?: unknown } | null;
-  if (payload?.oneOff !== true) return;
-  const channel =
-    payload.oneOffChannel === "cloud" || payload.oneOffChannel === "local"
-      ? payload.oneOffChannel
-      : undefined;
-  await enqueueTabCommand(run.userId, "close_tab", {
-    tab: sessionTab,
-    ...(channel ? { channel } : {}),
-  }).catch((err: unknown) => console.error("[close-sweep] one-off tab close failed:", err));
 }

@@ -1,4 +1,4 @@
-import { runBranches } from "@/lib/run-branches";
+import { runBranches, runEvidenceUntilMs } from "@/lib/run-branches";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { userProjects } from "@/db/schema";
@@ -6,6 +6,8 @@ import { addMessage } from "@/db/queries/conversations";
 import { logDebug } from "@/db/queries/debug-logs";
 import { getGithubToken } from "@/lib/github-token";
 import { findRepoWorkEvidence } from "@/lib/github-evidence";
+import { repoTokenFor } from "@/lib/run-evidence-live";
+import { reportedPrEvidence } from "@/lib/repo-evidence";
 import { formatRunOutcomeMessage } from "@/lib/orchestration/run-outcome-format";
 import { getFeedbackByRunId } from "@/db/queries/site-feedback";
 import { fetchFixNote } from "@/lib/feedback/fix-note-fetch";
@@ -44,7 +46,20 @@ export async function postRunOutcomeToConversation(run: OrchestrationRun): Promi
     });
 
     let evidence = run.payload?.evidence ?? null;
-    const token = await getGithubToken(run.userId).catch(() => null);
+    // The runner's own report comes first: it closed this run on a pull
+    // request it saw at the agent's HEAD (closeRunShipped). Nothing read it,
+    // so a run that shipped could be posted as "no pull request was found".
+    evidence ??= reportedPrEvidence(
+      run.payload,
+      (run.finishedAt ?? run.startedAt ?? new Date()).getTime(),
+    );
+    // The token that can read this repository, as the fix ledger and the
+    // live evidence pick it. A person's own OAuth token is refused on the
+    // organisation's repositories (github-org-token.ts), so asking with it
+    // found nothing and a good run read "the work may not have left the runner".
+    const token = project?.gitUrl
+      ? await repoTokenFor(run.userId, project.gitUrl).catch(() => null)
+      : await getGithubToken(run.userId).catch(() => null);
     if (!evidence && project?.gitUrl && run.startedAt) {
       if (token) {
         evidence = await findRepoWorkEvidence(
@@ -52,6 +67,7 @@ export async function postRunOutcomeToConversation(run: OrchestrationRun): Promi
           token,
           run.startedAt.getTime(),
           runBranches(run),
+          runEvidenceUntilMs(run),
         ).catch(() => null);
       }
     }

@@ -12,6 +12,7 @@
  * Pure: snapshots in, view model out. ControlNow renders it.
  */
 import { STATE_DEFINITIONS } from "@/lib/control-states";
+import { CANONICAL_LABEL, CANONICAL_STATE } from "@/lib/feedback/canonical-status";
 import { describeRunShipping } from "@/lib/control-run-shipping";
 import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
 import { isRunProgressFresh } from "@/lib/run-progress";
@@ -33,8 +34,20 @@ export type NowJob = {
   /** "working": doing it. "you": waiting for your answer or a sign-in.
    *  "quiet": a run that has not reported for a while. */
   tone: "working" | "you" | "quiet";
-  /** One line of what is happening — the agent's current step when known. */
+  /** One line of what is happening — the agent's current step when known.
+   *  On a "you" row it is the canonical state word, "Needs you", once
+   *  (RUN-STATUS-SSOT): the row read "Waiting for you · Waiting for your
+   *  answer" and never said what answer (owner, 2026-11-12). */
   status: string;
+  /** On a "you" row: what is needed, in one line — the agent's question
+   *  (blockReason, else its `next`), the permission it asks for, or the
+   *  sign-in it waits on. Null on every other row. */
+  question: string | null;
+  /** The agent is idle at its prompt waiting for an answer, so a typed reply
+   *  can go straight to it (/api/inject on `tab`). False where the answer is
+   *  a keypress in a dialog or a sign-in: those are answered in the session
+   *  the row opens. */
+  reply: boolean;
   /** When the work started (ms), for "12 min". */
   since: number | null;
   /** The live session, in the conversation view. */
@@ -101,22 +114,29 @@ export function buildNowJobs(
 
     let tone: NowJob["tone"] = "working";
     let status: string;
-    let title = runTitle(project, openRun ?? run);
+    let question: string | null = null;
+    let reply = false;
+    const title = runTitle(project, openRun ?? run);
+    // Every "you" row says the canonical word once, then what is needed.
+    const needsYou = CANONICAL_LABEL[CANONICAL_STATE.NEEDS_YOU];
     if (openRun?.blocked === "auth") {
       tone = "you";
-      status = "Waiting for someone to sign in";
+      status = needsYou;
+      question = "Someone has to sign the agent in";
     } else if (openRun?.blocked === "exited") {
       tone = "you";
-      status = "The agent stopped — try again";
+      status = needsYou;
+      question = oneLine(openRun.blockedQuestion) ?? "The agent stopped — try again";
     } else if (openRun?.blocked === "permission") {
       tone = "you";
-      status = "Waiting for your answer";
+      status = needsYou;
+      const asked = oneLine(openRun.blockedQuestion);
+      question = asked ? `It asks: ${asked}` : "It asks permission to run a tool";
     } else if (awaiting) {
       tone = "you";
-      // The question IS the job now: lead with it.
-      const asked = project.session?.blockReason?.trim();
-      if (asked) title = asked;
-      status = "Waiting for your answer";
+      status = needsYou;
+      question = awaitedQuestion(project, run);
+      reply = true;
     } else if (category === "working") {
       status = step && (fresh || !openRun?.lastProgressAt) ? step : "Working on it";
     } else if (openRun && openRun.lastProgressAt && !fresh) {
@@ -143,6 +163,8 @@ export function buildNowJobs(
       title,
       tone,
       status,
+      question,
+      reply,
       since,
       href: sessionHref(project, openRun),
     });
@@ -218,6 +240,28 @@ export function elapsedLabel(since: number | null, nowMs: number): string | null
   const hours = Math.floor(mins / 60);
   if (hours < 24) return mins % 60 ? `${hours}h ${mins % 60}m` : `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
+}
+
+/** A string as one line, or null when it says nothing. */
+function oneLine(text: string | null | undefined): string | null {
+  const line = text?.replace(/\s+/g, " ").trim();
+  return line ? line : null;
+}
+
+/**
+ * What an agent that handed control back is waiting to hear: its block reason
+ * (the session's, else the run's handoff), else the next step it named. Never
+ * empty — a row that says only "Needs you" leaves the owner to go and find
+ * out why.
+ */
+function awaitedQuestion(project: ProjectState, run: Run | null): string {
+  return (
+    oneLine(project.session?.blockReason) ??
+    oneLine(run?.summary?.["block-reason"]) ??
+    oneLine(project.session?.next) ??
+    oneLine(run?.summary?.next) ??
+    "It stopped for your answer — open it to read the question"
+  );
 }
 
 function clip(text: string, max = 110): string {

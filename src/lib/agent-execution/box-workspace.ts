@@ -74,7 +74,7 @@ function scrubRemoteUrl(boxDir: string): void {
   }
 }
 
-function syncExistingClone(boxDir: string, token: string | null): void {
+function syncExistingClone(boxDir: string, token: string | null, pull: boolean): void {
   if (!fs.existsSync(path.join(boxDir, ".git"))) return;
   scrubRemoteUrl(boxDir);
   const auth = authArgs(token);
@@ -83,6 +83,7 @@ function syncExistingClone(boxDir: string, token: string | null): void {
       stdio: "inherit",
       timeout: 120_000,
     });
+    if (!pull) return;
     execFileSync("git", [...auth, "-C", boxDir, "pull", "--ff-only"], {
       stdio: "inherit",
       timeout: 120_000,
@@ -99,6 +100,14 @@ export async function ensureBoxWorkspace(
   tab: string,
   requestedDir: string,
   source: WorkspaceSource | null,
+  /**
+   * `pull: false` for a lane: the checkout is the one the project's own
+   * session may be working in right now, and `git pull --ff-only` would move
+   * its files underneath it (a run branch tracks origin's default, so it
+   * fast-forwards). A lane only needs the fetch: its worktree starts from the
+   * remote default branch (worktree-workspace laneBaseRef).
+   */
+  opts: { pull?: boolean } = {},
 ): Promise<string> {
   if (requestedDir && fs.existsSync(requestedDir)) {
     ensureClaudeReady(requestedDir);
@@ -107,7 +116,7 @@ export async function ensureBoxWorkspace(
 
   const boxDir = path.join(DEV_ROOT, sanitizeKey(tab));
   if (fs.existsSync(boxDir)) {
-    syncExistingClone(boxDir, source?.token ?? null);
+    syncExistingClone(boxDir, source?.token ?? null, opts.pull !== false);
     ensureClaudeReady(boxDir);
     return boxDir;
   }

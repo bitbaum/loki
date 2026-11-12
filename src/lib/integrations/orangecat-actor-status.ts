@@ -17,11 +17,16 @@
  */
 
 import { APP_URL } from "@/config/brand";
+import type { NeedsYouItem } from "@/lib/needs-you";
 
 /** OrangeCat rejects nothing older; Loki rejects anything older than this. */
 export const ACTOR_STATUS_MAX_AGE_MS = 5 * 60 * 1000;
 export const ACTOR_STATUS_MAX_PROJECTS = 25;
 const MAX_OUTCOMES = 5;
+/** What Loki needs from its owner, as one line: long enough for a sentence. */
+const MAX_NEEDS_YOU_CHARS = 200;
+/** Lines of "needs you" sent: the Cat shows three, the rest are its reserve. */
+export const ACTOR_NEEDS_YOU_MAX_ITEMS = 10;
 
 export type ActorProjectState = "working" | "blocked" | "idle";
 
@@ -31,7 +36,14 @@ export interface ActorProjectStatus {
   lokiUrl: string;
   liveUrl: string | null;
   status: ActorProjectState;
+  /** The CODE only: awaiting_user | external_dependency | manual_pause. */
   blockReason: string | null;
+  /**
+   * What Loki needs from its owner on this project, in one sentence, when it
+   * is waiting on them — the agent's own "next" line, or what the block said.
+   * Null when nothing is asked. Lets the Cat write an action, not a status.
+   */
+  needsYou: string | null;
   queueDepth: number;
   currentWork: string | null;
   recentOutcomes: string[];
@@ -53,6 +65,8 @@ export interface ActorStatusInput {
     agentRunning: boolean | null;
     sessionStatus: string | null;
     sessionBlockReason: string | null;
+    /** The agent's own next step (session.md "next:"), when it wrote one. */
+    sessionNext?: string | null;
     promptQueue: unknown[] | null;
     currentPromptLabel: string | null;
   }>;
@@ -67,6 +81,92 @@ export function isFreshIssuedAt(issuedAt: string, now: number = Date.now()): boo
   return Number.isFinite(t) && Math.abs(now - t) <= ACTOR_STATUS_MAX_AGE_MS;
 }
 
+const BLOCK_CODES = ["awaiting_user", "external_dependency", "manual_pause"] as const;
+
+/**
+ * Split an agent's block-reason into its code and its words. Agents write the
+ * code and then say why ("awaiting_user — no high-impact work remains; the
+ * shop is live"), so the raw text never equalled "awaiting_user" and every
+ * reader comparing codes missed the most common block there is.
+ */
+export function parseBlockReason(raw: string | null | undefined): {
+  code: string | null;
+  detail: string | null;
+} {
+  const text = raw?.trim();
+  if (!text) return { code: null, detail: null };
+  const code = BLOCK_CODES.find((c) => text.toLowerCase().startsWith(c)) ?? null;
+  if (!code) return { code: text, detail: null };
+  const detail = text
+    .slice(code.length)
+    .replace(/^[\s—–:;,-]+/, "")
+    .trim();
+  return { code, detail: detail || null };
+}
+
+const sentence = (s: string): string => {
+  const t = s.replace(/\s+/g, " ").trim();
+  const capped = t.length > MAX_NEEDS_YOU_CHARS ? `${t.slice(0, MAX_NEEDS_YOU_CHARS - 1)}…` : t;
+  return capped.charAt(0).toUpperCase() + capped.slice(1);
+};
+
+/**
+ * What the owner is asked for, when a project waits on them. The autopilot's
+ * brake ("no high-impact work remains") is not a question: it is Loki handing
+ * the direction back, so it says that rather than "waiting on you".
+ */
+export function needsYouSentence(
+  code: string | null,
+  detail: string | null,
+  next: string | null | undefined,
+): string | null {
+  if (code !== "awaiting_user") return null;
+  if (detail && /no high-impact work remains/i.test(detail)) {
+    return "Loki finished the work that mattered most. Pick what comes next.";
+  }
+  if (next?.trim()) return sentence(next);
+  if (detail) return sentence(detail);
+  return null;
+}
+
+/** An app path or an http(s) URL, made absolute; anything else is dropped. */
+export function absoluteLokiHref(href: string | null | undefined): string | null {
+  if (!href) return null;
+  if (/^https?:\/\//i.test(href)) return href;
+  if (href.startsWith("/") && !href.startsWith("//")) return `${APP_URL}${href}`;
+  return null;
+}
+
+/** One line of Loki's "needs you" list, as it crosses to OrangeCat. */
+export interface ActorNeedsYouItem {
+  key: string;
+  label: string;
+  reason: string | null;
+  /** Absolute: OrangeCat links straight to the Loki page that acts on it. */
+  href: string;
+  urgent: boolean;
+}
+
+/**
+ * Loki's own "needs you" list (lib/needs-you, the front door's composition),
+ * as OrangeCat may show it: the counted tiers only — housekeeping is not need
+ * — and only lines that lead somewhere, because a line nobody can act on is
+ * the thing the owner asked never to be shown (2026-11-02, "read it and tap
+ * once"). Privacy is already applied upstream: behind the PIN only the
+ * approvals count leaves loadNeedsYouExtras.
+ */
+export function shapeActorNeedsYou(items: readonly NeedsYouItem[]): ActorNeedsYouItem[] {
+  return items
+    .filter((i) => i.tier !== "tidy")
+    .flatMap((i) => {
+      const href = absoluteLokiHref(i.href);
+      return href
+        ? [{ key: i.key, label: i.label, reason: i.reason ?? null, href, urgent: !!i.urgent }]
+        : [];
+    })
+    .slice(0, ACTOR_NEEDS_YOU_MAX_ITEMS);
+}
+
 export function shapeActorStatus(input: ActorStatusInput): ActorProjectStatus[] {
   const stateByKey = new Map(input.states.map((s) => [s.projectKey.toLowerCase(), s]));
   // Feedback is keyed by the project's ENTITY id (site_feedback.project_id →
@@ -75,7 +175,7 @@ export function shapeActorStatus(input: ActorStatusInput): ActorProjectStatus[] 
 
   const shaped = input.projects.map((p) => {
     const s = stateByKey.get(p.name.toLowerCase());
-    const blockReason = s?.sessionBlockReason ?? null;
+    const { code: blockReason, detail } = parseBlockReason(s?.sessionBlockReason);
     const status: ActorProjectState = blockReason
       ? "blocked"
       : s?.agentRunning || s?.sessionStatus === "working"
@@ -85,10 +185,16 @@ export function shapeActorStatus(input: ActorStatusInput): ActorProjectStatus[] 
     return {
       id: p.id,
       name: p.name,
-      lokiUrl: `${APP_URL}/projects/${p.id}`,
+      // The project page is keyed by the ENTITY id; `p.id` is the
+      // user_projects row, so the old link opened a 404. Without an entity,
+      // the by-name link lands on the projects list rather than nowhere.
+      lokiUrl: p.entityProjectId
+        ? `${APP_URL}/projects/${p.entityProjectId}`
+        : `${APP_URL}/projects/go/${encodeURIComponent(p.name)}`,
       liveUrl: p.liveUrl && /^https?:\/\//i.test(p.liveUrl) ? p.liveUrl : null,
       status,
       blockReason,
+      needsYou: needsYouSentence(blockReason, detail, s?.sessionNext),
       queueDepth: Array.isArray(s?.promptQueue) ? s.promptQueue.length : 0,
       currentWork: s?.currentPromptLabel ?? null,
       recentOutcomes: (input.outcomes.get(p.name) ?? []).slice(0, MAX_OUTCOMES),

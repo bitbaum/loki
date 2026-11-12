@@ -21,7 +21,7 @@ async function main(): Promise<void> {
 
   assert.equal(
     busySentence(["orangecat"]),
-    "orangecat is already working on a run. Nothing was sent. Wait for it to finish, or send again saying either to queue it behind the open run or to start a separate session for it.",
+    "orangecat is already working on a run. Nothing was sent. Wait for it to finish, or send again saying either to queue it behind the open run or to ask it in a fresh session of its own.",
   );
   assert.match(busySentence(["loki", "solon"]), /^loki, solon are already working on a run\./);
   console.log("  ✓ a busy project is named, and the person is told nothing was sent");
@@ -70,12 +70,19 @@ async function main(): Promise<void> {
       { ...good, builderChannel: "moon" },
       { ...good, queueIfBusy: "yes" },
       { ...good, separateSession: "yes" },
+      { ...good, session: "lane" },
       { ...good, projects: [] },
       { ...good, task: "  " },
     ]) {
       assert.equal((await POST(request(bad, sign(JSON.stringify(bad))))).status, 400);
     }
     console.log("  ✓ an unknown builder, a non-boolean queue flag, no project, no task (400)");
+
+    const stale = { ...good, issuedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString() };
+    const staleRes = await POST(request(stale, sign(JSON.stringify(stale))));
+    assert.equal(staleRes.status, 401);
+    assert.equal((await staleRes.json()).error, "stale request");
+    console.log("  ✓ a signed task dated outside the window is refused (replay)");
   } finally {
     if (original === undefined) delete process.env.ORANGECAT_WEBHOOK_SECRET;
     else process.env.ORANGECAT_WEBHOOK_SECRET = original;
