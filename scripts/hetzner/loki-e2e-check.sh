@@ -9,6 +9,12 @@
 # and a second timeout every six hours would only add noise on top of it.
 #
 # --report prints the verdicts and exits 0 without touching alert state.
+# With --report, three environment values choose what is asked (the
+# on-demand workflow, .github/workflows/loki-loop-check.yml, sets them):
+#   E2E_FORCE_DISPATCH=1   send the real task even when the builder-auth
+#                          probe has not said ok (the answer is the point)
+#   E2E_PROJECT            the project the task goes to (default loki)
+#   E2E_DISPATCH_MINUTES   how long to wait for it to come back (default 35)
 set -uo pipefail   # NOT -e: a failing check must still produce a verdict
 MON="${MON:-/opt/monitoring}"
 RUNNER_DIR="${RUNNER_DIR:-/opt/loki/runner}"
@@ -31,14 +37,23 @@ fi
 
 dispatch=""
 [ "$(cat "$MON/state/host_builder_auth" 2>/dev/null)" = "ok" ] && dispatch="--dispatch"
+[ "$REPORT_ONLY" = 1 ] && [ "${E2E_FORCE_DISPATCH:-}" = 1 ] && dispatch="--dispatch"
+[ "$REPORT_ONLY" = 1 ] && [ "${E2E_FORCE_DISPATCH:-}" = 0 ] && dispatch=""
+minutes=35; project=loki
+if [ "$REPORT_ONLY" = 1 ]; then
+  case "${E2E_DISPATCH_MINUTES:-}" in ''|*[!0-9]*) ;; *) minutes="$E2E_DISPATCH_MINUTES" ;; esac
+  case "${E2E_PROJECT:-}" in ''|*[!a-z0-9-]*) ;; *) project="$E2E_PROJECT" ;; esac
+fi
 
-out=$(env LOKI_SESSION_TOKEN="$token" BASE=https://loki.orangecat.ch E2E_DISPATCH_MINUTES=35 \
-  node_modules/.bin/tsx scripts/test/loki-loop-e2e.ts $dispatch 2>&1); code=$?
+out=$(env LOKI_SESSION_TOKEN="$token" BASE=https://loki.orangecat.ch E2E_DISPATCH_MINUTES="$minutes" \
+  E2E_PROJECT="$project" node_modules/.bin/tsx scripts/test/loki-loop-e2e.ts $dispatch 2>&1); code=$?
 summary=$(printf '%s\n' "$out" | tail -1 | cut -c1-300)
 fails=$(printf '%s\n' "$out" | grep -E '^FAIL' | cut -c7-90 | paste -sd ';' -)
 
 if [ "$REPORT_ONLY" = 1 ]; then
   printf '%s\n' "$out"
+  # The verdict is the exit code for a caller that asked for one.
+  [ "${E2E_EXIT_VERDICT:-}" = 1 ] && exit "$code"
   exit 0
 fi
 if [ "$code" -eq 0 ]; then

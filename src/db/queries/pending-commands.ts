@@ -11,7 +11,19 @@ import {
   type OpenShellPayload,
   type RunnerChannel,
 } from "@/db/schema/pending-commands";
-import { eq, gte, isNull, isNotNull, and, inArray, notInArray, desc, sql } from "drizzle-orm";
+import {
+  eq,
+  gte,
+  lt,
+  isNull,
+  isNotNull,
+  and,
+  or,
+  inArray,
+  notInArray,
+  desc,
+  sql,
+} from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
 import { closeRunSuperseded, olderOpenRunSql } from "./orchestration-runs";
 import { dispatchSupersededReason } from "@/lib/dispatch-superseded";
@@ -732,6 +744,13 @@ export async function claimNextPendingCommand(
   userIds: string[],
   types?: string[],
   runnerChannel?: RunnerChannel,
+  /**
+   * Types that are claimable only once a row has waited this long: the
+   * work-starters while a builder's update waits (lib/runner-update-hold).
+   * With this set, `types` is exactly the list claimable at once, so an
+   * empty list means none of them rather than all.
+   */
+  overdue?: { types: string[]; waitedMs: number },
 ) {
   if (userIds.length === 0) return null;
   await purgeStalePendingCommands(userIds);
@@ -744,7 +763,19 @@ export async function claimNextPendingCommand(
       ? eq(pendingCommands.userId, userIds[0])
       : inArray(pendingCommands.userId, userIds);
   const cleanTypes = types?.map((type) => type.trim()).filter(Boolean) ?? [];
-  const typeFilter = cleanTypes.length > 0 ? inArray(pendingCommands.type, cleanTypes) : undefined;
+  const overdueTypes = overdue?.types.map((type) => type.trim()).filter(Boolean) ?? [];
+  const atOnce = cleanTypes.length > 0 ? inArray(pendingCommands.type, cleanTypes) : undefined;
+  const typeFilter = overdue
+    ? or(
+        atOnce ?? sql`false`,
+        overdueTypes.length > 0
+          ? and(
+              inArray(pendingCommands.type, overdueTypes),
+              lt(pendingCommands.createdAt, new Date(Date.now() - overdue.waitedMs)),
+            )
+          : sql`false`,
+      )
+    : atOnce;
   const channelFilter = runnerChannel
     ? sql`(
         ${pendingCommands.payload}->>'channel' IS NULL

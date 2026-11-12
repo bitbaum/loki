@@ -216,6 +216,8 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
     // the name map to undefined and quietly drop the builder from the label.
     channel: isBuilderChannel(inject.body.channel) ? inject.body.channel : null,
     reroutedFrom: isBuilderChannel(inject.body.reroutedFrom) ? inject.body.reroutedFrom : null,
+    builderUpdating: inject.body.builderUpdating === true,
+    queuedBehind: inject.body.queuedBehind === true,
   };
   // Identifiers the transcript footer polls to show LIVE dispatch status
   // (queued → picked up → ran/failed) instead of a frozen "starting shortly".
