@@ -9,7 +9,9 @@
 import assert from "node:assert/strict";
 import { EMPTY_LIFE_INPUTS, lifeCandidates } from "@/lib/suggestions/life";
 import { buildBoard, hiddenIds, momentumFrom } from "@/lib/suggestions/board";
-import { rankBuildSuggestions } from "@/lib/build-suggestions/rank";
+import { commitmentWhen, rankBuildSuggestions, withoutPrivate } from "@/lib/build-suggestions/rank";
+import { momentumSentence } from "@/components/suggestions/MomentumStrip";
+import { AVENUE_BY_ID } from "@/config/suggestion-avenues";
 import {
   DISMISSED_HIDE_DAYS,
   TAKEN_HIDE_DAYS,
@@ -295,6 +297,45 @@ const iso = (daysFromNow: number) => new Date(NOW.getTime() + daysFromNow * DAY_
   assert.ok(
     day.items.some((i) => i.id === "suggestions"),
     "Suggestions sits in Your day, with Today",
+  );
+}
+
+// ---- the PIN hides goals, crew and commitments too (2026-11-12) ----
+{
+  for (const id of ["goals", "business", "people", "money", "habits"] as const)
+    assert.ok(AVENUE_BY_ID[id].private, `${id} is behind the PIN`);
+  assert.ok(!AVENUE_BY_ID.build.private, "build is not");
+  const stripped = withoutPrivate({
+    stuckGoals: [{ title: "Launch", projectName: null }],
+    commitmentsDue: [{ description: "Reach out to Ana", due: "2026-10-15" }],
+  });
+  assert.deepEqual(stripped, { stuckGoals: [], commitmentsDue: [] });
+}
+
+// ---- rows say each fact once, and a past date as past ----
+{
+  const out = lifeCandidates(
+    {
+      ...EMPTY_LIFE_INPUTS,
+      goalsDue: [
+        { id: "old", title: "Loki Phase 1", progress: 85, targetDate: iso(-196) },
+        { id: "late", title: "Launch OrangeCat", progress: 25, targetDate: iso(-43) },
+      ],
+    },
+    NOW,
+  );
+  const old = out.find((s) => s.id === "goal_due:old")!;
+  const late = out.find((s) => s.id === "goal_due:late")!;
+  assert.equal(late.label, "Launch OrangeCat", "the goal leads");
+  assert.equal(late.why, "25% done · was due 43 days ago");
+  assert.match(old.why, /still the goal\?$/);
+  assert.ok(old.score < late.score, "a goal months past its date sinks");
+  const now = Date.parse("2026-11-12T10:00:00Z");
+  assert.equal(commitmentWhen("2026-10-15", now), "Commitment overdue since 15 Oct.");
+  assert.equal(commitmentWhen("2026-11-20", now), "Commitment due 20 Nov.");
+  assert.equal(
+    momentumSentence({ takenThisWeek: 0, takenAllTime: 2, dayStreak: 0 }),
+    "You've taken 2 suggestions so far.",
   );
 }
 

@@ -138,7 +138,8 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
         id: `fix:${p.name}`,
         kind: "fix",
         label: `Fix ${open} report${open === 1 ? "" : "s"} on ${shown}`,
-        why: `${open} visitor report${open === 1 ? " is" : "s are"} still new on ${shown}.`,
+        // The fact behind it, not the title again (2026-11-12).
+        why: `Sent by visitors to the site; ${open === 1 ? "not looked at" : "none looked at"} yet.`,
         prompt: `Work through the ${open} open visitor report${open === 1 ? "" : "s"} on ${p.name}: fix what is real, ship it, and tell me what changed and what you left alone.`,
         project: p.name,
         href: null,
@@ -184,8 +185,10 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
     out.push({
       id: `deadline:${c.description}`,
       kind: "deadline",
-      label: `Get ahead of: ${c.description}`,
-      why: `Commitment due ${c.due}.`,
+      // The commitment leads; the date is a date a person reads, and a past
+      // one says it is overdue rather than offering it as fresh (2026-11-12).
+      label: c.description,
+      why: commitmentWhen(c.due, inputs.now ?? Date.now()),
       prompt: `"${clip(c.description, 200)}" is due ${c.due}. Tell me what the fleet can build or prepare for it right now, pick the first piece, and give me the line that starts it in the right project.`,
       project: null,
       href: null,
@@ -308,4 +311,25 @@ export function rankBuildSuggestions(
   const start = ((opts.offset ?? 0) * limit) % all.length;
   const window = [...all.slice(start), ...all.slice(0, start)].slice(0, limit);
   return { suggestions: window, total: all.length };
+}
+
+/** The inputs with the PIN-gated facts (goals, commitments that name people)
+ *  taken out, for a board read while the private zone is locked. */
+export function withoutPrivate<T extends Pick<SuggestionInputs, "stuckGoals" | "commitmentsDue">>(
+  inputs: T,
+): T {
+  return { ...inputs, stuckGoals: [], commitmentsDue: [] };
+}
+
+/** "Commitment due 15 Oct" / "Commitment overdue since 15 Oct". */
+export function commitmentWhen(due: string, nowMs: number): string {
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(due);
+  const at = Date.parse(dateOnly ? `${due}T23:59:59Z` : due);
+  if (!Number.isFinite(at)) return `Commitment due ${due}.`;
+  const day = new Date(at).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  return at < nowMs ? `Commitment overdue since ${day}.` : `Commitment due ${day}.`;
 }

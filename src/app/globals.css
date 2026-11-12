@@ -8496,6 +8496,12 @@
   .ui-listrow-menu {
     @apply relative z-[1] -mr-2 flex shrink-0 items-center;
   }
+  /* Each menu is its own stacking context (z-1), which trapped the open
+     popover under the NEXT row's "…": the other row's button showed through
+     "Not now" and took the tap (2026-11-12). The open one rises. */
+  .ui-listrow-menu:has([aria-expanded="true"]) {
+    @apply z-30;
+  }
   /* ListSearch — a list's search is its first row and scrolls with it, never
      a pinned block above it (rule 6). */
   .ui-list-search {

@@ -69,6 +69,9 @@ function clip(text: string, max: number): string {
   return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
 }
 
+/** A goal this many days past its date is stale, not due. */
+const GOAL_STALE_DAYS = 60;
+
 function daysBetween(from: string | Date, to: Date): number {
   return Math.round((to.getTime() - new Date(from).getTime()) / DAY_MS);
 }
@@ -182,16 +185,24 @@ export function lifeCandidates(inputs: LifeInputs, now: Date = new Date()): Sugg
   for (const g of inputs.goalsDue) {
     if (g.progress >= 100) continue;
     const when = inDays(g.targetDate, now);
-    const left = Math.max(0, daysBetween(now, new Date(g.targetDate)));
+    const days = daysBetween(now, new Date(g.targetDate));
+    const left = Math.max(0, days);
+    // Long past its date, a goal is not news: it says so and sinks, rather
+    // than leading the board as "Due 196 days ago" (2026-11-12).
+    const stale = days < -GOAL_STALE_DAYS;
     out.push({
       id: `goal_due:${g.id}`,
       kind: "goal_due",
-      label: `Due ${when}: ${g.title}`,
-      why: `Goal at ${g.progress}%, target ${when}.`,
+      // The goal leads; the fact is the grey line, said once.
+      label: g.title,
+      why:
+        days < 0
+          ? `${g.progress}% done · was due ${when}${stale ? " — still the goal?" : ""}`
+          : `${g.progress}% done · due ${when}`,
       prompt: `My goal "${clip(g.title, 200)}" is at ${g.progress}% and due ${when}. Say what still stands between here and done, pick the piece that moves it most this week, and give me the line that starts it.`,
       project: null,
       href: null,
-      score: 60 + Math.max(0, 14 - left),
+      score: stale ? 40 : 60 + Math.max(0, 14 - left),
     });
   }
 

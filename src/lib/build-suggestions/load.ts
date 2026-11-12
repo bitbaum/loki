@@ -18,9 +18,11 @@ import { listSuggestionDecisions } from "@/db/queries/suggestion-decisions";
 import { hiddenIds } from "@/lib/suggestions/board";
 import { DAY_MS } from "@/lib/constants/time";
 import { toLocalDateStr } from "@/lib/dates";
+import { isPrivateZoneLocked } from "@/lib/private-zone";
 import type { UserProject } from "@/db/schema/user-projects";
 import {
   rankBuildSuggestions,
+  withoutPrivate,
   type BuildSuggestion,
   type SuggestionInputs,
   type SuggestionProject,
@@ -80,9 +82,13 @@ export async function loadBuildSuggestions(
   userId: string,
   opts: { limit?: number; offset?: number } = {},
 ): Promise<{ suggestions: BuildSuggestion[]; total: number }> {
-  const [inputs, decisions] = await Promise.all([
+  const [loaded, decisions, locked] = await Promise.all([
     loadSuggestionInputs(userId),
     listSuggestionDecisions(userId).catch(() => []),
+    isPrivateZoneLocked(userId).catch(() => true),
   ]);
+  // Goals and commitments are behind the PIN: the build row does not name
+  // them while the zone is locked (as /suggestions does not).
+  const inputs = locked ? withoutPrivate(loaded) : loaded;
   return rankBuildSuggestions(inputs, { ...opts, exclude: hiddenIds(decisions, new Date()) });
 }

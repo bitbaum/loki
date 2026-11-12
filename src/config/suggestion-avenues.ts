@@ -22,7 +22,8 @@ import type { SuggestionKind } from "@/lib/suggestions/types";
  * where the records behind it are kept, so an empty avenue is never a dead
  * end: it says what to add and where.
  *
- * `private` avenues read the PIN-gated book (people, money, habits). While the
+ * `private` avenues read the PIN-gated book (crew, goals, people, money,
+ * habits). While the
  * zone is locked they are listed but not loaded, and the page says so.
  */
 export type AvenueId = "build" | "business" | "goals" | "people" | "money" | "habits";
@@ -53,7 +54,9 @@ export const SUGGESTION_AVENUES: readonly Avenue[] = [
     question: "Who is waiting on you, and who is asking for what you make?",
     icon: Briefcase,
     source: { href: NAV.crew.href, label: "Open Crew" },
-    private: false,
+    // Crew, Goals and Events live behind the PIN ((private) route group);
+    // the board showed them while Today said they were hidden (2026-11-12).
+    private: true,
   },
   {
     id: "goals",
@@ -61,7 +64,7 @@ export const SUGGESTION_AVENUES: readonly Avenue[] = [
     question: "What is due, and what has stalled?",
     icon: Target,
     source: { href: NAV.goals.href, label: "Set a goal" },
-    private: false,
+    private: true,
   },
   {
     id: "people",

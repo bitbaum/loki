@@ -15,7 +15,7 @@ const KIND_ICON = { ...BUILD_KIND_ICON, ...LIFE_KIND_ICON } satisfies Record<
 /**
  * One suggestion, as one row (design reset rule 3): the thing to do, the
  * stored fact it came from on the grey line, and ONE action — the row itself,
- * which hands it to Loki or opens where it is done. "Not now" is in the row's
+ * which hands it to Loki or opens where it is done. "Hide for a month" is in the row's
  * own menu. It was a bordered card with a black "Review task" button and a
  * "Not now" beside it, repeated down the page.
  */
@@ -34,6 +34,8 @@ export function SuggestionCard({
       title={suggestion.label}
       secondary={suggestion.why}
       onClick={() => onTake(suggestion)}
+      // A row that goes somewhere says so (one shape per kind: ListRow).
+      chevron
       menu={
         <RowActions label={`More for: ${suggestion.label}`}>
           <button
@@ -42,7 +44,7 @@ export function SuggestionCard({
             className="ui-menu-item"
             onClick={() => onDismiss(suggestion)}
           >
-            Not now
+            Hide for a month
           </button>
         </RowActions>
       }
