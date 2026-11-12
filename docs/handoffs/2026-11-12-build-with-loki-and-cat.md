@@ -71,7 +71,8 @@ signed-in browser. What it could use:
 | 09:25 | `loki-loop-check.yml` from the branch with the fix (run 43191224470), `dispatch=true`, project `loki` | **4 of 5 passed, journey A not proven.** Pass: Loki answered a fleet question from the map (on the owner's xAI key); the map is public with the three pillars live (30 projects, 16 live); bitbaum shows the same map; the task was accepted for the cloud runner. **Fail: the task was still "Queued" after 35 minutes** and the check aborted it. The runner was claiming other dispatches in that time (09:39 UTC), so this task was held back for the `loki` project in particular; the check could not say why and guessed. |
 | 10:04 | The check prints Loki's own reason (the run route's `detail`, the chat reply's words); short re-run from the branch (run 43196890919, project `loki`, 8 minutes) | 4 of 5 again, and now it says why: 'Sent **loki** to the cloud runner. This project is still on an earlier task. Yours is next in line and starts when that one ends. To start it now, open the project's session and send it there, or stop the earlier task.' That is #1663's sentence, live. The `loki` project has had an earlier run open for at least 45 minutes; whether its agent is working or idle at its prompt is not known. The journal shows automated incident dispatches (`incident-dispatch.sh`) and a sibling session's probe going to that project. |
 | 10:14 | Asked the runner/queue session whether it takes the stuck lane and the session cap | no answer yet |
-| 10:16 | Same check against project `orangecat`, 20 minutes | result below when it is in |
+| 10:14 | Same check asked for project `orangecat` (run 43198552471, 20 minutes) | 4 of 5, and it had not reached `orangecat`: 'Sent **loki** to the cloud runner.' A project named in a message outranks the selected one, and the probe's marker was `[loki-e2e]`. So all three runs had probed the busy `loki` project. |
+| 10:38 | Routing fix and a marker that names no project, pushed to #1678; fourth run asked for `orangecat` (25 minutes) | result below when it is in |
 | 09:40 | The drain reads "8 agent(s) working" | eight is the cap on open agent sessions (`src/lib/agent-session-limit.ts`); the drain's clock restarted at 09:11, 09:22, 09:29 and 09:34 with each deploy |
 | 06:31 | OrangeCat `cat-diagnostics.yml` (read-only) | no Cat failure logged in the last hour |
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
@@ -124,6 +125,20 @@ Its first run could not start, for three reasons, all fixed in #1678:
   the operator (`scripts/test/mint-check-token.ts`, label `loki-e2e-check`,
   two hours, removed on exit) and signs in with it as a bearer.
 - A check that could not sign in exited 0. It now says why and exits 1.
+
+Also in #1678, found through the check:
+
+- **An address to the assistant is not the loki project.** A project named in
+  a message outranks the selected one (`src/lib/loki-fleet-commands.ts`, on
+  purpose), the assistant is called Loki and so is a project, so "Loki, add a
+  dark mode toggle" typed with orangecat selected went to the loki project.
+  `withoutAddressTo` in `src/lib/project-mention.ts` removes an address (the
+  name at the start with punctuation, after a greeting, `@loki`, or after a
+  comma at the end) before matching. "Loki's sidebar", "in loki" and a bare
+  "Loki fix the header" still name the project.
+- The check prints Loki's own words for a task that does not start, uses the
+  marker `[e2e-probe]`, and fails at once when the task went to another
+  project than the one it asked for.
 
 `scripts/test/print-session-token.ts` and `scripts/test/authenticated-smoke.ts`
 still mint the Auth.js cookie; any script that relies on them cannot sign in
