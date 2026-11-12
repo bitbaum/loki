@@ -3,7 +3,7 @@ import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getApiActor } from "@/lib/session";
 import { enqueuePendingCommand } from "@/db/queries/pending-commands";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
-import { terminalHref } from "@/lib/dispatch-card";
+import { sessionOpenUrl } from "@/lib/dispatch-card";
 import { mayPeekTab } from "@/lib/peek-access";
 
 const PeekTabBody = z.object({
@@ -41,6 +41,6 @@ export async function POST(req: NextRequest) {
     ok: true,
     peekId,
     resultUrl: `/api/control/peek-tab/${peekId}`,
-    openUrl: terminalHref(tab, channel ?? null),
+    openUrl: sessionOpenUrl(tab, channel ?? null),
   });
 }

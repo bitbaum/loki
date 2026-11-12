@@ -14,7 +14,11 @@ import { APP_URL } from "../../src/config/brand";
 const read = (p: string) => fs.readFileSync(p, "utf8");
 const run = "11111111-1111-4111-8111-111111111111";
 
-assert.equal(sessionOpenUrl("loki", "cloud"), `${APP_URL}/terminal?project=loki`);
+assert.equal(
+  sessionOpenUrl("loki", "cloud"),
+  `${APP_URL}/terminal?source=cloud&project=loki`,
+  "a cloud link names its builder, so a phone that last chose its computer still opens the cloud session",
+);
 assert.equal(sessionOpenUrl("loki", null, run), `${APP_URL}/terminal?project=loki&run=${run}`);
 assert.equal(
   sessionOpenUrl("site", "local", run),
@@ -23,8 +27,13 @@ assert.equal(
 );
 assert.equal(
   sessionOpenUrl("site~1a2b3c4d", "cloud"),
-  `${APP_URL}${terminalHref("site~1a2b3c4d", "cloud")}`,
+  `${APP_URL}/terminal?source=cloud&project=${encodeURIComponent("site~1a2b3c4d")}`,
   "a parallel lane opens as its own tab",
+);
+assert.equal(
+  sessionOpenUrl("site", null),
+  `${APP_URL}${terminalHref("site", null)}`,
+  "no builder known: the Terminal's own choice",
 );
 assert.ok(APP_URL.startsWith("https://"), "a link a person can open");
 

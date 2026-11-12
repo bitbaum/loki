@@ -73,14 +73,20 @@ export function terminalHref(project: string, channel: BuilderChannel | null): s
 
 /** The same session in Loki's Terminal as a full link, on that run when there
  *  is one: what a caller that started or reads a session hands a person, to
- *  open on any device they are signed in on. */
+ *  open on any device they are signed in on. It names its builder: without
+ *  `source`, the Terminal opens the source that browser last chose, which can
+ *  be the laptop's session of the same name instead of the cloud one. */
 export function sessionOpenUrl(
   tab: string,
   channel: BuilderChannel | null,
   runId: string | null = null,
 ): string {
+  const where =
+    channel === "cloud"
+      ? `/terminal?source=cloud&project=${encodeURIComponent(tab)}`
+      : terminalHref(tab, channel);
   const run = runId ? `&run=${encodeURIComponent(runId)}` : "";
-  return `${APP_URL}${terminalHref(tab, channel)}${run}`;
+  return `${APP_URL}${where}${run}`;
 }
 
 /** "Watch it" opens the agent's conversation; the raw terminal is one tap away

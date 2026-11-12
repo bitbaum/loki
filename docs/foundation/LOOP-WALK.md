@@ -116,7 +116,7 @@ reaches its own account's sessions.
    `{kind: "key", tab, data, channel: "cloud"}`, the bytes the Terminal page
    sends for a keystroke.
 5. **Close it.** `POST /api/control/close-tab` `{tab, channel: "cloud"}`.
-6. **Hand it to a person.** `openUrl` (`/terminal?project=<tab>&run=<id>`,
+6. **Hand it to a person.** `openUrl` (`/terminal?source=cloud&project=<tab>&run=<id>`,
    from starting it or from a capture) is the same session in Loki's
    Terminal, for whoever is signed in as the owner, on a phone or a computer.
 
