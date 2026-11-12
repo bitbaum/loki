@@ -426,3 +426,22 @@ export function deriveMultiDispatchView(attempts: MultiDispatchAttempt[]): Multi
   }
   return { label: `Started all ${total}`, tone: "positive", primaryProject };
 }
+
+/**
+ * A dispatch that went to another builder because the project's own was
+ * offline, said in one sentence for a caller with no card to draw (the API,
+ * an MCP app). The chat already says it (dispatchReply); an API caller got
+ * `reroutedFrom` and a channel and had to know what the pair meant, so a
+ * project pinned to an offline computer looked like it simply ran on the
+ * cloud. Null when nothing was rerouted.
+ */
+export function rerouteNotice(
+  channel: BuilderChannel | null | undefined,
+  reroutedFrom: BuilderChannel | null | undefined,
+): string | null {
+  if (!channel || !reroutedFrom || channel === reroutedFrom) return null;
+  const from = EXECUTOR_COPY.builderFromOutside[reroutedFrom];
+  const on = EXECUTOR_COPY.builderFromOutside[channel];
+  if (!from || !on) return null;
+  return `This project is set to run on ${from}, which is offline now, so ${on} took this one. The setting is unchanged.`;
+}

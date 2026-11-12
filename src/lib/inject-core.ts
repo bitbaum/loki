@@ -59,6 +59,7 @@ import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { findInjectProject } from "@/lib/inject-project";
+import { rerouteNotice } from "@/lib/dispatch-status";
 
 type ResolvedAdapter = (typeof ORCHESTRATION_ADAPTER_IDS)[number];
 
@@ -826,6 +827,7 @@ async function executeAndReport(
     };
   }
 
+  const notice = rerouteNotice(channel, reroutedFrom);
   return {
     status: 200,
     body: {
@@ -836,6 +838,9 @@ async function executeAndReport(
       // which machine has their work — especially when it queues.
       channel,
       ...(reroutedFrom ? { reroutedFrom } : {}),
+      // Said in words too: a caller reading only `channel` would take a
+      // project pinned to an offline computer for one that runs on the cloud.
+      ...(notice ? { message: notice } : {}),
       ...(result.mode === "queued" && {
         commandId: (result as { commandId: string }).commandId,
         runnerConnected: (result as { runnerConnected?: boolean }).runnerConnected ?? null,
