@@ -62,6 +62,8 @@ export type LokiWorkspaceProps = {
   initialProjects?: LokiProject[];
   initialConversations?: ConversationSummary[];
   loadErrors?: { projects?: string | null; conversations?: string | null };
+  /** Projects someone else shared with this account: "I have one" opens them. */
+  sharedProjectCount?: number;
 };
 
 /**
@@ -106,6 +108,7 @@ export function LokiWorkspace({
   initialProjects,
   initialConversations,
   loadErrors,
+  sharedProjectCount = 0,
 }: LokiWorkspaceProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -677,6 +680,7 @@ export function LokiWorkspace({
         freshRequest={newChat.fresh}
         selectedProjects={selectedProjects}
         projectCount={projects.length}
+        sharedProjectCount={sharedProjectCount}
         selectedGoal={selectedGoal}
         onRemoveProject={toggleProject}
         onOpenProjects={() => setFilterOpen(true)}

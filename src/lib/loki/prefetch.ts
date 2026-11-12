@@ -1,6 +1,7 @@
 import { listConversations } from "@/db/queries/conversations";
 import { ensureUserProjectEntityLinks } from "@/db/queries/user-projects";
 import { getTopActiveGoalByProject } from "@/db/queries/project-context";
+import { listSharedProjects } from "@/db/queries/project-access";
 import type { ConversationSummary, LokiProject } from "@/components/loki/types";
 
 export type LokiWorkspaceSeed = {
@@ -8,6 +9,8 @@ export type LokiWorkspaceSeed = {
   conversations: ConversationSummary[];
   projectsError: string | null;
   conversationsError: string | null;
+  /** Projects someone else shared with this account (a seat's projects). */
+  sharedProjectCount: number;
 };
 
 function serializeConversations(
@@ -23,7 +26,7 @@ function serializeConversations(
 
 /** Server-side seed for /loki — projects + conversation list without client waterfalls. */
 export async function prefetchLokiWorkspace(userId: string): Promise<LokiWorkspaceSeed> {
-  const [projectsResult, conversationsResult] = await Promise.allSettled([
+  const [projectsResult, conversationsResult, sharedResult] = await Promise.allSettled([
     (async () => {
       const projects = await ensureUserProjectEntityLinks(userId);
       const goalByEntity = await getTopActiveGoalByProject(userId);
@@ -35,6 +38,7 @@ export async function prefetchLokiWorkspace(userId: string): Promise<LokiWorkspa
       }));
     })(),
     listConversations(userId).then(serializeConversations),
+    listSharedProjects(userId).then((rows) => rows.length),
   ]);
 
   return {
@@ -43,5 +47,6 @@ export async function prefetchLokiWorkspace(userId: string): Promise<LokiWorkspa
     projectsError: projectsResult.status === "rejected" ? "Could not load projects." : null,
     conversationsError:
       conversationsResult.status === "rejected" ? "Could not load conversations." : null,
+    sharedProjectCount: sharedResult.status === "fulfilled" ? sharedResult.value : 0,
   };
 }

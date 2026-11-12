@@ -26,6 +26,7 @@ export default async function LokiPage() {
         <LokiWorkspace
           initialProjects={seed?.projects}
           initialConversations={seed?.conversations}
+          sharedProjectCount={seed?.sharedProjectCount ?? 0}
           loadErrors={
             seed
               ? {
