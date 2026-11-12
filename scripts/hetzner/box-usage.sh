@@ -15,6 +15,13 @@ set -uo pipefail
 
 section() { printf '\n=== %s ===\n' "$1"; }
 
+# On 2026-11-12 the box had 0.6 GiB available and no swap left, and this report
+# was cancelled at its 20-minute limit inside the first `du`: the memory facts
+# were printed, nothing after them. A disk walk on a box that is swapping can
+# take longer than anyone waits, so each one gets a minute and the report goes on.
+du() { timeout 60 du "$@"; }
+find() { timeout 60 find "$@"; }
+
 section "memory"
 free -h
 echo
@@ -22,6 +29,24 @@ awk '/MemTotal|MemAvailable|SwapTotal|SwapFree/ {printf "%s %.1f GiB\n", $1, $2/
 
 section "memory by program (resident, summed over its processes)"
 ps -eo rss=,comm= | awk '{rss[$2]+=$1; n[$2]++} END {for (p in rss) printf "%8.0f MiB  %4d proc  %s\n", rss[p]/1024, n[p], p}' | sort -rn | head -25
+
+section "memory by service: who holds it, and what bounds the builder"
+# Sealed agent sessions are meant to be bounded by the runner unit's memory
+# ceiling (src/lib/agent-execution/sandbox.ts says "MemoryMax still bounds
+# them"). This prints whether the unit has one, what it holds now, and which
+# cgroup the sandboxes' own processes are in. Names and sizes only.
+for unit in loki-box-runner.service; do
+  systemctl show "$unit" -p MemoryCurrent -p MemorySwapCurrent -p MemoryHigh -p MemoryMax -p OOMPolicy -p OOMScoreAdjust 2>/dev/null \
+    | awk -F= -v u="$unit" 'BEGIN {printf "%s:", u}
+        $1 ~ /Current$/ && $2 ~ /^[0-9]+$/ {printf " %s=%.1fGiB", $1, $2/1073741824; next}
+        {printf " %s=%s", $1, $2}
+        END {print ""}'
+done
+echo
+echo "sandbox processes by cgroup:"
+ps -eo cgroup=,comm= 2>/dev/null | awk '$2 == "gvisor_sentry" {c[$1]++} END {for (k in c) printf "%6d  %s\n", c[k], k}' | sort -rn | head -6
+echo
+timeout 20 systemd-cgtop -b -n 1 --order=memory --depth=3 2>/dev/null | head -16
 
 section "agent CLIs and browsers: how many, how old"
 for name in claude gemini grok cursor-agent codex chrome chromium node; do
