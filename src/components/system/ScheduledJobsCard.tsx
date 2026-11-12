@@ -9,7 +9,7 @@ import type { CronJob } from "@/lib/crons-shared";
 import { humanCronSchedule, SCHEDULED_JOBS_LABEL } from "@/lib/crons-shared";
 import { patchCronJob } from "@/lib/api/crons";
 import { JobDetail } from "./JobDetail";
-import { projectTitle } from "@/lib/project-display";
+import { isPublicTestArtifact, projectTitle } from "@/lib/project-display";
 
 function StatusDot({ status, errors }: { status?: string; errors?: number }) {
   if (!status || status === "never")
@@ -72,28 +72,31 @@ function JobRow({
         </div>
       </div>
 
+      {/* One switch shape (ui-switch, as in Settings). The hand-rolled one had
+          no left anchor, so its knob sat on the "on" side for a job that was
+          off (2026-11-12), at 28×16 with no name a screen reader could say. */}
       <button
+        type="button"
+        role="switch"
+        aria-checked={job.enabled}
+        aria-label={`Run ${job.name} on schedule`}
         onClick={(e) => {
           e.stopPropagation();
           onToggle(job.id, !job.enabled);
         }}
-        className={`ui-tap-overlay shrink-0 h-4 w-7 rounded-full transition-colors ${
-          job.enabled ? "bg-status-positive" : "bg-surface-overlay"
-        }`}
-        title={job.enabled ? "Disable" : "Enable"}
+        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center"
       >
-        <span
-          className={`absolute top-0.5 h-3 w-3 rounded-full bg-toggle-knob transition-transform ${
-            job.enabled ? "translate-x-3.5" : "translate-x-0.5"
-          }`}
-        />
+        <span className={job.enabled ? "ui-switch ui-switch-on" : "ui-switch"} aria-hidden />
       </button>
     </div>
   );
 }
 
 export function ScheduledJobsCard({ initialJobs }: { initialJobs: CronJob[] }) {
-  const [jobs, setJobs] = useState(initialJobs);
+  // The authenticated smoke test mints "smoke-<timestamp> cron" jobs on the
+  // owner's account; eleven of them filled this list (2026-11-12). They are
+  // not the owner's work.
+  const [jobs, setJobs] = useState(() => initialJobs.filter((j) => !isPublicTestArtifact(j.name)));
   const [selected, setSelected] = useState<CronJob | null>(null);
 
   const handleToggle = async (id: string, enabled: boolean) => {

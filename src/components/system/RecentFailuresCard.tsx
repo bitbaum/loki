@@ -1,7 +1,8 @@
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
-import { EmptyState } from "@/components/ui/empty-state";
-import { getRecentDebugLogs } from "@/db/queries/debug-logs";
+import Link from "next/link";
+import { getRecentProblemLogs } from "@/db/queries/debug-logs";
+import { askLokiHref } from "@/config/box-alert-copy";
 import { compactRelativeDate } from "@/lib/dates";
 
 /**
@@ -23,8 +24,20 @@ const LEVEL_TONE: Record<string, { icon: typeof Info; cls: string }> = {
   info: { icon: Info, cls: "text-text-tertiary" },
 };
 
+/** "crons/check-model-ids" → "check model ids"; "api/inject" → "inject". */
+export function plainSource(source: string): string {
+  const last = source.split("/").filter(Boolean).pop() ?? source;
+  return last.replace(/[-_]+/g, " ");
+}
+
+/**
+ * Only what went wrong. "Recent errors · 1 error" used to be nine heartbeats
+ * ("deploy OK", "gateway up (HTTP 200)") around one real error with nothing
+ * to do about it (2026-11-12). Nothing wrong is nothing to show.
+ */
 export async function RecentFailuresCard() {
-  const rows = await getRecentDebugLogs(10).catch(() => []);
+  const rows = await getRecentProblemLogs(10).catch(() => []);
+  if (rows.length === 0) return null;
   const errorCount = rows.filter((r) => r.level === "error").length;
   const warnCount = rows.filter((r) => r.level === "warn").length;
   // Previously read errorCount only and showed "all clear" whenever no
@@ -37,48 +50,50 @@ export async function RecentFailuresCard() {
       <span className="text-xs font-medium text-status-negative">
         {errorCount} error{errorCount === 1 ? "" : "s"}
       </span>
-    ) : warnCount > 0 ? (
+    ) : (
       <span className="text-xs font-medium text-status-warning">
         {warnCount} warning{warnCount === 1 ? "" : "s"}
       </span>
-    ) : (
-      <span className="text-xs text-text-tertiary">all clear</span>
     );
 
   return (
     <SystemBlock>
-      <SystemBlockHeader icon={AlertCircle} title="Recent errors" right={right} />
-      {rows.length === 0 ? (
-        <EmptyState>No recent telemetry events</EmptyState>
-      ) : (
-        <ul className="space-y-1.5">
-          {rows.map((row) => {
-            const tone = LEVEL_TONE[row.level] ?? LEVEL_TONE.info;
-            const Icon = tone.icon;
-            return (
-              // The message is the only part of this row that says what
-              // happened, and it was last in a single nowrap line after a
-              // timestamp and a source — so at 320px it rendered 0% of itself
-              // (-596px), and the rest was hover-only on a device with no
-              // hover. It now wraps to its own full-width line below the meta
-              // on a phone and stays inline from `sm` up.
-              <li key={row.id} className="flex flex-wrap items-start gap-x-2 gap-y-0.5 text-xs">
-                <Icon className={`mt-0.5 h-3 w-3 shrink-0 ${tone.cls}`} />
-                <span className="shrink-0 font-mono text-text-tertiary">
-                  {compactRelativeDate(row.createdAt)}
-                </span>
-                <span className="shrink-0 text-text-muted">{row.source}</span>
-                <span
-                  className="line-clamp-2 w-full min-w-0 text-text-secondary sm:w-auto sm:flex-1"
-                  title={row.message}
-                >
-                  {row.message}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <SystemBlockHeader icon={AlertCircle} title="Recent problems" right={right} />
+      <ul className="space-y-1.5">
+        {rows.map((row) => {
+          const tone = LEVEL_TONE[row.level] ?? LEVEL_TONE.info;
+          const Icon = tone.icon;
+          return (
+            // The message is the only part of this row that says what
+            // happened, and it was last in a single nowrap line after a
+            // timestamp and a source — so at 320px it rendered 0% of itself
+            // (-596px), and the rest was hover-only on a device with no
+            // hover. It now wraps to its own full-width line below the meta
+            // on a phone and stays inline from `sm` up.
+            <li key={row.id} className="flex flex-wrap items-start gap-x-2 gap-y-0.5 text-xs">
+              <Icon className={`mt-0.5 h-3 w-3 shrink-0 ${tone.cls}`} />
+              <span className="shrink-0 font-mono text-text-tertiary">
+                {compactRelativeDate(row.createdAt)}
+              </span>
+              <span className="shrink-0 text-text-muted">{plainSource(row.source)}</span>
+              <span
+                className="line-clamp-2 w-full min-w-0 text-text-secondary sm:w-auto sm:flex-1"
+                title={row.message}
+              >
+                {row.message}
+              </span>
+              <Link
+                href={askLokiHref(
+                  `This ${row.level === "error" ? "error" : "warning"} was logged by ${row.source}. Explain in plain words what went wrong, and fix it if it needs fixing.\n\n${row.message.slice(0, 1500)}`,
+                )}
+                className="ui-link-muted inline-flex min-h-11 items-center"
+              >
+                Ask Loki to fix this
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </SystemBlock>
   );
 }

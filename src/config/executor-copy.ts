@@ -161,7 +161,31 @@ export const EXECUTOR_COPY = {
     hostedAndLocal:
       "Runner offline — cloud worker started; this computer runs it too when connected.",
     queuedOnly: "Queued — runs when the runner is online.",
+    // Either builder (cloud box-runner or desktop) can claim the queued
+    // command. "Queued — a connected runner (cloud or this computer) will
+    // claim it" was the whole of every row under "What Loki decided"
+    // (2026-11-12): builder words, twelve times.
+    queuedForRunner: "Waiting for a computer to pick it up",
   },
+
+  /**
+   * What Loki decided, one word per control action (System → More records →
+   * "What Loki decided"). The stored action ids are the audit's own.
+   */
+  decision: {
+    queued: "Waiting to start",
+    injected: "Started",
+    queue: "Waiting to start",
+    composed: "Written",
+    nextbest: "Picked next",
+    refused: "Refused",
+    off: "Refused",
+    failed: "Failed",
+    paused: "Paused",
+    resumed: "Resumed",
+    paused_all: "Paused everywhere",
+    resumed_all: "Resumed everywhere",
+  } as Record<string, string>,
 
   /** How Loki (and Control) reach the agent CLI — not a separate chat channel. */
   loki: {
@@ -183,6 +207,8 @@ export const EXECUTOR_COPY = {
     // confirmations keep their own "starting shortly" copy where it IS true.
     builderStarting: "Runner online",
     notificationWhenDone: "Notification when this run finishes.",
+    /** A start button while its request is on the way ("Sending to the runner…" said builder words). */
+    starting: "Starting…",
 
     // How a run that did NOT fail explains itself. These used to be written
     // into payload.error by the reaper, so a `partial` run — a success — was

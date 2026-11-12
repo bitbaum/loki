@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { ExternalLink, Server } from "lucide-react";
+import { askLokiHref } from "@/config/box-alert-copy";
 import { SystemBlock, SystemBlockHeader } from "./SystemBlock";
 import { FetchErrorState } from "@/components/ui/fetch-error-state";
 import { useFetch } from "@/hooks/use-fetch";
@@ -24,14 +26,24 @@ function specLine(t: HetznerServerType): string {
   return parts.length ? parts.join(" · ") : "specs unavailable";
 }
 
+/** The poller runs every 10 min; a reading older than this is not an answer any more. */
+const DEAD_AFTER_S = 6 * 3600;
+
 function freshness(ageSeconds: number | null): { text: string; stale: boolean } {
   if (ageSeconds == null) return { text: "age unknown", stale: true };
   const min = Math.round(ageSeconds / 60);
   if (min < 1) return { text: "checked just now", stale: false };
   if (min < 60) return { text: `checked ${min} min ago`, stale: min > 30 };
   const h = Math.round(min / 60);
-  // The poller runs every 10 min; anything over an hour means it has stalled.
-  return { text: `checked ${h}h ago`, stale: true };
+  if (h < 48) return { text: `checked ${h}h ago`, stale: true };
+  return { text: `checked ${Math.round(h / 24)} days ago`, stale: true };
+}
+
+/** "41 days" / "9 hours" — how long ago Loki last looked. */
+function sinceWords(ageSeconds: number): string {
+  const h = Math.round(ageSeconds / 3600);
+  if (h < 48) return `${h} hours`;
+  return `${Math.round(h / 24)} days`;
 }
 
 export function HetznerCapacityCard() {
@@ -86,8 +98,45 @@ export function HetznerCapacityCard() {
     );
   }
 
-  const open = data.targets.filter((t) => t.available);
+  // Your own size is not an upgrade: listed as "blocked", it read as "your
+  // server is blocked" (2026-11-12).
+  const targets = data.targets.filter(
+    (t) => !data.current || (t.id !== data.current.id && t.name !== data.current.name),
+  );
+  const open = targets.filter((t) => t.available);
   const age = freshness(data.ageSeconds);
+  const current = data.current && (
+    <p className="text-sm text-text-secondary">
+      <span className="text-text-primary">Now: {specLine(data.current)}</span>
+      {data.current.name ? ` (${data.current.name})` : ""}
+    </p>
+  );
+
+  // A reading weeks old drew "blocked" beside every size and promised a
+  // Telegram alert "the moment a window opens" from a poller that had
+  // stopped (1001 h, 2026-11-12). An old answer is no answer: say so, and
+  // hand the restart to Loki.
+  if (data.ageSeconds == null || data.ageSeconds > DEAD_AFTER_S) {
+    return (
+      <SystemBlock>
+        <SystemBlockHeader icon={Server} title="Server size" />
+        {current}
+        <p className="mt-3 text-sm text-text-secondary">
+          {data.ageSeconds == null
+            ? "Loki does not know when it last checked for a bigger server, so it cannot say whether one is available."
+            : `Loki stopped checking for a bigger server ${sinceWords(data.ageSeconds)} ago, so it cannot say whether one is available.`}
+        </p>
+        <Link
+          href={askLokiHref(
+            "The Hetzner capacity watcher on the server stopped updating, so /system cannot say whether a bigger server is available. Find out why it stopped, restart it, and confirm a fresh reading arrives.",
+          )}
+          className="ui-btn-secondary mt-3 inline-flex min-h-11 items-center px-4"
+        >
+          Ask Loki to restart the check
+        </Link>
+      </SystemBlock>
+    );
+  }
 
   return (
     <SystemBlock>
@@ -103,17 +152,10 @@ export function HetznerCapacityCard() {
         }
       />
 
-      {data.current && (
-        <p className="text-sm text-text-secondary">
-          <span className="text-text-primary">
-            {data.server ?? "box"} — {data.current.name ?? "unknown type"}
-          </span>{" "}
-          ({specLine(data.current)}){data.location ? ` in ${data.location}` : ""}
-        </p>
-      )}
+      {current}
 
       <ul className="mt-3 space-y-2">
-        {data.targets.map((t) => (
+        {targets.map((t) => (
           // Narrow screens drop the spec line onto its own row (order-3 + w-full)
           // so it can wrap freely instead of flowing underneath the status word.
           <li key={t.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
@@ -128,12 +170,12 @@ export function HetznerCapacityCard() {
                   : "order-2 ml-auto shrink-0 text-text-tertiary"
               }
             >
-              {t.available ? "available now" : "blocked"}
+              {t.available ? "available now" : "not available"}
             </span>
           </li>
         ))}
-        {data.targets.length === 0 && (
-          <li className="text-sm text-text-secondary">No upgrade targets are being watched.</li>
+        {targets.length === 0 && (
+          <li className="text-sm text-text-secondary">No bigger size is being watched.</li>
         )}
       </ul>
 
@@ -152,8 +194,8 @@ export function HetznerCapacityCard() {
         </p>
       ) : (
         <p className="mt-3 text-xs text-text-tertiary">
-          Rescale is capacity-blocked right now. You get a Telegram alert the moment a window opens
-          — or watch the {radarLink}.
+          A bigger server is not available to book right now. You get a Telegram message the moment
+          one is — or see the {radarLink}.
         </p>
       )}
     </SystemBlock>

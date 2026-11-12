@@ -80,7 +80,7 @@ export function GlobalAutoContinueCard() {
         {paused < data.total && (
           <button
             type="button"
-            className="ui-btn-secondary"
+            className="ui-btn-secondary min-h-11"
             disabled={busy}
             onClick={() => setAll(false)}
           >
@@ -90,7 +90,7 @@ export function GlobalAutoContinueCard() {
         {paused > 0 && (
           <button
             type="button"
-            className="ui-btn-secondary"
+            className="ui-btn-secondary min-h-11"
             disabled={busy}
             onClick={() => setAll(true)}
           >

@@ -1,6 +1,11 @@
+/**
+ * RAM and disk bars. A disk two-thirds full with 43 GiB free is normal, and
+ * drawing it in the warning hue from 66% made the warning colour the loudest
+ * thing on /system when nothing was wrong (2026-11-12).
+ */
 export const HEALTH_THRESHOLDS = {
-  warningPct: 66,
-  criticalPct: 86,
+  warningPct: 85,
+  criticalPct: 95,
 } as const;
 
 export const GOAL_PROGRESS_THRESHOLDS = {

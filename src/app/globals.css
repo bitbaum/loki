@@ -6161,7 +6161,7 @@
     @apply mt-1 flex items-center gap-3 text-xs text-text-tertiary;
   }
   .ui-alert-quiet {
-    @apply relative z-10 inline-flex min-h-11 items-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-50;
+    @apply relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-50;
   }
   .ui-alert-action {
     @apply relative z-10 ml-auto inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-overlay;

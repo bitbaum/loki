@@ -4,6 +4,7 @@ import { getActiveAlerts } from "@/db/queries/alerts";
 import { requirePageUserId } from "@/lib/session";
 import { ALERT_SEVERITY } from "@/lib/constants/statuses";
 import { isSystemAlertType } from "@/config/alert-types";
+import { plainSystemAlerts } from "@/config/box-alert-copy";
 import { SystemAlertList } from "./SystemAlertList";
 
 /**
@@ -19,7 +20,9 @@ import { SystemAlertList } from "./SystemAlertList";
  */
 export async function SystemAlertsCard() {
   const userId = await requirePageUserId();
-  const items = (await getActiveAlerts(userId)).filter((a) => isSystemAlertType(a.type));
+  const items = plainSystemAlerts(
+    (await getActiveAlerts(userId)).filter((a) => isSystemAlertType(a.type)),
+  );
   const urgent = items.filter((a) => a.severity === ALERT_SEVERITY.URGENT).length;
   const count =
     items.length === 0

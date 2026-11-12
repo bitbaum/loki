@@ -35,12 +35,15 @@ export function isIntrusion(text: string): boolean {
 /**
  * The list key: the line's kind, before its first colon ("⚙️ STILL FAILING",
  * "🧩 reparaturbonus-zh"), so a line repeated with new details is ONE row
- * whose count rises, not a new row every five minutes.
+ * whose count rises, not a new row every five minutes. Numbers are not the
+ * kind: "DISK GC could not free space — still 93%" and "… still 91%" (no
+ * colon, so the whole line was the head) were two rows on /system
+ * (2026-11-12), both disagreeing with the live disk reading below them.
  */
 export function boxKey(text: string): string {
   const t = text.trim();
   const head = t.split(":")[0]?.trim() || t;
-  return `box:${head.slice(0, 80)}`;
+  return `box:${head.replace(/\d+(?:\.\d+)?%?/g, "#").slice(0, 80)}`;
 }
 
 /** A rescale window on Hetzner opens rarely and closes fast: the owner asked to hear it. */
