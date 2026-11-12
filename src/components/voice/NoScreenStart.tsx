@@ -17,7 +17,7 @@ import { StudioVoiceNotice } from "@/components/voice/StudioVoiceNotice";
  * The start screen: read once, before the phone goes away. Start, the
  * choices, and what can be said.
  *
- * Its title is the app top bar's h1 ("Voice", from the nav config). It is
+ * Its title is the app top bar's h1 ("Talk to Loki", from the nav config). It is
  * built from the same pieces as every other page (design reset, 2026-10-21):
  * one line and the one button, then titled sections of rows — each switch a
  * row with its one line under it — not a paragraph of instructions, capital
@@ -62,16 +62,16 @@ export function NoScreenStart({
         {error && <p className="ui-error text-center">{error}</p>}
         <button type="button" className="ui-voice-start-btn" onClick={onStart}>
           <Mic className="h-6 w-6" aria-hidden />
-          Start
+          Start talking
         </button>
       </div>
 
       <Section
-        title="Voice"
+        title="Loki's voice"
         right={
           <ChoiceMenu
             bare
-            label="Voice"
+            label="Loki's voice"
             value={settings.voice}
             options={NO_SCREEN_VOICES.map((v) => ({ value: v.id, label: v.label }))}
             onChange={(id) => update({ voice: id as NoScreenSettings["voice"] })}

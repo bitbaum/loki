@@ -7865,7 +7865,7 @@
      grey send arrow: two primary-looking controls, the louder one not the one
      you came to use. */
   .ui-loki-talk {
-    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-text-primary text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
+    @apply inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-text-primary px-4 text-sm font-medium text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
   }
   /* A conversation carried in from the owner's site (SiteHandoffCard): read
      like the start of this thread — your words a pill, Loki's prose, a remark

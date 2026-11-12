@@ -92,8 +92,11 @@ export const NAV = {
   },
   voice: {
     id: "voice",
-    label: "Voice",
-    description: "Talk to Loki with the screen off — it reads the fleet out and listens",
+    // The same thing as the chat's Talk button, under the same name: "Voice"
+    // beside "Talk" read as two features (owner, 2026-11-12).
+    label: "Talk to Loki",
+    description:
+      "A spoken conversation, screen on or off: Loki tells you what your projects are doing and listens",
     href: "/voice",
     icon: Headphones,
     active: true,

@@ -335,10 +335,14 @@ export function LokiComposer({
               className="ui-loki-talk"
               onClick={onTalk}
               disabled={disabled}
-              aria-label="Talk — a hands-free voice conversation"
-              title="Talk — a hands-free voice conversation"
+              // Its name on the button: two unlabelled sound icons side by side
+              // (this and the dictation mic) could not be told apart (owner,
+              // 2026-11-12). The mic types your words; Talk is a conversation.
+              aria-label="Talk to Loki out loud"
+              title="Talk to Loki out loud — it answers and listens again"
             >
               <AudioLines className="h-5 w-5" aria-hidden />
+              <span>Talk</span>
             </button>
           )}
         </>
