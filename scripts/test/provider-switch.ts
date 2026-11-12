@@ -259,6 +259,29 @@ check("the freshest wall per provider wins, and older ones do not overwrite it",
   assert.match(spent.codex ?? "", /2m ago/);
 });
 
+check("a provider that finished a run after its wall is not spent any more", () => {
+  const spent = spentProviders(
+    [
+      { adapter: "claude", error: null, outcome: "success", startedAt: ago(5 * 60_000) },
+      {
+        adapter: "claude",
+        error: "claude cannot generate because its usage limit is exhausted.",
+        startedAt: ago(9 * 60_000),
+      },
+    ],
+    NOW,
+  );
+  assert.equal(spent.claude, undefined, "a later finished run clears the wall");
+  const still = spentProviders(
+    [
+      { adapter: "claude", error: null, outcome: null, startedAt: ago(5 * 60_000) },
+      { adapter: "claude", error: "usage limit reached", startedAt: ago(9 * 60_000) },
+    ],
+    NOW,
+  );
+  assert.match(still.claude ?? "", /hit a limit/, "a run still open proves nothing");
+});
+
 // ── End to end: the walk the report asks for ────────────────────────────────
 
 check("a rate-limited Claude run offers one tap to a provider that can answer", () => {
