@@ -30,7 +30,7 @@ import { APP_URL } from "@/config/brand";
 import { startWatcher } from "../home/watcher";
 import { homedir } from "os";
 import { enableTabMemory, restoreTabs } from "../desktop/src/main/tab-memory";
-import { isPtyBacked, launchAgentPty } from "../desktop/src/main/pty-runtime";
+import { closeIdleSessions, isPtyBacked, launchAgentPty } from "../desktop/src/main/pty-runtime";
 import { openShellPty } from "../desktop/src/main/shell-runtime";
 import { newestLog } from "../desktop/src/main/transcript-streamer";
 
@@ -163,6 +163,18 @@ function main(): void {
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
+
+  // Sessions nobody has touched for hours are closed, so their memory comes
+  // back (lib/idle-sessions). Checked every ten minutes; the heartbeat that
+  // follows tells the app the tab is gone.
+  setInterval(
+    () => {
+      void closeIdleSessions().then((closed) => {
+        if (closed.length > 0) void pushNow();
+      });
+    },
+    10 * 60 * 1000,
+  );
 
   // Nothing else holds the event loop open (poller/pusher run on timers), so
   // keep the process alive explicitly until a signal arrives.

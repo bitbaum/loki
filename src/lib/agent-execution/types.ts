@@ -59,6 +59,8 @@ export interface WorkspaceHandle {
   id: WorkspaceId;
   status: AgentLifecycle;
   startedAt: number; // epoch ms
+  /** Last byte in or out (epoch ms). Absent on executors that do not track it. */
+  lastActivityAt?: number;
 }
 
 export type EventListener = (event: AgentEvent) => void;

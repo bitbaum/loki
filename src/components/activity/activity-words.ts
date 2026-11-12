@@ -11,6 +11,15 @@ import type { ProjectNames } from "./activity-shared";
 export function plainFailure(event: Pick<ActivityEvent, "error" | "outcome">): string {
   const raw = event.error?.trim() ?? "";
   const lower = raw.toLowerCase();
+  // The runner's own sentence opens "launched claude (pty) + injected, but Loki
+  // could not verify generation", which reached the page as it was
+  // (2026-11-11). The cause is what follows it, so the specific ones go first.
+  if (/not authenticated|login required|please run \/login|\b401\b/.test(lower))
+    return "The agent is signed out. Sign it in from the Terminal.";
+  if (/container failed to start|exited before printing anything/.test(lower))
+    return "The builder could not start the agent.";
+  if (/could not verify generation|produced no response|inject did not stick/.test(lower))
+    return "The agent opened but never answered.";
   if (/no running agent|could not (be )?start|never started|not delivered/.test(lower))
     return "The agent did not start.";
   if (/usage limit|quota|rate limit|credit/.test(lower)) return "The AI provider's limit ran out.";
