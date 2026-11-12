@@ -11,7 +11,7 @@ import { PROJECTS_LIST_CHUNK } from "@/lib/projects-display";
 import {
   computeProjectsPageStats,
   filterProjects,
-  hasProjectAttention,
+  projectRowWantsYou,
   isProjectsSort,
   PROJECTS_SORTS,
   type ProjectsPageFilter,
@@ -107,12 +107,17 @@ export function ProjectsWorkspace({
     return [keep, fold];
   }, [projects]);
 
-  const stats = useMemo(() => computeProjectsPageStats(current), [current]);
+  const rowFacts = useMemo(
+    () => ({ newNotesByProject, runNowByProject }),
+    [newNotesByProject, runNowByProject],
+  );
+  const stats = useMemo(() => computeProjectsPageStats(current, rowFacts), [current, rowFacts]);
   const lenses = SHOW.filter((l) => l.id === null || l.count(stats) > 0);
 
   const filtered = useMemo(
-    () => filterProjects(current, debouncedQuery, pageFilter, lastDispatchByProject, sort),
-    [current, debouncedQuery, pageFilter, lastDispatchByProject, sort],
+    () =>
+      filterProjects(current, debouncedQuery, pageFilter, lastDispatchByProject, sort, rowFacts),
+    [current, debouncedQuery, pageFilter, lastDispatchByProject, sort, rowFacts],
   );
   const archivedShown = useMemo(
     () => (pageFilter ? [] : filterProjects(archived, debouncedQuery, null, undefined, "az")),
@@ -122,7 +127,10 @@ export function ProjectsWorkspace({
   // Never fold a flagged project below the chunk line — attention outranks
   // the fold. (Sorting already puts them first, so this only matters when
   // there are more flagged rows than the chunk size.)
-  const flaggedCount = useMemo(() => filtered.filter(hasProjectAttention).length, [filtered]);
+  const flaggedCount = useMemo(
+    () => filtered.filter((p) => projectRowWantsYou(p, rowFacts)).length,
+    [filtered, rowFacts],
+  );
   const chunk = Math.max(PROJECTS_LIST_CHUNK, flaggedCount);
   const listOverflow = filtered.length > chunk;
   const visible = listExpanded ? filtered : filtered.slice(0, chunk);

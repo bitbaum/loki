@@ -3,6 +3,7 @@ import { PROJECT_ATTR } from "@/config/project-attrs";
 import { hasAnswer } from "@/lib/project-display";
 import { signalIsLive } from "@/lib/project-signals";
 import { filterByQuery, type SearchSpec } from "@/lib/search";
+import { projectListLine, type ProjectRunNow } from "@/lib/project-list-line";
 
 export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
 
@@ -25,7 +26,7 @@ export const PROJECTS_SORTS: ReadonlyArray<{ id: ProjectsSort; label: string; hi
   {
     id: "priority",
     label: "Priority",
-    hint: "Projects with issues first, then by most recent agent run",
+    hint: "Problems and things waiting on you first, then most recent work",
   },
   {
     id: "recent",
@@ -72,14 +73,49 @@ export function hasProjectAttention(
   );
 }
 
-export function computeProjectsPageStats(projects: ProjectGridRow[]): ProjectsPageStats {
+/**
+ * What each row says about itself beyond its own attrs: notes nobody has read
+ * and what is running. The same maps the rows render their line from.
+ */
+export type ProjectRowFacts = {
+  newNotesByProject?: Record<string, number>;
+  runNowByProject?: Record<string, ProjectRunNow>;
+};
+
+/**
+ * Where a row ranks under Priority, read from the very line the row prints
+ * (projectListLine), so the order can never disagree with the words: a
+ * problem, then something waiting on you, then something building, then the
+ * rest. On 2026-11-12 two rows saying "Needs you: 1 note" sat 11th and 17th,
+ * under a dozen rows saying "Live", because the order only read the flags.
+ */
+export function projectRowRank(p: ProjectGridRow, facts: ProjectRowFacts = {}): number {
+  const line = projectListLine(p, {
+    newNotes: facts.newNotesByProject?.[p.id] ?? 0,
+    runNow: facts.runNowByProject?.[p.id] ?? null,
+  });
+  if (line.tone === "negative") return 0;
+  if (line.tone === "warning") return 1;
+  if (line.tone === "positive") return 2;
+  return 3;
+}
+
+/** A row whose own line asks for the person: a problem, or something waiting. */
+export function projectRowWantsYou(p: ProjectGridRow, facts: ProjectRowFacts = {}): boolean {
+  return projectRowRank(p, facts) <= 1;
+}
+
+export function computeProjectsPageStats(
+  projects: ProjectGridRow[],
+  facts: ProjectRowFacts = {},
+): ProjectsPageStats {
   let attention = 0;
   let withNextStep = 0;
   let team = 0;
 
   for (const p of projects) {
     if (p.readonly) team += 1;
-    if (hasProjectAttention(p)) attention += 1;
+    if (projectRowWantsYou(p, facts)) attention += 1;
     if (hasAnswer(p.attrs[PROJECT_ATTR.NEXT_STEP])) withNextStep += 1;
   }
 
@@ -109,10 +145,11 @@ export function filterProjects(
    *  not a factor and the order falls through to name. */
   lastActivityByProject?: Record<string, string>,
   sort: ProjectsSort = "priority",
+  facts: ProjectRowFacts = {},
 ): ProjectGridRow[] {
   const onPage = projects.filter((p) => {
     if (pageFilter === "team" && !p.readonly) return false;
-    if (pageFilter === "attention" && !hasProjectAttention(p)) return false;
+    if (pageFilter === "attention" && !projectRowWantsYou(p, facts)) return false;
     if (pageFilter === "next-step" && !hasAnswer(p.attrs[PROJECT_ATTR.NEXT_STEP])) return false;
     return true;
   });
@@ -137,10 +174,10 @@ export function filterProjects(
     );
   }
 
+  const rank = new Map(result.map((p) => [p.id, projectRowRank(p, facts)]));
   return result.sort((a, b) => {
-    const aHasIssues = hasProjectAttention(a);
-    const bHasIssues = hasProjectAttention(b);
-    if (aHasIssues !== bHasIssues) return aHasIssues ? -1 : 1;
+    const byRank = rank.get(a.id)! - rank.get(b.id)!;
+    if (byRank !== 0) return byRank;
     // A project created moments ago is the one the operator is here for; an
     // alphabetical fold of 25 hid kaffeeklappe-sep11 right after Add
     // (2026-09-11). Newest first for a day, then the usual order.
