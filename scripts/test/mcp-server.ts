@@ -332,6 +332,25 @@ async function main() {
           }
         : null;
     },
+    sessions: async () => {
+      calls.push("sessions");
+      return [
+        {
+          channel: "cloud",
+          reportedAt: "2026-11-12T05:00:00.000Z",
+          tabs: ["loki", "loki-shell-0a1b2c3d"],
+        },
+        { channel: "local", reportedAt: null, tabs: ["orangecat"] },
+      ];
+    },
+    readSession: async (_u, tab, channel) => {
+      calls.push(`read:${tab}:${channel ?? "any"}`);
+      if (tab === "asleep") return { status: "pending" };
+      return {
+        status: "done",
+        content: "\x1b[2J\x1b[1mworking\x1b[0m\rI changed the header.\r\n\r\n\r\nDone.\r\n",
+      };
+    },
     projects: async () => [
       {
         name: "loki",
@@ -606,6 +625,46 @@ async function main() {
       dispatched.content[0].text.includes("Queued") &&
       dispatched.content[0].text.includes("notification"),
   );
+  // ── sessions: an agent sees what is open and reads what the agent said ─────
+  const sessions = await call("loki_sessions", {}, chat);
+  const sessionText = sessions.content[0].text;
+  check(
+    "loki_sessions lists agent sessions per builder with the link that opens each in Loki",
+    sessionText.includes("- loki on the cloud builder: https://") &&
+      sessionText.includes("/terminal?project=loki") &&
+      sessionText.includes("- orangecat on the owner's computer") &&
+      sessionText.includes("/terminal?source=machine&tab=orangecat"),
+  );
+  check("loki_sessions never lists a plain shell", !sessionText.includes("loki-shell-"));
+  calls.length = 0;
+  const readOut = await call("loki_session_read", { session: "loki", builder: "cloud" });
+  check(
+    "loki_session_read returns the end of the session's output as plain text, with its link",
+    !readOut.isError &&
+      calls.join() === "read:loki:cloud" &&
+      readOut.content[0].text.includes("I changed the header.\n\nDone.") &&
+      !readOut.content[0].text.includes("\x1b") &&
+      !readOut.content[0].text.includes("working") &&
+      readOut.content[0].text.includes("/terminal?project=loki"),
+  );
+  calls.length = 0;
+  const shellRead = await call("loki_session_read", { session: "loki-shell-0a1b2c3d" });
+  check(
+    "loki_session_read refuses a plain shell before anything reaches a builder",
+    shellRead.isError === true && calls.length === 0,
+  );
+  const asleep = await call("loki_session_read", { session: "asleep" });
+  check(
+    "a builder that does not answer is an error that says so, never an empty read",
+    asleep.isError === true && asleep.content[0].text.includes("No builder answered"),
+  );
+  calls.length = 0;
+  const readOnlyGrant = await call("loki_session_read", { session: "loki" }, chat);
+  check(
+    "reading a session changes nothing, so loki.chat is enough",
+    !readOnlyGrant.isError && calls.join() === "read:loki:any",
+  );
+
   const projects = await call("loki_projects", {}, chat);
   check(
     "loki_projects lists names with a one-line status",

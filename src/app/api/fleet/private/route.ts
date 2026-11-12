@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { COMMISSION } from "@/config/commission";
 import { loadFleetMap } from "@/lib/register/load-map";
 import { privatePortfolio } from "@/lib/register/private-portfolio";
 import { studioOwnerCheck } from "@/lib/register/studio-owner";
+import { STUDIO_SESSION_HEADERS } from "@/lib/studio/access";
 
 /**
  * GET /api/fleet/private — the studio's client work that is not public yet,
@@ -17,13 +17,8 @@ import { studioOwnerCheck } from "@/lib/register/studio-owner";
  */
 export const dynamic = "force-dynamic";
 
-const CORS = {
-  "Access-Control-Allow-Origin": COMMISSION.studioOrigin,
-  "Access-Control-Allow-Credentials": "true",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Cache-Control": "no-store",
-  Vary: "Origin, Cookie",
-};
+// One shape for everything the studio site reads with a session.
+const CORS = STUDIO_SESSION_HEADERS;
 
 function reply(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: CORS });

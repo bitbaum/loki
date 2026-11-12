@@ -27,7 +27,7 @@ import path from 'path'
 import { APP_URL } from '@/config/brand'
 import { APP_SLUG } from '@/config/brand'
 import { startPeek, stopPeek } from './peek-streamer'
-import { detectAuthFailure } from './agent-auth'
+import { authFailureMessage, claudeReportedCapacityWall, detectAuthFailure } from './agent-auth'
 import { startRunProgress } from './run-progress'
 import { getAgentInstallCommand, listAgentRegistry, type AgentOption } from '@/lib/agent-registry'
 import { executor } from '@/lib/agent-execution'
@@ -55,6 +55,7 @@ import {
   peekPtyBuffer,
   writeRawKey,
   resizePty,
+  ptyDirForTab,
 } from './pty-runtime'
 import { pushNow } from './pusher'
 import { trackRunUsage } from './usage-reporter'
@@ -63,10 +64,15 @@ import {
   WORKTREE_DISPATCH_ENABLED,
   ensureWorktreeWorkspace,
   pruneWorktrees,
+  primaryCheckoutOf,
   worktreePromptNote,
 } from '@/lib/agent-execution/worktree-workspace'
 import { dispatchLaunchDir, laneLaunchDir } from './lane-workspace'
+import { isDerivedRunTab } from '@/lib/run-tab'
 import { materializeImages } from '@/lib/agent-attachments-fs'
+import { newestLog, readRange } from './transcript-streamer'
+import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
+import { transcriptShowsPrompt } from '@/lib/prompt-evidence'
 
 /** Commands that change the open-tab / agent set → trigger an immediate
  *  runtime-state push so the UI reflects them in ~1s, not at the next heartbeat. */
@@ -93,11 +99,31 @@ const worktreeByTab = new Map<string, { primaryDir: string; launchDir: string }>
 
 /** This builder's own checkout of a project. The cloud builder keeps one under
  *  its dev root and clones on demand (LOKI_BOX_PREPARE); a laptop works in the
- *  directory it was given. Throws when the box can neither find nor clone it. */
-async function builderCheckoutDir(projectKey: string, requestedDir: string): Promise<string> {
+ *  directory it was given. Throws when the box can neither find nor clone it.
+ *  For a lane it only fetches: the project's own session may be working in
+ *  that checkout (ensureBoxWorkspace `pull`). */
+async function builderCheckoutDir(
+  projectKey: string,
+  requestedDir: string,
+  opts: { forLane?: boolean } = {},
+): Promise<string> {
   if (process.env.LOKI_BOX_PREPARE !== 'true') return requestedDir
   const { ensureBoxWorkspace } = await import('@/lib/agent-execution/box-workspace')
-  return ensureBoxWorkspace(projectKey, requestedDir, await fetchWorkspaceSource(projectKey))
+  return ensureBoxWorkspace(projectKey, requestedDir, await fetchWorkspaceSource(projectKey), {
+    pull: !opts.forLane,
+  })
+}
+
+/**
+ * Where a live session of `tab` runs. After a builder restart the bookkeeping
+ * above is empty but the session was reopened in its own folder
+ * (tab-memory), and that folder is what pty-runtime recorded. The dispatch's
+ * own dir is the last resort: on the cloud builder it is another machine's
+ * path, so a live lane's dialog check, generating check and transcript all
+ * looked in a folder that does not exist.
+ */
+function liveLaunchDir(tab: string, dispatchDir: string): string {
+  return worktreeByTab.get(tab)?.launchDir ?? ptyDirForTab(tab) ?? dispatchDir
 }
 
 const COMMAND_DEDUP_DIR = path.join(os.tmpdir())
@@ -401,6 +427,39 @@ async function waitForAgentGenerating(dir: string, tab: string, timeoutMs = 8000
 }
 
 /**
+ * Whether the prompt shows up in the agent's own conversation log within
+ * `timeoutMs`. Null when there is no log to read (another agent, a log folder
+ * this runner cannot find): that is no evidence, not a refusal.
+ */
+async function waitForPromptInTranscript(
+  dir: string,
+  prompt: string,
+  sinceMs: number,
+  timeoutMs = 15_000,
+): Promise<boolean | null> {
+  const deadline = Date.now() + timeoutMs
+  let sawLog = false
+  while (Date.now() < deadline) {
+    const log = await newestLog(dir).catch(() => null)
+    if (log) {
+      sawLog = true
+      const start = Math.max(0, log.size - PROMPT_TAIL_BYTES)
+      const lines = (await readRange(log.file, start, log.size).catch(() => '')).split('\n')
+      if (start > 0) lines.shift()
+      const state = newTranscriptState()
+      const items: TranscriptItem[] = []
+      for (const line of lines) items.push(...reduceTranscriptLine(state, line))
+      if (transcriptShowsPrompt(items, prompt, sinceMs)) return true
+    }
+    await asleep(750)
+  }
+  return sawLog ? false : null
+}
+
+/** A prompt is near the end of the log just after it was typed. */
+const PROMPT_TAIL_BYTES = 512_000
+
+/**
  * PATCH the pending_commands row done. Always called once per command
  * (success, error, or already-done dedup hit) so a claimed row never
  * lingers waiting for the 90s stale-claim reaper.
@@ -427,6 +486,12 @@ async function ackCommand(
         ...(body.text !== undefined ? { text: body.text } : {}),
         ...(body.verified !== undefined ? { verified: body.verified } : {}),
         ...(body.warning ? { warning: body.warning } : {}),
+        // When the prompt reached the agent, and in which workspace. Built by
+        // the dispatch case and read by the server (delivery stamp, run
+        // ledger), but dropped here until 2026-11-12, so delivery was stamped
+        // at ack time, up to ~20s late.
+        ...(body.deliveredAt ? { deliveredAt: body.deliveredAt } : {}),
+        ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}),
       }),
       signal: AbortSignal.timeout(5000),
     })
@@ -540,7 +605,8 @@ async function handleCommand(
         // A second session of a project (the terminal's "+") is a lane tab and
         // gets its own worktree — see lane-workspace.ts.
         const lane = await laneLaunchDir(tab, dir, {
-          baseDir: builderCheckoutDir,
+          // Only ever called for a lane tab.
+          baseDir: (project, requested) => builderCheckoutDir(project, requested, { forLane: true }),
           worktree: (laneTab, primaryDir, runKey) => {
             pruneWorktrees(laneTab, primaryDir)
             return ensureWorktreeWorkspace(laneTab, primaryDir, runKey)
@@ -592,16 +658,18 @@ async function handleCommand(
         // prompt. Escape closes it; if Claude still says a dialog is open, a
         // fresh session (resumed by id) is the only way to reach the composer.
         if (ptyAlreadyLive && agent === 'claude') {
-          const liveDir = resolveRunnerWorkspaceDir(tab, worktreeByTab.get(tab)?.launchDir ?? dir)
+          const liveDir = resolveRunnerWorkspaceDir(tab, liveLaunchDir(tab, dir))
           if (!(await dismissClaudeDialog(tab, liveDir))) {
             console.warn(`[poller] ${tab}: claude is stuck on a dialog; starting a fresh session`)
             await terminatePty(tab)
             ptyAlreadyLive = false
           }
         }
-        let effDir = ptyAlreadyLive ? (worktreeByTab.get(tab)?.launchDir ?? dir) : dir
+        let effDir = ptyAlreadyLive ? liveLaunchDir(tab, dir) : dir
         let effPrompt = prompt
-        let primaryDir = worktreeByTab.get(tab)?.primaryDir ?? dir
+        let primaryDir =
+          worktreeByTab.get(tab)?.primaryDir ??
+          (ptyAlreadyLive ? (primaryCheckoutOf(effDir) ?? effDir) : dir)
         // A fresh launch runs in THIS builder's checkout of the project, found
         // by project name — never in the path another machine registered — and
         // a derived run-tab ("<project>~<runId8>", same-project parallel
@@ -610,7 +678,8 @@ async function handleCommand(
         // See dispatchLaunchDir for the order and why it refuses.
         if (!ptyAlreadyLive) {
           const placed = await dispatchLaunchDir(tab, dir, runId, {
-            baseDir: builderCheckoutDir,
+            baseDir: (project, requested) =>
+              builderCheckoutDir(project, requested, { forLane: isDerivedRunTab(tab) }),
             worktree: (laneTab, base, runKey) => {
               pruneWorktrees(laneTab, base) // sweep clean leftovers before adding one
               return ensureWorktreeWorkspace(laneTab, base, runKey)
@@ -732,6 +801,21 @@ async function handleCommand(
                 ? await outputAfterInject
                 : await waitForAgentGenerating(resolveRunnerWorkspaceDir(tab, effDir), tab, 8000)
             }
+            // Busy is not delivered: the request has to be in the agent's own
+            // conversation log (prompt-evidence transcriptShowsPrompt). Only
+            // where a log can be read; no log is no evidence either way.
+            if (verified && agent === 'claude' && injectedAt) {
+              const seen = await waitForPromptInTranscript(
+                resolveRunnerWorkspaceDir(tab, effDir),
+                effPrompt,
+                Date.parse(injectedAt),
+              )
+              if (seen === false) {
+                verified = false
+                warning =
+                  'the agent is working, but your request is not in its conversation: it may be carrying on with something else. Open the session to see what it is doing.'
+              }
+            }
             ok = true
             workspaceId = runnerWorkspaceId(tab)
             text = launched ? `launched ${agent} (pty) + injected` : `injected to running ${agent} (pty)`
@@ -753,16 +837,19 @@ async function handleCommand(
             // credentials it was written for (2026-07-02/03).
             const transcriptDir = resolveRunnerWorkspaceDir(tab, effDir)
             for (let i = 0; i < 6 && !authFailed; i++) {
-              authFailed = detectAuthFailure(transcriptDir)
+              authFailed = detectAuthFailure(transcriptDir, {
+                agent,
+                since: injectedAt ? Date.parse(injectedAt) : undefined,
+                screen: saidSinceInject.text(),
+                prompt: effPrompt,
+              })
               if (!authFailed && i < 5) await asleep(2000)
             }
             if (authFailed) {
               ok = false
               verified = false
               warning = undefined
-              error =
-                `${agent} is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. ` +
-                `On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).`
+              error = authFailureMessage(agent)
             } else {
               let capacityFailure = detectPtyCapacityFailure(tab, agent as AgentOption, {
                 since: saidSinceInject.text(),
@@ -771,6 +858,16 @@ async function handleCommand(
               // Claude reports its own state. A session still generating ~12s
               // after the submit has not hit a wall, whatever its screen says —
               // "Approaching usage limit" is a warning it prints WHILE working.
+              // Claude: only its own API error entry since the prompt is a
+              // wall. The screen echoes our brief, and a brief that talks
+              // about rate limits is not Claude running out.
+              if (
+                capacityFailure &&
+                agent === 'claude' &&
+                !claudeReportedCapacityWall(transcriptDir, injectedAt ? Date.parse(injectedAt) : undefined)
+              ) {
+                capacityFailure = null
+              }
               if (capacityFailure && agent === 'claude') {
                 const live = claudeLiveSessionForDir(
                   readClaudeLiveSessions(),
@@ -783,7 +880,7 @@ async function handleCommand(
                 verified = false
                 warning = undefined
                 error = capacityFailure
-              } else if (!verified) {
+              } else if (!verified && !warning) {
               // Unverified inject is a soft failure for the captain loop: "Install
               // dispatched" with no generation is how botsmann stayed Not live
               // while Activity looked busy. Prefer Failed over fake success.

@@ -47,3 +47,12 @@ export function shippedPr(s: {
   if (!s.headSha || s.pr.headRefOid !== s.headSha) return null;
   return /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/.test(s.pr.url) ? s.pr.url : null;
 }
+
+/** A minute of clock difference between this builder and GitHub is allowed. */
+const SHIPPED_CLOCK_SLACK_MS = 60_000;
+
+/** Was the pull request opened after the run began? Unknown is no. Pure. */
+export function openedDuringRun(createdAt: string | undefined, sinceMs: number): boolean {
+  const at = createdAt ? Date.parse(createdAt) : NaN;
+  return Number.isFinite(at) && at >= sinceMs - SHIPPED_CLOCK_SLACK_MS;
+}

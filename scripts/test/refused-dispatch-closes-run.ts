@@ -8,10 +8,10 @@ import { join } from "path";
 
 const src = readFileSync(join(__dirname, "../../src/lib/inject-core.ts"), "utf8");
 const failure = src.indexOf("if (!result.ok) {");
-const close = src.indexOf(
-  "closeRunUndelivered(runId, userId, result.error, { notify: false })",
-  failure,
-);
+// Quietly (notify: false): the reply already says it failed.
+const tail = src.slice(failure);
+const call = tail.search(/closeRunUndelivered\(runId, userId, result\.error, \{\s*notify: false,/);
+const close = call < 0 ? -1 : failure + call;
 const report = src.indexOf("return recordInjectFailure(userId, result, outcome);", failure);
 if (failure < 0 || close < 0 || report < 0 || !(close < report)) {
   throw new Error("✗ a refused dispatch closes its run before reporting the failure");

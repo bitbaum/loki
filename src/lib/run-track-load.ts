@@ -19,6 +19,7 @@
  * own view (`ownerView`), and only while a card is open — never from a timer
  * (scripts/test/no-free-background-ai.ts).
  */
+import { getFeedbackByRunId } from "@/db/queries/site-feedback";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { promptHistory } from "@/db/schema/prompt-history";
@@ -34,12 +35,18 @@ import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 import { buildTerminalRunView, type TerminalRunView } from "@/lib/terminal-run-view";
 import { humanizeRunFailure } from "@/lib/project-watch";
 import { buildRunTrack, type RunTrack } from "@/lib/run-track";
+import { builderHoldsNewWork } from "@/lib/builder-presence";
+import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
+import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
+import { isProjectBusy } from "@/db/queries/orchestration-runs";
+import { QUEUED_BEHIND_SENTENCE } from "@/lib/dispatch-status";
 import { isPreviewDir } from "@/lib/previews/root";
 import { findLiveRunEvidence, repoTokenFor } from "@/lib/run-evidence-live";
 import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
 import type { RunFollow } from "@/lib/run-handoff";
 import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
 import { fetchRepoProgress, type RepoProgress } from "@/lib/repo-progress";
+import { runBranches } from "@/lib/run-branches";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
 import { RUN_BLOCKED } from "@/lib/run-progress";
 
@@ -98,7 +105,18 @@ const SETTLED_LEDGER: ReadonlySet<string> = new Set([
 export async function loadRunTrack(
   userId: string,
   run: TrackableRun,
-  opts: { ownerView?: boolean; now?: number } = {},
+  opts: {
+    ownerView?: boolean;
+    now?: number;
+    /**
+     * Hops the caller holds evidence of that no run event records: a runner's
+     * claim of the dispatch command (claimedAt), a prompt typed straight into
+     * a live session (submitted). Counted only where the run has no event of
+     * that kind. Without them the track said "Waiting for a runner" about a
+     * command a runner held.
+     */
+    known?: Partial<Record<"claimed" | "submitted", Date | string | null>>;
+  } = {},
 ): Promise<RunTrackLoad> {
   const ownerView = opts.ownerView ?? true;
   const now = opts.now ?? Date.now();
@@ -118,6 +136,12 @@ export async function loadRunTrack(
     hydrateFeedbackSnapshot(userId, run),
     run.projectId ? getUserProjectByEntityId(userId, run.projectId).catch(() => null) : null,
   ]);
+  // A run whose fix ledger is a feedback report's: the one kind of run that
+  // owes a change. Unknown (lookup failed): treated as owing one, as before.
+  const feedbackFix = await getFeedbackByRunId(userId, run.id).then(
+    (row) => row !== null,
+    () => true,
+  );
 
   const work = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap);
   const view = buildTerminalRunView({
@@ -145,19 +169,35 @@ export async function loadRunTrack(
   // token). Live: the branch or pull request the agent has pushed so far.
   // Closed well with a ledger that found no pull request: one more look, in
   // case the handoff never named the one that exists.
-  let evidence = normalizeRepoWorkEvidence(run.payload?.evidence);
+  const recordedEvidence = normalizeRepoWorkEvidence(run.payload?.evidence);
+  let evidence = recordedEvidence;
   const cachedFix = run.payload?.fix ?? null;
   const ledgerBlind =
     !cachedFix ||
     (cachedFix.state === FIX_SHIP_STATE.NO_EVIDENCE && !cachedFix.pr) ||
     cachedFix.state === FIX_SHIP_STATE.PUSHED;
   const gitUrl = project?.gitUrl ?? null;
-  if (ownerView && !evidence && (!finished || (finishedWell && ledgerBlind)) && recent) {
+  // Evidence recorded with its branch is checked against the run's branches
+  // here, at no cost. Evidence recorded before it carried one was found by
+  // time alone: the owner's view checks it with GitHub once
+  // (run-evidence-live); any other view does not show it unless the ledger
+  // already confirmed the same pull request as the run's.
+  if (evidence && !evidence.branch && !ownerView) {
+    const confirmed = cachedFix?.pr?.url === evidence.url && !cachedFix.foreignPr;
+    if (!confirmed) evidence = null;
+  }
+  if (ownerView && (evidence ? true : (!finished || (finishedWell && ledgerBlind)) && recent)) {
     evidence = await findLiveRunEvidence(userId, run, gitUrl, now);
   }
+  // The ledger checked whose pull request this is and found it is not this
+  // run's: the track must not show it through the evidence either.
+  if (evidence?.kind === "pr" && cachedFix?.foreignPr && cachedFix.pr?.url === evidence.url) {
+    evidence = null;
+  }
+  // The ledger follows the evidence as checked here, not as first recorded.
   const runForFollow =
-    evidence && !run.payload?.evidence
-      ? { ...run, payload: { ...(run.payload ?? {}), evidence } }
+    evidence !== recordedEvidence
+      ? { ...run, payload: { ...(run.payload ?? {}), evidence: evidence ?? undefined } }
       : run;
   const [{ follow, fix }, repo] = await Promise.all([
     ownerView
@@ -174,11 +214,45 @@ export async function loadRunTrack(
   // The first time each hop happened — the track dates its stages by these.
   const eventTimes: Partial<Record<RunEventKind, string>> = {};
   for (const e of events) eventTimes[e.kind] ??= e.createdAt.toISOString();
+  const eventKinds: RunEventKind[] = events.map((e) => e.kind);
+  for (const [kind, at] of Object.entries(opts.known ?? {}) as [
+    RunEventKind,
+    Date | string | null,
+  ][]) {
+    if (!at || eventTimes[kind]) continue;
+    eventTimes[kind] = typeof at === "string" ? at : at.toISOString();
+    // Placed by time among the run's own events, so "the last hop" stays true.
+    const atMs = Date.parse(eventTimes[kind]!);
+    const after = events.findIndex((e) => e.createdAt.getTime() > atMs);
+    eventKinds.splice(after === -1 ? eventKinds.length : after, 0, kind);
+  }
   // A pull request the ledger discounted (opened before the run) is not this
   // change's; the track must not point at it.
   const ownPr = fix && !fix.foreignPr ? (fix.pr ?? null) : null;
+  // Still unclaimed while the cloud runner is behind the deploy: it is
+  // holding new work for its restart, and the track says that.
+  const waitingOnUpdate =
+    !finished &&
+    !eventTimes.claimed &&
+    snap?.builderChannel === "cloud" &&
+    builderHoldsNewWork(
+      (await getRuntimeSnapshot(userId, "cloud").catch(() => null))?.runnerVersion,
+    );
+  // Still unclaimed because the project's earlier run is open: the claim
+  // gate holds this one until that has closed. Said before the update.
+  const waitingBehind =
+    !finished &&
+    !eventTimes.claimed &&
+    !run.payload?.sessionTab &&
+    (await isProjectBusy(userId, run.projectKey, { excludeRunId: run.id }).catch(() => false));
   const track = buildRunTrack({
-    eventKinds: events.map((e) => e.kind),
+    queueLabel: waitingBehind ? "Next in line for this project" : null,
+    queueNote: waitingBehind
+      ? QUEUED_BEHIND_SENTENCE
+      : waitingOnUpdate
+        ? BUILDER_UPDATING_SENTENCE
+        : null,
+    eventKinds,
     eventTimes,
     run: {
       startedAt: run.startedAt.toISOString(),
@@ -208,7 +282,12 @@ export async function loadRunTrack(
           prNumber: ownPr?.number ?? null,
           mergedAt: ownPr?.mergedAt ?? null,
           deploy: fix.deploy
-            ? { name: fix.deploy.name, url: fix.deploy.url, at: fix.deploy.at ?? null }
+            ? {
+                name: fix.deploy.name,
+                url: fix.deploy.url,
+                at: fix.deploy.at ?? null,
+                served: fix.liveVia === "served_release",
+              }
             : null,
           liveUrl: follow?.liveUrl ?? null,
           looked: fix.verify
@@ -234,7 +313,13 @@ export async function loadRunTrack(
     events,
     snap,
     view,
-    canonical: canonicalStatus(work, { liveUrl: project?.liveUrl ?? null }),
+    // Only a feedback fix is asked to ship a change; any other run that
+    // finished well with nothing pushed is Done (a read-only probe was
+    // "Needs you, nothing shipped").
+    canonical: canonicalStatus(work, {
+      liveUrl: project?.liveUrl ?? null,
+      expectsChange: Boolean(feedbackFix),
+    }),
     prompt,
     project: project ? { id: project.id, gitUrl, liveUrl: project.liveUrl ?? null } : null,
     provider,
@@ -251,5 +336,12 @@ async function repoProgress(
 ): Promise<RepoProgress | null> {
   const token = await repoTokenFor(userId, gitUrl);
   if (!token) return null;
-  return fetchRepoProgress(run.id, gitUrl, token, run.startedAt.getTime(), now).catch(() => null);
+  return fetchRepoProgress(
+    run.id,
+    gitUrl,
+    token,
+    run.startedAt.getTime(),
+    runBranches(run),
+    now,
+  ).catch(() => null);
 }
