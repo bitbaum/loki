@@ -544,7 +544,13 @@ export function ControlPanel({
 
       {/* What is being built for you right now. Each row opens the live
           session. */}
-      {data.projects.length > 0 && <ControlNow jobs={nowJobs} nowMs={nowMs} />}
+      {data.projects.length > 0 && (
+        <ControlNow
+          jobs={nowJobs}
+          nowMs={nowMs}
+          onReply={(tab, text) => inject(tab, undefined, text)}
+        />
+      )}
 
       {/* Nothing running, nothing waiting on you: that used to be the whole
           message — a grey "Paused" card over "28 idle projects". Idle is the

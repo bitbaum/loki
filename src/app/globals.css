@@ -6721,6 +6721,20 @@
   .ui-home-fix {
     @apply relative z-[1] inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-raised disabled:opacity-50;
   }
+  /* The answer under a row that needs you (ControlNow): one field and Send,
+     indented to the row's text so it reads as the row's own. */
+  .ui-home-reply {
+    @apply pb-3 pl-16 pr-3;
+  }
+  .ui-home-reply-form {
+    @apply flex min-w-0 items-center gap-2;
+  }
+  .ui-home-reply-input {
+    @apply h-11 min-w-0 flex-1 rounded-full bg-surface-raised px-4 text-base text-text-primary outline-none transition-shadow placeholder:text-text-muted focus-visible:ring-2 focus-visible:ring-border-strong;
+  }
+  .ui-home-reply-sent {
+    @apply text-sm text-text-secondary;
+  }
   /* A failure row: the title and its reason take the full text column (the
      reason in up to two lines), × stays at the end of that line, and the fix
      wraps underneath at the text's left edge — the fix right there, without
