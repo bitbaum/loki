@@ -66,6 +66,9 @@ export type RunProgressBeat = {
    *  run reported (lib/run-branches); a pull request is the run's only when
    *  its head is one of them. */
   branch?: string;
+  /** The remote branch the checkout pushes to, when it has one and its name
+   *  differs: a pull request's head is the remote branch. */
+  upstream?: string;
 };
 
 /** The longest step a beat may carry. */

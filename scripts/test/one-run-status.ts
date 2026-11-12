@@ -18,6 +18,7 @@ import {
   type DispatchLiveView,
 } from "@/lib/dispatch-status";
 import { buildRunTrack, type RunTrackInput } from "@/lib/run-track";
+import { sendResultLine } from "@/lib/prompt-run";
 
 let failures = 0;
 function check(name: string, fn: () => void) {
@@ -180,7 +181,7 @@ check("both status routes answer through the alignment", () => {
     "src/app/api/control/commands/[id]/route.ts",
   ]) {
     assert(
-      /\.\.\.alignLiveViewWithTrack\(view, loaded\?\.track\),/.test(read(rel)),
+      /\.\.\.alignLiveViewWithTrack\(\s*view,\s*loaded\?\.track,/.test(read(rel)),
       `${rel} returns a status of its own`,
     );
   }
@@ -194,6 +195,70 @@ check("the run route judges a queued run by its own command row", () => {
     /executedAt: queued \? queued\.executedAt : run\.startedAt,/.test(src),
     "a queued run is treated as executed from the start",
   );
+});
+
+// ── after the review of #1647 (2026-11-12) ────────────────────────────────
+
+check("a finished run reads its outcome even when its command was never claimed", () => {
+  // Queued for an offline laptop, then stopped by the person or reaped.
+  for (const [state, outcome, status] of [
+    ["closed", "user_abort", "stopped"],
+    ["error", "timeout", "failed"],
+    ["error", "error", "failed"],
+  ] as const) {
+    const view = deriveDispatchLiveStatus({
+      claimedAt: null,
+      executedAt: null,
+      result: null,
+      run: { state, outcome, payload: null },
+    });
+    assert(view.terminal, `${state}/${outcome} is not terminal: polled forever`);
+    assert(view.status !== "queued", `${state}/${outcome} reads Queued`);
+    if (status === "stopped") assert(/stop/i.test(view.label), `label ${view.label}`);
+  }
+});
+
+check("a command a runner holds is Starting, whatever the track has not seen yet", () => {
+  const claimed = fromCommand({ claimed: true });
+  for (const track of [withEvents(["dispatched"]), withEvents(["dispatched"], { stalled: true })]) {
+    const got = alignLiveViewWithTrack(claimed, track, { claimed: true, executed: false });
+    assert(got.status === "starting", `${track.live} gave ${got.status}`);
+    assert(!/no runner/i.test(got.detail ?? ""), `says no runner: ${got.detail}`);
+  }
+  const working = withEvents(["dispatched", "claimed", "generating"], { phase: "working" });
+  assert(
+    alignLiveViewWithTrack(claimed, working, { claimed: true, executed: false }).status ===
+      "working",
+    "a working agent was held back to Starting",
+  );
+});
+
+check("the routes hand the track what the command row knows", () => {
+  const cmd = read("src/app/api/control/commands/[id]/route.ts");
+  assert(/known: \{ claimed: command\.claimedAt \}/.test(cmd), "commands route: the claim");
+  const run = read("src/app/api/orchestration/runs/[id]/route.ts");
+  assert(/\? \{ claimed: queued\.claimedAt \}/.test(run), "run route: the claim");
+  assert(/: \{ submitted: typeof deliveredAt === "string"/.test(run), "run route: a direct write");
+  const load = read("src/lib/run-track-load.ts");
+  assert(
+    /if \(!at \|\| eventTimes\[kind\]\) continue;/.test(load),
+    "a recorded event is overwritten",
+  );
+});
+
+check("a track told of a claim says a builder has it", () => {
+  const t = withEvents(["dispatched", "claimed"]);
+  assert(t.live === "starting", `live ${t.live}`);
+  assert(!/Waiting for a runner/.test(t.summary), t.summary);
+});
+
+check("the run sheet says what Starting and Needs you mean", () => {
+  const starting = sendResultLine({ status: "starting", project: "loki" });
+  assert(/starting/.test(starting.text), starting.text);
+  const blocked = sendResultLine({ status: "needs_you", project: "loki" });
+  assert(/waiting for you/.test(blocked.text), `a blocked agent reads: ${blocked.text}`);
+  const offline = sendResultLine({ status: "needs_you", project: "loki", waitingForBuilder: true });
+  assert(/as soon as a runner is online/.test(offline.text), offline.text);
 });
 
 if (failures) {
