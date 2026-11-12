@@ -342,10 +342,15 @@ export function ControlPanel({
   // standalone variant repeated the <summary>'s "Workspaces · N open" header
   // inside the panel — the page showed the same heading and count twice.
   const livePanel = <LiveTerminalPanel {...livePanelProps} embedded />;
+  const reply = (tab: string, text: string) => inject(tab, undefined, text);
 
   // A read that failed says so (and how to get in), not skeletons forever.
-  if (!data && error) return <HomeLoadFailed error={error} onRetry={() => void refresh(true)} />;
-  if (!data) return <HomeLoading />;
+  if (!data)
+    return error ? (
+      <HomeLoadFailed error={error} onRetry={() => void refresh(true)} />
+    ) : (
+      <HomeLoading />
+    );
 
   return (
     <div className="ui-home-page space-y-6">
@@ -494,11 +499,7 @@ export function ControlPanel({
         {/* Agents that stopped to ask you something, each with its question.
           They sat under "Being built" though nothing was being built. */}
         {data.projects.length > 0 && (
-          <ControlWaiting
-            jobs={nowJobs}
-            nowMs={nowMs}
-            onReply={(tab, text) => inject(tab, undefined, text)}
-          />
+          <ControlWaiting jobs={nowJobs} nowMs={nowMs} onReply={reply} />
         )}
 
         {/* ControlFleetStatus shows runner health + working/ready/open counters
