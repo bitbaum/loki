@@ -202,6 +202,12 @@ async function main(): Promise<void> {
     "watch first, then read",
   );
   assert.match(routeSrc, /frame\.at >= joinedAt/, "a snapshot must be newer than the join");
+  assert.match(routeSrc, /settledFrame\(/, "and whole: every batch of it, not the first");
+  assert.match(
+    routeSrc,
+    /rowFor\(user\.id, project, run, presence, !poll\)/,
+    "a poll never looks at GitHub",
+  );
   console.log("  ✓ the route follows before it reads, and never passes an old copy off as live");
 
   // ── refusals (no database) ─────────────────────────────────────────────────
@@ -250,6 +256,7 @@ async function main(): Promise<void> {
       { ...fresh, project: "" },
       { ...fresh, runId: "11111111-1111-4111-8111-111111111111", watch: 301 },
       { ...fresh, runId: "11111111-1111-4111-8111-111111111111", watch: 0 },
+      { ...fresh, runId: "11111111-1111-4111-8111-111111111111", poll: "yes" },
     ]) {
       assert.equal((await POST(request(bad, sign(JSON.stringify(bad))))).status, 400);
     }

@@ -69,11 +69,19 @@ const Body = z.object({
   items: z.number().int().min(1).max(SESSIONS_MAX_ITEMS).optional(),
   /** With runId: hold the run's session as a viewer for this many seconds. */
   watch: z.number().int().min(1).max(WATCH_MAX_SECONDS).optional(),
+  /**
+   * With runId: a follower's poll. The run's own facts and its cached ledger
+   * only, never a look at GitHub: a bot polling every few seconds must not
+   * spend the owner's GitHub budget (run-track-load's ownerView).
+   */
+  poll: z.boolean().optional(),
 });
 
 /** How long a read waits for the runner's first snapshot of a conversation. */
 const SNAPSHOT_WAIT_MS = 6_000;
 const SNAPSHOT_POLL_MS = 300;
+/** A snapshot's batches arrive back to back; this long without one, it is whole. */
+const SNAPSHOT_SETTLE_MS = 600;
 
 type Presence = SessionRowInput["presence"];
 type RunRow = TrackableRun & { projectKey: string };
@@ -147,6 +155,23 @@ function runWithoutTrack(run: RunRow): NonNullable<SessionRowInput["run"]> {
   };
 }
 
+/** The newest copy once frames have stopped arriving for a moment, or at the deadline. */
+async function settledFrame(
+  userId: string,
+  tab: string,
+  frame: TranscriptFrame,
+  until: number,
+): Promise<TranscriptFrame> {
+  let latest = frame;
+  while (Date.now() < until) {
+    await new Promise((r) => setTimeout(r, SNAPSHOT_SETTLE_MS));
+    const next = lastTranscript(userId, tab);
+    if (!next || next.at === latest.at) return latest;
+    latest = next;
+  }
+  return latest;
+}
+
 /**
  * The conversation of one session, as fresh as it can be had in a few
  * seconds. When someone is already viewing it (a person on Terminal, or a
@@ -173,7 +198,11 @@ async function readTranscript(
     while (Date.now() < until) {
       await new Promise((r) => setTimeout(r, SNAPSHOT_POLL_MS));
       const frame = lastTranscript(userId, tab);
-      if (frame && frame.at >= joinedAt) return { frame, live: true };
+      if (frame && frame.at >= joinedAt) {
+        // The runner posts a snapshot in batches of 100 (transcript-streamer
+        // MAX_BATCH): wait until no more arrive, or the tail is missing.
+        return { frame: await settledFrame(userId, tab, frame, until), live: true };
+      }
     }
     const older = lastTranscript(userId, tab);
     return older ? { frame: older, live: false } : null;
@@ -187,7 +216,7 @@ async function readTranscript(
 export async function POST(req: NextRequest) {
   const dataOrResp = await readSignedOrangeCatBody(req, Body, "sessions not configured");
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { actorId, issuedAt, project: wanted, runId, items, watch } = dataOrResp;
+  const { actorId, issuedAt, project: wanted, runId, items, watch, poll } = dataOrResp;
 
   // Signed, but with no nonce: without this a captured request replays forever.
   if (!isFreshIssuedAt(issuedAt)) {
@@ -220,7 +249,7 @@ export async function POST(req: NextRequest) {
       const project = projects.find(
         (p) => p.name.toLowerCase() === run.projectKey.toLowerCase(),
       ) ?? { name: run.projectKey };
-      const { row, tab, channel } = await rowFor(user.id, project, run, presence, true);
+      const { row, tab, channel } = await rowFor(user.id, project, run, presence, !poll);
       // Start (or extend) the watch before reading, so the runner is already
       // streaming when the agent writes its answer.
       if (watch) await watchTab(user.id, tab, watch, channel);
