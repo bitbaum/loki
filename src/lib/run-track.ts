@@ -73,7 +73,17 @@ export type RunTrack = {
   /** Quick index for the page: the stage marked now/attention/failed, or the
    *  last done one. */
   current: TrackStageId;
+  /**
+   * The one status of a run that is still open, decided from the same facts
+   * as `summary` (docs/foundation/RUN-STATUS-SSOT.md: Queued, Starting,
+   * Working, Needs you). Null once the run has finished: Done and Failed are
+   * the run's outcome. A status field shown beside this track is read from
+   * here (lib/dispatch-status alignLiveViewWithTrack), never derived again.
+   */
+  live: RunLiveStatus | null;
 };
+
+export type RunLiveStatus = "queued" | "starting" | "working" | "needs_you";
 
 export type RunTrackInput = {
   eventKinds: RunEventKind[];
@@ -543,6 +553,19 @@ function liveStage(f: Facts): TrackStage {
   return stage("live", label, "next");
 }
 
+/**
+ * The status of an open run. The order is summaryOf's own, so the word and
+ * the sentence cannot disagree: on 2026-11-12 a status route answered
+ * "delivered" / "working" above a track that said "Waiting for a runner".
+ */
+function liveStatusOf(f: Facts, builder: TrackStage, work: TrackStage): RunLiveStatus | null {
+  if (f.finished) return null;
+  if (work.state === "attention" || builder.state === "attention") return "needs_you";
+  if (f.working || f.generated) return "working";
+  if (f.started) return "starting";
+  return "queued";
+}
+
 /** The one sentence: the furthest point the change has reached, or why it stopped. */
 function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   const site = f.site ?? "the site";
@@ -637,7 +660,7 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
   const summary = stale
     ? `${f.prUrl ? "Pull request opened" : `${f.provider} finished`} — this ran more than two days ago, so what happened after is not on record here.`
     : summaryOf(f, builder, work);
-  return { stages, summary, settled, current };
+  return { stages, summary, settled, current, live: liveStatusOf(f, builder, work) };
 }
 
 /** A preview's track: asked → builder → working → live, nothing in between. */
@@ -659,7 +682,13 @@ function savedLiveTrack(f: Facts, builder: TrackStage, work: TrackStage): RunTra
   const summary = f.finishedWell
     ? `Live on ${site} — ${f.provider} saved the change, and the address serves it.`
     : summaryOf(f, builder, work);
-  return { stages, summary, settled: f.finished, current };
+  return {
+    stages,
+    summary,
+    settled: f.finished,
+    current,
+    live: liveStatusOf(f, builder, work),
+  };
 }
 
 // ── Timing ─────────────────────────────────────────────────────────────────

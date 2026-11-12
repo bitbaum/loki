@@ -103,7 +103,15 @@ commits and the state of the checks on it (`repo-progress`), and after the
 run the fix ledger through merge, deploy and Loki's look (`run-follow`). The
 Watch route (`/api/projects/[id]/watch`) and both live-status routes the chat
 card polls (`/api/orchestration/runs/[id]`, `/api/control/commands/[id]`)
-call it and carry `track`; `components/projects/RunTrack` draws it in both
+call it and carry `track`. While the run is open, the status fields those two
+routes return beside it (`status`, `label`, `detail`, `tone`) are read from
+the track too (`track.live` and `track.summary`, through
+`alignLiveViewWithTrack` in `lib/dispatch-status`): Queued until a builder
+claims it, Starting until the agent prints after the prompt, then Working,
+or Needs you. An open run is never "Delivered to agent" on a runner's ack
+alone, and a run that went through the queue is judged by its own command
+row, not assumed executed (`scripts/test/one-run-status.ts`).
+`components/projects/RunTrack` draws the track in both
 places, and `components/projects/RunLook` shows what Loki saw (verdict,
 evidence, the page before and after) under it. Until 2026-10-17 the chat card
 had its own list (`run-milestones`: picked up → pushed → PR → checks) read
