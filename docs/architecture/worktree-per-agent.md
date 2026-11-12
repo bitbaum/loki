@@ -67,6 +67,10 @@ worktree. The pieces that ARE alias-aware:
   row keeps the BASE `projectKey` so analytics/busy checks aggregate per project.
 - **Runner guard** (`poller.ts`): a derived tab FORCES worktree isolation
   regardless of the env flag — parallel-without-isolation is impossible.
+- **Lane base** (`worktree-workspace.ts` `laneBaseRef`): a derived tab's
+  worktree starts from the remote default branch, not from the checkout's
+  HEAD, which on the cloud builder is the shared session's own run branch
+  (`scripts/test/lane-base.ts`).
 - **Ingestion** (`runtime-state`): alias tabs are never persisted as
   project_states rows (no ghost cards; no clobbering the base project's runtime
   facts). A READY alias handoff closes exactly the run whose
