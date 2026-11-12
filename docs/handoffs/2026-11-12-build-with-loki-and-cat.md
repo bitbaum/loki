@@ -111,6 +111,33 @@ signed-in browser. What it could use:
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
 | 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
 
+## 16:30 to 17:20: Claude took the task, did it, and the run still read Needs you
+
+| When (UTC) | What | Result |
+| ---------- | ---- | ------ |
+| 16:23 | #1689 merged; Loki served `b0c6d58e` by 16:30 | |
+| 16:30 | loop check, orangecat (run 43259323658) | Loki said "Grok has run out of usage, so Claude Code took this one" and the run started on Claude. 4 of 5: Needs you after 25 min. |
+| 17:00 | loop check again from the branch (run 43264581135) | 4 of 5 the same way. |
+| 17:05 | `sealed-builds.yml` `mode=journal` | `[watcher] worker.idle orangecat · e2e ok — no changes` at **17:00:01**: Claude did the probe and wrote its handoff. |
+| 17:10 | new `mode=runs-db`, `runs=orangecat` | the run's `deliveredAt` is **17:00:05.682**, the ack time. The handoff (17:00:00) "predates" its own delivery, so `closeRunFromSession` never closes it. |
+| 17:15 | `mode=stop-idle` dry, then for real | 8 sealed sessions, 6 with no open run, stopped. |
+
+Why the delivery was stamped late: the runner sends its injection time only
+since a fix made earlier today (`desktop/src/main/poller.ts` `ackCommand`), and
+the runner on the box has not restarted since the morning. Each deploy starts
+a drain (`scripts/hetzner/drain-and-restart-runner.sh`) that waits for no agent
+working, and it counted every open sealed session as working: an idle
+session's relay moves 3 to 10 KB a minute, so the quiet rule never fired.
+
+## Change 10 (Loki): a session between tasks does not hold the runner's update
+
+The drain now reads the open runs from Loki's database, as `stop-idle` does: a
+sealed session older than fifteen minutes whose project or lane has no open
+run is between tasks. When the database cannot be read, the old rule stands.
+`between_runs` is pinned by `test-drain-and-restart-runner.sh` (51 of 51).
+After it is deployed, the drain restarts the runner at the next moment with no
+open run, the new runner sends its injection time, and the loop check can close.
+
 ## 15:20 to 16:10: the loop check reaches the agent; Grok's balance is spent
 
 | When (UTC) | What | Result |
