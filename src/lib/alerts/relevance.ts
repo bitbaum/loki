@@ -53,18 +53,29 @@ export function splitAlertsByRelevance<T extends RelevanceInput>(
 }
 
 /**
- * What the bell lists. New-feedback notices are work, listed under Home's "To
- * review" and on /feedback, not something that happened — the bell left them
- * out before this file existed, and still does.
+ * Types the bell does not list:
+ *  - new-feedback notices are work, listed under Home's "To review" and on
+ *    /feedback, not something that happened;
+ *  - `system_event` is a box or bot line with no action for the owner ("no
+ *    action needed from you", config/alert-types). It is recorded on /system,
+ *    and the bell links there in one line. Listed in the bell it was the
+ *    server's raw output — "🧟 STRANDED agent work in loki-wt-scope —
+ *    unpushed fc/1840a4dd-…", "🐳 NEW CONTAINER", "♻️ REBOOT PENDING" — rows
+ *    that opened nothing (audit, 2026-11-12).
  */
+const NOT_IN_BELL = new Set(["new_feedback", "system_event"]);
+
+/** A row the bell lists itself (rather than leaving to /feedback or /system). */
+export function isBellAlert(alert: { type: string }): boolean {
+  return !NOT_IN_BELL.has(alert.type);
+}
+
+/** What the bell lists. */
 export function bellAlerts<T extends RelevanceInput>(
   alerts: T[],
   now: number,
 ): { current: T[]; earlier: T[] } {
-  return splitAlertsByRelevance(
-    alerts.filter((a) => a.type !== "new_feedback"),
-    now,
-  );
+  return splitAlertsByRelevance(alerts.filter(isBellAlert), now);
 }
 
 /** An alert as /api/alerts sends it: the server, which owns the clock, says
@@ -76,10 +87,39 @@ export type BellAlert = { type: string; earlier?: boolean };
  * component must not read the clock while it renders (react-hooks/purity),
  * and the server decided it with `isAlertCurrent` already.
  */
-export function splitBell<T extends BellAlert>(alerts: T[]): { current: T[]; earlier: T[] } {
-  const shown = alerts.filter((a) => a.type !== "new_feedback");
+export function splitBell<T extends BellAlert>(
+  alerts: T[],
+): { current: T[]; earlier: T[]; onSystem: number } {
+  const shown = alerts.filter(isBellAlert);
   return {
     current: shown.filter((a) => !a.earlier),
     earlier: shown.filter((a) => a.earlier),
+    onSystem: alerts.filter((a) => a.type === "system_event").length,
   };
+}
+
+/** Rows of the bell that say the same thing, shown once. */
+export type BellGroup<T> = { key: string; title: string; summary: string; rows: T[] };
+
+/**
+ * One bell row per thing that happened, not per line the server wrote: nine
+ * "SUSPICIOUS PROCESS" lines from one night were nine identical red rows and
+ * a "9+" no single tap could lower (audit, 2026-11-12). Rows whose title (as
+ * the person reads it, from `words`) is the same fold into one, newest first,
+ * dismissed together. The delivery key is untouched: a second login from a
+ * new address is still its own notice on the phone.
+ */
+export function groupBell<T>(
+  rows: T[],
+  words: (row: T) => { title: string; summary: string },
+): BellGroup<T>[] {
+  const groups = new Map<string, BellGroup<T>>();
+  for (const row of rows) {
+    const { title, summary } = words(row);
+    const key = title.trim().toLowerCase();
+    const group = groups.get(key);
+    if (group) group.rows.push(row);
+    else groups.set(key, { key, title, summary, rows: [row] });
+  }
+  return [...groups.values()];
 }

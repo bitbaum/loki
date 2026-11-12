@@ -11,6 +11,7 @@
  */
 import { createHash } from "node:crypto";
 import type { NoticeRequest } from "@/lib/notify/policy";
+import { BOX_NAME, intrusionBody, intrusionTitle } from "@/lib/notify/intrusion-words";
 
 /**
  * Lines that mean "someone may be in the box". Everything else is the list's.
@@ -69,10 +70,12 @@ export function boxNotice(text: string, appUrl: string): NoticeRequest {
     // Keyed on the whole line: a second login from another address, or a
     // second suspicious process, is a new sign, not a reminder of the first.
     const id = createHash("sha256").update(t).digest("hex").slice(0, 16);
+    // Said plainly (lib/notify/intrusion-words): the raw line — pids, shell
+    // commands, addresses — stays in the body, behind "Details".
     return {
       source: "box",
-      title: `bitbaum: ${title}`.slice(0, 140),
-      body,
+      title: (intrusionTitle(t) ?? `${BOX_NAME}: ${title}`).slice(0, 140),
+      body: intrusionBody(t).slice(0, 600),
       // The notice is an operator row, so it is listed on /today.
       actions: [{ label: "See what happened", url: `${appUrl}/today` }],
       urgency: "now",

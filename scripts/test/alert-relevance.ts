@@ -17,6 +17,7 @@
 import assert from "node:assert/strict";
 import {
   bellAlerts,
+  groupBell,
   isAlertCurrent,
   splitAlertsByRelevance,
   splitBell,
@@ -92,6 +93,32 @@ assert.deepEqual(
   splitBell(flagged).earlier.map((r) => r.id),
   bell.earlier.map((r) => r.id),
 );
+
+// The box's no-action lines are /system's, not the bell's: counted there, one
+// link here (audit, 2026-11-12: "🐳 NEW CONTAINER", "♻️ REBOOT PENDING" rows
+// that opened nothing).
+{
+  const withBox = [
+    ...flagged,
+    { id: "6", type: "system_event", severity: "info", createdAt: ago(0), earlier: false },
+  ];
+  const split = splitBell(withBox);
+  assert.ok(!split.current.some((r) => r.id === "6"), "a box line is not a bell row");
+  assert.equal(split.onSystem, 1, "it is counted for the one link to /system");
+  assert.ok(!bellAlerts(withBox, now).current.some((r) => r.id === "6"));
+}
+
+// Nine identical lines are one row, newest first.
+{
+  const lines = Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, title: "Same thing" }));
+  const groups = groupBell([...lines, { id: "x", title: "Other" }], (r) => ({
+    title: r.title,
+    summary: "",
+  }));
+  assert.equal(groups.length, 2, "one row per thing, not per line");
+  assert.equal(groups[0]!.rows.length, 9);
+  assert.equal(groups[0]!.rows[0]!.id, "s0", "the newest leads");
+}
 
 // 3. Words a person would say.
 assert.equal(needsYouTitle(3, 0), "3 feedback fixes stopped and need you");

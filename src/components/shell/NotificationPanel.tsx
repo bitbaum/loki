@@ -8,13 +8,30 @@ import { List, ListRow } from "@/components/ui/list-row";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { EmptyState } from "@/components/ui/empty-state";
 import { splitDescription } from "@/components/alerts/AlertList";
-import { splitBell } from "@/lib/alerts/relevance";
+import { groupBell, splitBell, type BellGroup } from "@/lib/alerts/relevance";
+import { bellWords } from "@/lib/notify/intrusion-words";
 import { patchJson } from "@/lib/api/fetch";
 import { timeAgo } from "@/lib/dates";
 import { ALERT_SEVERITY } from "@/lib/constants/statuses";
 
 /** An alert as the bell receives it (app/api/alerts). */
 type BellRow = Alert & { earlier?: boolean };
+
+/** Where a row with no link of its own opens: the list every operator alert is on. */
+const FALLBACK_HREF = "/today";
+
+/** The row as the person reads it: plain title, one line, folded with its repeats. */
+function words(a: BellRow) {
+  const { title, description } = bellWords(a);
+  return { title, summary: splitDescription(description).summary };
+}
+
+/** One line in the bell, the count of what is on /system: never counted, never a dead end. */
+function systemLine(n: number): string {
+  return n === 1
+    ? "1 thing the server noticed needs nothing from you"
+    : `${n} things the server noticed need nothing from you`;
+}
 
 /**
  * The bell's sheet: what still needs you, as rows, then "Earlier".
@@ -33,7 +50,11 @@ export function NotificationPanel({ onClose, titleId }: { onClose: () => void; t
   const [clearing, setClearing] = useState(false);
   const ownId = useId();
   const headingId = titleId ?? ownId;
-  const { current, earlier } = splitBell((data?.alerts ?? []).filter((a) => !gone.has(a.id)));
+  const { current, earlier, onSystem } = splitBell(
+    (data?.alerts ?? []).filter((a) => !gone.has(a.id)),
+  );
+  const currentGroups = groupBell(current, words);
+  const earlierGroups = groupBell(earlier, words);
 
   const dismiss = async (ids: string[]) => {
     setGone((g) => {
@@ -87,18 +108,18 @@ export function NotificationPanel({ onClose, titleId }: { onClose: () => void; t
           </div>
         )}
 
-        {data && current.length === 0 && earlier.length === 0 && (
+        {data && current.length === 0 && earlier.length === 0 && onSystem === 0 && (
           <EmptyState icon={BellOff} title="You're all caught up" size="sm" />
         )}
 
-        {data && current.length === 0 && earlier.length > 0 && (
+        {data && current.length === 0 && (earlier.length > 0 || onSystem > 0) && (
           <p className="ui-notification-quiet">Nothing new needs you.</p>
         )}
 
         {current.length > 0 && (
           <List aria-label="Needs you">
-            {current.map((a) => (
-              <AlertRow key={a.id} alert={a} onDismiss={dismiss} />
+            {currentGroups.map((g) => (
+              <AlertRow key={g.key} group={g} onDismiss={dismiss} />
             ))}
           </List>
         )}
@@ -123,11 +144,17 @@ export function NotificationPanel({ onClose, titleId }: { onClose: () => void; t
               }
             />
             <List aria-label="Earlier notifications">
-              {earlier.map((a) => (
-                <AlertRow key={a.id} alert={a} onDismiss={dismiss} quiet />
+              {earlierGroups.map((g) => (
+                <AlertRow key={g.key} group={g} onDismiss={dismiss} quiet />
               ))}
             </List>
           </section>
+        )}
+
+        {onSystem > 0 && (
+          <List aria-label="On the System page">
+            <ListRow href="/system#system-alerts" title={systemLine(onSystem)} trailing="System" />
+          </List>
         )}
       </div>
     </div>
@@ -135,36 +162,41 @@ export function NotificationPanel({ onClose, titleId }: { onClose: () => void; t
 }
 
 function AlertRow({
-  alert,
+  group,
   onDismiss,
   quiet = false,
 }: {
-  alert: BellRow;
+  group: BellGroup<BellRow>;
   onDismiss: (ids: string[]) => void;
   /** Under "Earlier": a record, so no coloured dot. */
   quiet?: boolean;
 }) {
-  const { summary } = splitDescription(alert.description);
+  const newest = group.rows[0]!;
+  const times = group.rows.length;
+  const summary =
+    times > 1 ? `${times} times · ${group.summary}`.replace(/ · $/, "") : group.summary;
   const status =
-    alert.severity === ALERT_SEVERITY.URGENT
+    newest.severity === ALERT_SEVERITY.URGENT
       ? ("negative" as const)
-      : alert.severity === ALERT_SEVERITY.WARNING
+      : newest.severity === ALERT_SEVERITY.WARNING
         ? ("warning" as const)
         : undefined;
   return (
     <ListRow
-      href={alert.actionUrl ?? undefined}
-      title={alert.title}
+      // Every row opens somewhere: a notice with no button of its own opens
+      // the list it is recorded on, rather than being a row nothing answers.
+      href={newest.actionUrl ?? FALLBACK_HREF}
+      title={group.title}
       secondary={summary || undefined}
       status={summary && !quiet ? status : undefined}
-      trailing={timeAgo(new Date(alert.createdAt).getTime())}
+      trailing={timeAgo(new Date(newest.createdAt).getTime())}
       menu={
         <button
           type="button"
           className="ui-btn-icon"
-          aria-label={`Dismiss: ${alert.title}`}
+          aria-label={`Dismiss: ${group.title}`}
           title="Dismiss"
-          onClick={() => onDismiss([alert.id])}
+          onClick={() => onDismiss(group.rows.map((r) => r.id))}
         >
           <X className="h-4 w-4" aria-hidden />
         </button>
