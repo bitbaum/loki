@@ -17,6 +17,7 @@
  */
 import { APP_URL } from "@/config/brand";
 import type { TranscriptItem } from "@/lib/claude-transcript";
+import { sessionOpenUrl } from "@/lib/dispatch-card";
 
 /** Projects listed in one answer; the same ceiling as actor-status. */
 export const SESSIONS_MAX_PROJECTS = 25;
@@ -51,6 +52,10 @@ export interface SessionRow {
   prUrl: string | null;
   /** Where a person watches this run. */
   statusUrl: string | null;
+  /** The session's name on its builder: the project, or a parallel lane of it. */
+  session: string;
+  /** The same session in Loki's Terminal, on any device the person is signed in on. */
+  openUrl: string;
 }
 
 export interface SessionRowInput {
@@ -70,6 +75,8 @@ export interface SessionRowInput {
   } | null;
   /** Epoch ms of the newest cached transcript frame for the session. */
   transcriptAt: number | null;
+  /** The session's tab when it is not the project's own (a parallel lane). */
+  tab?: string | null;
 }
 
 const STATES: ReadonlySet<string> = new Set([
@@ -128,6 +135,8 @@ export function shapeSessionRow(input: SessionRowInput): SessionRow {
     track: run?.track ?? null,
     prUrl: safeUrl(run?.prUrl),
     statusUrl: run ? runStatusUrl(run.id) : null,
+    session: input.tab || input.project,
+    openUrl: sessionOpenUrl(input.tab || input.project, builder, run?.id ?? null),
   };
 }
 

@@ -56,6 +56,22 @@ async function main(): Promise<void> {
   assert.equal(working.runId, run.id);
   assert.match(working.statusUrl ?? "", /\/api\/orchestration\/runs\/11111111-/);
   assert.equal(working.prUrl, run.prUrl);
+  assert.equal(working.session, "site", "a project's own session is named after it");
+  assert.match(
+    working.openUrl,
+    /^https:\/\/[^/]+\/terminal\?project=site&run=11111111-/,
+    "openUrl is the same session, on that run, in Loki's Terminal",
+  );
+  const lane = shapeSessionRow({
+    project: "site",
+    builderPref: "cloud",
+    presence,
+    run,
+    transcriptAt: null,
+    tab: "site~11111111",
+  });
+  assert.equal(lane.session, "site~11111111", "a parallel lane is named as its own tab");
+  assert.match(lane.openUrl, /\/terminal\?project=site~11111111&run=/);
   console.log("  ✓ a working session: canonical state, one-line task, run and PR");
 
   const local = shapeSessionRow({
@@ -68,6 +84,11 @@ async function main(): Promise<void> {
   assert.equal(local.online, false, "online means the project's own builder");
   assert.equal(local.lastActivityAt, run.lastProgressAt, "no frame: the runner's last progress");
   assert.equal(local.prUrl, null, "a non-http URL never crosses");
+  assert.match(
+    local.openUrl,
+    /\/terminal\?source=machine&tab=site&run=/,
+    "a local session opens on This computer",
+  );
   console.log("  ✓ online follows the preferred builder; unsafe URL dropped");
 
   const idle = shapeSessionRow({
@@ -81,6 +102,7 @@ async function main(): Promise<void> {
   assert.equal(idle.label, "Idle");
   assert.equal(idle.runId, null);
   assert.equal(idle.statusUrl, null);
+  assert.match(idle.openUrl, /\/terminal\?project=quiet$/, "no run: the session itself");
   assert.equal(idle.online, true, "no preference: any builder counts");
   console.log("  ✓ no run on record is idle");
 
