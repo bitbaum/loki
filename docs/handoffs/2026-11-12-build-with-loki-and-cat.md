@@ -68,7 +68,8 @@ signed-in browser. What it could use:
 | 09:11 | First run of `loki-loop-check.yml` (run 43188095136) | "could not mint a session on the box" in two seconds, and a green job: see change 4 |
 | 09:19 | OrangeCat `live-rehearsal.yml` again, on the newest release (run 43188158095) | job success |
 | 09:23 | #1676 merged by the sweep as `7718294` (change 3 and the composer fallback) | the check's fix missed it by a minute and is #1678 |
-| 09:25 | `loki-loop-check.yml` from the branch with the fix (run 43191224470), `dispatch=true` | signed in (it no longer stops at two seconds) and waited on its task; verdict below |
+| 09:25 | `loki-loop-check.yml` from the branch with the fix (run 43191224470), `dispatch=true`, project `loki` | **4 of 5 passed, journey A not proven.** Pass: Loki answered a fleet question from the map (on the owner's xAI key); the map is public with the three pillars live (30 projects, 16 live); bitbaum shows the same map; the task was accepted for the cloud runner. **Fail: the task was still "Queued" after 35 minutes** and the check aborted it. The runner was claiming other dispatches in that time (09:39 UTC), so this task was held back for the `loki` project in particular; the check could not say why and guessed. |
+| 10:03 | The check prints Loki's own reason (the run route's `detail`, the chat reply's words); short re-run from the branch | result below when it is in |
 | 09:40 | The drain reads "8 agent(s) working" | eight is the cap on open agent sessions (`src/lib/agent-session-limit.ts`); the drain's clock restarted at 09:11, 09:22, 09:29 and 09:34 with each deploy |
 | 06:31 | OrangeCat `cat-diagnostics.yml` (read-only) | no Cat failure logged in the last hour |
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
