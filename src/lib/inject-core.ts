@@ -56,6 +56,7 @@ import { promptFingerprint, recordControlAuditEvent } from "@/db/queries/control
 import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { rerouteNotice } from "@/lib/dispatch-status";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { findInjectProject } from "@/lib/inject-project";
@@ -836,11 +837,16 @@ async function executeAndReport(
     };
   }
 
+  const notice = rerouteNotice(channel, reroutedFrom);
   return {
     status: 200,
     body: {
       ok: true,
       tab: effectiveTab,
+      // A reroute said in words too: a caller reading only `channel` would
+      // take a project pinned to an offline computer for one that runs on the
+      // cloud. A runner-offline message further down replaces it.
+      ...(notice ? { message: notice } : {}),
       mode: result.mode,
       // Which builder this went to. The operator should never have to guess
       // which machine has their work — especially when it queues.
