@@ -1,4 +1,4 @@
-import { promptForLane } from "@/lib/orchestration/lane-prompt";
+import { promptForLane, promptForOneOff } from "@/lib/orchestration/lane-prompt";
 import { MAX_PARALLEL_LANES_PER_PROJECT, deriveRunTab } from "@/lib/run-tab";
 import { countOpenParallelLanes, mergeRunPayload } from "@/db/queries/orchestration-runs";
 
@@ -54,8 +54,13 @@ export async function planParallelRun(
   userId: string,
   runId: string | null | undefined,
   ctx: { projectKey: string; prompt: string },
+  /** A fresh one-off session: asked for by name, so the server flag (which
+   *  decides what a BUSY project does unasked) does not apply. The lane limit
+   *  does. Its run is marked so the tab is closed when the run closes. */
+  oneOff?: { channel?: string | null },
 ): Promise<ParallelRunPlan | null> {
-  if (!PARALLEL_DISPATCH_ENABLED || !runId) return null;
+  if (!runId) return null;
+  if (!oneOff && !PARALLEL_DISPATCH_ENABLED) return null;
 
   const open = await countOpenParallelLanes(userId, ctx.projectKey, runId).catch(() => Infinity);
   if (open >= MAX_PARALLEL_LANES_PER_PROJECT) return null;
@@ -64,11 +69,19 @@ export async function planParallelRun(
   // The alias is what the close path matches a pushed handoff on. Without it
   // persisted, a parallel run would finish and never close — worse than
   // waiting its turn — so any failure here keeps the queue.
-  const stamped = await mergeRunPayload(runId, { sessionTab: tab }).catch((err: unknown) => {
+  const stamped = await mergeRunPayload(runId, {
+    sessionTab: tab,
+    ...(oneOff
+      ? { oneOff: true, ...(oneOff.channel ? { oneOffChannel: oneOff.channel } : {}) }
+      : {}),
+  }).catch((err: unknown) => {
     console.error("[parallel-run] sessionTab persist failed, keeping the queue:", err);
     return false;
   });
   if (!stamped) return null;
 
-  return { tab, prompt: promptForLane(ctx.prompt, tab) };
+  return {
+    tab,
+    prompt: oneOff ? promptForOneOff(ctx.prompt, tab) : promptForLane(ctx.prompt, tab),
+  };
 }

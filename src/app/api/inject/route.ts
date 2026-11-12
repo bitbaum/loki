@@ -26,13 +26,16 @@ const InjectBody = z
     // Chat-originated dispatches (Loki's fleet skill) ask for the outcome to be
     // pushed back to chat on close — see lib/orchestration/notify-close.ts.
     notifyOnClose: z.boolean().optional(),
+    // "fresh": a new session in its own worktree for this one prompt, closed
+    // when it reports; never the project's shared session (inject-core).
+    session: z.enum(["shared", "fresh"]).optional(),
   })
   .refine((d) => d.promptKey || d.customPrompt, { message: "promptKey or customPrompt required" });
 
 export async function POST(req: NextRequest) {
   const dataOrResp = await readJsonBody(req, InjectBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { tab, promptKey, adapter, runId, notifyOnClose, attachments } = dataOrResp;
+  const { tab, promptKey, adapter, runId, notifyOnClose, attachments, session } = dataOrResp;
   // Screenshots become text before anything downstream sees the prompt, so the
   // agent, prompt history and Activity all record the same instruction.
   const customPrompt = dataOrResp.customPrompt
@@ -73,7 +76,7 @@ export async function POST(req: NextRequest) {
   const announce = shouldAnnounceOnClose(actor, notifyOnClose);
 
   const { status, body } = await injectPrompt(
-    { tab, promptKey, customPrompt, adapter, runId, notifyOnClose: announce },
+    { tab, promptKey, customPrompt, adapter, runId, notifyOnClose: announce, session },
     userId,
   );
   return NextResponse.json(body, { status });

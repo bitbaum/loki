@@ -69,7 +69,12 @@ export type McpServices = {
     decision: "approve" | "reject",
     extra: { reason?: string; meta: Record<string, unknown> },
   ): Promise<DecideActionOutcome>;
-  dispatch(userId: string, project: string, task: string): Promise<InjectResult>;
+  dispatch(
+    userId: string,
+    project: string,
+    task: string,
+    opts?: { session?: "shared" | "fresh" },
+  ): Promise<InjectResult>;
   book(userId: string, request: BookRequest): Promise<EnqueueReport>;
   projects(userId: string): Promise<ProjectSummary[]>;
   /** The /fill link for a known form. Null when the recipe or its parameters

@@ -17,13 +17,29 @@
  */
 export type WhenBusy = "queue" | "lane";
 
+/**
+ * Which conversation a dispatch is for.
+ *
+ * "shared" (the default) is the project's one long-lived session. "fresh" is a
+ * session of its own for ONE prompt: a new agent in its own worktree
+ * (docs/architecture/worktree-per-agent.md) that answers, reports and is
+ * closed. It exists because a one-off question typed into the shared session
+ * does not stay one-off: on 2026-11-12 "only run git status, then stop" was
+ * answered, and then the session went back to its own plan and edited tests.
+ * A fresh session never types into the shared tab, busy or not: when it
+ * cannot have a lane of its own, it is refused.
+ */
+export type DispatchSession = "shared" | "fresh";
+
 export type BusyPlacement =
   /** Nothing is ahead of it: dispatch as usual. */
   | "now"
   /** Wait for the open run; the runner claims it when the project frees. */
   | "queue"
   /** Ask for a parallel lane; the queue still takes it when none is free. */
-  | "lane";
+  | "lane"
+  /** A one-off session in a lane of its own, or nothing at all. */
+  | "fresh";
 
 export function busyPlacement(input: {
   projectBusy: boolean | undefined;
@@ -31,7 +47,9 @@ export function busyPlacement(input: {
   /** A lane is a worktree of a checkout: without a directory there is none. */
   hasDir: boolean;
   hasProjectKey: boolean;
+  session?: DispatchSession;
 }): BusyPlacement {
+  if (input.session === "fresh") return "fresh";
   if (!input.projectBusy) return "now";
   if (input.whenBusy !== "lane") return "queue";
   return input.hasDir && input.hasProjectKey ? "lane" : "queue";
