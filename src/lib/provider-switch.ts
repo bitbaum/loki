@@ -305,6 +305,9 @@ export type ProviderRunEvidence = {
   adapter: string;
   error?: string | null;
   startedAt: Date | string;
+  /** "success" once the run closed done. A provider that answered since its
+   *  wall is not spent any more. */
+  outcome?: string | null;
 };
 
 /**
@@ -324,9 +327,18 @@ export function spentProviders(
   windowMs: number = PROVIDER_SPENT_WINDOW_MS,
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const run of runs) {
+  // Newest first decides: a provider that finished a run AFTER its last wall
+  // has answered since, so the wall is history (2026-11-12: Claude stayed
+  // "spent" for an hour after it had finished the next task).
+  const answered = new Set<string>();
+  const sorted = [...runs].sort((a, b) => toMs(b.startedAt) - toMs(a.startedAt));
+  for (const run of sorted) {
     if (!isQuotaAlternativeId(run.adapter)) continue;
-    if (out[run.adapter]) continue;
+    if (out[run.adapter] || answered.has(run.adapter)) continue;
+    if (run.outcome === "success") {
+      answered.add(run.adapter);
+      continue;
+    }
     const error = run.error?.trim();
     if (!error) continue;
     const capacity = looksLikeAgentCapacityIssue(error);
@@ -339,6 +351,11 @@ export function spentProviders(
       : `${providerLabel(run.adapter)} opened but never answered ${ago} — it may still be stuck.`;
   }
   return out;
+}
+
+function toMs(at: Date | string): number {
+  const ms = at instanceof Date ? at.getTime() : Date.parse(at);
+  return Number.isFinite(ms) ? ms : 0;
 }
 
 function minutesAgo(deltaMs: number): string {

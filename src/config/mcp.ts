@@ -53,6 +53,8 @@ export const MCP_TOOL_SCOPES = {
   ask_loki: MCP_SCOPE.chat,
   loki_pending_approvals: MCP_SCOPE.chat,
   loki_projects: MCP_SCOPE.chat,
+  loki_sessions: MCP_SCOPE.chat,
+  loki_session_read: MCP_SCOPE.chat,
   loki_decide: MCP_SCOPE.act,
   loki_dispatch: MCP_SCOPE.act,
   loki_book: MCP_SCOPE.act,
@@ -107,6 +109,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   `${APP_NAME} is the owner's execution layer: it holds their registered software projects, the AI agent fleet that works on them, their calendar, and an approval queue for anything done in their name.`,
   "Use ask_loki for questions about their projects, fleet activity, people, commitments or schedule — it answers from their own records.",
   "Use loki_projects to find the exact project name before loki_dispatch, which sends a coding task to that project's agent; the outcome arrives later as a notification, so do not poll for it.",
+  "Use loki_sessions to see which agent sessions are open on the owner's builders, and loki_session_read to read what a session's terminal shows now: that is how to read an agent's answer after loki_dispatch. Give the owner the session's link when they want to look or type themselves.",
   "Use loki_book to put an appointment in their calendar, with absolute ISO 8601 times that include the offset. Report the returned status literally: 'awaiting-approval' is not booked.",
   "Use loki_pending_approvals to see what waits for the owner's yes, and loki_decide only when the owner has explicitly approved or rejected that specific item in this conversation — approving executes it.",
 ].join("\n");
