@@ -15,6 +15,7 @@
  * only importer, so the dispatcher and tools stay loadable without one.
  */
 import { askLoki } from "@/lib/loki-core";
+import { answerApproval, listPendingApprovals } from "@/db/queries/approvals";
 import { injectPrompt } from "@/lib/inject-core";
 import { getPendingActions } from "@/db/queries/actions";
 import { getUserProjects } from "@/db/queries/user-projects";
@@ -103,6 +104,10 @@ export const lokiMcpServices: McpServices = {
       reportedAt: snap.updatedAt ? snap.updatedAt.toISOString() : null,
       tabs: snap.openTabs ?? [],
     })),
+
+  sessionApprovals: (userId, tab) => listPendingApprovals(userId, tab ?? null),
+  answerSessionApproval: (userId, approvalId, decision) =>
+    answerApproval({ userId, approvalId, decision, answeredBy: { userId, via: "mcp" } }),
 
   readSession: async (userId, tab, channel) => {
     const id = await enqueuePendingCommand({

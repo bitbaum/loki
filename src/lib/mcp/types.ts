@@ -1,3 +1,5 @@
+import type { PendingApproval as SessionApproval, ApprovalDecision } from "@/lib/approvals";
+import type { ApprovalAnswerResult } from "@/db/queries/approvals";
 /**
  * The shapes the MCP server passes between its layers.
  *
@@ -93,6 +95,14 @@ export type McpServices = {
   projects(userId: string): Promise<ProjectSummary[]>;
   /** Open agent sessions per builder, as the runners last reported them. */
   sessions(userId: string): Promise<SessionsOnBuilder[]>;
+  /** Permission prompts the account's agent sessions are waiting on (lib/approvals). */
+  sessionApprovals(userId: string, tab?: string | null): Promise<SessionApproval[]>;
+  /** Answer one of them (db/queries/approvals answerApproval). */
+  answerSessionApproval(
+    userId: string,
+    approvalId: string,
+    decision: ApprovalDecision,
+  ): Promise<ApprovalAnswerResult>;
   /** One capture of a session's terminal output, raw, from a builder. */
   readSession(userId: string, tab: string, channel?: "cloud" | "local"): Promise<SessionRead>;
   /** The /fill link for a known form. Null when the recipe or its parameters

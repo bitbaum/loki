@@ -83,7 +83,12 @@ export type RunTrack = {
   live: RunLiveStatus | null;
 };
 
-export type RunLiveStatus = "queued" | "starting" | "working" | "needs_you";
+/**
+ * `waiting_approval`: the agent is at a permission prompt (a tool, a trust
+ * dialog, a plan, a network request) that a person or an agent can answer
+ * from Loki (lib/approvals). Not "working", and more exact than needs_you.
+ */
+export type RunLiveStatus = "queued" | "starting" | "working" | "waiting_approval" | "needs_you";
 
 export type RunTrackInput = {
   eventKinds: RunEventKind[];
@@ -99,6 +104,9 @@ export type RunTrackInput = {
   lastProgressAt: string | null;
   /** The runner can name why the agent is quiet — a login prompt, a question. */
   needsYou: string | null;
+  /** The agent is at a permission prompt that can be answered from Loki
+   *  (lib/approvals): its headline, with how long it has waited. */
+  awaitingApproval?: { headline: string; since: string | null } | null;
   /** Which builder has it, in words ("the cloud builder", "this computer"). */
   builderLabel: string | null;
   /**
@@ -413,6 +421,12 @@ function workingStage(f: Facts): TrackStage {
           { at: f.input.run?.finishedAt ?? null, facts },
         );
   if (!f.started) return stage("working", `${p} makes the change`, "next");
+  if (f.input.awaitingApproval)
+    return stage("working", `${p} is waiting for your approval`, "attention", {
+      note: f.input.awaitingApproval.headline,
+      at: f.input.awaitingApproval.since ?? t.blocked ?? f.startedWorkAt,
+      facts,
+    });
   if (f.input.needsYou || f.lastKind === "blocked")
     return stage("working", `${p} needs you`, "attention", {
       note: f.input.needsYou ?? "It is waiting for an answer.",
@@ -577,6 +591,7 @@ function liveStage(f: Facts): TrackStage {
  */
 function liveStatusOf(f: Facts, builder: TrackStage, work: TrackStage): RunLiveStatus | null {
   if (f.finished) return null;
+  if (f.input.awaitingApproval) return "waiting_approval";
   if (work.state === "attention" || builder.state === "attention") return "needs_you";
   if (f.working || f.generated) return "working";
   if (f.started) return "starting";

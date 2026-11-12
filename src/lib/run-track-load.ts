@@ -41,6 +41,7 @@ import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { isProjectBusy } from "@/db/queries/orchestration-runs";
 import { queuedBehindLabel, queuedBehindSentence } from "@/lib/dispatch-status";
 import { findQueueBlockers } from "@/db/queries/pending-commands";
+import { approvalHeadline } from "@/lib/approvals";
 import { isPreviewDir } from "@/lib/previews/root";
 import { findLiveRunEvidence, repoTokenFor } from "@/lib/run-evidence-live";
 import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
@@ -74,6 +75,10 @@ export type TrackableRun = {
     beforePicture?: string;
     reroutedFrom?: string | null;
     sessionTab?: string | null;
+    /** At a permission prompt (lib/approvals): what, and since when. */
+    blocked?: string | null;
+    blockedQuestion?: string | null;
+    blockedAt?: string | null;
   } | null;
 };
 
@@ -276,6 +281,18 @@ export async function loadRunTrack(
           : snap?.blocked === RUN_BLOCKED.EXITED
             ? `It stopped: ${snap.blockedQuestion?.trim() || "the agent process ended"}`
             : null,
+    // The run's own permission prompt, answerable from Loki (lib/approvals).
+    awaitingApproval:
+      !finished && run.payload?.blocked === RUN_BLOCKED.PERMISSION
+        ? {
+            headline: approvalHeadline(
+              run.payload.blockedQuestion ?? "",
+              run.payload.blockedAt ?? null,
+              now,
+            ),
+            since: run.payload.blockedAt ?? null,
+          }
+        : null,
     builderLabel: BUILDER_WORDS[snap?.builderChannel ?? ""] ?? null,
     evidence,
     repo,

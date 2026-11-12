@@ -125,6 +125,16 @@ export type OrchestrationRunPayload = {
   /** With `blocked`: the agent's question, or why it stopped, as the runner
    *  read it off the screen (stampRunProgress). */
   blockedQuestion?: string | null;
+  /** When the current block began (stampRunProgress): how long a person has kept it waiting. */
+  blockedAt?: string | null;
+  /** The last permission prompt answered from Loki (db/queries/approvals): who, how, when. */
+  lastApproval?: {
+    decision: string;
+    by: string;
+    via: string;
+    at: string;
+    question: string;
+  } | null;
   /** What the agent was doing at the last beat that could read its log
    *  (lib/run-step) — the line a Control job card shows. */
   lastStep?: { text: string; at: string };

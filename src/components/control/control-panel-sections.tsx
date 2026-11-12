@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingApprovals } from "@/components/approvals/PendingApprovals";
 import Link from "next/link";
 import { FolderGit2, Sparkles } from "lucide-react";
 import type { ComponentProps, ReactNode, RefObject } from "react";
@@ -126,6 +127,8 @@ export function ControlNotices({
   return (
     <>
       {error && <p className="ui-box-error">{error}</p>}
+      {/* An agent at a permission prompt, answerable here (lib/approvals). */}
+      <PendingApprovals />
       {(queuedNotice || switchNotice) && (
         <div className="ui-control-notice">
           <Sparkles className="h-3.5 w-3.5 shrink-0" />
