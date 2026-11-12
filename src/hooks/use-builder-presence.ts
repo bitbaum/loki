@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { getJson } from "@/lib/api/fetch";
+import type { CloudBuilderScope } from "@/lib/cloud-builder-scope";
 
 export type BuilderPresenceSnapshot = {
   runnerConnected: boolean | null;
@@ -13,6 +14,8 @@ export type BuilderPresenceSnapshot = {
    * an account that has the cloud, a download is never the way forward.
    */
   cloudBuilderAllowed: boolean | null;
+  /** Whose cloud builder this account's "cloud" is (lib/cloud-builder-scope). */
+  cloudScope: CloudBuilderScope | null;
 };
 
 const EMPTY: BuilderPresenceSnapshot = {
@@ -20,6 +23,7 @@ const EMPTY: BuilderPresenceSnapshot = {
   runtimeAvailable: false,
   builderPresence: null,
   cloudBuilderAllowed: null,
+  cloudScope: null,
 };
 
 const POLL_MS = 15_000;
@@ -48,6 +52,7 @@ async function load(): Promise<void> {
       runtimeAvailable?: boolean;
       builderPresence?: { cloud: boolean; local: boolean; any: boolean } | null;
       cloudBuilderAllowed?: boolean | null;
+      cloudScope?: CloudBuilderScope | null;
     }>("/api/builder/presence");
     snapshot = {
       runnerConnected: data.runnerConnected ?? data.builderPresence?.any ?? null,
@@ -55,6 +60,10 @@ async function load(): Promise<void> {
       builderPresence: data.builderPresence ?? null,
       cloudBuilderAllowed:
         typeof data.cloudBuilderAllowed === "boolean" ? data.cloudBuilderAllowed : null,
+      cloudScope:
+        data.cloudScope === "fleet" || data.cloudScope === "private" || data.cloudScope === "none"
+          ? data.cloudScope
+          : null,
     };
   } catch {
     snapshot = EMPTY;
