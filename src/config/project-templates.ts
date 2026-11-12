@@ -27,31 +27,31 @@ export const PROVISION_TEMPLATES = [
     id: "nextjs-tailwind",
     label: "Next.js 16 — the bitbaum starter",
     description:
-      "The fleet starter: accounts (password, link, passkey, 2FA, OrangeCat), English/German/French, strict security headers, Postgres, tests and CI. Deploys to *.orangecat.ch.",
+      "A full website or app with sign-in, three languages and a database, ready to go live.",
     keywords: ["next.js", "nextjs", "react", "tailwind", "vercel", "shadcn"],
   },
   {
     id: "python-fastapi",
     label: "Python + FastAPI (uv)",
-    description: "Async API in Python. uv handles deps. `uv run uvicorn src.main:app --reload`.",
+    description: "A service other programs talk to, written in Python.",
     keywords: ["python", "fastapi", "django", "flask", "pydantic", "uvicorn"],
   },
   {
     id: "hono-cloudflare",
     label: "Hono + Cloudflare Workers",
-    description: "Edge-serverless TypeScript. 100k free requests/day, ms-scale cold starts.",
+    description: "A small, fast service that runs close to your visitors.",
     keywords: ["hono", "cloudflare", "workers", "wrangler", "edge runtime"],
   },
   {
     id: "html-tailwind",
     label: "Plain HTML + Tailwind (no build)",
-    description: "One HTML file. Open in a browser. Perfect for a landing page or quick demo.",
+    description: "A simple one-page site, such as a landing page or a quick demo.",
     keywords: ["static site", "static html", "plain html", "jekyll", "hugo", "astro"],
   },
   {
     id: "bare",
-    label: "Empty (just a README)",
-    description: "Just a README. Bring your own stack.",
+    label: "Let Loki choose",
+    description: "No starter. Loki picks what fits your idea when it builds.",
     keywords: [],
   },
 ] as const;

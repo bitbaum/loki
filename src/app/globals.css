@@ -473,6 +473,13 @@
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
+  /* Native radios and checkboxes take the ink, not the browser's default blue
+     (the same choice .ui-inspection-choice makes). A component may still set
+     its own accent-color. */
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--text-primary);
+  }
   * {
     @apply border-border outline-ring/50;
   }
@@ -4460,6 +4467,10 @@
   }
   .ui-callout-accent {
     @apply flex items-start gap-3 rounded-xl border border-accent-primary/20 bg-accent-muted px-4 py-3 text-sm;
+  }
+  /* Neutral: information that is not a warning. Amber is kept for a real one. */
+  .ui-callout {
+    @apply flex items-start gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3 text-sm;
   }
 
   /* Clickable row inside a list — subtle hover, no shadow. */

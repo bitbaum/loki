@@ -74,8 +74,9 @@ export function RepoMultiPicker({ onSelectionChange, filter = "" }: Props) {
   if (repos.length === 0) {
     return (
       <div className="ui-empty-page">
-        <p className="ui-page-subtitle">No repos found.</p>
-        <p className="ui-text-muted">{error || "GitHub returned no repositories you own."}</p>
+        <p className="ui-page-subtitle">No code found on GitHub.</p>
+        <p className="ui-text-muted">{error || "GitHub showed Loki nothing you own."}</p>
+        <GithubAccessLink />
       </div>
     );
   }
@@ -90,10 +91,10 @@ export function RepoMultiPicker({ onSelectionChange, filter = "" }: Props) {
           )}
         </span>
         <div className="flex gap-2">
-          <button type="button" onClick={selectAll} className="ui-btn-ghost ui-btn-xs">
+          <button type="button" onClick={selectAll} className="ui-btn-ghost ui-btn-xs ui-tap">
             Select all
           </button>
-          <button type="button" onClick={selectNone} className="ui-btn-ghost ui-btn-xs">
+          <button type="button" onClick={selectNone} className="ui-btn-ghost ui-btn-xs ui-tap">
             Clear
           </button>
         </div>
@@ -122,6 +123,28 @@ export function RepoMultiPicker({ onSelectionChange, filter = "" }: Props) {
           );
         })}
       </div>
+      <GithubAccessLink />
     </div>
+  );
+}
+
+/**
+ * The way forward when a repository is missing — usually one in an
+ * organisation that has not granted Loki access. GitHub's own page for the
+ * apps you have authorised is where that is granted.
+ */
+function GithubAccessLink() {
+  return (
+    <p className="text-sm text-text-muted">
+      Missing one?{" "}
+      <a
+        href="https://github.com/settings/applications"
+        target="_blank"
+        rel="noreferrer"
+        className="ui-tap inline-flex items-center underline underline-offset-2"
+      >
+        Give Loki access on GitHub
+      </a>
+    </p>
   );
 }

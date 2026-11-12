@@ -341,7 +341,7 @@ function NewFromScratchForm() {
   return (
     <PageLayout
       title="Start a new project"
-      subtitle="Name it and say what you want to build. Loki creates the GitHub repo and — unless you choose otherwise below — picks the best stack and sets it up for you. No technical decisions required."
+      subtitle="Name it and say what you want to build. Loki makes a private place for the code and sets it up."
       back={{ href: "/control", label: "Back to Home" }}
     >
       <div className="max-w-2xl space-y-6">
@@ -382,7 +382,8 @@ function NewFromScratchForm() {
                 className="ui-input w-full resize-y"
               />
               <p className="text-xs text-text-tertiary mt-1">
-                Plain English. The agent uses this to choose the stack and build the first version.
+                In your own words. Loki uses this to choose how to build it and to make the first
+                version.
               </p>
             </div>
 
@@ -390,7 +391,7 @@ function NewFromScratchForm() {
                 choose a stack. Defaults: private repo + agent picks the stack. */}
             <details className="ui-card-shell px-3 py-2">
               <summary className="cursor-pointer text-sm font-medium text-text-secondary">
-                Advanced — choose the stack &amp; visibility yourself
+                Advanced — choose the starter and who can see the code
               </summary>
               <div className="mt-4 space-y-4">
                 <div>
@@ -406,7 +407,7 @@ function NewFromScratchForm() {
                       />
                       <div>
                         <div className="text-sm font-medium">Private</div>
-                        <div className="text-xs text-text-muted">Only you can see this repo.</div>
+                        <div className="text-xs text-text-muted">Only you can see the code.</div>
                       </div>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer flex-1 ui-card-shell p-3">
@@ -428,8 +429,8 @@ function NewFromScratchForm() {
                 <div>
                   <div className="text-sm font-medium text-text-primary mb-1">Starter</div>
                   <p className="text-xs text-text-tertiary mb-2">
-                    Leave on <strong>Empty</strong> and the agent picks the stack that fits your
-                    idea.
+                    Leave on <strong>Let Loki choose</strong> (recommended) and Loki picks what fits
+                    your idea.
                   </p>
                   <div className="space-y-2">
                     {PROVISION_TEMPLATES.map((t) => (
