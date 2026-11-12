@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { DEFAULT_USER_NAME } from "@/lib/constants";
 import { ROUTES } from "@/config/auth";
 import { validateAgentToken } from "@/db/queries/agent-tokens";
+import { tokenMayActAsRunner } from "@/lib/agent-token-kind";
 import { getUserById, getUserByEmail } from "@/db/queries/users";
 import { envAlias, envAliasBool } from "@/lib/brand-env";
 import { isValidUuid } from "@/lib/utils";
@@ -98,6 +99,25 @@ export async function getApiActor(): Promise<ApiActor | null> {
 }
 
 export async function getApiUserId(): Promise<string | null> {
+  return apiUserId({ asRunner: false });
+}
+
+/**
+ * Who is calling a route only a builder may call: claiming and acking
+ * commands, posting the PTY's frames, transcript, runtime state and a run's
+ * progress. A person's session passes, as does any token except one minted as
+ * kind "agent" (see agent-tokens schema).
+ *
+ * Why: until 2026-11-12 every ck_ token could do all of it, so a token handed
+ * to an agent so it could drive sessions could also claim another builder's
+ * work, or post a screen or a "working" beat that no PTY ever printed — and
+ * the owner reads those as the truth (RUN-STATUS-SSOT's one alive bit).
+ */
+export async function getRunnerApiUserId(): Promise<string | null> {
+  return apiUserId({ asRunner: true });
+}
+
+async function apiUserId({ asRunner }: { asRunner: boolean }): Promise<string | null> {
   // Cookie-based session (web UI).
   const userId = await resolveSessionUserId();
   if (userId) return userId;
@@ -111,7 +131,7 @@ export async function getApiUserId(): Promise<string | null> {
   // DB agent token (ck_*) — preferred path. Per-user, per-device, revocable.
   if (bearer.startsWith("ck_")) {
     const result = await validateAgentToken(bearer);
-    if (result) return result.userId;
+    if (result) return asRunner && !tokenMayActAsRunner(result.kind) ? null : result.userId;
     // Fall through: a ck_-prefixed bearer can still be a legacy env-var token
     // on single-tenant local installs that haven't minted a per-user token yet.
   }

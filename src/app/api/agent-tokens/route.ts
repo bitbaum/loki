@@ -3,9 +3,15 @@ import { getSessionUserId } from "@/lib/session";
 import { createAgentToken, listAgentTokens, deleteAgentToken } from "@/db/queries/agent-tokens";
 import { getOwnerOrgId } from "@/db/queries/orgs";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
+import { AGENT_TOKEN_KINDS } from "@/db/schema/agent-tokens";
 
 const CreateBody = z.object({
   label: z.string().trim().min(1).max(80),
+  /** "agent": drives sessions but may not act as a builder (claim commands,
+   *  post screens, transcript, state or progress). Default "runner", which is
+   *  what every token was before the kind existed — a builder's pairing needs
+   *  it, and an older client that sends no kind keeps working. */
+  kind: z.enum(AGENT_TOKEN_KINDS).optional(),
 });
 
 const DeleteBody = z.object({
@@ -34,10 +40,10 @@ export async function POST(req: NextRequest) {
 
   const dataOrResp = await readJsonBody(req, CreateBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { label } = dataOrResp;
+  const { label, kind } = dataOrResp;
 
   const orgId = await getOwnerOrgId(userId);
-  const { token, record } = await createAgentToken(userId, label, orgId);
+  const { token, record } = await createAgentToken(userId, label, orgId, kind ?? "runner");
 
   // Return the plaintext token exactly once — caller must store it. Also send
   // the prefix so the client can optimistically render the new row in the list
@@ -46,6 +52,7 @@ export async function POST(req: NextRequest) {
     token,
     id: record.id,
     label: record.label,
+    kind: record.kind,
     createdAt: record.createdAt,
     prefix: token.slice(0, 12) + "…",
   });

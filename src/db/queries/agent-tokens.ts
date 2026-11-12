@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import { db } from "@/db";
-import { agentTokens, type AgentToken } from "@/db/schema";
+import { agentTokens, type AgentToken, type AgentTokenKind } from "@/db/schema";
 import { eq, and, or, gt, isNull, lt, desc, sql } from "drizzle-orm";
 import { DAY_MS, WEEK_MS } from "@/lib/constants/time";
 
@@ -12,11 +12,12 @@ export async function createAgentToken(
   userId: string,
   label: string,
   orgId?: string | null,
+  kind: AgentTokenKind = "runner",
 ): Promise<{ token: string; record: AgentToken }> {
   const token = generateToken();
   const [record] = await db
     .insert(agentTokens)
-    .values({ token, label, userId, orgId: orgId ?? null })
+    .values({ token, label, userId, orgId: orgId ?? null, kind })
     .returning();
   return { token, record };
 }
@@ -106,10 +107,15 @@ export async function deleteStaleEventStreamTokens(
 /** Validates a bearer token and returns the associated userId, or null if invalid/expired. */
 export async function validateAgentToken(
   token: string,
-): Promise<{ userId: string; orgId: string | null } | null> {
+): Promise<{ userId: string; orgId: string | null; kind: AgentTokenKind } | null> {
   const now = new Date();
   const [row] = await db
-    .select({ id: agentTokens.id, userId: agentTokens.userId, orgId: agentTokens.orgId })
+    .select({
+      id: agentTokens.id,
+      userId: agentTokens.userId,
+      orgId: agentTokens.orgId,
+      kind: agentTokens.kind,
+    })
     .from(agentTokens)
     .where(
       and(
@@ -127,5 +133,5 @@ export async function validateAgentToken(
     .where(eq(agentTokens.id, row.id))
     .catch(() => {});
 
-  return { userId: row.userId, orgId: row.orgId };
+  return { userId: row.userId, orgId: row.orgId, kind: row.kind };
 }

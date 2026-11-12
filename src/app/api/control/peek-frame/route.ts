@@ -10,7 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
-import { getApiUserId } from "@/lib/session";
+import { getRunnerApiUserId } from "@/lib/session";
 import { emitPeekFrame } from "@/lib/sse-bus";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 
@@ -29,7 +29,7 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const userId = await getApiUserId();
+  const userId = await getRunnerApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const dataOrResp = await readJsonBody(req, Body);

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getApiUserId } from "@/lib/session";
+import { getRunnerApiUserId } from "@/lib/session";
 import { isValidUuid } from "@/lib/utils";
 import {
   closeRunAgentExited,
@@ -23,7 +23,7 @@ import {
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const userId = await getApiUserId();
+  const userId = await getRunnerApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isValidUuid(id)) return NextResponse.json({ error: "Invalid run id" }, { status: 400 });
   const body = (await req.json().catch(() => ({}))) as {

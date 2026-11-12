@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { claimNextPendingCommand } from "@/db/queries/pending-commands";
-import { getApiUserId } from "@/lib/session";
+import { getRunnerApiUserId } from "@/lib/session";
 import { RUNNER_LONG_POLL_MS } from "@/lib/constants/runner";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
 import { z } from "@/lib/api/route-helpers";
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   // row after a reseed) by verified email instead of polling under a dangling id
   // — THEN falls back to the runner's Bearer token. Per-user either way: a token
   // must never claim another account's commands, even on a shared host.
-  const userId = await getApiUserId();
+  const userId = await getRunnerApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userIds = [userId];
 

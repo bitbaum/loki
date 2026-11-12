@@ -58,7 +58,11 @@ the script also refuses to send it to an origin other than `LOKI_URL`):
 
 Handing a QA bot a seat: the project's owner gives the bot's own account a
 Viewer or Reporter seat (never Owner or Editor), and the bot mints its token
-at `POST /api/agent-tokens` with its own session. Any seat may file.
+at `POST /api/agent-tokens` with its own session, as `{"label": "…", "kind": "agent"}`.
+An agent token drives sessions and files reports; it cannot act as a builder
+(claim or ack commands, post a screen, transcript, state or progress). A token
+minted without `kind` is a builder's (`runner`), as every token was before.
+Any seat may file.
 
 A person's OrangeCat bot files through the same contract without a seat token
 of its own: `POST /api/orangecat/feedback` on the signed OrangeCat rail files

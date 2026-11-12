@@ -9,7 +9,7 @@ import {
 import { recordSessionHandoffChangelog } from "@/db/queries/user-projects";
 import { upsertRuntimeSnapshotIfNewer } from "@/db/queries/runtime-snapshots";
 import type { PaneRecord } from "@/db/schema/runtime-snapshots";
-import { getApiUserId } from "@/lib/session";
+import { getRunnerApiUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { emitStateChanged } from "@/lib/sse-bus";
 import { writePromptQueueMirror } from "@/lib/prompt-queue-mirror";
@@ -86,7 +86,7 @@ function tsOrNull(epochS: number | null | undefined): Date | null {
 // ownership by global project-name lookup, which silently merged state across
 // tenants when two users had a project with the same name.
 export async function POST(req: NextRequest) {
-  const userId = await getApiUserId();
+  const userId = await getRunnerApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: {

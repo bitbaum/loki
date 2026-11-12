@@ -7,7 +7,7 @@ import {
   stampRunInjectAck,
 } from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
-import { getApiUserId } from "@/lib/session";
+import { getApiUserId, getRunnerApiUserId } from "@/lib/session";
 import {
   alignLiveViewWithTrack,
   deriveDispatchLiveStatus,
@@ -65,7 +65,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // PATCH /api/control/commands/:id  body: { ok: boolean, error?: string }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const userId = await getApiUserId();
+  const userId = await getRunnerApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
