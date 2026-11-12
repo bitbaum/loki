@@ -210,10 +210,18 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
     input: z.object({
       project: z.string().trim().min(1).max(80),
       task: z.string().trim().min(1).max(MCP_MESSAGE_MAX_CHARS),
+      session: z
+        .enum(["shared", "fresh"])
+        .optional()
+        .describe(
+          "shared (default): the project's one long-lived agent session, which keeps its own plan and waits its turn when busy. fresh: a new session in its own copy of the project for this one task, closed when it reports; use it for a one-off question or check that must not continue or disturb the project's ongoing work.",
+        ),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async run(args, { userId, services }) {
-      const { status, body } = await services.dispatch(userId, args.project, args.task);
+      const { status, body } = await services.dispatch(userId, args.project, args.task, {
+        session: args.session,
+      });
       if (status === 404) {
         return toolError(
           `${String(body.error ?? "Project not found")}. Call loki_projects for the names Loki knows.`,
@@ -231,7 +239,9 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
             : "the cloud runner";
       const how =
         body.mode === "queued"
-          ? `Queued for ${where}.`
+          ? body.session === "fresh"
+            ? `Queued for ${where} as a fresh one-off session.`
+            : `Queued for ${where}.`
           : `Delivered to the ${String(body.tab ?? args.project)} agent.`;
       const warning = typeof body.message === "string" ? ` ${body.message}` : "";
       return text(

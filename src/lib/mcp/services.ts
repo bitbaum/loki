@@ -66,8 +66,11 @@ export const lokiMcpServices: McpServices = {
 
   // notifyOnClose: the person is not watching a Loki tab — the outcome has to
   // come to them, exactly as it does for a dispatch asked for in Telegram.
-  dispatch: (userId, project, task) =>
-    injectPrompt({ tab: project, customPrompt: task, notifyOnClose: true }, userId),
+  dispatch: (userId, project, task, opts) =>
+    injectPrompt(
+      { tab: project, customPrompt: task, notifyOnClose: true, session: opts?.session },
+      userId,
+    ),
 
   // operatorRequested: the owner asked for this in words, just now, through
   // the app they connected — the per-item card is what they would expect.

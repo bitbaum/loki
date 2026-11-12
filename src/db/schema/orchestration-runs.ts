@@ -47,6 +47,11 @@ export type OrchestrationRunPayload = {
    *  this tab; close matching keys on it (closeOpenRunBySessionTab). Absent
    *  for ordinary runs. */
   sessionTab?: string;
+  /** A fresh one-off session (inject `session: "fresh"`): its lane tab is
+   *  closed when the run closes. */
+  oneOff?: boolean;
+  /** The builder a one-off session runs on, so its tab is closed there. */
+  oneOffChannel?: string;
   /** The agent this run was MEANT for, when Loki started a different one
    *  because that agent was observed out of quota (routeAroundSpent). Absent
    *  when the run went where it was sent. */
