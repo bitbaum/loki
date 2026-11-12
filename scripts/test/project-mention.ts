@@ -18,12 +18,15 @@
  *
  * Run: npx tsx scripts/test/project-mention.ts (or npm run test:unit)
  */
+import { readFileSync } from "node:fs";
 import { resolveFleetCommandProjectKey } from "@/lib/loki-fleet-commands";
 import {
   projectShownInScreenshot,
   projectMentionedIn,
+  projectNamedByAddress,
   resolveProjectFromContext,
   textMentionsProject,
+  withoutAddressTo,
   unknownProjectMention,
 } from "@/lib/project-mention";
 import { looksLikeDispatchTask } from "@/lib/command-resolve";
@@ -223,5 +226,82 @@ eq(
 );
 eq(projectShownInScreenshot(analysis("unknown"), SITES), null, "unknown stays unknown");
 eq(projectShownInScreenshot("", SITES), null, "no analysis, no guess");
+
+// ── An address to the assistant is not a mention of the loki project ────────
+// The assistant is called Loki and so is a project, and a name in the text
+// outranks the selected project. So "Loki, add a dark mode toggle" typed with
+// orangecat selected was sent to the loki project (found 2026-11-12).
+//
+// The first rule for it was reviewed the same day and was wrong both ways:
+// "ok loki is broken, fix its header" and "loki-loop-check is red" lost the
+// project, and "Loki - add a toggle" (a hyphen where a dash was meant) kept
+// it. An address is the name SET OFF from the sentence, and a name used only
+// as an address is still the project when nothing else says where to go.
+console.log("\nproject-mention — an address to the assistant");
+{
+  const names = ["loki", "orangecat", "solon", "heidi", "Bitbaum"];
+  // [what was typed, with orangecat selected, with nothing selected]
+  const cases: Array<[string, string, string]> = [
+    // An address: the selected project gets the work; with none, loki does.
+    ["Loki, add a dark mode toggle to the profile page", "orangecat", "loki"],
+    ["Hey Loki, add a dark mode toggle", "orangecat", "loki"],
+    ["Loki - add a dark mode toggle to the profile page", "orangecat", "loki"],
+    ["Loki — the build is red, fix it", "orangecat", "loki"],
+    ["loki: fix the header", "orangecat", "loki"],
+    ["Loki please add a dark mode toggle to the profile page", "orangecat", "loki"],
+    ["Loki can you add a dark mode toggle to the profile page?", "orangecat", "loki"],
+    ["Fix the header.\nLoki, also the footer", "orangecat", "loki"],
+    ["Great work. Loki, now the footer too", "orangecat", "loki"],
+    ["Add a dark mode toggle, Loki, to the profile page", "orangecat", "loki"],
+    ["Good morning Loki, add a dark mode toggle", "orangecat", "loki"],
+    ["Fix the header on the profile page, Loki.", "orangecat", "loki"],
+    ["Thanks Loki! Now do the footer.", "orangecat", "loki"],
+    ["Great. Thanks Loki, now the footer too", "orangecat", "loki"],
+    ["@loki add a toggle", "orangecat", "loki"],
+    // The project is meant, whatever is selected.
+    ["ok loki is broken, fix its header", "loki", "loki"],
+    ["Ok loki needs a new page", "loki", "loki"],
+    ["please loki needs a new page", "loki", "loki"],
+    ["Please, loki's header overlaps on a phone", "loki", "loki"],
+    ["Hey Loki's sidebar is broken", "loki", "loki"],
+    ["Ok, loki-loop-check is red again, fix it", "loki", "loki"],
+    ["Dear loki maintainers: bump next", "loki", "loki"],
+    ["hi loki repo needs a lockfile bump", "loki", "loki"],
+    ["run the tests on @loki", "loki", "loki"],
+    ["@loki/ui needs a new release", "loki", "loki"],
+    ["Loki's sidebar is broken", "loki", "loki"],
+    ["Loki fix the header", "loki", "loki"],
+    ["Loki, fix loki's sidebar", "loki", "loki"],
+    ["Hey Loki, the loki project has a red check", "loki", "loki"],
+    ["in loki, add a test", "loki", "loki"],
+    // Another project is named: it wins, addressed or not.
+    ["Loki, build the share card in solon", "solon", "solon"],
+    ["Hey Loki, what is left to do on Orange Cat?", "orangecat", "orangecat"],
+  ];
+  for (const [said, selected, none] of cases) {
+    eq(
+      resolveFleetCommandProjectKey(said, "orangecat", names),
+      selected,
+      `orangecat selected: "${said}"`,
+    );
+    eq(resolveFleetCommandProjectKey(said, undefined, names), none, `nothing selected: "${said}"`);
+  }
+  // The strict reading and the last resort are two functions, and exactly one
+  // of them answers for a text that names loki.
+  eq(projectMentionedIn("loki: fix the header", names), null, "an address is not a mention");
+  eq(projectNamedByAddress("loki: fix the header", names), "loki", "but it is the last resort");
+  eq(projectNamedByAddress("ok loki is broken", names), null, "a mention needs no last resort");
+  eq(projectNamedByAddress("add a dark mode toggle", names), null, "no name, no last resort");
+  // Only the assistant's own name is an address; another project's name is not.
+  eq(projectMentionedIn("Solon, add a quorum rule", names), "solon", "another name is a mention");
+  eq(withoutAddressTo("Hey Loki, fix it"), "fix it", "the address is taken out, the rest is left");
+  eq(withoutAddressTo("no address here"), "no address here", "text with no address is untouched");
+  // The model path picks the same way (command-resolve pickProjectKey).
+  const resolve = readFileSync("src/lib/command-resolve.ts", "utf8");
+  check(
+    "the model path has the same last resort",
+    /namedInText \?\?\s*selectedProject \?\?\s*namedByAddress \?\?/.test(resolve),
+  );
+}
 
 console.log(`\n${passed}/${passed} project-mention cases passed`);

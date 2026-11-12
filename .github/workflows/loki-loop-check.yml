@@ -2,9 +2,10 @@
 # laptop and without a signed-in browser.
 #
 # The check itself is scripts/test/loki-loop-e2e.ts, run ON the box by
-# scripts/hetzner/loki-e2e-check.sh --report with a session minted from the
-# app's own env (the same pair the six-hourly watch uses). It asks what the
-# Loki page asks, through the same HTTP API:
+# scripts/hetzner/loki-e2e-check.sh --report, signed in as the operator with
+# an agent token minted for the run and removed after it
+# (scripts/test/mint-check-token.ts). It asks what the Loki page asks, through
+# the same HTTP API:
 #   1. Loki answers a question about the fleet from the fleet map.
 #   2. The fleet map is published.
 #   3. With `dispatch`: a request typed into a thread reaches an agent on the
@@ -73,6 +74,14 @@ jobs:
           case "$PROJECT" in ''|*[!a-z0-9-]*) echo "::error::bad project"; exit 1 ;; esac
           case "$MINUTES" in ''|*[!0-9]*) echo "::error::bad minutes"; exit 1 ;; esac
           [ "$DISPATCH" = "true" ] && D=1 || D=0
+          # The check's own files go with it. The deploy ships the runner a
+          # fixed list of scripts and nothing under scripts/test, so on the box
+          # there was no test to run and no token to mint: the first run of
+          # this workflow (2026-11-12) answered "could not mint a session".
+          # src/ and node_modules are the runner's own, synced by every deploy.
+          ssh "root@$HETZNER_IP" 'install -d -m 755 /opt/loki/runner/scripts/test'
+          scp -q scripts/test/loki-loop-e2e.ts scripts/test/mint-check-token.ts \
+            scripts/test/print-session-token.ts "root@$HETZNER_IP:/opt/loki/runner/scripts/test/"
           # The script travels on stdin and is never re-parsed in between.
           ssh "root@$HETZNER_IP" \
             E2E_FORCE_DISPATCH="$D" E2E_PROJECT="$PROJECT" E2E_DISPATCH_MINUTES="$MINUTES" E2E_EXIT_VERDICT=1 \

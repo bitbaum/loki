@@ -19,6 +19,10 @@ on:
         description: "reap: idle longer than this many minutes"
         required: false
         default: "10"
+      what:
+        description: "all, or memory (skips the disk walks: a minute instead of twenty on a box that is swapping)"
+        required: false
+        default: all
 
 concurrency:
   group: box-usage
@@ -46,9 +50,12 @@ jobs:
           printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
 
       - name: Measure memory and disk (changes nothing)
+        env:
+          WHAT: ${{ inputs.what }}
         run: |
+          case "$WHAT" in all|memory) ;; *) WHAT=all ;; esac
           ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 \
-            "root@$HETZNER_IP" bash -s < scripts/hetzner/box-usage.sh
+            "root@$HETZNER_IP" bash -s -- "$WHAT" < scripts/hetzner/box-usage.sh
 
       - name: Postgres connections (read, or reap idle ones)
         env:

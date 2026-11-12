@@ -26,6 +26,7 @@ import {
 } from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
 import { closeRunSuperseded, olderOpenRunSql } from "./orchestration-runs";
+import { closeIdleRunsAhead } from "./idle-run-close";
 import { dispatchSupersededReason } from "@/lib/dispatch-superseded";
 import { requireNotDemo } from "@/lib/demo-guard";
 import type { BrowserTaskPayload } from "@/config/browser-tasks";
@@ -762,6 +763,11 @@ export async function claimNextPendingCommand(
   await reclaimStalePendingCommands(userIds);
   await retireSupersededDispatches(userIds).catch((e) =>
     console.error("[pending-commands] retire superseded failed:", e),
+  );
+  // Before the gate lets a task past an idle run: close that run, or the
+  // task's own handoff closes both (db/queries/idle-run-close).
+  await closeIdleRunsAhead(userIds).catch((e) =>
+    console.error("[pending-commands] close idle runs ahead failed:", e),
   );
   const userFilter =
     userIds.length === 1

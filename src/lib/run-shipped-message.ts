@@ -6,6 +6,7 @@
 import {
   shipAnnouncementFor,
   type FixShipping,
+  type PrBlocker,
   type ShipAnnouncement,
 } from "@/lib/feedback/fix-shipping";
 
@@ -59,5 +60,72 @@ export function chatRunShippedMessage(input: {
     content: lines.join("\n"),
     title: `${input.projectKey} · merged, but the deploy failed`,
     body: "The site still shows the old version.",
+  };
+}
+
+/** How many failed checks are named before "and N more". */
+const BLOCKED_CHECKS_NAMED = 3;
+
+/**
+ * Pure: the message a person sends to have the agent repair the pull request.
+ *
+ * Its wording is load-bearing, because the chat reads it back as a task:
+ * - It names the pull request by NUMBER, not by its link. A link carries the
+ *   repository owner's name, and a project of that name (bitbaum) then won the
+ *   project match over the one the line is about (review, 2026-11-12).
+ * - It opens with "In <project>," and not "<project>:", which for the project
+ *   called loki reads as an address to the assistant (lib/project-mention).
+ * - Both forms use a verb the chat's own rule takes as a task
+ *   (lib/command-resolve looksLikeDispatchTask); scripts/test/run-follow-notify.ts
+ *   holds all three.
+ */
+export function blockedRepairLine(input: {
+  projectKey: string;
+  blocked: PrBlocker;
+  prNumber: number;
+}): string {
+  const { projectKey, blocked, prNumber } = input;
+  return blocked.why === "conflict"
+    ? `In ${projectKey}, update the branch of pull request #${prNumber} from main, fix the conflicts and push to the same branch.`
+    : `In ${projectKey}, fix the failing checks on pull request #${prNumber} and push to the same branch.`;
+}
+
+/**
+ * Pure: the line for a pull request that cannot merge as it stands, and the
+ * push that points at it.
+ *
+ * It ends with the way forward as a message to send, because that is the one
+ * action that certainly exists on a phone: a message naming the project is a
+ * task for it. Loki does not send the repair itself: an agent run nobody
+ * asked for spends the owner's quota (lib/auto-dispatch).
+ */
+export function chatRunBlockedMessage(input: {
+  projectKey: string;
+  blocked: PrBlocker;
+  prUrl: string;
+  prNumber: number;
+}): { content: string; title: string; body: string } {
+  const { projectKey, blocked, prUrl } = input;
+  const conflict = blocked.why === "conflict";
+  const named = blocked.checks.slice(0, BLOCKED_CHECKS_NAMED).join(", ");
+  const more = blocked.checks.length - BLOCKED_CHECKS_NAMED;
+  const count =
+    blocked.checks.length === 1 ? "A check failed" : `${blocked.checks.length} checks failed`;
+  const what = conflict
+    ? "It conflicts with the main branch."
+    : `${count}: ${named}${more > 0 ? ` and ${more} more` : ""}.`;
+  return {
+    content: [
+      `🔴 **${projectKey}** — the pull request cannot merge yet.`,
+      "",
+      what,
+      `The pull request: ${prUrl}`,
+      "",
+      "It stays open until this is repaired. To have the agent repair it, send this here:",
+      "",
+      blockedRepairLine(input),
+    ].join("\n"),
+    title: `${projectKey} · the pull request needs a repair`,
+    body: what,
   };
 }

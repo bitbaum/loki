@@ -4,6 +4,9 @@
 #   sealed-builds-ctl.sh test <unit>   # one agent build inside the container, as that unit runs it
 #   sealed-builds-ctl.sh on   <unit>   # drop-in + .on flag, then drain-restart
 #   sealed-builds-ctl.sh off  <unit>   # drop-in removed, then drain-restart
+#   sealed-builds-ctl.sh memory <unit>             # read: what the builder holds and what bounds it
+#   RUNS="9" sealed-builds-ctl.sh memory-set <unit>  # ceiling in GiB; the builder gives first
+#   sealed-builds-ctl.sh memory-clear <unit>       # undo memory-set
 # Prints verdicts only, never a secret (public Action logs).
 set -uo pipefail
 MODE="${1:-read}"; UNIT="${2:-loki-box-runner}"; UNIT="${UNIT%.service}"
@@ -30,7 +33,71 @@ runtime_reset_cmd() {
   printf '%s' "b=\$(cat /proc/sys/kernel/random/boot_id); [ \"\$(cat $1/.run/.boot-id 2>/dev/null)\" = \"\$b\" ] || { rm -rf $1/.run/containers $1/.run/libpod; echo \"\$b\" > $1/.run/.boot-id; echo reset; }"
 }
 
+# memory_set_decision <held bytes> <ceiling GiB> [force] — apply | refuse:<why>.
+# Pure, pinned by test-sealed-builds-memory.sh. A ceiling below what the
+# builder holds makes the kernel stop sessions the moment it is set; that is
+# never done by accident, only with "force".
+memory_set_decision() {
+  local held="${1:-0}" gib="${2:-}" force="${3:-}"
+  case "$gib" in ''|*[!0-9]*) echo "refuse:the ceiling is a whole number of GiB"; return ;; esac
+  if [ "$gib" -lt 2 ] || [ "$gib" -gt 64 ]; then echo "refuse:the ceiling is between 2 and 64 GiB"; return; fi
+  case "$held" in ''|*[!0-9]*) held=0 ;; esac
+  # A quarter GiB of room, so the write itself does not push a session over.
+  if [ $((gib * 1073741824)) -lt $((held + 268435456)) ] && [ "$force" != force ]; then
+    echo "refuse:the builder holds more than that now, so sessions would be stopped at once"; return
+  fi
+  echo apply
+}
+# What "the builder gives first" means to the kernel: when the whole box is out
+# of memory it stops the process with the highest score. 300 puts a sandbox
+# ahead of a site or the gateway of the same size, and behind nothing of ours.
+BUILDER_OOM_ADJ=300
+set_builder_oom_adj() { # <value>: every process the unit holds now
+  local cg p n=0
+  cg="/sys/fs/cgroup$(systemctl show -p ControlGroup --value "$UNIT.service")"
+  for p in $(find "$cg" -name cgroup.procs -exec cat {} + 2>/dev/null); do
+    echo "$1" > "/proc/$p/oom_score_adj" 2>/dev/null && n=$((n + 1))
+  done
+  echo "$n"
+}
+memory_report() {
+  systemctl show "$UNIT.service" -p MemoryCurrent -p MemorySwapCurrent -p MemoryHigh -p MemoryMax 2>/dev/null \
+    | awk -F= '$2 ~ /^[0-9]+$/ {printf "  %s=%.1fGiB\n", $1, $2/1073741824; next} {printf "  %s=%s\n", $1, $2}'
+  awk '/MemTotal|MemAvailable|SwapTotal|SwapFree/ {printf "  box %s %.1f GiB\n", $1, $2/1048576}' /proc/meminfo
+  echo "  stopped for memory since boot: $(journalctl -k -b --no-pager 2>/dev/null | grep -ci 'out of memory')"
+}
+
+if [ -n "${SEALED_CTL_LIB_ONLY:-}" ]; then return 0 2>/dev/null || exit 0; fi
+
 case "$MODE" in
+memory)
+  # Read-only. What the builder holds, what bounds it, what the box has left.
+  echo "$UNIT:"; memory_report ;;
+memory-set)
+  # RUNS="<ceiling GiB> [force]". The builder gets a ceiling (sealed sessions
+  # live in this unit's cgroup, src/lib/agent-execution/sandbox.ts) and is the
+  # first to give when the whole box runs out. Nothing is restarted.
+  set -- $RUNS; gib="${1:-}"; force="${2:-}"
+  held="$(systemctl show -p MemoryCurrent --value "$UNIT.service" 2>/dev/null)"
+  verdict="$(memory_set_decision "$held" "$gib" "$force")"
+  if [ "$verdict" != apply ]; then
+    echo "✗ not set: ${verdict#refuse:}"; echo "$UNIT:"; memory_report; exit 1
+  fi
+  # A ceiling only. No MemoryHigh below it: at the moment this is set the
+  # builder usually holds close to the ceiling, and a "high" mark under what
+  # it holds would slow every session at once, which nobody asked for.
+  systemctl set-property "$UNIT.service" "MemoryMax=${gib}G" MemoryHigh=infinity || { echo "✗ systemd refused the ceiling"; exit 1; }
+  mkdir -p "/etc/systemd/system/$UNIT.service.d"
+  printf '# Written by sealed-builds-ctl.sh memory-set. New agent processes inherit it.\n[Service]\nOOMScoreAdjust=%s\n' "$BUILDER_OOM_ADJ" \
+    > "/etc/systemd/system/$UNIT.service.d/20-oom-first.conf"
+  systemctl daemon-reload
+  echo "✓ $UNIT: ceiling ${gib}G; $(set_builder_oom_adj "$BUILDER_OOM_ADJ") running processes marked to give first"
+  echo "$UNIT:"; memory_report ;;
+memory-clear)
+  systemctl set-property "$UNIT.service" MemoryMax=infinity MemoryHigh=infinity
+  rm -f "/etc/systemd/system/$UNIT.service.d/20-oom-first.conf"; systemctl daemon-reload
+  echo "✓ $UNIT: no ceiling; $(set_builder_oom_adj 0) running processes back to the default"
+  echo "$UNIT:"; memory_report ;;
 reset-runtime)
   # By hand, for a runner that is already up after a reboot: same reset the
   # unit runs before it starts. Nothing is removed when the state is from this boot.
