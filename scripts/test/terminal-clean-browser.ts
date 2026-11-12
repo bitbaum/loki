@@ -243,8 +243,9 @@ async function main() {
       assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)));
       await mount("queued", [], { watch: true });
       await page.getByRole("heading", { name: "Queued" }).waitFor();
-      await page.getByRole("button", { name: "Autopilot on", exact: true }).click();
-      await page.getByRole("button", { name: "Autopilot paused", exact: true }).waitFor();
+      // The watch page names the button by what a tap does (2026-11-12).
+      await page.getByRole("button", { name: "Pause after this", exact: true }).click();
+      await page.getByRole("button", { name: "Keep going on its own", exact: true }).waitFor();
       await page
         .getByText("Autopilot is paused — it finishes this, then waits for you.", { exact: true })
         .waitFor();
