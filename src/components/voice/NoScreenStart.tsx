@@ -17,7 +17,7 @@ import { StudioVoiceNotice } from "@/components/voice/StudioVoiceNotice";
  * The start screen: read once, before the phone goes away. Start, the
  * choices, and what can be said.
  *
- * Its title is the app top bar's h1 ("Talk to Loki", from the nav config). It is
+ * Its title is the app top bar's h1 ("Talk", from the nav config). It is
  * built from the same pieces as every other page (design reset, 2026-10-21):
  * one line and the one button, then titled sections of rows — each switch a
  * row with its one line under it — not a paragraph of instructions, capital

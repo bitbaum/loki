@@ -63,7 +63,7 @@ export const NAV = {
   suggestions: {
     id: "suggestions",
     label: "Suggestions",
-    description: "What to do next, across every front — pick one and Loki takes it",
+    description: "What to do next, across every front — pick one and Loki starts on it",
     href: "/suggestions",
     icon: Lightbulb,
     active: true,
@@ -94,7 +94,7 @@ export const NAV = {
     id: "voice",
     // The same thing as the chat's Talk button, under the same name: "Voice"
     // beside "Talk" read as two features (owner, 2026-11-12).
-    label: "Talk to Loki",
+    label: "Talk",
     description:
       "A spoken conversation, screen on or off: Loki tells you what your projects are doing and listens",
     href: "/voice",
