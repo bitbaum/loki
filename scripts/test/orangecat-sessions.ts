@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   assert.equal(working.session, "site", "a project's own session is named after it");
   assert.match(
     working.openUrl,
-    /^https:\/\/[^/]+\/terminal\?project=site&run=11111111-/,
+    /^https:\/\/[^/]+\/terminal\?source=cloud&project=site&run=11111111-/,
     "openUrl is the same session, on that run, in Loki's Terminal",
   );
   const lane = shapeSessionRow({
@@ -71,7 +71,20 @@ async function main(): Promise<void> {
     tab: "site~11111111",
   });
   assert.equal(lane.session, "site~11111111", "a parallel lane is named as its own tab");
-  assert.match(lane.openUrl, /\/terminal\?project=site~11111111&run=/);
+  assert.match(lane.openUrl, /\/terminal\?source=cloud&project=site~11111111&run=/);
+  const resolved = shapeSessionRow({
+    project: "plain",
+    builderPref: null,
+    presence,
+    run: null,
+    transcriptAt: null,
+    channel: "cloud",
+  });
+  assert.match(
+    resolved.openUrl,
+    /\/terminal\?source=cloud&project=plain$/,
+    "the link names the builder the session runs on, not this browser's last choice",
+  );
   console.log("  ✓ a working session: canonical state, one-line task, run and PR");
 
   const local = shapeSessionRow({

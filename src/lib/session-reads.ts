@@ -21,6 +21,8 @@ import {
   getOrchestrationRunById,
 } from "@/db/queries/orchestration-runs";
 import { enqueuePeekCommand } from "@/db/queries/pending-commands";
+import type { RunnerChannel } from "@/db/schema/pending-commands";
+import { projectPreferredChannel } from "@/lib/execution-access";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import {
   SESSIONS_DEFAULT_ITEMS,
@@ -56,7 +58,12 @@ export type SessionsRead = { status: number; body: Record<string, unknown> };
 
 async function rowFor(
   userId: string,
-  project: { name: string; builderPref?: string | null },
+  project: {
+    name: string;
+    builderPref?: string | null;
+    dirPath?: string | null;
+    gitUrl?: string | null;
+  },
   run: RunRow | null,
   presence: Presence,
   ownerView: boolean,
@@ -83,27 +90,47 @@ async function rowFor(
         : null,
     transcriptAt: lastTranscript(userId, tab)?.at ?? null,
     tab,
+    channel: projectPreferredChannel(project),
   });
 }
 
-/** The cached conversation, asking the runner for a snapshot when there is none. */
-async function readTranscript(userId: string, tab: string) {
-  const cached = lastTranscript(userId, tab);
-  if (cached) return cached;
-  const command = { tab };
-  if (addPeekViewer(userId, tab)) {
-    await enqueuePeekCommand(userId, "peek_start", command).catch(() => {});
-  }
+/**
+ * The conversation as it is NOW, on the builder the session runs on.
+ *
+ * A cached copy is current only while someone is watching: the runner streams
+ * a conversation only between peek_start and peek_stop. So when another viewer
+ * (a person's phone, a transcript stream) already has the stream open, the
+ * cache is live and is the answer. Otherwise this joins as a viewer, waits for
+ * a frame posted after it asked, and leaves. A copy left over from an earlier
+ * read would otherwise be served forever, without the agent's answer in it.
+ *
+ * The viewer count is the same one the Terminal's streams use (same user, tab
+ * and channel), so this read never sends the peek_stop that would end a
+ * person's live view, and its peek_start names the builder, so the owner's
+ * laptop cannot take a read meant for the cloud session.
+ */
+async function readTranscript(userId: string, tab: string, channel: RunnerChannel) {
+  const asked = Date.now();
+  const command = { tab, channel };
+  const first = addPeekViewer(userId, tab, channel);
   try {
-    const until = Date.now() + SNAPSHOT_WAIT_MS;
+    if (!first) {
+      const live = lastTranscript(userId, tab, channel);
+      if (live) return live;
+    } else {
+      await enqueuePeekCommand(userId, "peek_start", command).catch(() => {});
+    }
+    const until = asked + SNAPSHOT_WAIT_MS;
     while (Date.now() < until) {
       await new Promise((r) => setTimeout(r, SNAPSHOT_POLL_MS));
-      const frame = lastTranscript(userId, tab);
-      if (frame) return frame;
+      const frame = lastTranscript(userId, tab, channel);
+      if (frame && (frame.at >= asked || !first)) return frame;
     }
-    return null;
+    // Nothing new in time: the last copy, if any, with its own `at`, so the
+    // reader can see how old it is.
+    return lastTranscript(userId, tab, channel);
   } finally {
-    if (removePeekViewer(userId, tab)) {
+    if (removePeekViewer(userId, tab, channel)) {
       await enqueuePeekCommand(userId, "peek_stop", command).catch(() => {});
     }
   }
@@ -153,7 +180,7 @@ export async function readSessions(userId: string, query: SessionsQuery): Promis
     const tab = run?.payload?.sessionTab ?? project.name;
     const [row, frame] = await Promise.all([
       rowFor(userId, project, run, presence, true),
-      readTranscript(userId, tab),
+      readTranscript(userId, tab, projectPreferredChannel(project)),
     ]);
     return {
       status: 200,

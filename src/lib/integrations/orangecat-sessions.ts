@@ -77,6 +77,8 @@ export interface SessionRowInput {
   transcriptAt: number | null;
   /** The session's tab when it is not the project's own (a parallel lane). */
   tab?: string | null;
+  /** The builder the session runs on, for its link; else the stored preference. */
+  channel?: "cloud" | "local" | null;
 }
 
 const STATES: ReadonlySet<string> = new Set([
@@ -136,7 +138,7 @@ export function shapeSessionRow(input: SessionRowInput): SessionRow {
     prUrl: safeUrl(run?.prUrl),
     statusUrl: run ? runStatusUrl(run.id) : null,
     session: input.tab || input.project,
-    openUrl: sessionOpenUrl(input.tab || input.project, builder, run?.id ?? null),
+    openUrl: sessionOpenUrl(input.tab || input.project, input.channel ?? builder, run?.id ?? null),
   };
 }
 

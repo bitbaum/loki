@@ -51,6 +51,13 @@ for (const src of [control, signed]) {
 const reads = read("src/lib/session-reads.ts");
 assert.match(reads, /export async function readSessions\(/);
 assert.match(reads, /total: rows\.length,/, "a list cut at the cap says how many there were");
+// The conversation read is current, on the session's builder, and shares the
+// Terminal's viewer count (so it never ends a person's live view).
+assert.match(reads, /readTranscript\(userId, tab, projectPreferredChannel\(project\)\)/);
+assert.match(reads, /const command = \{ tab, channel \};/, "peek commands name the builder");
+assert.match(reads, /addPeekViewer\(userId, tab, channel\)/);
+assert.match(reads, /removePeekViewer\(userId, tab, channel\)/);
+assert.match(reads, /frame\.at >= asked/, "a copy from before the read is not the answer");
 
 // The live stream is still a browser's: it holds a viewer open on the runner.
 assert.match(read("src/app/api/control/peek-stream/route.ts"), /getSessionUserId\(\)/);
