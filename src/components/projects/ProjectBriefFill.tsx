@@ -1,17 +1,17 @@
 "use client";
 
 // The "no forms" intake. Instead of clicking through mission/vision/customers
-// field by field, the user writes (or says, through the field's microphone)
-// what the project should be — or pulls the answer straight from the repo's
-// README — and AI fills the profile. Both paths land in the same SSOT the
-// inline editors write to, so a wrong guess is one click from fixable.
+// field by field, the user writes (or dictates via OS dictation) what the
+// project should be — or pulls the answer straight from the repo's README —
+// and AI fills the profile. Both paths land in the same SSOT the inline
+// editors write to, so a wrong guess is one click from fixable.
 
 import { useState } from "react";
-import { GitBranch, ListChecks, Loader2, Sparkles } from "lucide-react";
+import { GitBranch, ListChecks, Loader2, Mic, Sparkles, Square } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
+import { useVoiceInput } from "@/hooks/use-voice-input";
 import { DOC_PASTE_MAX } from "@/lib/constants";
 import { CharCount } from "@/components/ui/char-count";
-import { TextArea } from "@/components/ui/text-area";
 
 type AppliedFields = Record<string, string>;
 
@@ -31,6 +31,11 @@ export function ProjectBriefFill({
   const [error, setError] = useState<string | null>(null);
   const [appliedKeys, setAppliedKeys] = useState<string[] | null>(null);
   const [createdGoals, setCreatedGoals] = useState<string[] | null>(null);
+  const voice = useVoiceInput({
+    // Speaking is the fastest "no forms" path — append so users can mix
+    // dictation with typed/pasted notes before one AI fill pass.
+    onTranscript: (t) => setText((prev) => (prev ? `${prev.trimEnd()} ${t}` : t)),
+  });
 
   async function run(kind: "brief" | "enrich" | "roadmap") {
     setBusy(kind);
@@ -100,17 +105,13 @@ export function ProjectBriefFill({
 
       {open && (
         <div className="space-y-2 rounded-lg border border-border-subtle bg-surface-raised p-3">
-          {/* Speaking is the fastest "no forms" path: the field's microphone
-              appends to what is there, so dictation mixes with typed or
-              pasted notes before one AI fill pass. It replaces the separate
-              "Speak" button this form had (the same transcribe route). */}
-          <TextArea
+          <textarea
             value={text}
-            onChange={setText}
+            onChange={(e) => setText(e.target.value)}
             autoFocus
             rows={4}
-            ariaLabel="What this project is and should become"
             placeholder="Free form — what is this project, who is it for, what should it become, what's next? Paste notes, dictate, anything. AI sorts it into the profile."
+            className="ui-input w-full text-base leading-relaxed sm:text-xs"
             onKeyDown={(e) => {
               if (e.key === "Escape") setOpen(false);
             }}
@@ -144,16 +145,43 @@ export function ProjectBriefFill({
               )}
               Generate milestones
             </button>
+            {voice.isSupported && (
+              <button
+                onClick={() => (voice.status === "recording" ? voice.stop() : voice.start())}
+                disabled={busy !== null || voice.status === "transcribing"}
+                className="ui-btn-chip ui-tap gap-1.5 px-3 text-xs"
+                title={
+                  voice.status === "recording"
+                    ? "Stop recording"
+                    : "Dictate — speak what this project should be"
+                }
+              >
+                {voice.status === "transcribing" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : voice.status === "recording" ? (
+                  <Square className="h-3.5 w-3.5 text-status-negative" />
+                ) : (
+                  <Mic className="h-3.5 w-3.5 text-accent-text" />
+                )}
+                {voice.status === "recording"
+                  ? "Stop"
+                  : voice.status === "transcribing"
+                    ? "Transcribing…"
+                    : "Speak"}
+              </button>
+            )}
             <button
               onClick={() => {
                 setOpen(false);
                 setError(null);
+                voice.cancel();
               }}
               className="ui-btn-text-cancel ui-tap"
             >
               Cancel
             </button>
           </div>
+          {voice.error && <p className="ui-error-xs">{voice.error}</p>}
         </div>
       )}
 

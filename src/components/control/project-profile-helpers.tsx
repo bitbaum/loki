@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Loader2, StickyNote } from "lucide-react";
 import { patchJson } from "@/lib/api/fetch";
-import { TextArea } from "@/components/ui/text-area";
 import type { UserProject } from "@/db/schema/user-projects";
 import { CollapsibleSection } from "./project-profile-sections";
 
@@ -59,13 +58,13 @@ export function NotesSection({
       }
       trailing={saving ? <Loader2 className="h-3 w-3 animate-spin text-text-muted" /> : undefined}
     >
-      <TextArea
+      <textarea
         value={value}
-        onChange={handleChange}
+        onChange={(e) => handleChange(e.target.value)}
         onBlur={handleBlur}
-        ariaLabel="Notes"
         placeholder="Free-form notes, context, or reminders for this project…"
         rows={5}
+        className="w-full resize-y rounded-xl border border-border-subtle bg-surface-base px-3.5 py-2.5 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:border-accent-primary/50 focus:outline-none focus:ring-1 focus:ring-accent-primary/20"
       />
     </CollapsibleSection>
   );

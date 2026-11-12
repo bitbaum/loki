@@ -3,7 +3,6 @@
 import { useId, useState } from "react";
 import { ModalForm } from "@/components/ui/modal-form";
 import { Field } from "@/components/ui/form";
-import { TextArea } from "@/components/ui/text-area";
 import { DateInput } from "@/components/ui/date-input";
 import { postJson } from "@/lib/api/fetch";
 import type { EventRow } from "@/db/queries/events";
@@ -118,13 +117,12 @@ export function NewEventButton({
           className="ui-input"
         />
       </Field>
-      <Field label="Notes" htmlFor="new-event-notes">
-        <TextArea
-          id="new-event-notes"
-          ariaLabel="Notes"
+      <Field label="Notes">
+        <textarea
           value={draft.description}
-          onChange={(next) => setDraft((d) => ({ ...d, description: next }))}
+          onChange={set("description")}
           rows={2}
+          className="ui-input resize-none"
         />
       </Field>
     </ModalForm>

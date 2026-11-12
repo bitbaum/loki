@@ -3,7 +3,6 @@ export function Field({
   required = false,
   aiTouched = false,
   hint,
-  htmlFor,
   children,
 }: {
   label: string;
@@ -12,14 +11,11 @@ export function Field({
   aiTouched?: boolean;
   /** One plain line under the field — what it is for, so the label stays a label. */
   hint?: string;
-  /** The id of the control inside, so the label names it (and a press on the
-   *  label focuses it). */
-  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="ui-kicker mb-1.5 block">
+      <label className="ui-kicker mb-1.5 block">
         {label}
         {required && <span className="text-status-negative"> *</span>}
         {aiTouched && <span className="ui-assist-flag">AI</span>}

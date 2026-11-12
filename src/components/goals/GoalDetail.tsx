@@ -16,7 +16,6 @@ import { PageLayout } from "@/components/ui/page-layout";
 import { Section } from "@/components/ui/section-heading";
 import { List, ListRow } from "@/components/ui/list-row";
 import { EmptyState } from "@/components/ui/empty-state";
-import { TextArea } from "@/components/ui/text-area";
 import {
   SheetAction,
   SheetActions,
@@ -107,17 +106,17 @@ export function GoalDetail({
       <Section title="About">
         {g.descEdit.editing ? (
           <div className="space-y-2">
-            <TextArea
+            <textarea
               value={g.descEdit.draft}
-              onChange={g.descEdit.setDraft}
+              onChange={(e) => g.descEdit.setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Escape") g.descEdit.cancel();
+                if (e.key === "Enter" && e.metaKey) g.commitDesc();
               }}
-              onSubmit={g.commitDesc}
               autoFocus
               rows={3}
-              ariaLabel="Goal description"
               placeholder="What this goal is for"
+              className="ui-input resize-none"
             />
             <div className="flex items-center gap-2">
               <button

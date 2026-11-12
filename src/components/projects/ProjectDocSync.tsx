@@ -10,7 +10,6 @@ import { Loader2, RefreshCw, Check, X, Plus } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { DOC_PASTE_MAX } from "@/lib/constants";
 import { CharCount } from "@/components/ui/char-count";
-import { TextArea } from "@/components/ui/text-area";
 
 type Update = { key: string; current: string | null; proposed: string };
 type NewAttr = { key: string; label: string; value: string };
@@ -120,13 +119,13 @@ export function ProjectDocSync({
 
       {open && !preview && (
         <div className="space-y-2 rounded-lg border border-border-subtle bg-surface-raised p-3">
-          <TextArea
+          <textarea
             value={text}
-            onChange={setText}
+            onChange={(e) => setText(e.target.value)}
             autoFocus
             rows={4}
-            ariaLabel="The updated concept or spec"
             placeholder="Paste the updated concept or spec. AI diffs it against the current fields and shows you exactly what would change before anything is saved."
+            className="ui-input w-full text-base leading-relaxed sm:text-xs"
             onKeyDown={(e) => {
               if (e.key === "Escape") setOpen(false);
             }}

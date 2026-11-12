@@ -13,7 +13,6 @@ import {
 import { DeleteButton } from "@/components/ui/delete-button";
 import { DateInput } from "@/components/ui/date-input";
 import { Field } from "@/components/ui/form";
-import { TextArea } from "@/components/ui/text-area";
 import { LokiDispatchButton } from "@/components/shared/LokiDispatchButton";
 import { deadlineLabel, toLocalDateStr } from "@/lib/dates";
 import { deleteJson, patchJson, throwApiError } from "@/lib/api/fetch";
@@ -148,13 +147,12 @@ export function EventSheet({
               className="ui-input"
             />
           </Field>
-          <Field label="Notes" htmlFor="event-sheet-notes">
-            <TextArea
-              id="event-sheet-notes"
-              ariaLabel="Notes"
+          <Field label="Notes">
+            <textarea
               value={draft.description}
-              onChange={(next) => setDraft({ ...draft, description: next })}
+              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
               rows={3}
+              className="ui-input resize-none"
             />
           </Field>
           {error && <p className="ui-error-xs">{error}</p>}

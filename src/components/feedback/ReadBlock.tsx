@@ -9,7 +9,6 @@
  */
 import { useState } from "react";
 import { AlertCircle, Loader2, Pencil } from "lucide-react";
-import { TextArea } from "@/components/ui/text-area";
 import { READ_SIZE_WORD, READ_ASK_MAX, type FeedbackRead } from "@/lib/feedback/read-report";
 
 export function ReadBlock({
@@ -64,13 +63,13 @@ export function ReadBlock({
         <dt className="ui-fb-decision-fact-label">The ask</dt>
         <dd className="ui-fb-decision-fact">
           {editing ? (
-            <TextArea
+            <textarea
               value={current}
-              onChange={onAsk}
+              onChange={(e) => onAsk(e.target.value)}
               maxLength={READ_ASK_MAX}
               rows={4}
               className="ui-fb-read-ask"
-              ariaLabel="What the agent will be asked to do"
+              aria-label="What the agent will be asked to do"
               autoFocus
             />
           ) : (

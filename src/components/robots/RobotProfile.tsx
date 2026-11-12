@@ -15,7 +15,6 @@ import {
 } from "@/config/actors";
 import { patchJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { Field } from "@/components/ui/form";
-import { TextArea } from "@/components/ui/text-area";
 
 export function RobotProfile({ robot }: { robot: RobotWithAttributes }) {
   const router = useRouter();
@@ -142,18 +141,15 @@ export function RobotProfile({ robot }: { robot: RobotWithAttributes }) {
             />
           </Field>
         </div>
-        <Field label="Notes" htmlFor="robot-notes">
-          <TextArea
-            id="robot-notes"
-            ariaLabel="Notes"
+        <Field label="Notes">
+          <textarea
             value={description}
-            onChange={setDescription}
-            // The whole field's blur: tabbing or pressing away saves; pressing
-            // the microphone does not, and a take's words land before it does.
+            onChange={(e) => setDescription(e.target.value)}
             onBlur={() => {
               if (description !== (robot.description ?? "")) void save({ description });
             }}
             rows={3}
+            className="ui-input"
           />
         </Field>
       </div>

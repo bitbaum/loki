@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ExternalLink, FileText, Loader2, Plus, Trash2 } from "lucide-react";
-import { TextArea } from "@/components/ui/text-area";
 import type { ProjectResource } from "./project-detail-types";
 import { putJson, throwApiError } from "@/lib/api/fetch";
 
@@ -227,11 +226,12 @@ export function ProjectResources({
               placeholder="URL, file path, or reference"
               className="ui-input min-h-11 w-full"
             />
-            <TextArea
+            <textarea
               value={notes}
-              onChange={setNotes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="Notes, access details, or why this matters"
               rows={3}
+              className="ui-input w-full resize-none"
             />
             <div className="flex flex-wrap items-center gap-2">
               <button

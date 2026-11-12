@@ -3,7 +3,6 @@
 import { Loader2, Sparkles, CheckCircle, XCircle, Copy, Rocket, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/config/brand";
-import { TextArea } from "@/components/ui/text-area";
 
 export interface Brief {
   name: string;
@@ -118,18 +117,18 @@ export function DescribeStep({
 }) {
   return (
     <>
-      <TextArea
+      <textarea
         autoFocus
         value={idea}
-        onChange={onIdeaChange}
-        onSubmit={onGenerate}
+        onChange={(e) => onIdeaChange(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && e.metaKey && onGenerate()}
         rows={6}
-        ariaLabel="Your idea"
         placeholder={
           "I'm building a tool that helps freelancers track invoices and get paid faster.\n" +
           "Target: solo devs and designers who forget to follow up.\n" +
           "Simple dashboard, automated reminders, Stripe payments…"
         }
+        className="ui-input w-full resize-none leading-relaxed"
       />
       {genError && <p className="ui-error">{genError}</p>}
       <div className="flex gap-2 pt-1">

@@ -6,13 +6,6 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
-## 2026-11-12 — A microphone in the text boxes
-
-- **Thirty-two text boxes take dictation.** {#text-boxes-mic} A new goal, a
-  prompt, a project's brief, a note about a person, an event's notes and
-  others now have the same microphone as the chat. Where a box saved with
-  Cmd+Enter it still does, and Ctrl+Enter works too.
-
 ## 2026-11-12 — Say it on the first screen
 
 - **The homepage has a box to say it in.** {#say-it-first} Under "Say what

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Section } from "@/components/ui/section-heading";
-import { TextArea } from "@/components/ui/text-area";
 import { BeforeAfter } from "@/components/public/InstantPreview";
 import { BUILD_REQUESTS } from "@/config/build-requests";
 import { compactRelativeDate } from "@/lib/dates";
@@ -96,13 +95,12 @@ function BuildRequestRow({ request: r }: { request: BuildRequestCard }) {
       {r.status === "waiting" ? (
         <div className="space-y-2">
           {declining && (
-            <TextArea
-              ariaLabel="Why not, in a sentence they will read (optional)"
+            <textarea
+              className="ui-input min-h-20 w-full text-sm"
               placeholder="Why not, in a sentence they will read (optional)"
               maxLength={BUILD_REQUESTS.noteMax}
-              rows={3}
               value={note}
-              onChange={setNote}
+              onChange={(e) => setNote(e.target.value)}
             />
           )}
           <div className="flex flex-wrap gap-2">

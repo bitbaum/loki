@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Target, Check, X, Loader2 } from "lucide-react";
-import { TextArea } from "@/components/ui/text-area";
 
 /**
  * Goal-mode editor: set a project's Definition of Done (the bar the cross-model
@@ -86,13 +85,14 @@ export function GoalEditor({
         <Target className="h-3 w-3" /> Definition of done — one turn&apos;s bar, checkable from the
         handoff alone
       </dt>
-      <TextArea
+      <textarea
+        className="ui-input w-full"
         rows={2}
         value={dod}
-        onChange={setDod}
+        onChange={(e) => setDod(e.target.value)}
         placeholder="e.g. `npm run verify` passes, with its real output in the handoff; work committed and pushed"
         maxLength={300}
-        ariaLabel="Definition of done"
+        aria-label="Definition of done"
       />
       <div className="flex items-center gap-2">
         <label className="text-xs font-medium text-text-muted">Stop after</label>

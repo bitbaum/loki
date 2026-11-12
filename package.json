@@ -127,7 +127,7 @@
     "@better-auth/passkey": "^1.7.14",
     "@bitbaum/accountkit": "^0.27.0",
     "@bitbaum/ai-kit": "^1.24.0",
-    "@bitbaum/chatkit": "^0.28.1",
+    "@bitbaum/chatkit": "^0.22.1",
     "@bitbaum/mail-kit": "^0.2.0",
     "@bitbaum/searchkit": "^0.2.3",
     "@bitbaum/whenkit": "^0.3.3",
