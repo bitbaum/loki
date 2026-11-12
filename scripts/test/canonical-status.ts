@@ -307,6 +307,20 @@ for (const w of [
   assert.ok(v.nextAction.label);
   assert.doesNotMatch(JSON.stringify(v), /builder|runner|retry|dispatch/i);
 }
+// A closed report (archived, or marked done without proof) never tells a seat
+// that the owner has to act, or to poll again: nobody is going to move it.
+for (const w of [work({ phase: P.ARCHIVED, waitingOn: "nobody" }), DONE_WORK]) {
+  const v = seatStatus(canonicalStatus(w, { liveUrl: null }));
+  assert.notEqual(v.cause, "needs_owner", `closed cause on ${v.cause}`);
+  assert.deepEqual([v.nextAction.kind, v.nextAction.who], ["none", "nobody"]);
+  assert.doesNotMatch(JSON.stringify(v), /owner|has to act|poll again/i);
+  assert.match(v.nextAction.label, /closed/);
+}
+// A report that is still open and stuck does wait on the owner.
+assert.equal(
+  seatStatus(canonicalStatus(work({ phase: P.FAILED }), { liveUrl: null })).nextAction.who,
+  "owner",
+);
 assert.match(read("src/app/api/feedback/[id]/status/route.ts"), /seatStatus\(/);
 
 console.log("canonical-status ok");
