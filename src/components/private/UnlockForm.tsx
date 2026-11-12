@@ -5,10 +5,27 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, ShieldCheck } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
+import { PIN_MAX_DIGITS } from "@/lib/constants/auth";
 
 type Area = { label: string; description: string; count?: number; unit?: string };
 
-export function UnlockForm({ next, areas }: { next: string; areas: Area[] }) {
+/**
+ * The one PIN form. /unlock renders it with the list of what it opens; the
+ * gate on each private page (PrivatePinGate) renders it with that page's own
+ * name and no list. There used to be two forms that looked different for the
+ * same task.
+ */
+export function UnlockForm({
+  next,
+  areas = [],
+  heading = "Enter your PIN",
+  lede = "The private zone stays unlocked for 30 minutes once you enter the right PIN.",
+}: {
+  next: string;
+  areas?: Area[];
+  heading?: string;
+  lede?: string;
+}) {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +53,7 @@ export function UnlockForm({ next, areas }: { next: string; areas: Area[] }) {
       setPin("");
       inputRef.current?.focus();
     } catch {
-      setError("Network error — try again");
+      setError("Could not reach Loki. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -48,10 +65,8 @@ export function UnlockForm({ next, areas }: { next: string; areas: Area[] }) {
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-accent-text" />
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">Enter your PIN</h2>
-            <p className="mt-1 text-sm text-text-tertiary">
-              The private zone stays unlocked for 30 minutes once you enter the right PIN.
-            </p>
+            <h2 className="text-lg font-semibold text-text-primary">{heading}</h2>
+            <p className="mt-1 text-sm text-text-tertiary">{lede}</p>
           </div>
         </div>
 
@@ -62,6 +77,7 @@ export function UnlockForm({ next, areas }: { next: string; areas: Area[] }) {
             inputMode="numeric"
             autoComplete="off"
             pattern="[0-9]*"
+            maxLength={PIN_MAX_DIGITS}
             placeholder="PIN"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
@@ -87,7 +103,7 @@ export function UnlockForm({ next, areas }: { next: string; areas: Area[] }) {
             is entered.{" "}
             <Link
               href="/support"
-              className="underline underline-offset-2 hover:text-text-secondary"
+              className="ui-tap inline-flex items-center underline underline-offset-2 hover:text-text-secondary"
             >
               Get help
             </Link>
@@ -96,27 +112,29 @@ export function UnlockForm({ next, areas }: { next: string; areas: Area[] }) {
         </form>
       </div>
 
-      <div className="ui-settings-section">
-        <h3 className="text-sm font-semibold text-text-muted">What this unlocks</h3>
-        <ul className="space-y-3">
-          {areas.map((area) => (
-            <li key={area.label} className="flex items-start gap-3">
-              <span className="ui-public-prose-bullet mt-2" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-sm font-medium text-text-primary">{area.label}</span>
-                  {typeof area.count === "number" && area.count > 0 && (
-                    <span className="text-xs font-mono text-text-tertiary shrink-0">
-                      {area.count.toLocaleString()} {area.unit ?? ""}
-                    </span>
-                  )}
+      {areas.length > 0 && (
+        <div className="ui-settings-section">
+          <h3 className="text-sm font-semibold text-text-muted">What this unlocks</h3>
+          <ul className="space-y-3">
+            {areas.map((area) => (
+              <li key={area.label} className="flex items-start gap-3">
+                <span className="ui-public-prose-bullet mt-2" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium text-text-primary">{area.label}</span>
+                    {typeof area.count === "number" && area.count > 0 && (
+                      <span className="text-xs text-text-tertiary shrink-0">
+                        {area.count.toLocaleString()} {area.unit ?? ""}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm text-text-tertiary">{area.description}</p>
                 </div>
-                <p className="mt-0.5 text-sm text-text-tertiary">{area.description}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

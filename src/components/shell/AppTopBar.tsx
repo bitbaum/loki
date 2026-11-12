@@ -9,7 +9,7 @@ import { NotificationsPill } from "./NotificationsPill";
 import { FeedbackLauncher } from "./FeedbackLauncher";
 import { FleetRunnerStatusPill } from "@/components/desktop/FleetRunnerStatusPill";
 import { AccountMenu } from "@/components/shell/AccountMenu";
-import { NAV_ITEMS } from "@/config/navigation";
+import { NAV_ITEMS, UNLISTED_PAGE_TITLES } from "@/config/navigation";
 import { isCurrentPath, isProjectPagePath } from "@/lib/navigation";
 
 /**
@@ -52,23 +52,30 @@ export function AppTopBar({
   // outside the nav config (sign-in, /u/<username>) get none rather than a
   // guess, and a project's own workspace names itself in its header.
   const currentNavItem = NAV_ITEMS.find((item) => isCurrentPath(pathname, item.href));
-  const pageLabel = isProjectPagePath(pathname) ? "" : (currentNavItem?.label ?? "");
+  const pageLabel = isProjectPagePath(pathname)
+    ? ""
+    : (currentNavItem?.label ?? UNLISTED_PAGE_TITLES[pathname] ?? "");
 
   // Exactly one <h1> per page, at every width (rule 1). When the page draws
   // its own h1 (PageTitle — sr-only on a phone when it says the same as this
   // bar), the name here is plain text; when the page has none, this IS the h1.
   const pageHasHeading = useMainHasHeading();
+  // A page BELOW a nav entry that draws its own h1 ("Start a new project"
+  // under /control) names itself. Showing the parent's label too put three
+  // names on one screen: "Home" here, "Back to Home", and the page's title.
+  const childWithOwnTitle = pageHasHeading && !!currentNavItem && pathname !== currentNavItem.href;
+  const barLabel = childWithOwnTitle ? "" : pageLabel;
 
   return (
     <header className="ui-app-topbar">
       <TopbarSlot />
-      {pageLabel &&
+      {barLabel &&
         (pageHasHeading ? (
           <p className="ui-app-topbar-title md:hidden" aria-hidden="true">
-            {pageLabel}
+            {barLabel}
           </p>
         ) : (
-          <h1 className="ui-app-topbar-title md:sr-only">{pageLabel}</h1>
+          <h1 className="ui-app-topbar-title md:sr-only">{barLabel}</h1>
         ))}
       <button
         type="button"

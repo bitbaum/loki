@@ -481,6 +481,25 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
   },
 ];
 
+// ─── The private zone — what the PIN protects ─────────────────────────────────
+// Derived from the "private" section above, so Settings → Privacy, /unlock and
+// the no-PIN page cannot each give their own list. They did: one named Crew
+// but not Robots, one Robots but not Crew, and /unlock added Commitments,
+// which are part of Money.
+export const PRIVATE_NAV_ITEMS: NavItem[] =
+  SIDEBAR_SECTIONS.find((s) => s.id === "private")?.items ?? [];
+
+/** "Memory, People, Crew, …, and Money" — the private areas as one phrase. */
+export const PRIVATE_AREAS_PHRASE = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction",
+}).format(PRIVATE_NAV_ITEMS.map((i) => i.label));
+
+/** Titles for pages that are reachable but not in NAV (the top bar's name). */
+export const UNLISTED_PAGE_TITLES: Record<string, string> = {
+  "/unlock": "Private",
+};
+
 // ─── Account menu — SSOT for the header account dropdown ─────────────────────
 // Identity-scoped destinations. They are NOT sidebar items: you do not browse
 // to your own settings, you reach them from your own avatar. Sign out and the
