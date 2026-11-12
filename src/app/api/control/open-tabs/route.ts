@@ -33,8 +33,12 @@ export async function GET(req: Request) {
         tabs: [],
         unavailable: {
           code: "cloud-builder-private",
+          // Read by a person on the Terminal page, so it says who the cloud
+          // is for and what works instead. It read "Cloud runner is private
+          // for this account. Use This computer after connecting Fleet
+          // Runner.": two internal names and a capitalised menu label.
           message:
-            "Cloud runner is private for this account. Use This computer after connecting Fleet Runner.",
+            "The cloud computer is for invited accounts during the beta. Your own computer works too, with the free Fleet Runner app.",
         },
       });
     }

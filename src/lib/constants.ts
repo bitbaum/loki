@@ -35,7 +35,12 @@ export const DEFAULT_TIMEZONE = envAlias("DEFAULT_TIMEZONE", "Europe/Zurich");
  *  weekday/month names while preserving Swiss numeric + currency conventions
  *  (apostrophe thousands, "CHF 1’234.50"), so only the dates change. Override
  *  with the LOCALE env var. */
-export const APP_LOCALE = envAlias("LOCALE", "en-CH");
+// NEXT_PUBLIC_APP_LOCALE is the same setting, inlined at build time by
+// next.config.ts so the browser reads the value the server reads. Without it
+// a deployment that set APP_LOCALE=de-CH rendered "Sa., 14. Nov." on the
+// server and "Sat, 14 Nov" in the browser: React threw the server markup away
+// on /approvals and anywhere else a client component prints a date.
+export const APP_LOCALE = process.env.NEXT_PUBLIC_APP_LOCALE || envAlias("LOCALE", "en-CH");
 
 /** Lookahead windows for the /today summary cards. */
 export const GOALS_DUE_SOON_DAYS = 14;

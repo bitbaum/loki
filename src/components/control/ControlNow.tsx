@@ -75,11 +75,14 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
   );
 }
 
-/** "Fix the settings page · Editing page.tsx" — what it is, then what it is
- *  doing; the task name alone when the step says nothing new. */
+/** "Editing page.tsx · Fix the settings page" — what it is doing this minute,
+ *  then what was asked; the task name alone when the step says nothing new.
+ *  The step leads because a phone row holds about thirty characters: with the
+ *  name first, every row read "Next best step · Editing src/app/pa…", the
+ *  same four words on each and the one live fact cut off. */
 function jobLine(job: NowJob): string {
   if (!job.status || job.status === job.title) return job.title;
-  return `${job.title} · ${job.status}`;
+  return `${job.status} · ${job.title}`;
 }
 
 /**

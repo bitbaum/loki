@@ -56,6 +56,12 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: PKG_VERSION,
     NEXT_PUBLIC_BUILD_SHA: buildSha(),
+    // The date locale, for the browser too. APP_LOCALE is a server variable,
+    // so a client component formatting a date fell back to the default while
+    // the server used the configured one: the same date drawn two ways, and a
+    // hydration error on every page that shows one (see lib/constants.ts).
+    NEXT_PUBLIC_APP_LOCALE:
+      process.env.APP_LOCALE ?? process.env.LOKI_LOCALE ?? process.env.COCKPIT_LOCALE ?? "",
   },
   async redirects() {
     // Assembled so the repo carries no literal of the retired product name.
