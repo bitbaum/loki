@@ -53,6 +53,7 @@ const GUARDS = [
   // Machine callers
   "getBearerUserId", // ck_* runner/agent token, src/lib/runner-auth.ts
   "validateAgentToken",
+  "findLiveAgentToken", // the same ck_* lookup, returning the token's id: POST /api/token-session (src/db/queries/token-sessions.ts)
   "studioBearer", // spt_* capability for exactly one Bitbaum portal request
   "getWidgetTokenByToken", // fcw_* write-only widget token
   "resolveMcpCaller", // /api/mcp — a ck_* token or an OrangeCat JWT minted for Loki, src/lib/mcp/auth.ts

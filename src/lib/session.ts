@@ -7,6 +7,7 @@ import { validateAgentToken } from "@/db/queries/agent-tokens";
 import { getUserById, getUserByEmail } from "@/db/queries/users";
 import { envAlias, envAliasBool } from "@/lib/brand-env";
 import { isValidUuid } from "@/lib/utils";
+import { TOKEN_SESSION_WRITE_HEADER } from "@/lib/auth/token-session";
 
 /**
  * Resolve the DB user id from a session.
@@ -21,24 +22,43 @@ import { isValidUuid } from "@/lib/utils";
  * auth layer signed into the JWT, so it carries the same trust as the id.
  * OAuth JWTs that briefly carry a non-UUID provider id recover the same way.
  */
-export async function resolveSessionUserId(): Promise<string | null> {
+async function resolveSessionCaller(): Promise<{ userId: string; viaToken: boolean } | null> {
   const session = await auth();
   if (!session?.user) return null;
+  const viaToken = session.user.viaToken === true;
 
   const id = session.user.id;
   if (id && isValidUuid(id)) {
     const user = await getUserById(id);
-    if (user) return id;
+    if (user) return { userId: id, viaToken };
     // valid UUID but no such user → orphaned token; fall through to email recovery
   }
 
   const email = session.user.email;
   if (email) {
     const byEmail = await getUserByEmail(email);
-    if (byEmail) return byEmail.id;
+    if (byEmail) return { userId: byEmail.id, viaToken };
   }
 
   return null;
+}
+
+/**
+ * A session opened with an agent's token (lib/auth/token-session.ts) is the
+ * token's power: it reads like a person, and it writes only where a token is
+ * accepted. The proxy marks its writes; a person-only route reads them as
+ * signed out.
+ */
+async function isTokenSessionWrite(): Promise<boolean> {
+  const h = await headers();
+  return h.get(TOKEN_SESSION_WRITE_HEADER) === "1";
+}
+
+export async function resolveSessionUserId(): Promise<string | null> {
+  const caller = await resolveSessionCaller();
+  if (!caller) return null;
+  if (caller.viaToken && (await isTokenSessionWrite())) return null;
+  return caller.userId;
 }
 
 /**
@@ -91,17 +111,21 @@ let warnedDeprecatedDaemonToken = false;
 export type ApiActor = { userId: string; via: "session" | "token" };
 
 export async function getApiActor(): Promise<ApiActor | null> {
-  const sessionUserId = await resolveSessionUserId();
-  if (sessionUserId) return { userId: sessionUserId, via: "session" };
-  const userId = await getApiUserId();
+  const caller = await resolveSessionCaller();
+  if (caller) return { userId: caller.userId, via: caller.viaToken ? "token" : "session" };
+  const userId = await bearerUserId();
   return userId ? { userId, via: "token" } : null;
 }
 
 export async function getApiUserId(): Promise<string | null> {
-  // Cookie-based session (web UI).
-  const userId = await resolveSessionUserId();
-  if (userId) return userId;
+  // Cookie-based session (web UI), including one opened with a token: every
+  // route that reads the caller here already takes a token.
+  const caller = await resolveSessionCaller();
+  if (caller) return caller.userId;
+  return bearerUserId();
+}
 
+async function bearerUserId(): Promise<string | null> {
   // Bearer token (daemon / CLI agent).
   const headersList = await headers();
   const authHeader = headersList.get("authorization") ?? "";
