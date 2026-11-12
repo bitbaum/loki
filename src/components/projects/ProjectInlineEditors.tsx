@@ -5,6 +5,7 @@ import { Loader2, Pencil } from "lucide-react";
 import { StatusBadge } from "./project-badges";
 import { useInlineEdit } from "@/hooks/use-inline-edit";
 import { cn } from "@/lib/utils";
+import { TextArea } from "@/components/ui/text-area";
 
 /** Inline-editable description (button ↔ textarea + Save/Cancel). */
 export function DescriptionEditor({
@@ -48,20 +49,17 @@ export function DescriptionEditor({
   if (ie.editing) {
     return (
       <div className="mt-1.5 space-y-1.5">
-        <textarea
+        <TextArea
           value={ie.draft}
-          onChange={(e) => ie.setDraft(e.target.value)}
+          onChange={ie.setDraft}
           onKeyDown={(e) => {
             if (e.key === "Escape") ie.cancel();
-            if (e.key === "Enter" && e.metaKey) commit();
           }}
+          onSubmit={() => void commit()}
           autoFocus
           rows={size === "full" ? 6 : 2}
+          ariaLabel="Description"
           placeholder="Add a description…"
-          className={cn(
-            "ui-input-inline w-full resize-none px-2 py-1.5 text-text-primary placeholder:text-text-muted",
-            size !== "compact" ? "text-sm sm:text-base" : "text-xs",
-          )}
         />
         <div className="flex items-center gap-2">
           <button onClick={commit} disabled={ie.saving} className="ui-btn-save">

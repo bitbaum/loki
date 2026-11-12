@@ -5904,8 +5904,9 @@
   .ui-fb-read-ask-text {
     @apply block text-text-primary;
   }
+  /* The ask's <TextArea>: the frame is the shared field's (.ui-text-area). */
   .ui-fb-read-ask {
-    @apply mb-1 w-full rounded-lg border border-border-default bg-surface-base px-2.5 py-2 text-sm text-text-primary outline-none focus:border-border-interactive;
+    @apply mb-1 w-full;
   }
   .ui-fb-read-ask-actions {
     @apply flex flex-wrap items-center gap-x-4;
@@ -9062,6 +9063,37 @@
     > .ui-loki-scope-pill {
     min-width: 3.5rem;
   }
+}
+
+/* ── <TextArea> (components/ui/text-area.tsx): chatkit's DictationField drawn
+   as a Loki field ───────────────────────────────────────────────────────────
+   UNLAYERED for the same reason as the composer rules above: chatkit's
+   stylesheet is unlayered, so a rule in @layer components would lose to it.
+   chatkit's field already reads Loki's colours through --ck-* (:root); these
+   few lines make its frame the same as `ui-input` around it: the default
+   border (chatkit uses the subtle one), the same 10px/12px text inset, the
+   strong border on focus instead of an accent outline, and 14px text from
+   `sm` up, where ui-input is `sm:text-sm`. On a phone the text stays 16px
+   (chatkit's floor, so iOS does not zoom). The mic stays chatkit's 44px. */
+.ui-text-area .ck-field {
+  border-color: var(--border-default);
+  padding: 0.375rem 0.625rem;
+}
+.ui-text-area .ck-field:focus-within {
+  border-color: var(--border-strong);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--text-primary) 6%, transparent);
+}
+@media (min-width: 40rem) {
+  .ui-text-area .ck-field-input {
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+}
+/* A prompt body (PromptForm): words for an agent, set in the mono face as the
+   plain field was, so {{blanks}} read as blanks. */
+.ui-text-area-mono .ck-field-input {
+  font-family: var(--font-mono);
 }
 
 /* ── Loki chat as the whole screen (chatkit ChatScreen) ──────────────────────

@@ -6,6 +6,7 @@ import { createGoal } from "@/lib/api/goals";
 import { GOAL_STATUS } from "@/lib/constants/statuses";
 import { GOAL_FORM } from "@/config/ai-forms";
 import { Field } from "@/components/ui/form";
+import { TextArea } from "@/components/ui/text-area";
 import { ModalForm } from "@/components/ui/modal-form";
 import { useCreateMutation } from "@/hooks/use-create-mutation";
 import { DateInput } from "@/components/ui/date-input";
@@ -77,13 +78,18 @@ export function NewGoalButton({
         />
       </Field>
 
-      <Field label="Description" aiTouched={form.isAiTouched("description")}>
-        <textarea
+      <Field
+        label="Description"
+        htmlFor="new-goal-description"
+        aiTouched={form.isAiTouched("description")}
+      >
+        <TextArea
+          id="new-goal-description"
+          ariaLabel="Description"
           value={form.text("description")}
-          onChange={(e) => form.setValue("description", e.target.value)}
+          onChange={(next) => form.setValue("description", next)}
           placeholder="Optional context or motivation"
           rows={2}
-          className="ui-input resize-none"
         />
       </Field>
 

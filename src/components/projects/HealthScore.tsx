@@ -7,6 +7,7 @@ import type { ProjectHealth, ProjectHealthCheck } from "@/lib/project-health";
 import { AI_FILLABLE_CHECKS, describeProjectHealth } from "@/lib/project-health";
 import { setAttr, removeAttr } from "@/lib/api/attrs";
 import { patchJson, postJson } from "@/lib/api/fetch";
+import { TextArea } from "@/components/ui/text-area";
 
 function scoreTone(score: number, max: number) {
   const ratio = score / max;
@@ -326,13 +327,13 @@ export function HealthScoreBar({
                               removes the flag from the project.
                             </p>
                           ) : check.fix.multiline ? (
-                            <textarea
+                            <TextArea
                               autoFocus
                               rows={3}
                               value={draft}
-                              onChange={(e) => setDraft(e.target.value)}
+                              onChange={setDraft}
+                              ariaLabel={check.fix.placeholder}
                               placeholder={check.fix.placeholder}
-                              className="ui-input w-full"
                             />
                           ) : (
                             <input

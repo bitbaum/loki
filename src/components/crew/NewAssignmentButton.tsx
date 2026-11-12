@@ -3,6 +3,7 @@
 import { useAiForm } from "@fleet/ai-forms/react";
 import { Field } from "@/components/ui/form";
 import { ModalForm } from "@/components/ui/modal-form";
+import { TextArea } from "@/components/ui/text-area";
 import { useCreateMutation } from "@/hooks/use-create-mutation";
 import { postJson } from "@/lib/api/fetch";
 import { ASSIGNMENT_FORM } from "@/config/ai-forms";
@@ -106,23 +107,33 @@ export function NewAssignmentButton({
         />
       </Field>
 
-      <Field label="Brief — what to do, written for them" aiTouched={form.isAiTouched("brief")}>
-        <textarea
+      <Field
+        label="Brief — what to do, written for them"
+        htmlFor="new-assignment-brief"
+        aiTouched={form.isAiTouched("brief")}
+      >
+        <TextArea
+          id="new-assignment-brief"
+          ariaLabel="Brief — what to do, written for them"
           value={form.text("brief")}
-          onChange={(e) => form.setValue("brief", e.target.value)}
+          onChange={(next) => form.setValue("brief", next)}
           rows={5}
           placeholder="Who to contact, what to say, what to bring back."
-          className="ui-input"
         />
       </Field>
 
-      <Field label="Why — the half that earns a yes" aiTouched={form.isAiTouched("reason")}>
-        <textarea
+      <Field
+        label="Why — the half that earns a yes"
+        htmlFor="new-assignment-reason"
+        aiTouched={form.isAiTouched("reason")}
+      >
+        <TextArea
+          id="new-assignment-reason"
+          ariaLabel="Why — the half that earns a yes"
           value={form.text("reason")}
-          onChange={(e) => form.setValue("reason", e.target.value)}
+          onChange={(next) => form.setValue("reason", next)}
           rows={3}
           placeholder="e.g. We need a second quote before the board meeting."
-          className="ui-input"
         />
       </Field>
 

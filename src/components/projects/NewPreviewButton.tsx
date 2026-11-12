@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAiForm } from "@fleet/ai-forms/react";
 import { Field } from "@/components/ui/form";
 import { ModalForm } from "@/components/ui/modal-form";
+import { TextArea } from "@/components/ui/text-area";
 import { useCreateMutation } from "@/hooks/use-create-mutation";
 import { postJson } from "@/lib/api/fetch";
 import { PREVIEW_FORM } from "@/config/ai-forms";
@@ -95,15 +96,17 @@ export function NewPreviewButton({
       </Field>
       <Field
         label="What do you know about them?"
+        htmlFor="new-preview-about"
         hint="Links, where they are, what they do — the more, the closer the first version."
         aiTouched={form.isAiTouched("about")}
       >
-        <textarea
+        <TextArea
+          id="new-preview-about"
+          ariaLabel="What do you know about them?"
           value={form.text("about")}
-          onChange={(e) => form.setValue("about", e.target.value)}
+          onChange={(next) => form.setValue("about", next)}
           placeholder="e.g. DJ in Zurich, dub techno. ra.co/dj/francescotarallo"
           rows={4}
-          className="ui-input"
         />
       </Field>
       <Field

@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, GitBranch, Check, Copy } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
+import { TextArea } from "@/components/ui/text-area";
 // The light half only: the starters' file bodies (the fleet starter is ~0.5 MB)
 // must never reach a client bundle.
 import {
@@ -370,16 +371,20 @@ function NewFromScratchForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
+              <label
+                htmlFor="new-from-scratch-description"
+                className="block text-sm font-medium text-text-primary mb-1"
+              >
                 What do you want to build?
               </label>
-              <textarea
+              <TextArea
+                id="new-from-scratch-description"
+                ariaLabel="What do you want to build?"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
                 placeholder="A peer-to-peer marketplace where cat owners find trusted sitters nearby."
                 maxLength={300}
                 rows={3}
-                className="ui-input w-full resize-y"
               />
               <p className="text-xs text-text-tertiary mt-1">
                 Plain English. The agent uses this to choose the stack and build the first version.

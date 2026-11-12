@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { TextArea } from "@/components/ui/text-area";
 import { STUDIO, STUDIO_STATUS } from "@/config/studio";
 import type { listStudioRequests, StudioReviewView } from "@/db/queries/studio-requests";
 
@@ -64,18 +65,12 @@ export function StudioRequests({
     }
   }
   const value = (form: HTMLFormElement, name: string) => String(new FormData(form).get(name) ?? "");
-  const label = (name: string, title: string, textarea = false, initial = "") => (
-    <label className="block space-y-2 text-sm text-text-secondary">
-      {title}
-      {textarea ? (
-        <textarea
-          name={name}
-          className="ui-input min-h-28 w-full text-base"
-          required
-          maxLength={2000}
-          defaultValue={initial}
-        />
-      ) : (
+  const label = (name: string, title: string, textarea = false, initial = "") =>
+    textarea ? (
+      <StudioTextArea name={name} title={title} initial={initial} />
+    ) : (
+      <label className="block space-y-2 text-sm text-text-secondary">
+        {title}
         <input
           name={name}
           className="ui-input w-full text-base"
@@ -83,9 +78,8 @@ export function StudioRequests({
           maxLength={2000}
           defaultValue={initial}
         />
-      )}
-    </label>
-  );
+      </label>
+    );
   const send = (title: string) => (
     <button className="ui-btn-primary min-h-11" disabled={busy}>
       {busy ? "Saving…" : title}
@@ -493,6 +487,42 @@ export function StudioRequests({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A studio reply, reason or assessment: words, so the shared field with its
+ * microphone. Still read by name from the native form (`new FormData`); the
+ * field is controlled here only because DictationField is, starting from the
+ * same initial text the plain box took as `defaultValue`.
+ */
+function StudioTextArea({
+  name,
+  title,
+  initial,
+}: {
+  name: string;
+  title: string;
+  initial: string;
+}) {
+  const id = useId();
+  const [text, setText] = useState(initial);
+  return (
+    <div className="space-y-2 text-sm text-text-secondary">
+      <label htmlFor={id} className="block">
+        {title}
+      </label>
+      <TextArea
+        id={id}
+        name={name}
+        ariaLabel={title}
+        value={text}
+        onChange={setText}
+        required
+        maxLength={2000}
+        rows={4}
+      />
     </div>
   );
 }

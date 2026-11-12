@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, X } from "lucide-react";
+import { TextArea } from "@/components/ui/text-area";
 import { HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { setAttr, removeAttr } from "@/lib/api/attrs";
 import { timeAgo } from "@/lib/dates";
@@ -127,13 +128,13 @@ export function ProjectFlags({
 
               {isEditing ? (
                 <div className="mt-2 space-y-2">
-                  <textarea
+                  <TextArea
                     autoFocus
                     rows={3}
                     value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={setDraft}
+                    ariaLabel={`What is wrong: ${cfg.label}`}
                     placeholder={`What is wrong? e.g. ${cfg.label.toLowerCase()} on the checkout page`}
-                    className="ui-textarea w-full text-sm"
                   />
                   <div className="flex flex-wrap gap-2">
                     <button

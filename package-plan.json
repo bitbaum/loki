@@ -11,5 +11,13 @@
       ],
       "notes": "Reuse SessionComposer and its existing ChatKit wrapper for input, attachments, dictation and failed-send drafts. No new composer or transport."
     }
+  },
+  "experience": {
+    "ceiling": {
+      "bareTextareas": 1,
+      "localChrome": 2,
+      "localComposers": 1,
+      "mutedChats": 1
+    }
   }
 }

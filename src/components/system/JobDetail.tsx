@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import type { CronJob } from "@/lib/crons-shared";
 import { humanCronSchedule } from "@/lib/crons-shared";
 import { Drawer } from "@/components/ui/modal";
+import { TextArea } from "@/components/ui/text-area";
 import { postJson } from "@/lib/api/fetch";
 import { FEEDBACK_MEDIUM_MS } from "@/lib/constants/timings";
 
@@ -202,7 +203,9 @@ export function JobDetail({
         {/* Prompt editor */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="ui-kicker text-text-secondary">Prompt</span>
+            <label htmlFor="job-prompt" className="ui-kicker text-text-secondary">
+              Prompt
+            </label>
             {isDirty && (
               <button onClick={handleSave} disabled={saving} className="ui-btn-confirm">
                 <Send className="h-3 w-3" />
@@ -216,12 +219,17 @@ export function JobDetail({
               </span>
             )}
           </div>
-          <textarea
+          {/* The job's prompt: words for an agent, so the shared field with its
+              microphone, set in the mono face like the prompt library's
+              (PromptForm), with spell-check off as it always was here. */}
+          <TextArea
+            id="job-prompt"
+            ariaLabel="Prompt"
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={setPrompt}
             rows={14}
-            className="w-full rounded-md bg-surface-base border border-border-subtle p-3 text-xs font-mono text-text-secondary focus:outline-none focus:border-border-strong resize-y leading-relaxed"
-            spellCheck={false}
+            className="ui-text-area-mono"
+            inputProps={{ spellCheck: false }}
           />
         </div>
       </div>
