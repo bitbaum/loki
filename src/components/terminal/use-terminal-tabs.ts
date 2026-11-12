@@ -1,5 +1,7 @@
 "use client";
 
+import { EXECUTOR_COPY } from "@/config/executor-copy";
+
 import { usePoll } from "@/hooks/use-poll";
 import { useBuilderPresence, type BuilderPresenceSnapshot } from "@/hooks/use-builder-presence";
 import type { BuilderChannel } from "@/lib/event-stream-types";
@@ -40,12 +42,19 @@ export function useTerminalTabs(channel: BuilderChannel): TerminalTabsState {
   // offline" while the first poll is in flight made the mode bar look stuck.
   // Live tabs also win: a mis-tagged presence channel must not hide sessions
   // that open-tabs already returned for this builder.
-  const offline = connected === false && tabs.length === 0;
+  // An account that may not use the cloud builder is gated, not offline, even
+  // when open-tabs has not answered: presence says so on its own.
+  const gatedByPresence =
+    channel === "cloud" && presence.cloudBuilderAllowed === false && tabs.length === 0
+      ? EXECUTOR_COPY.terminal.cloudNotYoursHint
+      : null;
+  const gatedMessage = data?.unavailable?.message ?? gatedByPresence;
+  const offline = connected === false && tabs.length === 0 && !gatedMessage;
 
   return {
     tabs,
     loading,
-    gatedMessage: data?.unavailable?.message ?? null,
+    gatedMessage,
     offline,
     presence,
   };
