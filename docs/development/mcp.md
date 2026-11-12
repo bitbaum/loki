@@ -92,7 +92,7 @@ and a 401 would send the client back through OAuth for nothing.
 | `ask_loki` | `loki.chat` | Ask Loki anything about the owner's projects, fleet, people, commitments, schedule. `conversation_id` keeps a thread. |
 | `loki_pending_approvals` | `loki.chat` | What is waiting in the approval queue. |
 | `loki_projects` | `loki.chat` | Registered projects with a one-line status — the names `loki_dispatch` accepts. |
-| `loki_dispatch` | `loki.act` | Send a coding task to a project's agent. The outcome arrives later as a notification. |
+| `loki_dispatch` | `loki.act` | Send a coding task to a project's agent. The outcome arrives later as a notification; the answer carries `openUrl`, the session in Loki's Terminal. |
 | `loki_sessions` | `loki.chat` | Agent sessions open on the owner's builders, each with the link that opens it in Loki's Terminal. Plain shells are never listed. |
 | `loki_session_read` | `loki.chat` | The end of one session's terminal output as plain text (what the agent answered after `loki_dispatch`). Waits up to about twenty seconds for the builder; refuses a plain shell. |
 | `loki_book` | `loki.act` | Propose a calendar event through the approval queue; reports `auto-approved` or `awaiting-approval` truthfully. |
