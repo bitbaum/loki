@@ -1,5 +1,6 @@
 import { APP_NAME } from "@/config/brand";
 import type { BuilderChannel } from "@/lib/constants/statuses";
+import { NAV } from "@/config/navigation";
 
 /**
  * SSOT for user-facing execution copy.
@@ -83,8 +84,7 @@ export const EXECUTOR_COPY = {
 
   /** Cloud web app always queues; this means a live builder will drain it. */
   queuedWithBuilderOnline: "With runner — starting shortly",
-  queuedWithBuilderOnlineLong:
-    "a runner is online and will claim it shortly. Use Control for state, or open Sessions to watch the agent and talk to it. You get a notification when the run finishes.",
+  queuedWithBuilderOnlineLong: `a runner is online and will claim it shortly. ${NAV.control.label} shows where it is; ${NAV.terminal.label} lets you watch the agent and talk to it. You get a notification when the run finishes.`,
 
   // The first screens a new person reads. Written for someone who has never
   // heard "builder", "CLI" or "tenant" — the earlier copy said "dispatch agents

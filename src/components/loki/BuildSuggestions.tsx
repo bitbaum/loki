@@ -145,6 +145,11 @@ export function BuildSuggestions({
             title={s.label}
             secondary={withWhy ? s.why : undefined}
             chevron={withWhy}
+            // A tap here sends the work at once, so the row says so: it read
+            // as a plain row, with nothing to warn that one tap starts an
+            // agent (owner audit, 2026-11-12).
+            trailing={!s.href && s.prompt ? "Start" : undefined}
+            label={!s.href && s.prompt ? `Start: ${s.label}` : undefined}
             href={s.href ?? undefined}
             onClick={() => {
               tapped(s);

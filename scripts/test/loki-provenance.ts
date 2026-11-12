@@ -151,17 +151,38 @@ const FLAGGED: LokiProvenance = {
     assert.deepEqual(splitModelId("bare"), { model: "bare", vendor: null });
   });
 
-  check("the line says what was READ, skipping sources that returned nothing", () => {
-    const line = describeProvenance(CLEAN).segments.join(" · ");
+  check("the details say what was READ, skipping sources that returned nothing", () => {
+    const line = describeProvenance(CLEAN).details.join(" · ");
     assert.match(line, /read .*feedback 5/, `expected the feedback count: ${line}`);
     assert.match(line, /runs 7/, `expected the run count: ${line}`);
     assert.doesNotMatch(line, /economy/, `a source that returned nothing is noise: ${line}`);
   });
 
-  check("the line names the tools that ran and how long it took", () => {
+  check("the summary says how much was checked and how long it took", () => {
     const line = describeProvenance(CLEAN).segments.join(" · ");
-    assert.match(line, /used list_runs/, line);
+    assert.match(line, /checked 34 of your records/, line);
     assert.match(line, /2\.3s/, line);
+    assert.doesNotMatch(line, /gpt-oss|list_runs/, `no model id or handler name: ${line}`);
+  });
+
+  check("the details name the steps in words, never a handler name", () => {
+    const line = describeProvenance({
+      ...CLEAN,
+      toolsUsed: ["fleet_status", "search_knowledge", "list_runs"],
+    }).details.join(" · ");
+    assert.doesNotMatch(line, /fleet_status|search_knowledge|list_runs/, line);
+    assert.match(line, /Read recent work/, line);
+  });
+
+  check("an answer on the person's own key says so in words", () => {
+    const line = describeProvenance({
+      ...CLEAN,
+      model: "your key: xAI · grok-4.7 (+1 more) — standard turn (an ordinary ask)",
+      durationMs: 152_400,
+    });
+    assert.equal(line.segments[0], "Answered with your xAI key");
+    assert.ok(line.segments.includes("2.5 min"), line.segments.join(" · "));
+    assert.match(line.details[0]!, /grok-4\.7/);
   });
 
   check("a degraded path says so — a fallback answer must not pass as the real one", () => {

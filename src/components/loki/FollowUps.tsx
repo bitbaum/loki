@@ -45,9 +45,28 @@ export function FollowUps({
   }, [answerId]);
 
   const items = result?.id === answerId ? result.items : [];
+  return <FollowUpRows items={items} onPick={onPick} />;
+}
+
+/**
+ * Suggested next messages, as rows — the first tagged "Next". One shape for
+ * every source of them: the answer's own replies, the follow-ups call, and a
+ * finished run's next steps. The answer's own replies came as a sideways strip
+ * of pills, the second cut mid-word at the screen's edge (owner audit,
+ * 2026-11-12).
+ */
+export function FollowUpRows({
+  items,
+  onPick,
+  label = "Suggested follow-ups",
+}: {
+  items: readonly string[];
+  onPick: (text: string) => void;
+  label?: string;
+}) {
   if (items.length === 0) return null;
   return (
-    <ul className="ui-loki-followups" aria-label="Suggested follow-ups">
+    <ul className="ui-loki-followups" aria-label={label}>
       {items.map((text, i) => (
         <li key={text}>
           {/* The first is the recommendation (see lib/loki/follow-ups.ts), so

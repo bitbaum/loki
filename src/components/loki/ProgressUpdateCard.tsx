@@ -1,7 +1,11 @@
-import { Check, ExternalLink, Play } from "lucide-react";
+import { Check, CornerDownRight, ExternalLink, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { projectTitle } from "@/lib/project-display";
 import {
-  NOT_STATED,
+  askForMissing,
+  askToFinish,
+  OWED_WORDS,
+  UPDATE_STAGE,
   isNone,
   UPDATE_SECTIONS,
   UPDATE_STAGE_LABEL,
@@ -23,14 +27,23 @@ const TONE_TAG = {
   negative: "ui-tag-negative",
 } as const;
 
-export function ProgressUpdateCard({ update }: { update: ProgressUpdate }) {
+export function ProgressUpdateCard({
+  update,
+  onContinue,
+}: {
+  update: ProgressUpdate;
+  /** Send a follow-up in this chat, on this update's project. */
+  onContinue?: (text: string, project: string) => void;
+}) {
   const stage = UPDATE_STAGE_LABEL[update.stage];
+  const name = projectTitle({ name: update.project });
+  const finish = update.stage === UPDATE_STAGE.NOT_DONE ? askToFinish(update) : null;
   return (
-    <article className="ui-loki-update" aria-label={`${update.project}: ${stage.label}`}>
+    <article className="ui-loki-update" aria-label={`${name}: ${stage.label}`}>
       <header className="ui-loki-update-head">
         <span className={cn("ui-tag", TONE_TAG[stage.tone])}>{stage.label}</span>
         {update.behindTheScenes && <span className="ui-tag">Behind the scenes</span>}
-        <span className="ui-loki-update-project">{update.project}</span>
+        <span className="ui-loki-update-project">{name}</span>
       </header>
       <p className="ui-loki-update-headline">{update.headline}</p>
 
@@ -54,15 +67,11 @@ export function ProgressUpdateCard({ update }: { update: ProgressUpdate }) {
               </section>
             ) : null;
           const value = update[s.key];
-          const missing = !value && (update.missing as string[]).includes(s.key);
+          // What was left unsaid is one line after the sections, not
+          // "Not stated … worth asking" four times over.
           return [
             alternatives,
-            missing ? (
-              <section key={s.key}>
-                <h4 className="ui-loki-update-label">{s.label}</h4>
-                <p className="ui-loki-update-missing">{NOT_STATED}</p>
-              </section>
-            ) : value && isNone(value) ? (
+            value && isNone(value) ? (
               // Said out loud: "no downsides" is a finding, and a blank would
               // read the same as "nobody looked".
               <section key={s.key}>
@@ -84,6 +93,24 @@ export function ProgressUpdateCard({ update }: { update: ProgressUpdate }) {
         })}
       </div>
 
+      {update.missing.length > 0 && (
+        <div className="ui-loki-update-gap">
+          <p className="ui-loki-update-missing">
+            Not stated: {update.missing.map((k) => OWED_WORDS[k]).join(", ")}
+          </p>
+          {onContinue && (
+            <button
+              type="button"
+              className="ui-btn-secondary inline-flex items-center gap-1.5"
+              onClick={() => onContinue(askForMissing(update), update.project)}
+            >
+              <CornerDownRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Ask
+            </button>
+          )}
+        </div>
+      )}
+
       {update.images.length > 0 && (
         <div className="ui-loki-update-shots">
           {update.images.map((img) => (
@@ -104,8 +131,17 @@ export function ProgressUpdateCard({ update }: { update: ProgressUpdate }) {
         </div>
       )}
 
-      {update.links.length > 0 && (
+      {(update.links.length > 0 || (finish && onContinue)) && (
         <div className="ui-loki-update-actions">
+          {finish && onContinue && (
+            <button
+              type="button"
+              className="ui-btn-save inline-flex items-center gap-1.5"
+              onClick={() => onContinue(finish, update.project)}
+            >
+              Ask it to finish
+            </button>
+          )}
           {update.links.map((l) => {
             const external = /^https?:\/\//.test(l.href);
             const watch = l.href.endsWith("/watch-fix");

@@ -57,8 +57,15 @@ export function describeChatModel(id: string): { name: string; blurb: string } {
     [/deepseek/i, "", "Strong at reasoning and code"],
     [/kimi/i, "", "Long context — whole files at once"],
   ];
+  // The router's "any free model" id is not a model called "Free".
+  if (bare.toLowerCase() === "free") {
+    return { name: "Any free model", blurb: "Whichever free model has room" };
+  }
   const pretty = bare
     .split(/[-_]/)
+    // Packaging tokens, not names: "Gemma 4 31B It", "Nemotron 3 Super 120B
+    // A12b" (owner audit, 2026-11-12).
+    .filter((part) => !/^(it|a\d+b|free|instruct)$/i.test(part))
     .map((part) =>
       /^\d+(\.\d+)?b$/i.test(part)
         ? part.toUpperCase()
@@ -66,7 +73,7 @@ export function describeChatModel(id: string): { name: string; blurb: string } {
     )
     .join(" ");
   for (const [re, name, blurb] of known) if (re.test(bare)) return { name: name || pretty, blurb };
-  return { name: pretty, blurb: "On the shared model chain" };
+  return { name: pretty, blurb: "Free to use" };
 }
 
 /** Keep own keys independent of shared-pool quotas, and one row per selectable

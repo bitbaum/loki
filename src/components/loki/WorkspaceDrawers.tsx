@@ -28,12 +28,12 @@ export function WorkspaceDrawers({
   return (
     <>
       {historyOpen && (
-        <Drawer onClose={onCloseHistory} size="md">
+        <Drawer onClose={onCloseHistory} size="md" title="Chats">
           <div className="flex min-h-0 flex-1 flex-col p-3">{history}</div>
         </Drawer>
       )}
       {filterOpen && (
-        <Drawer onClose={onCloseFilter} size="md">
+        <Drawer onClose={onCloseFilter} size="md" title="Project for this chat">
           <div className="flex min-h-0 flex-1 flex-col p-3">
             <ProjectFilter {...filter} />
           </div>

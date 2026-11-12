@@ -7056,6 +7056,18 @@
     @apply -mx-2 block w-[calc(100%+1rem)] rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-raised;
   }
   /* The detail sheet: header, body, and the actions as full-width rows. */
+  /* A drawer's own heading and close: a phone has no Esc key and no backdrop
+     strip beside a full-width panel. */
+  .ui-drawer-head {
+    @apply flex shrink-0 items-center gap-2 border-b border-border-subtle py-1 pl-4 pr-1;
+    padding-top: max(0.25rem, env(safe-area-inset-top));
+  }
+  .ui-drawer-title {
+    @apply min-w-0 flex-1 truncate text-base font-semibold text-text-primary;
+  }
+  .ui-drawer-close {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary;
+  }
   .ui-detail-sheet-head {
     @apply flex items-start gap-3 px-5 pb-2 pt-5;
   }
@@ -8207,6 +8219,12 @@
   .ui-loki-provenance {
     @apply mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 px-1 text-micro text-text-muted;
   }
+  .ui-loki-provenance-details > summary {
+    @apply inline-flex items-center text-text-tertiary underline-offset-2 hover:underline;
+  }
+  .ui-loki-provenance-details[open] {
+    @apply basis-full;
+  }
   .ui-loki-provenance-sep {
     @apply text-text-muted/60;
   }
@@ -8250,6 +8268,13 @@
     @apply mt-0.5 text-sm leading-relaxed text-text-secondary;
   }
   /* "Nobody said how this helps users" — a visible gap, not a guess. */
+  /* What an update left unsaid, once, with the way to ask for it. */
+  .ui-loki-update-gap {
+    @apply flex flex-wrap items-center justify-between gap-2;
+  }
+  .ui-loki-update-gap > .ui-loki-update-missing {
+    @apply mb-0 min-w-0 flex-1;
+  }
   .ui-loki-update-missing {
     @apply mt-0.5 text-sm leading-relaxed text-text-tertiary italic;
   }
@@ -8388,13 +8413,19 @@
   .ui-loki-queue-item {
     @apply inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-surface-raised py-0.5 pl-2.5 pr-1 text-xs text-text-secondary;
   }
+  /* 44px to take a message back, the chip itself staying slim: the hit area
+     overhangs it (it was 20×20, owner audit 2026-11-12). */
   .ui-loki-queue-remove {
-    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary;
+    @apply -my-3 -mr-3 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary;
   }
   /* The scope a message is aimed at — a quiet pill beside the model, like a
      recipient chip. Tap the name to change it, × to drop it. */
   .ui-loki-scope-pill {
     @apply inline-flex min-h-9 max-w-36 items-center gap-1 rounded-full bg-surface-raised pl-3 text-sm font-medium text-text-primary;
+  }
+  /* The pill's own button: dot and name, the pill's full height and more. */
+  .ui-loki-scope-name {
+    @apply -my-1 -ml-3 inline-flex min-h-11 min-w-0 items-center gap-1 rounded-full pl-3 pr-2;
   }
   .ui-loki-scope-remove {
     @apply -mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent-text/70 transition-colors hover:bg-accent-primary/15 hover:text-accent-text;
@@ -8403,16 +8434,10 @@
     @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-text-tertiary transition-colors hover:border-border-default hover:text-text-primary;
   }
 
-  /* Project multi-select (right pane). */
-  .ui-loki-project {
-    @apply flex w-full items-center gap-2 rounded-lg border border-border-subtle px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
-  }
-  .ui-loki-project-active {
-    @apply border-accent-primary/30 bg-accent-muted text-text-primary;
-  }
-  /* The active goal each project is aiming at, shown under its name. */
-  .ui-loki-project-goal {
-    @apply mt-0.5 block truncate text-xs text-text-tertiary;
+  /* Project multi-select (the project drawer). */
+  /* A chosen row in the project picker: its check reads as ink, not grey. */
+  .ui-loki-project-active .ui-listrow-lead {
+    @apply text-text-primary;
   }
 
   /* ══ Design reset primitives (2026-10) ═══════════════════════════════════
@@ -8982,6 +9007,9 @@
 .ck-screen-header .ui-loki-thread-header {
   position: static;
   flex: 1;
+  /* A flex item is as wide as its min-content unless told otherwise: a long
+     thread name pushed the menu off a 390px screen (owner audit, 2026-11-12). */
+  min-width: 0;
   margin: 0;
   padding: 0;
   background: transparent;
@@ -8993,6 +9021,18 @@
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   backdrop-filter: blur(16px) saturate(1.4);
   color: var(--text-primary);
+}
+/* The name floats too, so it gets the same frosted backing: drawn bare, it
+   sat on the scrolled words and both were unreadable (owner audit,
+   2026-11-12). */
+.ck-screen-header .ui-loki-thread-header .ui-loki-thread-header-title {
+  flex: 0 1 auto;
+  margin-inline: auto;
+  padding-inline: 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface-base) 70%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
 }
 /* Start screen. On a phone it is laid out exactly like a thread: the header
    and the composer float, and whatever is on the screen — the greeting, the

@@ -4,6 +4,7 @@
  * offline — the card offered Control state / Cloud terminal / This computer.
  */
 import { isDispatchCardAction, presentDispatchCard, terminalHref } from "@/lib/dispatch-card";
+import { GONE_DISPATCH_VIEW } from "@/lib/dispatch-status";
 
 let passed = 0;
 function check(label: string, cond: boolean): void {
@@ -100,6 +101,45 @@ check(
   !isDispatchCardAction(failed.primary) &&
     failed.primary?.href === "/control?focus=loki" &&
     failed.tone === "negative",
+);
+
+// A failure the person can send again: "Try again" leads, Home is the
+// quiet second, and there is no "Watch it" — nothing runs (owner audit,
+// 2026-11-12). The runner's admin words are said for a person.
+const failedRetry = presentDispatchCard({
+  ...base,
+  canResend: true,
+  live: {
+    status: "failed",
+    label: "Dispatch failed",
+    detail:
+      "claude is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).",
+    tone: "negative",
+  },
+});
+check(
+  "a failure offers Try again first",
+  isDispatchCardAction(failedRetry.primary) && failedRetry.primary.action === "send-again",
+);
+check("a failure is not called 'Dispatch failed'", failedRetry.headline === "Couldn't start");
+check(
+  "a failure offers nothing to watch",
+  !failedRetry.secondary.some((l) => l.label === "Watch it"),
+);
+check(
+  "a failure hides the runner's admin instructions",
+  !/CLAUDE_CODE_OAUTH_TOKEN|credentials\.json/.test(failedRetry.detail ?? ""),
+);
+
+// An old card whose record is gone says so and offers to send it again.
+const gone = presentDispatchCard({ ...base, canResend: true, live: GONE_DISPATCH_VIEW });
+check(
+  "a forgotten dispatch is not 'waiting'",
+  gone.headline === "No longer tracked" && gone.tone === "neutral",
+);
+check(
+  "a forgotten dispatch can be sent again",
+  isDispatchCardAction(gone.primary) && gone.primary.label === "Send it again",
 );
 
 const done = presentDispatchCard({

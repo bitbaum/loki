@@ -42,9 +42,12 @@ export function MessageTurn({
   onRetry,
   onReply,
   onContinue,
+  asked,
   conversationId = null,
 }: {
   message: LokiMessage;
+  /** Under a dispatch: the person's words it carried, to send them again. */
+  asked?: string;
   /** The thread this turn is in: with it, an answer carries the thumbs
    *  (AnswerActions), kept with the conversation for the nightly review. */
   conversationId?: string | null;
@@ -106,7 +109,7 @@ export function MessageTurn({
       {message.thinking && <ThinkingRow thinking={message.thinking} />}
 
       {update ? (
-        <ProgressUpdateCard update={update} />
+        <ProgressUpdateCard update={update} onContinue={onContinue} />
       ) : (
         <div className="ui-loki-answer">
           <AnswerMarkdown
@@ -125,7 +128,7 @@ export function MessageTurn({
         />
       )}
       {message.kind === "dispatch" && (
-        <DispatchFooter meta={message.meta} onContinue={onContinue} />
+        <DispatchFooter meta={message.meta} asked={asked} onContinue={onContinue} />
       )}
       {message.kind === "chat" && <ProvenanceFooter meta={message.meta} />}
       {message.kind === "chat" && <QueuedActionCard meta={message.meta} />}

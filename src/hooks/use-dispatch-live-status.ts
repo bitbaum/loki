@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DispatchLiveView } from "@/lib/dispatch-status";
+import { GONE_DISPATCH_VIEW, type DispatchLiveView } from "@/lib/dispatch-status";
 
 /**
  * Poll a dispatch's live status so every surface that fires one — Loki's
@@ -22,6 +22,9 @@ const POLL_MS = 2_500;
  *  this only decides how soon the card hears about it. */
 const FOLLOW_POLL_MS = 30_000;
 const FOLLOW_FOR_MS = 2 * 60 * 60_000;
+/** A card that has not settled in this long (queued behind an offline
+ *  runner, say) is asked slowly from then on, not every 2.5 seconds. */
+const FAST_FOR_MS = 10 * 60_000;
 
 export function useDispatchLiveStatus(
   commandId: string | null,
@@ -41,9 +44,16 @@ export function useDispatchLiveStatus(
     let timer: ReturnType<typeof setTimeout> | undefined;
     const since = Date.now();
     const poll = async () => {
-      let delay = POLL_MS;
+      let delay = Date.now() - since > FAST_FOR_MS ? FOLLOW_POLL_MS : POLL_MS;
       try {
         const res = await fetch(statusUrl);
+        // The record is gone: say so once and stop asking. An old card kept
+        // its stored "waiting" label and polled the 404 for as long as the
+        // thread was open (owner audit, 2026-11-12).
+        if (res.status === 404 || res.status === 410) {
+          if (active) setSnapshot({ url: statusUrl!, view: GONE_DISPATCH_VIEW });
+          return;
+        }
         if (res.ok) {
           const v = (await res.json()) as DispatchLiveView;
           if (!active) return;

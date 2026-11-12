@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   BookmarkPlus,
   Check,
-  FolderKanban,
   Ghost,
   History,
   LayoutGrid,
@@ -43,7 +42,6 @@ export function ThreadHeader({
   onBack,
   onOpenLokis,
   onNewChat,
-  onOpenProjects,
   places,
   onOpenMore,
   temporary = false,
@@ -63,7 +61,6 @@ export function ThreadHeader({
   onBack?: () => void;
   onOpenLokis: () => void;
   onNewChat: () => void;
-  onOpenProjects: () => void;
   /**
    * The start screen's way to the rest of the app, by name. The app bars are
    * gone on a phone here, so this menu IS the navigation: it listed "Projects"
@@ -142,15 +139,13 @@ export function ThreadHeader({
           <ThreadTitle title={title} onRename={onRename} editing onEditingChange={setRenaming} />
         </div>
       ) : (
-        <button
-          type="button"
-          className="ui-loki-thread-header-title"
-          onClick={onOpenProjects}
-          title="Change project scope"
-        >
+        // A heading, not a button: the project is chosen in one place, the
+        // composer's Project pill. The name used to open the same picker as
+        // the menu and the pill, with no sign it could (owner audit, 2026-11-12).
+        <div className="ui-loki-thread-header-title">
           <span className="truncate text-base font-semibold text-text-primary">{title}</span>
           <span className="truncate text-xs text-text-tertiary">{subtitle}</span>
-        </button>
+        </div>
       )}
       <div className="relative">
         <button
@@ -174,7 +169,6 @@ export function ThreadHeader({
             <div className="ui-menu" role="menu">
               {item("New chat", SquarePen, onNewChat)}
               {inThread && item("All chats", History, onOpenLokis)}
-              {item("Choose a project for this chat", FolderKanban, onOpenProjects)}
               {onToggleTemporary && (
                 <button
                   type="button"

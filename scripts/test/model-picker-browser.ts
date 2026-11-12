@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { chromium } from "playwright";
-import { partitionModelOptions } from "@/lib/loki/models";
+import { describeChatModel, partitionModelOptions } from "@/lib/loki/models";
 
 async function main() {
+  // A model's name without its packaging tokens, and the router's "free" id
+  // as what it is (owner audit, 2026-11-12: "Gemma 4 31B It", a model "Free").
+  assert.equal(describeChatModel("google/gemma-4-31b-it:free").name, "Gemma 4 31B");
+  assert.equal(
+    describeChatModel("nvidia/nemotron-3-super-120b-a12b:free").name,
+    "Nemotron 3 Super 120B",
+  );
+  assert.equal(describeChatModel("openrouter/free").name, "Any free model");
   const options = [
     { id: "gpt-oss-120b", provider: "groq", label: "GPT", usable: true },
     { id: "grok-4.7", provider: "xAI", label: "Grok", usable: true, own: true },

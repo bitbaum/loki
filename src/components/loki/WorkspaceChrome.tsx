@@ -41,7 +41,6 @@ export type ThreadChrome = {
   /** On the start screen: the next chat is temporary. In a thread: this one is. */
   temporary: boolean;
   onToggleTemporary: () => void;
-  onOpenProjects: () => void;
   onSaveContext: () => void;
   onTogglePin: (id: string, pinned: boolean) => void;
   onRename: (id: string, title: string) => void;
@@ -82,7 +81,6 @@ export function WorkspaceStartHeader({
   projects,
   onOpenHistory,
   onNewChat,
-  onOpenProjects,
   temporary,
   onToggleTemporary,
 }: ThreadChrome) {
@@ -104,7 +102,6 @@ export function WorkspaceStartHeader({
         projects={projects}
         onOpenLokis={onOpenHistory}
         onNewChat={onNewChat}
-        onOpenProjects={onOpenProjects}
         temporary={temporary}
         onToggleTemporary={onToggleTemporary}
         places={CHAT_PLACES.map((nav) => ({
@@ -133,7 +130,6 @@ export function WorkspaceThreadHeader({
   onOpenHistory,
   onNewChat,
   onLeaveThread,
-  onOpenProjects,
   onSaveContext,
   onTogglePin,
   onRename,
@@ -148,7 +144,6 @@ export function WorkspaceThreadHeader({
       onBack={onLeaveThread}
       onOpenLokis={onOpenHistory}
       onNewChat={onNewChat}
-      onOpenProjects={onOpenProjects}
       onSaveContext={canSaveContext ? onSaveContext : undefined}
       onReportProblem={() => openFeedback(() => router.push("/support"))}
       pinned={pinned}

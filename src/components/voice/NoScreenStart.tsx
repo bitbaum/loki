@@ -51,11 +51,14 @@ export function NoScreenStart({
       trailing={<span className={on ? "ui-switch ui-switch-on" : "ui-switch"} aria-hidden />}
     />
   );
+  const voiceNote = NO_SCREEN_VOICES.find((v) => v.id === settings.voice)?.note;
   return (
     <div className="ui-voice-start">
       <div className="ui-voice-start-head">
         <Headphones className="h-10 w-10 text-text-tertiary" aria-hidden />
-        <p className="ui-voice-start-line">Loki reads your fleet aloud and listens.</p>
+        <p className="ui-voice-start-line">
+          Loki tells you what your projects are doing, and listens.
+        </p>
         {error && <p className="ui-error text-center">{error}</p>}
         <button type="button" className="ui-voice-start-btn" onClick={onStart}>
           <Mic className="h-6 w-6" aria-hidden />
@@ -77,9 +80,7 @@ export function NoScreenStart({
       >
         {/* Seven names are a menu, not a grid: 4 + 3 never lines up, and one
             scrolling chip row cut the fifth off at the screen's edge. */}
-        <p className="ui-settings-lede">
-          {NO_SCREEN_VOICES.find((v) => v.id === settings.voice)?.note}
-        </p>
+        {voiceNote && <p className="ui-settings-lede">{voiceNote}</p>}
         {studioOff && settings.voice !== "phone" && <StudioVoiceNotice failure={studioOff} />}
       </Section>
 

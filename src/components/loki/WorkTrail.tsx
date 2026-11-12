@@ -4,7 +4,13 @@ import { Check, ChevronRight, Loader2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { toolLabel } from "@/config/loki-tool-labels";
-import { groupWork, summarizeTools, type WorkStep, type WorkTool } from "@/lib/loki/work";
+import {
+  groupWork,
+  searchedFor,
+  summarizeTools,
+  type WorkStep,
+  type WorkTool,
+} from "@/lib/loki/work";
 
 /**
  * What Loki actually did to answer — said and run, in order.
@@ -94,7 +100,9 @@ function ToolGroup({ tools, live }: { tools: WorkTool[]; live: boolean }) {
                 <Check className="ui-loki-trail-icon text-status-positive" aria-hidden />
               )}
               <span className="truncate">{toolLabel(tool.name, tool.phase)}</span>
-              {tool.detail && <span className="ui-loki-trail-detail">{tool.detail}</span>}
+              {searchedFor(tool.detail) && (
+                <span className="ui-loki-trail-detail">{searchedFor(tool.detail)}</span>
+              )}
               {tool.phase === "end" && (
                 <span className="ui-loki-trail-count">
                   {tool.facts ?? 0} {(tool.facts ?? 0) === 1 ? "record" : "records"}

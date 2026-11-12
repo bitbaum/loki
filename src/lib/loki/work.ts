@@ -102,6 +102,18 @@ export function describeArgs(args: unknown): string | undefined {
   return line.length > DETAIL_MAX_CHARS ? `${line.slice(0, DETAIL_MAX_CHARS - 1)}…` : line;
 }
 
+/**
+ * What a step looked for, as a person reads it: the quoted search phrase, and
+ * nothing else. The trail showed every argument — `state: "error", hours: 24,
+ * limit: 10` — which is the command, not what it was about (owner audit,
+ * 2026-11-12). A step with no phrase shows no detail.
+ */
+export function searchedFor(detail: string | undefined): string | undefined {
+  if (!detail) return undefined;
+  const m = /(?:^|, )(?:query|q|search|name|url): "((?:[^"\\]|\\.)*)"?/.exec(detail);
+  return m && m[1] ? `“${m[1]}”` : undefined;
+}
+
 /** The one-line summary of a finished tool group. "0 records" is a real and
  *  useful answer — it is how an operator learns the tool ran and their data is
  *  genuinely empty, rather than assuming it never ran. */

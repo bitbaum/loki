@@ -247,26 +247,38 @@ export function LokiComposer({
       )}
       {selectedProjects.map((project) => (
         <span key={project} className="ui-loki-scope-pill">
-          {/* Whether work sent to it will run — a dot on the project itself,
-              not a separate chip squeezing the row (its words in the title). */}
-          {dispatchHonesty && (
-            <span
-              className={SCOPE_DOT[dispatchHonesty.kind]}
-              title={`${dispatchHonesty.label} — ${dispatchHonesty.title}`}
-              aria-label={dispatchHonesty.label}
-            />
-          )}
+          {/* The whole pill is the button, dot and name: only the 27px name
+              could be tapped (owner audit, 2026-11-12). The dot says whether
+              work sent to it will run; its words are in the label. */}
           {onOpenProjects ? (
             <button
               type="button"
-              className="truncate"
+              className="ui-loki-scope-name"
               onClick={onOpenProjects}
-              title="Change project scope"
+              aria-label={`Choose project — now ${projectTitle({ name: project })}${
+                dispatchHonesty ? ` (${dispatchHonesty.label})` : ""
+              }`}
             >
-              {projectTitle({ name: project })}
+              {dispatchHonesty && (
+                <span
+                  className={SCOPE_DOT[dispatchHonesty.kind]}
+                  title={`${dispatchHonesty.label} — ${dispatchHonesty.title}`}
+                  aria-hidden
+                />
+              )}
+              <span className="truncate">{projectTitle({ name: project })}</span>
             </button>
           ) : (
-            <span className="truncate">{projectTitle({ name: project })}</span>
+            <>
+              {dispatchHonesty && (
+                <span
+                  className={SCOPE_DOT[dispatchHonesty.kind]}
+                  title={`${dispatchHonesty.label} — ${dispatchHonesty.title}`}
+                  aria-label={dispatchHonesty.label}
+                />
+              )}
+              <span className="truncate">{projectTitle({ name: project })}</span>
+            </>
           )}
           {onRemoveProject && (
             <button

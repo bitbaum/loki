@@ -44,17 +44,7 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
   // One row per job (design reset, 2026-10): the project, what it is doing
   // this minute, how long. They were cards that each read "Next best step"
   // in large type — the prompt's name, the same on every card.
-  const row = (job: NowJob) => (
-    <ListRow
-      key={job.tab}
-      href={job.href}
-      icon={job.tone === "quiet" ? CirclePause : Hammer}
-      title={projectTitle({ name: job.tab })}
-      secondary={job.tone === "quiet" ? job.status : jobLine(job)}
-      trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
-      chevron
-    />
-  );
+  const row = (job: NowJob) => <NowJobRow key={job.tab} job={job} nowMs={nowMs} />;
   // Work that went quiet is not "being built": it sits under its own quieter
   // heading and says what it is waiting on (control-now).
   return (
@@ -99,6 +89,29 @@ export function ControlWaiting({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number 
         />
       ))}
     </List>
+  );
+}
+
+/**
+ * One job, as one row: the project, what it is doing or waiting on, how long.
+ * The whole row opens the live session. Home and the chat's start screen draw
+ * a job the same way (owner audit, 2026-11-12: the chat opened without a word
+ * about the two agents waiting for him). A waiting job shows its question,
+ * neutral, as in "Needs you".
+ */
+export function NowJobRow({ job, nowMs }: { job: NowJob; nowMs: number }) {
+  return (
+    <ListRow
+      href={job.href}
+      icon={job.tone === "you" ? MessageCircle : job.tone === "quiet" ? CirclePause : Hammer}
+      title={projectTitle({ name: job.tab })}
+      secondary={
+        job.tone === "you" ? waitingLine(job) : job.tone === "quiet" ? job.status : jobLine(job)
+      }
+      status={job.tone === "you" ? "neutral" : undefined}
+      trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
+      chevron
+    />
   );
 }
 
