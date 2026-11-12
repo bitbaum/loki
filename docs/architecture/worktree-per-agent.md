@@ -86,8 +86,9 @@ When it reports ready on its own session file the run closes and Loki queues
 server flag does not apply (the caller asked by name); the lane limit does.
 When no lane can be had the request is refused with
 `fresh-session-unavailable` (409) and nothing is sent: a fresh session never
-falls back to the project's shared tab. A run that the reaper closes (no
-report) keeps its tab until it is closed by hand or the builder restarts.
+falls back to the project's shared tab. However the run closes (its report,
+the reaper, a refused ack, a runner restart), `notifyRunClosed` queues
+`close_tab` for the lane (`src/lib/orchestration/one-off-close.ts`).
 
 Trade-off (deliberate): parallel alias runs have no live project card — they
 surface in Activity/runs, not /control cards. Net: `scripts/test/run-tab.ts`.
