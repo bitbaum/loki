@@ -154,18 +154,29 @@ async function thread(conversationId: string): Promise<Turn[]> {
  */
 const CLOSED_STATUSES = new Set(["completed", "partial", "stopped", "failed"]);
 
-async function runState(runId: string): Promise<{ label: string; closed: boolean }> {
+async function runState(
+  runId: string,
+): Promise<{ label: string; closed: boolean; detail: string | null }> {
   try {
     const res = await fetch(`${BASE}/api/orchestration/runs/${runId}`, { headers });
-    if (!res.ok) return { label: `unreadable (HTTP ${res.status})`, closed: false };
-    const v = (await res.json()) as { status?: string; label?: string; terminal?: boolean };
+    if (!res.ok) return { label: `unreadable (HTTP ${res.status})`, closed: false, detail: null };
+    const v = (await res.json()) as {
+      status?: string;
+      label?: string;
+      terminal?: boolean;
+      detail?: string | null;
+    };
     const status = v.status ?? "?";
     return {
       label: `${status}${v.label ? ` (${v.label})` : ""}`,
       closed: CLOSED_STATUSES.has(status) && v.terminal === true,
+      // The track's own sentence for an open run: WHY it is where it is
+      // (next in line behind an earlier task, held for the runner's update,
+      // no runner). The check used to guess instead of reading it.
+      detail: typeof v.detail === "string" && v.detail.trim() ? v.detail.trim() : null,
     };
   } catch (e) {
-    return { label: `unreadable (${(e as Error).message})`, closed: false };
+    return { label: `unreadable (${(e as Error).message})`, closed: false, detail: null };
   }
 }
 
@@ -295,10 +306,16 @@ async function checkClosesTheLoop() {
     );
     return;
   }
+  // What Loki told the person who sent it, and what the run says of itself a
+  // moment later: both are the product's own words, and both say why when a
+  // task is not about to start.
+  const said = (dispatch?.content ?? "").replace(/\s+/g, " ").trim().slice(0, 260);
+  await new Promise((r) => setTimeout(r, 15_000));
+  const first = await runState(runId);
   record(
     "closes the loop: dispatch accepted",
     true,
-    `run ${runId} via ${String(dispatch?.meta?.channel ?? "?")}`,
+    `run ${runId} via ${String(dispatch?.meta?.channel ?? "?")}\n      Loki said: "${said}"\n      the run, 15 s on: ${first.label}${first.detail ? ` — "${first.detail}"` : ""}`,
   );
 
   const deadline = Date.now() + DISPATCH_MINUTES * 60_000;
@@ -312,7 +329,7 @@ async function checkClosesTheLoop() {
   if (!outcome) {
     // Name WHICH half broke. A closed run with no turn is a lost notification
     // (the work happened); an open run is a stuck builder.
-    const { label: state, closed } = await runState(runId);
+    const { label: state, closed, detail } = await runState(runId);
     if (!closed) {
       await abortRun(
         runId,
@@ -324,7 +341,9 @@ async function checkClosesTheLoop() {
       false,
       closed
         ? `run ${runId} CLOSED (${state}) but wrote no outcome turn — the work happened, the notification was lost. Suspect a process that exits before its fire-and-forget close notification (see settle-background-work.ts).`
-        : `run ${runId} still ${state} after ${DISPATCH_MINUTES} min — aborted. First suspect: the box builder cannot authenticate (see /opt/monitoring/builder-auth-check.sh --report).`,
+        : detail
+          ? `run ${runId} still ${state} after ${DISPATCH_MINUTES} min — aborted. Loki's own word for it: "${detail}"`
+          : `run ${runId} still ${state} after ${DISPATCH_MINUTES} min — aborted. First suspect: the box builder cannot authenticate (see /opt/monitoring/builder-auth-check.sh --report).`,
     );
     return;
   }
