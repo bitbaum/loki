@@ -92,8 +92,17 @@ export function escalationInstruction(level: EscalationLevel): string {
 export type LadderEffect =
   { kind: "advance" } | { kind: "resolve"; by: "success" | "progress" } | { kind: "ignore" };
 
-export function ladderEffectForClose(outcome: string | null | undefined): LadderEffect {
+export function ladderEffectForClose(
+  outcome: string | null | undefined,
+  /** The closed run. A fresh one-off (inject `session: "fresh"`) is a side
+   *  question, not the project's work: it neither clears nor adds to the
+   *  project's ladder. */
+  run?: { payload?: unknown } | null,
+): LadderEffect {
   if (outcome == null) return { kind: "ignore" };
+  if ((run?.payload as { oneOff?: unknown } | null | undefined)?.oneOff === true) {
+    return { kind: "ignore" };
+  }
   if (isFailingOutcome(outcome)) return { kind: "advance" };
   // Neutral by definition — a human choosing to stop is neither evidence that
   // the project is stuck nor evidence that it is moving. It must not clear a

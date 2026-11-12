@@ -137,7 +137,28 @@ async function main() {
     if (got.kind !== "refused") return;
     assert(/no checkout of "ghost" on this builder/.test(got.error), got.error);
     assert(/nothing was launched/.test(got.error), got.error);
+    // Read as a workspace problem, so it is not retried on the same builder.
+    const { decideAutoReimplement } = await import("@/lib/feedback/auto-reimplement-policy");
+    const decision = decideAutoReimplement(got.error, null);
+    assert(decision.retry === false, "a missing checkout would be retried");
   });
+
+  await check(
+    "a laptop lane for a folder not on this machine says so, and is not retried",
+    async () => {
+      const got = await dispatchLaunchDir("proj~abcd1234", "/home/g/dev/proj", RUN, {
+        baseDir: async (_p, requested) => requested,
+        worktree: ensureWorktreeWorkspace,
+        worktreeEveryRun: false,
+      });
+      assert(got.kind === "refused", "launched");
+      if (got.kind !== "refused") return;
+      assert(/does not exist on this machine/.test(got.error), got.error);
+      const { decideAutoReimplement } = await import("@/lib/feedback/auto-reimplement-policy");
+      const decision = decideAutoReimplement(got.error, null);
+      assert(decision.retry === false, "would be retried");
+    },
+  );
 
   await check(
     "a lane that cannot get a worktree is refused, never run in the shared checkout",

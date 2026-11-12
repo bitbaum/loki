@@ -59,6 +59,9 @@ signed-in browser. What it could use:
 | 06:04 | Loki production serves `9253f40`; #1640 #1643 #1644 #1645 #1646 #1647 #1648 merged meanwhile (other sessions), so Loki's side of the bot rail is on main | read from `/api/health` and `git log origin/main` |
 | 06:05 | Dispatched `sealed-builds.yml` `mode=journal` (read-only) to see the runner's version and whether it claims work | run 43165605499: one runner process all hour (never restarted); the drain logged "5 agent(s) working — deferring restart" on every look from 05:41 to 06:06 and restarted its clock at each deploy; the poller claimed `peek_start` / `peek_stop` and nothing else. The update hold is the live blocker. |
 | 06:23 | Opened [#1663](https://github.com/bitbaum/loki/pull/1663) (change 1) | CI `check` green at 06:38 UTC. The fleet sweep's runs sat queued: every Actions job waited about twelve minutes for a runner that morning, with a dozen agent sessions pushing at once. |
+| 07:19 | Folded change 2 into #1663 and pushed | CI `check` green at 07:37 UTC |
+| 07:56 | `sealed-builds.yml` `mode=activity` from the branch (read-only) | three sealed sessions, 0 / 96 / 40 bytes in a minute, all counted as working (see change 3) |
+| 08:48 | #1663 merged by the sweep as `64e2c6b` | 70 minutes after its checks went green: the sweep takes the lowest-numbered green pull request, one at a time, and waits for main's CI between merges |
 | 06:31 | OrangeCat `cat-diagnostics.yml` (read-only) | no Cat failure logged in the last hour |
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
 | 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
@@ -95,6 +98,31 @@ What it does not do: make the restart land. The drain still counts every
 sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
+
+## Change 3 (Loki): the runner's restart can land
+
+Its own pull request after #1663 merged (08:48 UTC, `64e2c6b`).
+
+Measured on the box at 07:56 UTC with the new read-only read
+(`sealed-builds.yml` `mode=activity`, run 43178274733, dispatched from the
+branch before the merge): the owner's runner unit held three sealed
+sessions. Over one minute their relays moved 0 bytes (a session 18.1 hours
+old), 96 bytes and 40 bytes (two sessions 3.2 hours old). The drain logged
+"3 agent(s) working — deferring restart" on both looks in that minute. The
+runner fixes merged that morning (0.8.67 and later) were live in the app and
+not running on the box.
+
+- `scripts/hetzner/drain-and-restart-runner.sh` `agent_is_busy`: a sealed
+  session that has relayed under 512 bytes a look for 30 minutes
+  (`LOKI_RUNNER_QUIET_SECS`) is not working. `quiet_for` keeps its note under
+  `/run/loki-drain/<unit>` so the clock survives each deploy's new drain.
+- Unsealed agents are unchanged: their output was not measured.
+- Known cost: a sealed agent stopped at a permission prompt mid-task prints
+  nothing, so after thirty silent minutes the restart goes ahead; the session
+  reopens and its open run is closed.
+- Not measured: what a working sealed session relays. `mode=activity` during
+  a real task gives that number; the threshold is five times the largest idle
+  figure seen.
 
 ## Change 2 (Loki): the run tells the truth after the agent finishes
 
@@ -145,7 +173,9 @@ only, plus one prompt line the runner reads at its next start; no file under
    already returns `mergeable`; carry `blocked: conflict | checks_failed` on
    the ledger, show it as Needs you with one action that sends the fix-up to
    the same project on the same branch.
-3. **The drain's rule** (`agent_is_busy`), from `mode=activity` numbers.
+3. **The drain's rule** for sealed sessions is change 3. Still to measure:
+   what a working sealed session relays, and whether unsealed agents that are
+   not Claude can be told idle the same way.
 4. **The session cap**: a ninth dispatch is accepted and then refused.
 5. **"Create project X and build it"** from the chat queues a command no
    runner can start; it should start the kickoff.

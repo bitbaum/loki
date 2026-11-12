@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Check,
   CircleAlert,
@@ -29,7 +29,17 @@ import { elapsedLabel, type DoneJob, type NowJob } from "./control-now";
  * (2026-10-17: "When I see building I tap it and expect to see how it's
  * building").
  */
-export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
+export function ControlNow({
+  jobs,
+  nowMs,
+  onReply,
+}: {
+  jobs: NowJob[];
+  nowMs: number;
+  /** Send a reply to the project's agent — the same /api/inject the box at
+   *  the top of Home uses. Without it, a row that needs you only opens. */
+  onReply?: (tab: string, text: string) => Promise<unknown>;
+}) {
   // Nothing running: nothing to say. The box above is where work starts; a
   // card here saying so, with a "Start something" that left for /loki, was a
   // second way to the same act and the loudest thing on an idle page.
@@ -40,22 +50,29 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
   const active = jobs.filter((j) => j.tone !== "quiet");
   const quiet = jobs.filter((j) => j.tone === "quiet");
   const row = (job: NowJob) => (
-    <ListRow
-      key={job.tab}
-      href={job.href}
-      icon={job.tone === "you" ? MessageCircle : job.tone === "quiet" ? CirclePause : Hammer}
-      title={projectTitle({ name: job.tab })}
-      secondary={
-        job.tone === "you"
-          ? `Waiting for you · ${job.status}`
-          : job.tone === "quiet"
-            ? job.status
-            : jobLine(job)
-      }
-      status={job.tone === "you" ? "warning" : undefined}
-      trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
-      chevron
-    />
+    <Fragment key={job.tab}>
+      <ListRow
+        href={job.href}
+        icon={job.tone === "you" ? MessageCircle : job.tone === "quiet" ? CirclePause : Hammer}
+        title={projectTitle({ name: job.tab })}
+        // A row that needs you: the state once, then what is needed.
+        secondary={
+          job.tone === "you"
+            ? job.question
+              ? `${job.status} · ${job.question}`
+              : job.status
+            : job.tone === "quiet"
+              ? job.status
+              : jobLine(job)
+        }
+        status={job.tone === "you" ? "warning" : undefined}
+        trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
+        chevron
+      />
+      {job.tone === "you" && job.reply && onReply && (
+        <ReplyRow tab={job.tab} question={job.question} onReply={onReply} />
+      )}
+    </Fragment>
   );
   // Work that went quiet is not "being built": it sits under its own quieter
   // heading and says what it is waiting on (control-now).
@@ -72,6 +89,77 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
         </Section>
       )}
     </>
+  );
+}
+
+/**
+ * The answer, right under the question: one line and Send, which goes to the
+ * project's agent. Before, answering meant opening the session to find out
+ * what was being asked (owner, 2026-11-12). Its own list item, not inside the
+ * row: the row is a link, and a field inside a link is not a field.
+ */
+function ReplyRow({
+  tab,
+  question,
+  onReply,
+}: {
+  tab: string;
+  question: string | null;
+  onReply: (tab: string, text: string) => Promise<unknown>;
+}) {
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const name = projectTitle({ name: tab });
+  if (state === "sent") {
+    return (
+      <li className="ui-home-reply">
+        <span className="ui-home-reply-sent" role="status">
+          Sent to {name}
+        </span>
+      </li>
+    );
+  }
+  const send = async () => {
+    const reply = text.trim();
+    if (!reply || state === "sending") return;
+    setState("sending");
+    try {
+      await onReply(tab, reply);
+      setState("sent");
+    } catch {
+      setState("failed");
+    }
+  };
+  return (
+    <li className="ui-home-reply">
+      <form
+        className="ui-home-reply-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (state === "failed") setState("idle");
+          }}
+          placeholder={`Reply to ${name}`}
+          aria-label={question ? `Reply to ${name}: ${question}` : `Reply to ${name}`}
+          className="ui-home-reply-input"
+          enterKeyHint="send"
+        />
+        <button
+          type="submit"
+          className="ui-home-fix"
+          disabled={!text.trim() || state === "sending"}
+        >
+          {state === "failed" ? "Didn't send — retry" : state === "sending" ? "Sending" : "Send"}
+        </button>
+      </form>
+    </li>
   );
 }
 
