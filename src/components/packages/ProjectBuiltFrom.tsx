@@ -71,7 +71,7 @@ export async function ProjectBuiltFrom({
           <PackagesRefresh
             projectId={userProjectId}
             autoStart={!scan}
-            label={scan ? "Read again" : "Read it now"}
+            label={scan ? "Check again" : "Check it now"}
           />
         )}
       </div>

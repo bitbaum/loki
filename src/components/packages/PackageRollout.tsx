@@ -77,7 +77,11 @@ export function PackageRollout({
                   </ul>
                 </div>
               )}
-              {owner && (
+              {/* Pausing matters where a release is spreading or failing: the
+                  latest, a red one, or one already paused (to resume). Five
+                  identical "Pause vX everywhere" buttons were the page's only
+                  actions (2026-11-12). */}
+              {owner && (row.latest || row.pause !== null || flag) && (
                 <ReleasePauseButton slug={slug} version={row.version} paused={row.pause !== null} />
               )}
             </li>

@@ -18,6 +18,25 @@
  */
 import { z } from "zod";
 
+/**
+ * The newest release run, said in one line (components/packages/ReleaseChanges).
+ * `when` is "1d ago" or null. A run whose name carried no version read "the
+ * last release was released · started 1d ago; its tag shows here on the next
+ * read" (2026-11-12): finished is all there is to say about it.
+ */
+export const RELEASE_RUN_COPY = {
+  failed: (v: string | null, when: string | null) =>
+    `Releasing ${v ? `v${v}` : "the last release"} failed${when ? ` ${when}` : ""}. Nothing was tagged.`,
+  running: (v: string | null, when: string | null) =>
+    `${v ? `v${v}` : "A release"}${when ? `, started ${when}` : ""} — it appears as the latest version once tagged.`,
+  released: (v: string | null, when: string | null, tagged: boolean) =>
+    !v
+      ? `Last release finished${when ? ` ${when}` : ""}.`
+      : tagged
+        ? `Last released: v${v}${when ? `, ${when}` : ""}.`
+        : `v${v} was released${when ? ` ${when}` : ""}. Its version number shows here shortly.`,
+} as const;
+
 /** The workflow file in every package repository (bitbaum/fleet templates/package). */
 export const RELEASE_WORKFLOW_FILE = "release.yml";
 

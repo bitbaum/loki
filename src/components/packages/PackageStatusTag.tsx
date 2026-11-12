@@ -1,6 +1,6 @@
 import { behindLabel, type PackageStatus } from "@/lib/packages/status";
 
-/** One status, one colour: positive for latest, warning for behind, neutral for unknown. */
+/** One status, one colour: positive for latest, warning for a breaking bump, else neutral. */
 export function PackageStatusTag({
   status,
   calm = false,
@@ -10,12 +10,13 @@ export function PackageStatusTag({
    *  (or they chose to stay). A warning there is colour spent on a fact. */
   calm?: boolean;
 }) {
-  // Behind is a warning, never an alarm: red is for something broken, and a
-  // project a version behind is not. A breaking bump says so on hover.
+  // Behind is not a problem: an update nobody has taken yet. Twenty amber
+  // "behind" pills made the warning hue the page's accent (2026-11-12). Only
+  // a breaking bump, which may need code changes, is worth the warning.
   const tone =
     status.kind === "latest"
       ? "ui-tag-positive"
-      : status.kind === "behind" && !calm
+      : status.kind === "behind" && status.breaking && !calm
         ? "ui-tag-warning"
         : "ui-tag-neutral";
   return (

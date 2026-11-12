@@ -22,19 +22,22 @@ function versionText(version: string | null): string {
 }
 
 /**
- * "latest v1.20.1 · used by 3 projects, 1 behind" — the row's one line. It
- * was a badge and up to three coloured tags per package ("Used by 3
- * projects", "1 on latest", "1 behind", "1 unknown"); on latest is what
- * "used by" means unless the line says otherwise.
+ * "20 of 22 projects behind · v1.7.1" — the row's one line, the fact worth
+ * opening the row for first. It read "latest v1.7.1 · used by 22 projects,
+ * 20 beh…" and the ellipsis took exactly that fact at 390px (2026-11-12).
  */
 export function packageLine(row: PackageListRow): string {
-  const latest = `latest ${versionText(row.latest.version)}`;
-  if (row.usedBy === 0) return `${latest} · not in your projects`;
-  const extra = [
-    row.behind > 0 ? `${row.behind} behind` : null,
-    row.unknown > 0 ? `${row.unknown} unknown` : null,
-  ].filter(Boolean);
-  return `${latest} · used by ${row.usedBy} ${row.usedBy === 1 ? "project" : "projects"}${extra.length ? `, ${extra.join(", ")}` : ""}`;
+  const version = versionText(row.latest.version);
+  if (row.usedBy === 0) return `${version} · not in your projects`;
+  const projects = row.usedBy === 1 ? "project" : "projects";
+  const lead =
+    row.behind > 0
+      ? `${row.behind} of ${row.usedBy} ${projects} behind`
+      : row.unknown > 0
+        ? `${row.usedBy} ${projects}`
+        : `${row.usedBy} ${projects}, all up to date`;
+  const unknown = row.unknown > 0 ? ` · ${row.unknown} unknown` : "";
+  return `${lead}${unknown} · ${version}`;
 }
 
 /** Every fleet package, searchable; each row opens the package's own page. */
@@ -76,7 +79,6 @@ export function PackagesList({ rows }: { rows: PackageListRow[] }) {
                   row.name
                 )
               }
-              status={row.behind > 0 ? "warning" : undefined}
               secondary={packageLine(row)}
               chevron
             />

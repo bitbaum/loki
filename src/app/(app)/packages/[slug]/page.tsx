@@ -9,6 +9,8 @@ import { PackagesRefresh } from "@/components/packages/PackagesRefresh";
 import { ReadCoverageNote } from "@/components/packages/ReadCoverageNote";
 import { requirePageUserId } from "@/lib/session";
 import { loadPackageDetail } from "@/lib/packages/load";
+import { installCommand } from "@/lib/packages/view";
+import { askLokiHref } from "@/config/box-alert-copy";
 import type { LatestVersion } from "@/lib/packages/latest";
 
 export const metadata = { title: "Package" };
@@ -49,6 +51,8 @@ export default async function PackagePage({ params }: { params: Promise<{ slug: 
   }
 
   const count = (kind: string) => dependents.filter((d) => d.status.kind === kind).length;
+  const install = installCommand(pkg.install, pkg.name, latest.version);
+  const behind = dependents.filter((d) => d.status.kind === "behind");
   const tally = [
     [count("behind"), "behind"],
     [count("latest"), "on the latest"],
@@ -83,9 +87,9 @@ export default async function PackagePage({ params }: { params: Promise<{ slug: 
           <div className="min-w-0">
             <dt className="ui-micro-label">Install</dt>
             <dd className="mt-1">
-              {pkg.install ? (
+              {install ? (
                 <code className="ui-code-inline inline-block max-w-full wrap-anywhere text-sm">
-                  {pkg.install}
+                  {install}
                 </code>
               ) : (
                 <span className="text-sm text-text-tertiary">
@@ -138,7 +142,21 @@ export default async function PackagePage({ params }: { params: Promise<{ slug: 
               : `${dependents.length} ${dependents.length === 1 ? "project" : "projects"}: ${tally}.`}
           </p>
         </div>
-        <PackageDependents rows={dependents} install={pkg.install} />
+        {/* Twenty "behind" rows and no way to act on any of them (2026-11-12):
+            the way forward is one ask, with the projects named. */}
+        {behind.length > 0 && latest.version && (
+          <Link
+            href={askLokiHref(
+              `Update ${pkg.name} to v${latest.version} in these projects, run their checks, and open a pull request for each: ${behind
+                .map((d) => d.projectName)
+                .join(", ")}.`,
+            )}
+            className="ui-btn-secondary inline-flex min-h-11 items-center px-4"
+          >
+            Ask Loki to update the {behind.length} behind
+          </Link>
+        )}
+        <PackageDependents rows={dependents} install={install} />
         <ReadCoverageNote coverage={coverage} catalogueSource={catalogue.source} />
       </section>
     </PageLayout>

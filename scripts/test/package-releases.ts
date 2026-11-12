@@ -474,6 +474,12 @@ async function main() {
     );
     assert.match(html, /failed/);
     assert.match(html, /See what happened/);
+    // A finished run with no version in its name: finished, nothing more.
+    const bare = renderToStaticMarkup(
+      createElement(ReleaseRunLine, { run: { ...readLastRun([run({})], null)!, version: null } }),
+    );
+    assert.match(bare, /Last release finished/);
+    assert.doesNotMatch(bare, /was released|next read/);
   });
 
   await check("GitHub's compare and runs JSON are read, junk is dropped", () => {
