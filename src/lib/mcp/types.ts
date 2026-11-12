@@ -73,7 +73,7 @@ export type McpServices = {
     userId: string,
     project: string,
     task: string,
-    opts?: { session?: "shared" | "fresh" },
+    opts?: { session?: "shared" | "fresh"; builderChannel?: "cloud" | "local" },
   ): Promise<InjectResult>;
   book(userId: string, request: BookRequest): Promise<EnqueueReport>;
   projects(userId: string): Promise<ProjectSummary[]>;
