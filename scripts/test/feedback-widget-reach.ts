@@ -91,6 +91,11 @@ for (const [route, file] of [
   const HIDE_ALLOWED = new Set([
     "src/components/ui/modal.tsx",
     "src/components/auth/AuthShell.tsx",
+    // Two hand-rolled dialogs, open only while open: under them the top bar
+    // (and its spiral) hides, and the widget floated its own button over the
+    // sheet — over the More sheet's close × (audit, 2026-11-12).
+    "src/components/shell/CommandPalette.tsx",
+    "src/components/shell/MobileNavSheet.tsx",
   ]);
   const walk = (dir: string): string[] =>
     readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
