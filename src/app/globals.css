@@ -4382,6 +4382,11 @@
     @apply rounded-2xl border border-border-subtle bg-surface-raised;
     box-shadow: var(--shadow-panel);
   }
+  /* A card that is a choice (the studio's request list): the chosen one is
+     raised and outlined, so the detail below it has a visible owner. */
+  .ui-card-shell[aria-pressed="true"] {
+    @apply border-border-strong bg-surface-raised;
+  }
   .ui-card-padding {
     @apply p-4 sm:p-5 md:p-6;
   }
