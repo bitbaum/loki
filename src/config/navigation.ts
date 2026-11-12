@@ -299,7 +299,8 @@ export const NAV = {
 
   download: {
     id: "download",
-    label: "Download",
+    // "Download" alone did not say what gets downloaded (audit, 2026-11-12).
+    label: "Desktop app",
     description: "Get Fleet Runner for your machine",
     href: "/download",
     icon: Download,
