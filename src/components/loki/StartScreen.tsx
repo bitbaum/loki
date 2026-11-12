@@ -60,7 +60,7 @@ export function StartScreen({
   onResume,
   onBrowseAll,
   onBuild,
-  railVisible,
+  railPinned,
 }: {
   conversations: ConversationSummary[];
   loading: boolean;
@@ -68,12 +68,16 @@ export function StartScreen({
   onBrowseAll: () => void;
   /** A "Build next" suggestion was tapped: send it, scoped to its project. */
   onBuild: (prompt: string, project: string | null) => void;
-  /** The rail is already on screen, listing these very threads. */
-  railVisible: boolean;
+  /** The rail is pinned. From 768px up it is on screen, listing these very
+   *  threads, so "Recent" is hidden there. */
+  railPinned: boolean;
 }) {
   // When the rail is open it owns resuming — the same threads twice side by
-  // side is noise.
-  const recent = railVisible ? [] : conversations.slice(0, RESUME_LIMIT);
+  // side is noise. The list is still rendered and hidden with CSS from the
+  // rail's breakpoint up: deciding it in JS needed the viewport, which the
+  // server does not know, so every desktop load drew "Recent" and then took
+  // it away (the start screen went 501px to 238px tall under the eye).
+  const recent = conversations.slice(0, RESUME_LIMIT);
   // The reader's clock, after mount: the server's is UTC (hooks/use-local-now).
   const now = useLocalNow();
 
@@ -107,7 +111,10 @@ export function StartScreen({
       </nav>
 
       {recent.length > 0 && (
-        <nav aria-labelledby="loki-recent" className="ui-loki-start-section">
+        <nav
+          aria-labelledby="loki-recent"
+          className={railPinned ? "ui-loki-start-section md:hidden" : "ui-loki-start-section"}
+        >
           <SectionHeading
             id="loki-recent"
             title="Recent"

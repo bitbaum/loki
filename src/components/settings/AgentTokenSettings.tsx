@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Copy, Check, Plus, Trash2, Loader2, Terminal, ExternalLink, Cpu } from "lucide-react";
+import { DetailSheet, SheetAction, SheetActions } from "@/components/ui/detail-sheet";
 import { postJson, deleteJson } from "@/lib/api/fetch";
 import { APP_URL } from "@/config/brand";
 import { FEEDBACK_MEDIUM_MS } from "@/lib/constants/timings";
@@ -43,6 +44,9 @@ export function AgentTokenSettings() {
   }, []);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  /** The token whose "revoke?" sheet is open, and what went wrong in it. */
+  const [revoking, setRevoking] = useState<{ id: string; label: string } | null>(null);
+  const [revokeError, setRevokeError] = useState("");
   const interactiveInitCommand = `curl -fsSL ${APP_URL}/api/agent/install | node - init --base-url ${APP_URL}`;
 
   const create = async () => {
@@ -102,12 +106,24 @@ export function AgentTokenSettings() {
     );
   };
 
+  // Revoking is asked for first, in a sheet that says what it does. It used to
+  // be one tap on a bin with no question, and the row was taken off the list
+  // whether or not the server agreed: with the request refused the card read
+  // "No tokens yet" while the token still worked.
   const remove = async (id: string) => {
     setDeleting(id);
+    setRevokeError("");
     try {
-      await deleteJson("/api/agent-tokens", { id });
+      const res = await deleteJson("/api/agent-tokens", { id });
+      if (!res.ok) {
+        setRevokeError("It was not revoked. Try again.");
+        return;
+      }
       setTokens((prev) => prev.filter((t) => t.id !== id));
       if (revealed?.id === id) setRevealed(null);
+      setRevoking(null);
+    } catch {
+      setRevokeError("It was not revoked. Check your connection and try again.");
     } finally {
       setDeleting(null);
     }
@@ -298,16 +314,16 @@ export function AgentTokenSettings() {
                 </p>
               </div>
               <button
-                onClick={() => remove(t.id)}
-                disabled={deleting === t.id}
-                className="ui-icon-action shrink-0 min-h-8 min-w-8 p-1.5 text-status-negative/60 hover:text-status-negative"
-                title="Revoke token"
+                type="button"
+                onClick={() => {
+                  setRevokeError("");
+                  setRevoking({ id: t.id, label: t.label });
+                }}
+                className="ui-icon-action shrink-0 min-h-11 min-w-11 p-1.5 text-status-negative/60 hover:text-status-negative"
+                aria-label={`Revoke ${t.label}`}
+                title={`Revoke ${t.label}`}
               >
-                {deleting === t.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ))}
@@ -318,6 +334,30 @@ export function AgentTokenSettings() {
         <p className="text-sm text-text-secondary">
           No tokens yet. Generate one to connect an agent.
         </p>
+      )}
+      {revoking && (
+        <DetailSheet
+          title={`Revoke ${revoking.label}?`}
+          subtitle="The computer that uses this token stops connecting. You can make a new one at any time."
+          onClose={() => setRevoking(null)}
+          size="sm"
+        >
+          {revokeError && (
+            <p role="alert" className="ui-error">
+              {revokeError}
+            </p>
+          )}
+          <SheetActions>
+            <SheetAction
+              icon={deleting === revoking.id ? Loader2 : Trash2}
+              danger
+              disabled={deleting === revoking.id}
+              onClick={() => remove(revoking.id)}
+            >
+              Revoke {revoking.label}
+            </SheetAction>
+          </SheetActions>
+        </DetailSheet>
       )}
     </section>
   );

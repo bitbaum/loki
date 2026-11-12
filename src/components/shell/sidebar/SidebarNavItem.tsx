@@ -36,6 +36,10 @@ export function SidebarNavItem({
         title={item.description}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        // The folded rail is icons only, and the name showed under a mouse
+        // alone: a person moving with Tab saw a ring around a picture.
+        onFocus={handleMouseEnter}
+        onBlur={handleMouseLeave}
         className={cn(
           "group relative ui-nav-item ui-sidebar-nav-item",
           collapsed ? "justify-center px-2 py-3" : "",

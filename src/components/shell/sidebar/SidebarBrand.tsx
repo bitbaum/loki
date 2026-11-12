@@ -20,7 +20,10 @@ export function SidebarBrand({
       <div className="flex items-center justify-between gap-3">
         <Link
           href={APP_HOME_HREF}
-          className="min-w-0 rounded-xl outline-none transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          // Named: its only child is a picture. Not shrunk: in the folded
+          // rail the 40px mark was squeezed to 24px beside the toggle.
+          aria-label="Loki, home"
+          className="min-w-0 shrink-0 rounded-xl outline-none transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
           <BrandMark compact={collapsed} />
         </Link>
