@@ -15,6 +15,25 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import { spawn, spawnSync } from "child_process";
 
+// A hook run from a linked worktree exports an absolute GIT_DIR (and its
+// index and work tree). Every test inherits this environment, and an absolute
+// GIT_DIR overrides `git -C <sandbox>`: a test's throwaway repository becomes
+// the real one. It has happened twice (worktree-workspace.ts, then
+// dispatch-launch-dir.ts on 2026-11-12: a test@test commit on the branch being
+// pushed and `core.bare = true` in the real config). Cleared once, here, so a
+// new test with a git fixture is safe without knowing this. A test that reads
+// the real repository finds it from its working directory, as it always did.
+for (const k of [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_COMMON_DIR",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_PREFIX",
+]) {
+  delete process.env[k];
+}
+
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = join(SCRIPTS_DIR, "test");
 // Invoke the local tsx binary directly (not `npx tsx`): npx adds resolution

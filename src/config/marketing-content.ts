@@ -498,7 +498,7 @@ export const PRODUCT_SURFACES = [
     meta: "Chat · voice · works from other AI apps",
   },
   {
-    label: "Control",
+    label: "Home",
     title: "Every project in one place.",
     body: "What is running, what is waiting for you and what just shipped, across all your projects. Pause everything with one button.",
     meta: "Projects · approvals · autopilot on/off",

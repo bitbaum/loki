@@ -108,16 +108,18 @@ export const EXECUTOR_COPY = {
   },
 
   runnerBanner: {
-    /** Home's builder row: its one grey line under offlineTitle. */
+    /** Home's builder row: its one grey line under offlineTitle. Short enough
+     *  for a phone row (about thirty characters after the status dot): the
+     *  longer line was cut at "work waits …", before what it waits for. */
     offlineDetail: (lastSeen: string | null) =>
-      lastSeen
-        ? `Last seen ${lastSeen} — work waits until it is back`
-        : "Work waits until it is back",
+      lastSeen ? `Last seen ${lastSeen} · work waits` : "Work waits until it is back",
     reconnect: "How to reconnect",
-    neverSeenTitle: "Connect a runner to run agents",
+    // "A runner" is our word for it (design reset rule 9). To the person it
+    // is their computer, and the row's grey line already says how.
+    neverSeenTitle: "Connect a computer so agents can work",
     /** Home's never-connected row: a short title and its one grey line (the
      *  full sentences above are for the setup that opens from it). */
-    neverSeenRowTitle: "Connect a runner",
+    neverSeenRowTitle: "Connect your computer",
     neverSeenDetail: "Install the desktop app",
     offlineTitle: "Runner offline",
     neverSeenBody:

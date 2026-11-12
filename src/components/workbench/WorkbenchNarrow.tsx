@@ -35,7 +35,9 @@ export function WorkbenchNarrow({
             external
             icon={Globe}
             title={site.kind === "preview" ? "Open the preview" : "Open the site"}
-            secondary="Point at anything there and say what to change"
+            // ≤ 34 characters: a 390px row cut the longer line mid-sentence
+            // ("Point at anything there and say what …").
+            secondary="Point at it and say what to change"
             chevron
           />
         )}
@@ -56,7 +58,7 @@ export function WorkbenchNarrow({
           href={`/projects/${projectId}/watch`}
           icon={Eye}
           title="Watch it work"
-          secondary="What is happening, and where the change is"
+          secondary="What is happening right now"
           chevron
         />
       </List>

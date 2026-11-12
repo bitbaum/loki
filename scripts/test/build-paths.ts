@@ -69,8 +69,16 @@ const proxy = readFileSync("src/proxy.ts", "utf8");
 assert.match(proxy, /\|build\(\?:\/\|\$\)\|/, "/build is public");
 const landing = readFileSync("src/app/page.tsx", "utf8");
 assert.match(landing, /<BuildPaths /, "the landing page shows the three doors");
-assert.match(landing, /href=\{BUILD_PAGE\.path\}/, "and the closing line names the other two ways");
+// The landing page closes with the shared block every public page closes
+// with (it had a hand-copied variant of it until 2026-11-12), so the closing
+// line is checked where it now lives.
+assert.match(landing, /<FinalCta /, "the landing page ends on the shared closing block");
 const finalCta = readFileSync("src/components/public/FinalCta.tsx", "utf8");
+assert.match(
+  finalCta,
+  /href=\{BUILD_PAGE\.path\}/,
+  "and the closing line names the other two ways",
+);
 assert.match(finalCta, /ROUTES\.SIGN_UP/, "Start a project goes to sign-up");
 assert.ok(!/ROUTES\.SIGN_IN/.test(finalCta), "never to sign-in");
 for (const brief of [

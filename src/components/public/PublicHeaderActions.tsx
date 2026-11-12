@@ -27,7 +27,12 @@ export async function PublicHeaderActions({
 
   return (
     <div className="flex min-w-0 items-center gap-2">
-      {/* Theme cycle and "Sign in" move into the drawer below `xl`. Four
+      {/* From 1120px the header has room for all of it (measured: the six
+          entries, the theme control, "Sign in" and the button come to about
+          1040px with the gutters). The switch was `xl` (1280px), so a laptop
+          window between the two got a menu button beside 700px of empty bar
+          and "Sign in" two presses away. */}
+      {/* Theme cycle and "Sign in" move into the drawer below that width. Four
           controls (brand, menu, theme, CTA) do not fit a 390px header: the CTA
           was the one that lost, wrapping to two lines and clipping off the
           right edge. */}
@@ -35,7 +40,7 @@ export async function PublicHeaderActions({
           lives inside the app — so the public header and the app header show
           one control for identity instead of two different answers. */}
       {!signedIn && (
-        <span className="hidden xl:block">
+        <span className="hidden min-[1120px]:block">
           <ThemeToggle />
         </span>
       )}
@@ -45,7 +50,7 @@ export async function PublicHeaderActions({
               action, the drawer), and signed in the one action is now the
               avatar — who you are and how to sign out. "Open app" is not lost
               on a phone: the drawer below already leads with it. */}
-          <span className="hidden xl:block">
+          <span className="hidden min-[1120px]:block">
             <Link href={ROUTES.APP_HOME} className="ui-public-primary-action-compact">
               Open {APP_NAME} →
             </Link>
@@ -57,11 +62,16 @@ export async function PublicHeaderActions({
         </>
       ) : (
         <>
-          <Link href={ROUTES.SIGN_IN} className="ui-public-nav-link hidden xl:inline-flex">
+          <Link
+            href={ROUTES.SIGN_IN}
+            className="ui-public-nav-link hidden min-[1120px]:inline-flex"
+          >
             Sign in
           </Link>
+          {/* "Start a project" everywhere it leads to sign-up: the hero, the
+              rows and the menu said it four different ways on one page. */}
           <Link href={ROUTES.SIGN_UP} className="ui-public-primary-action-compact">
-            Get started
+            Start a project
           </Link>
         </>
       )}

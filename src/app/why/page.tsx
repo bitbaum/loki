@@ -1,6 +1,7 @@
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { FinalCta } from "@/components/public/FinalCta";
+import { ProblemsSection } from "@/components/public/ProblemsSection";
 import { MISSION, PHILOSOPHY } from "@/config/marketing-content";
 
 export const metadata = {
@@ -47,6 +48,9 @@ export default function WhyPage() {
           <p className="ui-public-meta mt-6 max-w-2xl">{PHILOSOPHY.closer}</p>
         </div>
       </section>
+
+      {/* The whole list; the homepage shows three and links here. */}
+      <ProblemsSection />
 
       <FinalCta />
     </PublicSurface>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Menu, X, ExternalLink } from "lucide-react";
@@ -8,14 +8,15 @@ import { PUBLIC_NAV, ROUTES, type PublicNavEntry } from "@/config/auth";
 import { APP_NAME } from "@/config/brand";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 
 /**
  * Public marketing nav, in two exported halves so the phone header can order
  * its own row.
  *
- *   PublicNav        Desktop (md+) only — each PUBLIC_NAV entry, where a
- *                    "menu" becomes a hover/click mega-menu and a "link"
- *                    becomes a single nav link.
+ *   PublicNav        Desktop only — each PUBLIC_NAV entry, where a "menu"
+ *                    becomes a panel its button opens and a "link" becomes
+ *                    a single nav link.
  *   PublicNavTrigger Below md — one menu button, rightmost in the header, and
  *                    the full-screen drawer it opens.
  *
@@ -35,7 +36,7 @@ export function PublicNav() {
   }, []);
 
   return (
-    <div className="hidden items-center gap-1 xl:flex">
+    <div className="hidden items-center gap-1 min-[1120px]:flex">
       {PUBLIC_NAV.map((entry) => {
         if (entry.kind === "menu") {
           return (
@@ -99,7 +100,7 @@ export function PublicNavTrigger({ signedIn = false }: { signedIn?: boolean }) {
     <>
       <button
         type="button"
-        className="ui-public-nav-toggle xl:hidden"
+        className="ui-public-nav-toggle min-[1120px]:hidden"
         onClick={() => setOpen(true)}
         aria-label="Open navigation"
         aria-expanded={open}
@@ -123,6 +124,7 @@ function PublicNavDropdown({
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -134,11 +136,15 @@ function PublicNavDropdown({
   }, [open, onClose]);
 
   return (
-    <div ref={containerRef} className="relative" onMouseEnter={onOpen}>
+    // Opens on a press or Enter, never on hover: passing the pointer over
+    // "Product" on the way to the headline dropped a 720px panel over the
+    // page's one button and left it there after the pointer had gone.
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         className="ui-public-nav-trigger"
         aria-expanded={open}
+        aria-controls={panelId}
         onClick={() => (open ? onClose() : onOpen())}
       >
         <span>{entry.label}</span>
@@ -147,7 +153,7 @@ function PublicNavDropdown({
 
       {open && (
         <div className="ui-public-nav-panel-wrap">
-          <div className="ui-public-nav-panel" role="menu">
+          <div className="ui-public-nav-panel" id={panelId}>
             {entry.sections.map((section) => (
               <section key={section.title} className="ui-public-nav-panel-section">
                 <div className="ui-public-nav-panel-section-label">{section.title}</div>
@@ -157,7 +163,6 @@ function PublicNavDropdown({
                       key={item.href}
                       href={item.href}
                       className="ui-public-nav-panel-item"
-                      role="menuitem"
                       onClick={onClose}
                     >
                       <span className="ui-public-nav-panel-item-label">{item.label}</span>
@@ -224,9 +229,21 @@ function DrawerRow({
 }
 
 function PublicNavDrawer({ signedIn, onClose }: { signedIn: boolean; onClose: () => void }) {
+  // Focus enters the menu, Tab stays inside it, and closing hands focus back
+  // to the button that opened it. Before this the full-screen menu covered the
+  // page while Tab walked the links BEHIND it: forty presses reached none of
+  // the menu's own (measured 2026-11-12).
+  const focusRef = useDialogFocus();
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="ui-public-drawer" role="dialog" aria-modal="true" aria-label="Site navigation">
+    <div
+      ref={focusRef}
+      tabIndex={-1}
+      className="ui-public-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Site navigation"
+    >
       <div className="ui-public-drawer-bar">
         <Link href="/" onClick={onClose} className="min-w-0 rounded-xl">
           <BrandMark responsive />
@@ -252,7 +269,7 @@ function PublicNavDrawer({ signedIn, onClose }: { signedIn: boolean; onClose: ()
           ) : (
             <>
               <Link href={ROUTES.SIGN_UP} onClick={onClose} className="ui-public-cta w-full">
-                Get started — free
+                Start a project
               </Link>
               <Link href={ROUTES.SIGN_IN} onClick={onClose} className="ui-public-cta-ghost w-full">
                 Sign in
