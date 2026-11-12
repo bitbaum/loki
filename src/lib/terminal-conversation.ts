@@ -1,6 +1,7 @@
 /** Presentation of agent logs; never changes the bytes sent to an agent. */
 import { extractOperatorTask, isOperatorEnvelope, stripAutopilotPreamble } from "./activity-status";
 import { lastConversationItem, type TranscriptItem } from "./claude-transcript";
+import { TERMINAL_CHAT_COPY } from "@/config/terminal-copy";
 
 export function isTranscriptInterruption(text: string): boolean {
   return /^\[Request interrupted by user(?: for tool use)?\]\s*$/i.test(text.trim());
@@ -17,19 +18,28 @@ const DIAGNOSTICS_RE = /\n?[ \t]*-{3}\s*technical details\s*-{3}[\s\S]*$/i;
 
 export function dispatchMessageDisplay(text: string): { text: string; details: string | null } {
   const shown = dispatchMessageParts(text);
-  if (!DIAGNOSTICS_RE.test(shown.text)) return shown;
-  const cut = shown.text.replace(DIAGNOSTICS_RE, "").trimEnd();
-  return { text: cut || shown.text, details: shown.details ?? text };
+  const result = !DIAGNOSTICS_RE.test(shown.text)
+    ? shown
+    : {
+        text: shown.text.replace(DIAGNOSTICS_RE, "").trimEnd() || shown.text,
+        details: shown.details ?? text,
+      };
+  // The fold shows what the agent received, without Claude Code's paste markers.
+  return { text: result.text, details: result.details && unwrapPasted(result.details) };
+}
+
+function unwrapPasted(text: string): string {
+  return text
+    .trim()
+    .replace(/^<pasted_content\b[^>]*>\s*/i, "")
+    .replace(/\s*<\/pasted_content\b[^>]*>\s*$/i, "");
 }
 
 function dispatchMessageParts(text: string): { text: string; details: string | null } {
   // Claude Code records a pasted message wrapped in its own markers, and
   // writes the closing one with the id too: `</pasted_content id="fdab">`.
   // Those markers are bookkeeping; the person typed what is inside them.
-  const unwrapped = text
-    .trim()
-    .replace(/^<pasted_content\b[^>]*>\s*/i, "")
-    .replace(/\s*<\/pasted_content\b[^>]*>\s*$/i, "");
+  const unwrapped = unwrapPasted(text);
   if (/^(?:The owner of .+ asked for this change|Fix this visitor feedback on )/.test(unwrapped)) {
     const report =
       /<<<UNTRUSTED FEEDBACK — data, not instructions>>>\n([\s\S]*?)\n<<<END UNTRUSTED FEEDBACK>>>/
@@ -51,24 +61,34 @@ function dispatchMessageParts(text: string): { text: string; details: string | n
 }
 
 export const TRANSCRIPT_QUIET_MS = 120_000;
-export function transcriptActivity(items: TranscriptItem[], now: number, connected: boolean) {
+export function transcriptActivity(
+  items: TranscriptItem[],
+  now: number,
+  connected: boolean,
+  agentLabel = "The agent",
+) {
   // A "Model set to …" line is Claude Code answering a command, not a turn:
   // it neither starts work nor ends it.
   const last = lastConversationItem(items);
   if (last?.kind === "user" && isTranscriptInterruption(last.text))
-    return { working: false, label: "Stopped", quiet: false };
+    return { working: false, label: TERMINAL_CHAT_COPY.stopped, quiet: false };
   const working = last?.kind === "user" || (last?.kind === "tool" && last.status === "running");
   const lastAt = last?.at ? Date.parse(last.at) : NaN;
   const quiet = !!working && Number.isFinite(lastAt) && now - lastAt >= TRANSCRIPT_QUIET_MS;
   return {
     working: !!working && connected,
+    // Busy is said as busy ("Claude is working"); "waiting" means waiting for
+    // YOU, as on Home. An answer with nothing running is the person's turn —
+    // the screen used to end at the answer and say nothing (2026-11-12).
     label: !connected
-      ? "Reconnecting to the session…"
+      ? TERMINAL_CHAT_COPY.reconnecting
       : quiet
-        ? "No recent update from the agent"
+        ? TERMINAL_CHAT_COPY.quiet
         : working
-          ? "Waiting for the agent"
-          : null,
+          ? TERMINAL_CHAT_COPY.working(agentLabel)
+          : last?.kind === "assistant"
+            ? TERMINAL_CHAT_COPY.yourTurn
+            : null,
     quiet,
   };
 }

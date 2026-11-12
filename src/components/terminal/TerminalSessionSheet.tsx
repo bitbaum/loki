@@ -7,6 +7,8 @@ import { List, ListRow } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
 import type { AgentEntry } from "@/components/control/agent-switcher-popover";
 import { TERMINAL_SOURCES, type TerminalSource } from "@/config/terminal-modes";
+import { AGENT_SWITCH_COPY, RUNS_ON_COPY } from "@/config/terminal-copy";
+import { badgeNames } from "./terminal-strip-tabs";
 import {
   orderSessions,
   SESSION_STATUS_WORDS,
@@ -60,6 +62,7 @@ export function TerminalSessionSheet({
   onSwitchAgent,
   switchingAgent,
   agentSwitchDisabledReason,
+  machineOffline = false,
 }: {
   onClose: () => void;
   source: TerminalSource;
@@ -79,6 +82,8 @@ export function TerminalSessionSheet({
   onSwitchAgent: (agentId: string) => void;
   switchingAgent: boolean;
   agentSwitchDisabledReason: string | null;
+  /** The owner's own computer is known to be offline right now. */
+  machineOffline?: boolean;
 }) {
   // Closing stops a running agent, so the × arms first and a second tap
   // confirms — the strip's rule on desktop. It disarms on its own.
@@ -88,6 +93,16 @@ export function TerminalSessionSheet({
     const t = setTimeout(() => setArmed(null), 3000);
     return () => clearTimeout(t);
   }, [armed]);
+  // Switching the agent stops the one running in this session, so it arms
+  // and confirms like End: one curious tap on "Grok" replaced a running Claude
+  // with no word that it would (audit, 2026-11-12).
+  const [armedAgent, setArmedAgent] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armedAgent) return;
+    const t = setTimeout(() => setArmedAgent(null), 5000);
+    return () => clearTimeout(t);
+  }, [armedAgent]);
+  const activeAgentLabel = agents.find((a) => a.id === activeAgentId)?.label ?? null;
   // What needs the person first; sessions that are merely open wait behind
   // one row (orderSessions).
   const [showQuiet, setShowQuiet] = useState(false);
@@ -118,11 +133,15 @@ export function TerminalSessionSheet({
                   key={tab.id}
                   icon={SquareTerminal}
                   title={tab.label}
-                  secondary={
-                    [tab.badge, tab.status ? SESSION_STATUS_WORDS[tab.status] : null]
-                      .filter(Boolean)
-                      .join(" · ") || undefined
-                  }
+                  // Every row reads "Agent · state", the agent by name: two of
+                  // five rows had no state and the agent was its id ("claude").
+                  // No status from the stream means nothing is happening there.
+                  secondary={[
+                    badgeNames(tab.badge, agents),
+                    SESSION_STATUS_WORDS[tab.status ?? "idle"],
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                   status={tab.status ? STATUS_DOT[tab.status] : undefined}
                   onClick={() => {
                     onSelectTab(tab.id);
@@ -202,6 +221,12 @@ export function TerminalSessionSheet({
                   key={option.id}
                   icon={SOURCE_ICON[option.id]}
                   title={option.label}
+                  // Still a choice, but it says what choosing it gets you.
+                  secondary={
+                    option.id === "machine" && machineOffline && source !== "machine"
+                      ? RUNS_ON_COPY.machineOffline
+                      : undefined
+                  }
                   onClick={() => {
                     onSourceChange(option.id);
                     onClose();
@@ -214,28 +239,45 @@ export function TerminalSessionSheet({
         )}
 
         {activeTab && agents.length > 0 && (
-          <Section title="Agent">
+          <Section title={AGENT_SWITCH_COPY.section}>
             <List>
-              {agents.map((agent) => (
-                <ListRow
-                  key={agent.id}
-                  icon={Bot}
-                  title={agent.label}
-                  secondary={
-                    agent.id === activeAgentId && agentSwitchDisabledReason
-                      ? agentSwitchDisabledReason
-                      : switchingAgent && agent.id !== activeAgentId
-                        ? "Switching…"
-                        : undefined
-                  }
-                  onClick={
-                    agentSwitchDisabledReason || switchingAgent || agent.id === activeAgentId
-                      ? undefined
-                      : () => onSwitchAgent(agent.id)
-                  }
-                  trailing={agent.id === activeAgentId ? check : undefined}
-                />
-              ))}
+              {agents.map((agent) => {
+                const current = agent.id === activeAgentId;
+                const isArmed = armedAgent === agent.id && !current;
+                const blocked = Boolean(agentSwitchDisabledReason) || switchingAgent || current;
+                return (
+                  <ListRow
+                    key={agent.id}
+                    icon={Bot}
+                    title={agent.label}
+                    secondary={
+                      current && agentSwitchDisabledReason
+                        ? agentSwitchDisabledReason
+                        : switchingAgent && !current
+                          ? AGENT_SWITCH_COPY.switching
+                          : isArmed
+                            ? AGENT_SWITCH_COPY.confirm(agent.label, activeAgentLabel)
+                            : undefined
+                    }
+                    onClick={blocked || isArmed ? undefined : () => setArmedAgent(agent.id)}
+                    trailing={current ? check : undefined}
+                    menu={
+                      isArmed ? (
+                        <button
+                          type="button"
+                          className="ui-btn-danger min-h-11"
+                          onClick={() => {
+                            setArmedAgent(null);
+                            onSwitchAgent(agent.id);
+                          }}
+                        >
+                          Switch
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                );
+              })}
             </List>
           </Section>
         )}

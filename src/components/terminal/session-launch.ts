@@ -15,6 +15,9 @@ export function sessionLaunchProps(args: {
   activeProject: string | null;
   channel: BuilderChannel;
   openTabs: string[];
+  /** The session on screen, if any: "New session" from inside it is a
+   *  request for something else, not a copy of it. */
+  currentTab?: string | null;
   select: (tab: string) => void;
 }): ComponentProps<typeof TerminalLaunch> | null {
   const { context } = args;
@@ -26,6 +29,7 @@ export function sessionLaunchProps(args: {
     activeProject: args.activeProject,
     channel: args.channel,
     openTabs: args.openTabs,
+    currentTab: args.currentTab ?? null,
     onStarted: args.select,
     onOpenSession: args.select,
   };

@@ -3243,6 +3243,13 @@
   .ui-term-split-pty {
     @apply min-h-0 min-w-0 flex-1;
   }
+  /* The raw terminal on a phone keeps clear of the feedback edge tab
+     (data-fc-place="tab", widget/theme.ts: 28px wide at the screen edge).
+     The page gutter is 16px, so 12px more keeps line ends readable; it sat
+     over "…attern resolv…" (audit, 2026-11-12). */
+  .ui-term-split-pty:has(.xterm) {
+    @apply max-md:pr-3;
+  }
   .ui-term-split-rail {
     @apply hidden min-h-0 w-80 shrink-0 lg:flex xl:w-96;
   }
@@ -7301,7 +7308,7 @@
   .ui-claude-chat .ui-loki-thread-inner {
     @apply mt-0;
   }
-  /* "Dispatch details" under a sent task: a 44px row with its words centred,
+  /* "Full instructions Loki sent" under a sent task: a 44px row with its words centred,
      reaching into the bubble's own padding. As a bare <summary> its text sat
      at the top of the 44px and left a blank band under it. */
   .ui-bubble-details {

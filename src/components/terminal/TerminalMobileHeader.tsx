@@ -48,6 +48,7 @@ export function TerminalMobileHeader({
   backHref,
   onOpenSheet,
   onOpenMore,
+  moreHasExplain = false,
   view,
   onViewChange,
 }: {
@@ -63,8 +64,11 @@ export function TerminalMobileHeader({
   /** Where "back" goes; omitted, there is no back button. */
   backHref?: string;
   onOpenSheet: () => void;
-  /** The "⋮" sheet: Loki's read, full screen, display. */
+  /** The "⋮" sheet: full screen, display, feedback. */
   onOpenMore?: () => void;
+  /** The "⋮" sheet also offers "What's going on?" (only while the chip
+   *  above the box is not on screen). */
+  moreHasExplain?: boolean;
   /** Conversation ↔ raw terminal, when the session's agent supports the
    *  conversation view. */
   view?: TerminalViewMode;
@@ -79,7 +83,10 @@ export function TerminalMobileHeader({
     builder && builder.toLowerCase() !== title.toLowerCase() ? lowerFirst(builder) : null;
   // While the screen on show is the remembered one (or nothing yet), the
   // second line says so — the words that used to float over the output.
-  const subtitle = (state === "connecting" ? [agent, "connecting…"] : [agent, others, where])
+  // What it is doing comes right after who runs it, in words: the dot alone
+  // left "is anything running?" to anyone who knew the colours (2026-11-12).
+  const doing = state === "live" && status ? SESSION_STATUS_WORDS[status] : null;
+  const subtitle = (state === "connecting" ? [agent, "connecting…"] : [agent, doing, others, where])
     .filter(Boolean)
     .join(" · ");
   return (
@@ -119,7 +126,11 @@ export function TerminalMobileHeader({
             className="ui-term-mhead-ghost"
             onClick={onOpenMore}
             aria-haspopup="dialog"
-            aria-label="More: what's going on, full screen, text size"
+            aria-label={
+              moreHasExplain
+                ? "More: what's going on, full screen, text size"
+                : "More: full screen, text size"
+            }
           >
             <MoreVertical className="h-5 w-5" aria-hidden="true" />
           </button>

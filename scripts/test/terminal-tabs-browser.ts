@@ -41,7 +41,7 @@ async function main() {
         import{TerminalSessionNotice}from'./src/components/terminal/TerminalSessionNotice';
         import{TerminalSessionSheet}from'./src/components/terminal/TerminalSessionSheet';
         const q=new URLSearchParams(location.search);
-        const all=[{id:'substrata',label:'substrata',status:'working'},{id:'orangecat',label:'orangecat',status:'needs-you'},
+        const all=[{id:'substrata',label:'substrata',status:'working',badge:'claude'},{id:'orangecat',label:'orangecat',status:'needs-you'},
           {id:'substrata~1a2b3c4d',label:'substrata 2',status:'done'},{id:'heidi',label:'heidi',status:'idle'}];
         function App(){
           if(q.has('empty'))return <main className="app-page app-page-compact"><TerminalMobileHeader title="Cloud runner" state="idle" builder="Cloud runner" sessionCount={0} backHref="/control" onOpenSheet={()=>{}} onOpenMore={()=>{}}/></main>;
@@ -56,15 +56,17 @@ async function main() {
               backHref="/control" onOpenSheet={()=>setSheet(true)} onOpenMore={()=>{}}
               view="chat" onViewChange={()=>{}}/>
             {sheet&&<TerminalSessionSheet onClose={()=>setSheet(false)} source="cloud" sources={['cloud','machine']}
-              onSourceChange={()=>{}} tabs={sessions.map(s=>({id:s.id,label:s.label,status:s.status}))} activeTab={active}
-              onSelectTab={setActive} onCloseTab={()=>{}} onNewSession={()=>setOpen(true)} agents={[]} activeAgentId="claude"
-              onSwitchAgent={()=>{}} switchingAgent={false} agentSwitchDisabledReason={null}/>}
+              onSourceChange={()=>{}} tabs={sessions.map(s=>({id:s.id,label:s.label,status:q.has('nostatus')&&s.id==='heidi'?null:s.status,badge:s.badge}))} activeTab={active}
+              onSelectTab={setActive} onCloseTab={()=>{}} onNewSession={()=>setOpen(true)}
+              agents={q.has('agents')?[{id:'claude',label:'Claude'},{id:'grok',label:'Grok'}]:[]} activeAgentId="claude"
+              onSwitchAgent={(id)=>{window.__switched=id}} switchingAgent={false} agentSwitchDisabledReason={null}
+              machineOffline={q.has('agents')}/>}
             {q.has('notice')&&<TerminalSessionNotice tabs={sessions} onOpen={setActive}
               news={{statuses:{},notice:{tab:'orangecat',status:'needs-you'},dismissNotice(){}}}/>}
             {open&&<TerminalNewSessionSheet onClose={()=>setOpen(false)}
               projects={[{name:'substrata',dir:'/d/substrata',agentPref:null},{name:'orangecat',dir:'/d/orangecat',agentPref:null}]}
               agents={[{id:'claude',label:'Claude'}]} defaultAgent="claude" activeProject="substrata"
-              channel="cloud" openTabs={sessions.map(s=>s.id)} onStarted={()=>{}} onOpenSession={setActive}/>}
+              channel="cloud" openTabs={sessions.map(s=>s.id)} currentTab={q.has('cur')?active:null} onStarted={()=>{}} onOpenSession={setActive}/>}
           </main>;
         }
         createRoot(document.getElementById('app')).render(<App/>);`,
@@ -127,7 +129,10 @@ async function main() {
 
       // One session: the name, what runs it and where.
       await mount("?n=1");
-      assert.equal(await page.locator(".ui-term-mhead-sub").textContent(), "Claude · cloud runner");
+      assert.equal(
+        await page.locator(".ui-term-mhead-sub").textContent(),
+        "Claude · working · cloud runner",
+      );
       assert.equal(await overflow(), false);
       await page.screenshot({ path: path.join(shots, `${width}-one.png`) });
 
@@ -136,7 +141,7 @@ async function main() {
       assert.ok((await headRows()) <= 48, "the header stays one row with four sessions");
       assert.equal(
         await page.locator(".ui-term-mhead-sub").textContent(),
-        "Claude · 4 sessions · cloud runner",
+        "Claude · working · 4 sessions · cloud runner",
       );
       assert.equal(await overflow(), false, "nothing pushes the page sideways");
       const title = await page
@@ -197,6 +202,42 @@ async function main() {
       assert.equal(await page.getByRole("button", { name: "Go to its session" }).count(), 1);
       assert.equal(await overflow(), false);
       await page.screenshot({ path: path.join(shots, `${width}-new.png`) });
+
+      // "+" from inside the busy session: a free project, one primary, and no
+      // button back to the session already on screen.
+      await mount("?n=1&new=1&cur=1");
+      await page.getByRole("dialog").waitFor();
+      assert.equal(await page.locator("#terminal-launch-project").inputValue(), "orangecat");
+      assert(!/already has a session/.test(await page.getByRole("dialog").innerText()));
+      assert.equal(await page.getByRole("button", { name: "Go to its session" }).count(), 0);
+
+      // Every row says "Agent · state", the agent by name; switching the agent
+      // arms first and confirms; an offline computer says so.
+      await mount("?n=4&agents=1&nostatus=1");
+      await page.locator(".ui-term-mhead-btn").click();
+      const rows = page.getByRole("dialog", { name: "Sessions" });
+      await rows.getByText("Claude · working", { exact: true }).waitFor();
+      assert.equal(
+        await rows.getByText("open", { exact: true }).count(),
+        1,
+        "no status reads open",
+      );
+      await rows.getByText(/^Offline: open Fleet Runner/).waitFor();
+      await rows.getByRole("button", { name: /^Grok/ }).click();
+      assert.equal(
+        await page.evaluate(() => (window as unknown as { __switched?: string }).__switched),
+        undefined,
+        "one tap does not switch",
+      );
+      await rows.getByText("Switch to Grok? Claude stops here", { exact: true }).waitFor();
+      await page.screenshot({ path: path.join(shots, `${width}-agent-armed.png`) });
+      await rows.getByRole("button", { name: "Switch", exact: true }).click();
+      assert.equal(
+        await page.evaluate(() => (window as unknown as { __switched?: string }).__switched),
+        "grok",
+      );
+      assert.equal(await overflow(), false);
+      await page.screenshot({ path: path.join(shots, `${width}-agents.png`) });
 
       assert.deepEqual(errors, []);
       console.log(

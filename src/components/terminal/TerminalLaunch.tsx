@@ -34,12 +34,20 @@ import { projectTitle } from "@/lib/project-display";
 export function preferredLaunchProject(
   projects: TerminalLaunchProject[],
   activeProject: string | null | undefined,
+  /** Sessions already open, when the form is opened from inside one. Then a
+   *  project that has none is the likelier ask: from the Orangecat session,
+   *  "New session" opened on Orangecat with a warning and a primary button
+   *  that started a duplicate (audit, 2026-11-12). */
+  openTabs: readonly string[] = [],
 ): string {
   // Only when it is actually launchable — a project in scope but with no linked
   // directory cannot be started, and pre-selecting it would offer a button that
   // fails every time.
-  if (activeProject && projects.some((p) => p.name === activeProject)) return activeProject;
-  return projects[0]?.name ?? "";
+  const active =
+    activeProject && projects.some((p) => p.name === activeProject) ? activeProject : null;
+  const free = (name: string) => sessionsOfProject(openTabs, name).length === 0;
+  if (active && free(active)) return active;
+  return projects.find((p) => free(p.name))?.name ?? active ?? projects[0]?.name ?? "";
 }
 
 export function TerminalLaunch({
@@ -49,6 +57,7 @@ export function TerminalLaunch({
   activeProject,
   channel,
   openTabs = [],
+  currentTab = null,
   onStarted,
   onOpenSession,
   framed = true,
@@ -62,6 +71,8 @@ export function TerminalLaunch({
   /** Sessions already open on this builder. Starting a project that has one
    *  opens a SECOND session beside it (its own worktree), never a replacement. */
   openTabs?: readonly string[];
+  /** The session on screen when the form was opened, if any. */
+  currentTab?: string | null;
   /** The tab the new session will appear as — the caller switches to it. */
   onStarted?: (tab: string) => void;
   /** Go to a session that is already open instead of starting another. */
@@ -81,7 +92,8 @@ export function TerminalLaunch({
   // back to picking the first project in the list, which is the bug this is
   // fixing. Same shape as the agent selection just below: the operator's own
   // pick wins, and until they make one the scope answers.
-  const projectName = projectOverride ?? preferredLaunchProject(projects, activeProject);
+  const projectName =
+    projectOverride ?? preferredLaunchProject(projects, activeProject, currentTab ? openTabs : []);
   const project = projects.find((p) => p.name === projectName) ?? null;
   // Per-project preference wins until the user explicitly picks an agent.
   const agentId =
@@ -94,6 +106,8 @@ export function TerminalLaunch({
 
   const running = project ? sessionsOfProject(openTabs, project.name) : [];
   const full = running.length > MAX_PARALLEL_LANES_PER_PROJECT;
+  // "Go to its session" leads somewhere else; the one on screen is not that.
+  const elsewhere = running.find((tab) => tab !== currentTab) ?? null;
 
   if (startedAs) {
     // A live state, drawn as one: it used to be a sentence with no spinner,
@@ -189,11 +203,13 @@ export function TerminalLaunch({
           {busy ? <Loader2 className="ui-spinner" /> : <Play className="h-3.5 w-3.5" />}
           {running.length > 0 ? "Start another session" : "Start"}
         </button>
-        {running.length > 0 && onOpenSession ? (
+        {/* Never the session already on screen: the button only closed the
+            sheet. */}
+        {elsewhere && onOpenSession ? (
           <button
             type="button"
             className="ui-btn-secondary"
-            onClick={() => onOpenSession(running[0])}
+            onClick={() => onOpenSession(elsewhere)}
           >
             Go to its session
           </button>

@@ -107,9 +107,9 @@ async function main() {
       assert(!(await page.locator("pre").isVisible()), "internal dispatch starts folded");
       fs.mkdirSync(".tmp/mobile-final-review", { recursive: true });
       await page.screenshot({ path: `.tmp/mobile-final-review/conversation-${width}.png` });
-      await page.getByText("Dispatch details", { exact: true }).click();
+      await page.getByText("Full instructions Loki sent", { exact: true }).click();
       assert(await page.locator("pre").isVisible());
-      await page.getByText("Dispatch details", { exact: true }).click();
+      await page.getByText("Full instructions Loki sent", { exact: true }).click();
       await page.getByRole("button", { name: "View terminal", exact: true }).click();
       assert(
         await page.evaluate(
