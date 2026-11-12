@@ -582,6 +582,13 @@ address, default from the name). Full flow:
 - Work fast and finish it: use the shared packages, check it at 390px, give the
   link. Do not explain the machinery to the operator; do the thing.
 
+## Checkpoints
+
+For the work to make Loki, and a Cat bot through Loki, something the owner
+builds with (2026-11-12): what was found, what shipped, what is still open and
+how production was checked, read
+[the checkpoint](docs/handoffs/2026-11-12-build-with-loki-and-cat.md).
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

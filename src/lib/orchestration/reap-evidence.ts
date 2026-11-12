@@ -19,7 +19,7 @@ import { pendingCommands } from "@/db/schema/pending-commands";
 import { ORCHESTRATION_OUTCOME, orchestrationRuns } from "@/db/schema/orchestration-runs";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import { emitRunEvent } from "@/db/queries/run-events";
-import { getGithubToken } from "@/lib/github-token";
+import { repoTokenFor } from "@/lib/run-evidence-live";
 import { findRepoWorkEvidence } from "@/lib/github-evidence";
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
@@ -92,7 +92,9 @@ export async function correctTimeoutReapsWithRepoEvidence(
       const gitUrl = project?.gitUrl ?? registration?.gitUrl;
       if (!gitUrl) continue;
 
-      const token = await getGithubToken(run.userId);
+      // The token that can read this repository (a person's own is refused
+      // on the organisation's repositories), as run-outcome-post asks.
+      const token = await repoTokenFor(run.userId, gitUrl).catch(() => null);
       if (!token) continue;
 
       const evidence = await findRepoWorkEvidence(

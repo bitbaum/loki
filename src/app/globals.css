@@ -7584,6 +7584,9 @@
   .ui-loki-start-title {
     @apply text-xl font-medium text-text-primary sm:text-2xl;
   }
+  .ui-loki-start-date {
+    @apply -mt-2 mb-0 text-sm text-text-tertiary;
+  }
   /* A titled block of rows (Recent, Build next) — the List bleeds 12px. */
   .ui-loki-start-section {
     @apply flex min-w-0 flex-col px-1;

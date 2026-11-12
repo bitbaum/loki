@@ -253,14 +253,24 @@ export function pruneWorktrees(tab: string, primaryDir: string): number {
 
 /**
  * One-line instruction appended to a dispatch prompt when the agent runs in a
- * worktree — how to land work without fighting the isolation. Kept here so the
+ * worktree — how to ship work without fighting the isolation. Kept here so the
  * prompt text and the mechanism can't drift apart.
+ *
+ * It used to end "git push origin HEAD:main". Every lane and every one-off
+ * session got that line, beside a task that said to open a pull request: on a
+ * protected main the push is refused and the agent improvises, and on an
+ * unprotected repository the work lands unreviewed with no pull request, on a
+ * branch Loki never counts as the run's (lib/run-branches), so the track says
+ * nothing reached GitHub. The pull request is how work lands; whether it is a
+ * draft is the task's to say (a client's change is one, lib/feedback/compose-
+ * dispatch).
  */
 export function worktreePromptNote(runId: string): string {
   return (
     `NOTE: you are in an isolated git worktree on branch ${worktreeBranch(runId)} ` +
-    `(worktree-per-agent isolation). Work and commit here as normal. To land your ` +
-    `work on main when done: git pull --rebase origin main && git push origin HEAD:main. ` +
-    `Do not switch branches or cd to the primary checkout.`
+    `(worktree-per-agent isolation). Work and commit here as normal. To ship your ` +
+    `work: git push -u origin HEAD, then open a pull request from this branch ` +
+    `(a draft only where the task asks for one). Never push to main and never ` +
+    `merge it yourself. Do not switch branches or cd to the primary checkout.`
   );
 }
