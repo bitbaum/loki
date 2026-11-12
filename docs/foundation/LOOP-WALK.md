@@ -60,6 +60,14 @@ Handing a QA bot a seat: the project's owner gives the bot's own account a
 Viewer or Reporter seat (never Owner or Editor), and the bot mints its token
 at `POST /api/agent-tokens` with its own session. Any seat may file.
 
+A person's OrangeCat bot files through the same contract without a seat token
+of its own: `POST /api/orangecat/feedback` on the signed OrangeCat rail files
+as the Loki account linked to that person, with `{actorId, issuedAt, project
+(by name), suggestion, agentName, idempotencyKey?, page?, url?, pageTitle?}`
+(words only, no attachments), and reads a report back with `{actorId,
+issuedAt, feedbackId}`. Both doors call one body (`lib/feedback/agent-filing`),
+so the answers, the replay rule and the limit below are the same.
+
 1. **File.** `POST /api/projects/<id>/feedback` with
    `Authorization: Bearer ck_…`, JSON
    `{suggestion (1–2000), agentName (1–80, e.g. "QA · quality control"), idempotencyKey? (8–200), page?, url?, pageTitle?, screenshots?, context?, moments?, selectedElements?}`.
@@ -122,3 +130,7 @@ reaches its own account's sessions.
 A plain shell (`loki-shell-…`) is never part of this: its screen and keys
 belong to a signed-in, unlocked browser, and a token gets `403` or `404`.
 `scripts/test/agent-session-read.ts` pins the read side.
+
+Over MCP (`docs/development/mcp.md`) the same walk is `loki_dispatch` to
+start or continue, `loki_sessions` to see what is open, and
+`loki_session_read` to read a session's output.

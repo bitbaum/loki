@@ -93,6 +93,8 @@ and a 401 would send the client back through OAuth for nothing.
 | `loki_pending_approvals` | `loki.chat` | What is waiting in the approval queue. |
 | `loki_projects` | `loki.chat` | Registered projects with a one-line status — the names `loki_dispatch` accepts. |
 | `loki_dispatch` | `loki.act` | Send a coding task to a project's agent. The outcome arrives later as a notification. |
+| `loki_sessions` | `loki.chat` | Agent sessions open on the owner's builders, each with the link that opens it in Loki's Terminal. Plain shells are never listed. |
+| `loki_session_read` | `loki.chat` | The end of one session's terminal output as plain text (what the agent answered after `loki_dispatch`). Waits up to about twenty seconds for the builder; refuses a plain shell. |
 | `loki_book` | `loki.act` | Propose a calendar event through the approval queue; reports `auto-approved` or `awaiting-approval` truthfully. |
 | `loki_browser_task` | `loki.act` | Return the `/fill` link for a known form (a recipe in `src/config/browser-tasks.ts`). The page fills it on the owner's device — the Loki extension in Firefox, or Fleet Runner on a computer — and stops at the final button. Never submits; the owner presses it. |
 | `loki_decide` | `loki.act` | Approve or reject one queued action. Approving executes it. |
@@ -114,6 +116,9 @@ do all of that. Specifically:
   `loki_book` enqueues through the same producer as `/api/actions/propose`;
   `loki_dispatch` calls the same `injectPrompt` as `/api/inject`;
   `loki_decide` calls the same `decideAction` as `/api/actions/[id]/decision`.
+  `loki_sessions` reads what `GET /api/control/open-tabs` reads, and
+  `loki_session_read` queues the same `peek_tab` command as
+  `POST /api/control/peek-tab`.
   Standing approvals the owner set apply here as they do there.
 - **`loki_decide` is the owner's approval.** An app holding `loki.act` can
   approve a queued action, which executes it. That is the same power the

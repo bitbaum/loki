@@ -10,6 +10,15 @@ name: Box usage
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "read, or reap (terminate idle Postgres client connections)"
+        required: false
+        default: read
+      idle_min:
+        description: "reap: idle longer than this many minutes"
+        required: false
+        default: "10"
 
 concurrency:
   group: box-usage
@@ -40,3 +49,11 @@ jobs:
         run: |
           ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 \
             "root@$HETZNER_IP" bash -s < scripts/hetzner/box-usage.sh
+
+      - name: Postgres connections (read, or reap idle ones)
+        env:
+          MODE: ${{ inputs.mode }}
+          IDLE_MIN: ${{ inputs.idle_min }}
+        run: |
+          case "$MODE" in read|reap) ;; *) MODE=read ;; esac
+          ssh -o BatchMode=yes -o ConnectTimeout=15 "root@$HETZNER_IP" bash -s -- "$MODE" "$IDLE_MIN" < scripts/hetzner/pg-connections.sh

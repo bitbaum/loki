@@ -29,11 +29,23 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
-    version: "0.8.68",
-    tag: "fleet-runner-v0.8.68",
-    date: "2026-11-12T06:40:00Z",
+    version: "0.8.69",
+    tag: "fleet-runner-v0.8.69",
+    date: "2026-11-12T07:35:00Z",
     highlights: [
       "A task that runs beside a busy project's own session starts from the project's main branch, in a new conversation, and no longer pulls changes into the folder the busy session is working in.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.67",
+    tag: "fleet-runner-v0.8.67",
+    date: "2026-11-12T05:30:00Z",
+    highlights: [
+      'A new session is no longer failed as "not signed in" because an older session in the same folder once was. Only what this run\'s agent says counts.',
+      "Grok, Antigravity and other agents are checked from their own output, and a sign-in error names that agent and its own fix instead of Claude's token.",
+      "A brief that talks about rate limits no longer marks Claude out of quota: only Claude's own usage-limit error counts, and a provider that finished a task since its last limit is offered again.",
     ],
     breaking: [],
     notes: "",

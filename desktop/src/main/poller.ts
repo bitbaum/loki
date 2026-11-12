@@ -27,7 +27,7 @@ import path from 'path'
 import { APP_URL } from '@/config/brand'
 import { APP_SLUG } from '@/config/brand'
 import { startPeek, stopPeek } from './peek-streamer'
-import { detectAuthFailure } from './agent-auth'
+import { authFailureMessage, claudeReportedCapacityWall, detectAuthFailure } from './agent-auth'
 import { startRunProgress } from './run-progress'
 import { getAgentInstallCommand, listAgentRegistry, type AgentOption } from '@/lib/agent-registry'
 import { executor } from '@/lib/agent-execution'
@@ -780,16 +780,19 @@ async function handleCommand(
             // credentials it was written for (2026-07-02/03).
             const transcriptDir = resolveRunnerWorkspaceDir(tab, effDir)
             for (let i = 0; i < 6 && !authFailed; i++) {
-              authFailed = detectAuthFailure(transcriptDir)
+              authFailed = detectAuthFailure(transcriptDir, {
+                agent,
+                since: injectedAt ? Date.parse(injectedAt) : undefined,
+                screen: saidSinceInject.text(),
+                prompt: effPrompt,
+              })
               if (!authFailed && i < 5) await asleep(2000)
             }
             if (authFailed) {
               ok = false
               verified = false
               warning = undefined
-              error =
-                `${agent} is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. ` +
-                `On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).`
+              error = authFailureMessage(agent)
             } else {
               let capacityFailure = detectPtyCapacityFailure(tab, agent as AgentOption, {
                 since: saidSinceInject.text(),
@@ -798,6 +801,16 @@ async function handleCommand(
               // Claude reports its own state. A session still generating ~12s
               // after the submit has not hit a wall, whatever its screen says —
               // "Approaching usage limit" is a warning it prints WHILE working.
+              // Claude: only its own API error entry since the prompt is a
+              // wall. The screen echoes our brief, and a brief that talks
+              // about rate limits is not Claude running out.
+              if (
+                capacityFailure &&
+                agent === 'claude' &&
+                !claudeReportedCapacityWall(transcriptDir, injectedAt ? Date.parse(injectedAt) : undefined)
+              ) {
+                capacityFailure = null
+              }
               if (capacityFailure && agent === 'claude') {
                 const live = claudeLiveSessionForDir(
                   readClaudeLiveSessions(),
