@@ -12,6 +12,12 @@
  * refused with a sentence that names the next step, because dispatching into
  * someone's repositories is not something to attribute to a default account.
  *
+ * Each sent project answers with its `runId` and a `statusUrl`, so the caller
+ * can follow the run it started (and read it back over
+ * /api/orangecat/sessions). `builderChannel: "cloud"` asks for the always-on
+ * runner. A project that already has an open run refuses the whole task with
+ * 409 and a sentence, unless the body says `queueIfBusy`.
+ *
  * Every close outcome is announced: the person typed this into OrangeCat and
  * is not watching a Loki tab.
  */
@@ -22,6 +28,8 @@ import { logDebug } from "@/db/queries/debug-logs";
 import { readSignedOrangeCatBody } from "@/lib/integrations/orangecat-webhook";
 import { dispatchToProjects } from "@/lib/multi-project-dispatch";
 import { MAX_TASK_LENGTH, MAX_TASK_PROJECTS } from "@/lib/multi-dispatch-prompt";
+import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
+import { getExecutionAccess } from "@/lib/execution-access";
 
 const Body = z.object({
   actorId: z.string().uuid(),
@@ -30,6 +38,10 @@ const Body = z.object({
     .array(z.string().trim().min(1).max(120))
     .min(1)
     .max(MAX_TASK_PROJECTS * 2),
+  /** Prefer this builder ("cloud" = the always-on runner) where the project is not locked. */
+  builderChannel: z.enum(BUILDER_CHANNELS).optional(),
+  /** Queue behind a project's open run. Without it a busy project refuses the task (409). */
+  queueIfBusy: z.boolean().optional(),
   /** Where on OrangeCat this was sent from — for attribution, not routing. */
   originUrl: z.string().trim().url().max(500).optional(),
 });
@@ -37,7 +49,7 @@ const Body = z.object({
 export async function POST(req: NextRequest) {
   const dataOrResp = await readSignedOrangeCatBody(req, Body, "task dispatch not configured");
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { actorId, task, projects, originUrl } = dataOrResp;
+  const { actorId, task, projects, originUrl, builderChannel, queueIfBusy } = dataOrResp;
 
   const user = await getUserByOrangeCatActorId(actorId);
   if (!user) {
@@ -51,7 +63,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = await dispatchToProjects({ task, projects, notifyOnClose: true }, user.id);
+  // The cloud runner is not every account's to use: the same check the
+  // transcript stream makes before it names that builder.
+  if (builderChannel === "cloud") {
+    const access = await getExecutionAccess(user.id);
+    if (!access.cloudBuilderAllowed) {
+      return NextResponse.json(
+        {
+          error: "cloud runner not available",
+          detail:
+            "The cloud runner is private for this account. Nothing was sent. Send the task without naming a builder.",
+        },
+        { status: 403 },
+      );
+    }
+  }
+
+  const result = await dispatchToProjects(
+    {
+      task,
+      projects,
+      notifyOnClose: true,
+      ...(builderChannel ? { builderChannel } : {}),
+      // A person on OrangeCat is not watching Control: a busy project answers
+      // with a sentence unless they asked to queue behind the open run.
+      refuseBusy: !queueIfBusy,
+    },
+    user.id,
+  );
 
   await logDebug({
     source: "orangecat/task",
