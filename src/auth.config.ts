@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 import { ROUTES } from "@/config/auth";
 import { DEMO_DENIAL_COPY, demoDenialFor, isDemoEmail, isDemoEnabled } from "@/config/demo";
+import { tokenSessionDenial } from "@/lib/auth/token-session";
 
 function sessionOnboardingDone(user: {
   onboardingComplete?: boolean;
@@ -130,6 +131,19 @@ export const authConfig = {
             JSON.stringify({ error: DEMO_DENIAL_COPY[reason], demoBlocked: true, reason }),
             { status: 403, headers: { "Content-Type": "application/json" } },
           );
+        }
+      }
+
+      // A session opened with an agent's token never reaches a credential, a
+      // shell or the account's export (lib/auth/token-session.ts). Writes
+      // through person-only routes are refused in lib/session.ts.
+      if (auth.user.viaToken && pathname.startsWith("/api/")) {
+        const denied = tokenSessionDenial(pathname);
+        if (denied) {
+          return new Response(JSON.stringify({ error: denied, tokenSession: true }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          });
         }
       }
 

@@ -6,6 +6,60 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-12 — Small things that were in the way
+
+- **A short message stays on one line.** {#chat-bubble-width} A message you
+  sent was drawn narrower than its own words, so "yes" could appear as three
+  letters under each other. It takes the room it needs now.
+- **A wrong password says so.** {#wrong-password-says-so} The sign-in form
+  used to say nothing and show the same form again.
+- **Typing a project name keeps the box.** {#onboarding-name-stays} When you
+  added your first project by hand, the name box disappeared after the first
+  letter.
+- **A long first sentence is accepted.** {#long-brief} What you say on the
+  homepage may be up to 2,000 characters, and the new-project form now takes
+  all of it. It used to refuse anything over 300 with "Invalid body".
+- **Revoking a computer's token asks first.** {#revoke-asks} One tap on the
+  bin used to revoke it at once. And if the server refuses, the list no
+  longer pretends it is gone.
+- **Pages no longer slide when they load.** {#no-load-slide} On a desktop the
+  sidebar was drawn open and then folded, moving the whole page each time.
+- **Easier by keyboard.** {#keyboard-round-two} "Skip to content" is the
+  first Tab stop inside the app. The notifications panel, the More sheet, the
+  sessions list and the command box take the keyboard when they open, close
+  with Escape and give it back. A click beside the notifications panel closes
+  it and nothing else.
+
+## 2026-11-12 — Say it on the first screen
+
+- **The homepage has a box to say it in.** {#say-it-first} Under "Say what
+  you want" there is now the same box and microphone as Loki's chat. Type or
+  say what you want built, and it is kept: sign-up shows your sentence back,
+  and it is waiting in the new-project form when you arrive. Before, the only
+  thing under the headline was a button to a form that never mentioned a
+  project.
+- **A shorter homepage, with something to look at.** {#homepage-shorter} It
+  was more than ten phone screens of text and is now seven and a half, with a
+  small picture for each of the three steps. The twelve problems Loki solves
+  are three on the homepage and all of them on Why Loki.
+- **The menu stays with you.** {#public-header-stays} The header on every
+  public page now stays at the top while you scroll. It was meant to and did
+  not. From a keyboard, the phone menu takes the focus when it opens and gives
+  it back when it closes, and the Product menu opens when pressed, not when
+  the pointer passes over it.
+- **A wrong address is not a dead end.** {#not-found} An address that leads
+  nowhere shows one line and the way back, inside and outside the app. It
+  used to be a bare "404" on a black screen.
+- **Words a person would say.** {#plain-words-2026-11} The Terminal says who
+  the cloud computer is for and what works instead. Home's running rows lead
+  with what the agent is doing this minute. "Connect a runner" is "Connect
+  your computer".
+
+## 2026-11-12 — The studio site can tell who is signed in
+
+- **bitbaum.orangecat.ch can show who is signed in.** The studio site is static files with no accounts of its own; a person's account there is their Loki account. `GET /api/studio-session` answers that site, and only that site, with the reader's own session: a name, a handle, a picture, whether they run the studio, and their builder applications by status. No email address, no account or application id, no access key. Signed out is an answer too, with the address to sign in at.
+- **Signing in from the studio site comes back to the page you were on.** `/studio/return?to=/builders/` sends a signed-out visitor through sign-in and then back to that page of the studio site. The destination is a path on the studio's own origin and nothing else; anything that does not fit goes to its home page. Signing out from there ends on the studio site as well.
+
 ## 2026-11-02 — Take over the browser
 
 - **You can take over Loki's browser.** {#review-take-over} In a project

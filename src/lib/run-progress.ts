@@ -23,6 +23,46 @@ export const RUN_PROGRESS_FRESH_MS = 10 * 60_000;
  *  runaway; the runner stops beating and the phase turns Stalled, which is
  *  the honest state for something a human has to look at. */
 export const RUN_PROGRESS_MAX_MS = 6 * 60 * 60_000;
+/**
+ * Seconds into a run after which its silence can no longer be told from the
+ * runner's own stop at RUN_PROGRESS_MAX_MS: five minutes before it, so a
+ * last beat near the stop is read as "the runner stopped", not "the agent
+ * did" (db/queries/orchestration-runs runIdleSql).
+ */
+export const RUN_PROGRESS_HORIZON_SECONDS = RUN_PROGRESS_MAX_MS / 1000 - 5 * 60;
+
+/**
+ * The least a beat must carry to count as work.
+ *
+ * "Printed something" was the whole test, and an agent idle at its prompt
+ * still prints: a sealed session relayed 40 to 96 bytes a minute while it sat
+ * at a ready prompt (measured on the box 2026-11-12 07:56 UTC, #1676). Every
+ * such trickle beat refreshed lastProgressAt, so an idle session read as
+ * working for hours and held its project's queue: two orangecat prompts
+ * (08:10 and 09:21 Zurich) waited over an hour behind a session silent since
+ * 06:17. A working agent prints kilobytes per beat (its spinner alone redraws
+ * several times a second); a beat under this is a cursor, not work. A beat
+ * that names a block is always counted: silence is its message.
+ */
+export const RUN_PROGRESS_MIN_BYTES = 512;
+
+/**
+ * How long a delivered run may go without a working beat before it stops
+ * holding its project's lane (db/queries/orchestration-runs olderOpenRunSql)
+ * and the reaper may close it. Unknown is not idle: a run with no beat at all
+ * keeps its lane, and so does a run blocked on a question for a person.
+ * Same half hour after which the drain stops counting a silent sealed session
+ * as working (scripts/hetzner/drain-and-restart-runner.sh).
+ */
+export const RUN_IDLE_RELEASE_MINUTES = 30;
+
+/** What a run closed for going quiet says (the reaper's note). */
+export const RUN_WENT_QUIET_SENTENCE = `The session went quiet: no work printed for ${RUN_IDLE_RELEASE_MINUTES} minutes, so this run was closed and the next task in line could start.`;
+
+/** Whether a beat is work (lastProgressAt moves) or only a sign of life. */
+export function isWorkingBeat(beat: { outputBytes: number; blocked: string | null }): boolean {
+  return beat.blocked !== null || beat.outputBytes >= RUN_PROGRESS_MIN_BYTES;
+}
 
 /**
  * Why an agent that is not printing is not printing.
@@ -66,6 +106,9 @@ export type RunProgressBeat = {
    *  run reported (lib/run-branches); a pull request is the run's only when
    *  its head is one of them. */
   branch?: string;
+  /** The remote branch the checkout pushes to, when it has one and its name
+   *  differs: a pull request's head is the remote branch. */
+  upstream?: string;
 };
 
 /** The longest step a beat may carry. */

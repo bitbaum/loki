@@ -207,7 +207,8 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
       {needsWidget.length > 0 && (
         <GroupRow
           icon={<Code2 className="h-4 w-4" aria-hidden="true" />}
-          label="Widget not on live site"
+          // The public site calls it "the Loki button"; "widget" is our word.
+          label="Loki button not on the live site"
           count={needsWidget.length}
           open={openGroup === "widget"}
           onToggle={() => toggle("widget")}

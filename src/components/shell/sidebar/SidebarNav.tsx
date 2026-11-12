@@ -81,7 +81,7 @@ export function SidebarNav({ pathname, collapsed }: { pathname: string; collapse
   }, []);
 
   return (
-    <nav className={collapsed ? "px-2 py-4 space-y-4" : "px-3 py-4 space-y-3"}>
+    <nav aria-label="Primary" className={collapsed ? "px-2 py-4 space-y-4" : "px-3 py-4 space-y-3"}>
       {SIDEBAR_SECTIONS.map((section) => {
         // The collapsed rail carries the whole loop — Now, Fleet, Command —
         // because eleven icons fit a rail and the loop is the product. Only

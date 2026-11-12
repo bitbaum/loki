@@ -24,7 +24,10 @@ export function PublicSurface({
     // `.dark` here — that forced public/auth pages to ignore Light/Auto while
     // the signed-in app honored THEME_OPTIONS. ThemeToggle lives in the nav.
     <div className="ui-public-surface">
-      <nav className="ui-public-nav">
+      <a href="#content" className="ui-skip-link">
+        Skip to content
+      </a>
+      <nav className="ui-public-nav" aria-label="Site">
         <div className="ui-public-nav-brand-row">
           <Link href={homeHref} className="ui-public-nav-home">
             <BrandMark responsive />
@@ -38,7 +41,10 @@ export function PublicSurface({
         <div className="flex min-w-0 items-center gap-2">{right}</div>
       </nav>
 
-      {children}
+      {/* The skip link's target. Not a <main>: the pages bring their own. */}
+      <div id="content" tabIndex={-1} className="outline-none">
+        {children}
+      </div>
 
       <PublicFooter />
     </div>

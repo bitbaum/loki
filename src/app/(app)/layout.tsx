@@ -1,6 +1,8 @@
 import { AppShell } from "@/components/shell/AppShell";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
 import { auth } from "@/auth";
+import { cookies } from "next/headers";
+import { SIDEBAR_COLLAPSE_COOKIE, SIDEBAR_COLLAPSED_BY_DEFAULT } from "@/config/shell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Server fact handed to the client shell: whether "Connect OrangeCat" can
@@ -14,8 +16,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // for a storage key; nothing is read from the database for it.
   const session = await auth();
   const viewerId = session?.user?.id ?? null;
+  // The sidebar's width, known before the first paint (config/shell).
+  const stored = (await cookies()).get(SIDEBAR_COLLAPSE_COOKIE)?.value;
+  const sidebarCollapsed =
+    stored === "true" ? true : stored === "false" ? false : SIDEBAR_COLLAPSED_BY_DEFAULT;
   return (
-    <AppShell orangecatEnabled={orangecat} feedbackWidget={feedbackWidget} viewerId={viewerId}>
+    <AppShell
+      orangecatEnabled={orangecat}
+      feedbackWidget={feedbackWidget}
+      viewerId={viewerId}
+      initialSidebarCollapsed={sidebarCollapsed}
+    >
       {children}
     </AppShell>
   );

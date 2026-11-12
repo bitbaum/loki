@@ -7,8 +7,12 @@
 # ~/.local/bin — already first on the runner unit's PATH, which is all the
 # runner needs to report them installed (src/lib/agents/*.ts detectAvailable).
 #
-# Keys: GEMINI_API_KEY is copied from the orangecat app env into the runner env
-# if the runner has none. XAI_API_KEY / CURSOR_API_KEY are left to the operator.
+# Keys are left to the operator: GEMINI_API_KEY, XAI_API_KEY, CURSOR_API_KEY.
+# The platform's Gemini key is NOT copied in. It used to be, from OrangeCat's
+# env, and on 2026-11-12 that key spent with no cap until the API was switched
+# off. An agent CLI cannot be capped in code, so the builder gets Gemini only
+# through a key of its own in a Google project with a per-day request quota
+# (the vendor refuses past it: the only hard cap a CLI can have).
 # NO secret value is ever printed — this repo's Action logs are public.
 #
 # Usage: install-builder-agents.sh [--no-restart]
@@ -16,7 +20,6 @@ set -uo pipefail
 RUNNER_USER="${RUNNER_USER:-ubuntu}"
 RUNNER_HOME="/home/$RUNNER_USER"
 RUNNER_ENV="${RUNNER_ENV:-/opt/loki/runner/.env}"
-KEY_SRC="${KEY_SRC:-/opt/orangecat/app/.env}"
 BIN="$RUNNER_HOME/.local/bin"
 as_user() { sudo -u "$RUNNER_USER" -H env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" bash -lc "$1" </dev/null; }
 
@@ -34,13 +37,9 @@ as_user "curl -fsSL https://x.ai/cli/install.sh | GROK_BIN_DIR=\$HOME/.local/bin
 
 
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
-  echo "✓ GEMINI_API_KEY already in runner env"
-elif key_present "$KEY_SRC" GEMINI_API_KEY; then
-  cp -p "$RUNNER_ENV" "$RUNNER_ENV.bak.$(date +%s)"
-  { echo; grep -E "^(export )?GEMINI_API_KEY=" "$KEY_SRC" | tail -1 | sed 's/^export //'; } >> "$RUNNER_ENV"
-  echo "✓ GEMINI_API_KEY copied into runner env (value not shown)"
+  echo "✓ GEMINI_API_KEY in runner env: it must be the builder's own key, with a daily quota in its Google project"
 else
-  echo "⚠ no GEMINI_API_KEY in $KEY_SRC — Antigravity installed but keyless"
+  echo "Antigravity installed without a key: put the builder's own quota-capped key in $RUNNER_ENV to use it"
 fi
 
 fi

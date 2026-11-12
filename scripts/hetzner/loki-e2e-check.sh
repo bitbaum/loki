@@ -27,11 +27,34 @@ DBURL=$(grep -oE '^DATABASE_URL="?[^" ]*' "$APP_ENV" | sed -E 's/^DATABASE_URL="
 SECRET=$(grep -oE '^AUTH_SECRET="?[^" ]*' "$APP_ENV" | sed -E 's/^AUTH_SECRET="?//')
 cd "$RUNNER_DIR" || { echo "no runner dir"; exit 0; }
 
-token=$(env DATABASE_URL="$DBURL" AUTH_SECRET="$SECRET" BASE=https://loki.orangecat.ch \
-  node_modules/.bin/tsx scripts/test/print-session-token.ts 2>/dev/null | tr -d '\n')
-if [ -z "$token" ]; then
-  msg="loki e2e could not mint a session on the box"
-  if [ "$REPORT_ONLY" = 1 ]; then echo "down: $msg"; else alert_transition loki_e2e bad "🔌" "$msg" "loki e2e"; fi
+# Sign in the way a runner does: a short-lived agent token for the operator,
+# minted here and removed when the check ends (scripts/test/mint-check-
+# token.ts). The Auth.js cookie this used to mint stopped being a session on
+# 2026-11-01, when sign-in moved to AccountKit, and from then on this check
+# answered "could not mint a session" and asked Loki nothing. The cookie mint
+# stays as the fallback for a box that still runs Auth.js.
+why=$(mktemp)
+agent=$(env DATABASE_URL="$DBURL" node_modules/.bin/tsx scripts/test/mint-check-token.ts 2>"$why" | tr -d '\n')
+token=""
+if [ -n "$agent" ]; then
+  trap 'env DATABASE_URL="$DBURL" node_modules/.bin/tsx scripts/test/mint-check-token.ts --revoke >/dev/null 2>&1; rm -f "$why"' EXIT
+else
+  token=$(env DATABASE_URL="$DBURL" AUTH_SECRET="$SECRET" BASE=https://loki.orangecat.ch \
+    node_modules/.bin/tsx scripts/test/print-session-token.ts 2>>"$why" | tr -d '\n')
+fi
+if [ -z "$agent" ] && [ -z "$token" ]; then
+  # Say why, in one line with anything long masked: "could not" with no
+  # reason is what kept this broken for eleven days.
+  reason=$(tr '\n' ' ' < "$why" | sed -E 's/[A-Za-z0-9_\/+=-]{24,}/<masked>/g' | cut -c1-200)
+  rm -f "$why"
+  msg="loki e2e could not sign in on the box${reason:+ — $reason}"
+  if [ "$REPORT_ONLY" = 1 ]; then
+    echo "down: $msg"
+    # A check that could not ask is not a check that passed.
+    [ "${E2E_EXIT_VERDICT:-}" = 1 ] && exit 1
+  else
+    alert_transition loki_e2e bad "🔌" "$msg" "loki e2e"
+  fi
   exit 0
 fi
 
@@ -45,7 +68,7 @@ if [ "$REPORT_ONLY" = 1 ]; then
   case "${E2E_PROJECT:-}" in ''|*[!a-z0-9-]*) ;; *) project="$E2E_PROJECT" ;; esac
 fi
 
-out=$(env LOKI_SESSION_TOKEN="$token" BASE=https://loki.orangecat.ch E2E_DISPATCH_MINUTES="$minutes" \
+out=$(env LOKI_AGENT_TOKEN="$agent" LOKI_SESSION_TOKEN="$token" BASE=https://loki.orangecat.ch E2E_DISPATCH_MINUTES="$minutes" \
   E2E_PROJECT="$project" node_modules/.bin/tsx scripts/test/loki-loop-e2e.ts $dispatch 2>&1); code=$?
 summary=$(printf '%s\n' "$out" | tail -1 | cut -c1-300)
 fails=$(printf '%s\n' "$out" | grep -E '^FAIL' | cut -c7-90 | paste -sd ';' -)

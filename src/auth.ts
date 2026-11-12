@@ -99,6 +99,11 @@ declare module "next-auth" {
        * because a gate whose subject is silently undefined enforces nothing.
        */
       isDemo?: boolean;
+      /**
+       * A session opened with an agent's `ck_` token (lib/auth/token-session.ts):
+       * the token's power, no more. Set only on the shared runtime.
+       */
+      viaToken?: boolean;
     };
   }
 }

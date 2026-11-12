@@ -476,6 +476,16 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* The keyboard's place on the page, wherever a component has not drawn its
+     own: 2px in the text colour, set off from the control. The fallback above
+     is one pixel at half alpha, 2.0:1 against the page in both themes, which
+     is below the 3:1 a focus indicator needs. :where() keeps this at zero
+     specificity, so every component's own focus style still wins, and
+     :focus-visible keeps it off mouse and touch presses. */
+  :where(a, button, summary, [role="button"], [role="tab"], [role="menuitem"]):focus-visible {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 2px;
+  }
   body {
     @apply bg-background text-foreground;
     font-size: 16px;
@@ -753,8 +763,31 @@
   .ui-locked-banner-cta {
     @apply inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-text-primary;
   }
+  /* overflow-x: clip, not hidden. `hidden` turns this element into a scroll
+     container, and a sticky child sticks to its nearest scroll container: the
+     header below was "sticky" and scrolled away with the page on every public
+     route (its top measured -2000px after a 2000px scroll, 2026-11-12). `clip`
+     cuts sideways overflow the same way without becoming one. */
   .ui-public-surface {
-    @apply relative min-h-screen overflow-hidden bg-background text-text-primary;
+    @apply relative min-h-screen overflow-x-clip bg-background text-text-primary;
+  }
+  /* Keyboard focus on the public surface: a 2px ring in the text colour, set
+     off from what it surrounds. The base rule draws 1px at half alpha, which
+     measured 2.0:1 against the page in both themes and ran through the text
+     of a row link. Text boxes keep their own focus style. */
+  .ui-public-surface :is(a, button, summary, [role="button"]):focus-visible {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 2px;
+  }
+  /* The first thing Tab reaches: jump past the header to the page. Drawn only
+     while it has focus. */
+  .ui-skip-link {
+    @apply fixed left-3 top-3 z-50 -translate-y-20 rounded-lg bg-surface-base px-4 py-3 text-sm font-medium text-text-primary shadow-panel-strong transition-transform focus-visible:translate-y-0;
+  }
+  /* Where the skip link lands. It takes focus so the next Tab starts inside
+     the page; it is not a control, so it draws no ring of its own. */
+  #content:focus {
+    outline: none;
   }
   .ui-public-nav-brand-row {
     @apply flex min-w-0 items-center gap-3 sm:gap-8;
@@ -792,8 +825,8 @@
   /* Dropdown panel anchored to the trigger — grid of label + description per
      destination. */
   .ui-public-nav-panel {
-    width: min(720px, calc(100vw - 48px));
-    @apply grid gap-2 rounded-2xl border border-border-subtle bg-surface-base p-3 lg:grid-cols-3;
+    width: min(560px, calc(100vw - 48px));
+    @apply grid grid-cols-2 gap-2 rounded-2xl border border-border-subtle bg-surface-base p-3;
     box-shadow: var(--shadow-panel-strong);
   }
   .ui-public-nav-panel-wrap {
@@ -1093,7 +1126,7 @@
      is what a phone in Auto mode shows in daylight. The white/* pattern is
      only sanctioned inside the surfaces that are always dark. */
   .ui-public-footer-grid {
-    @apply mb-8 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border-subtle pt-8 sm:grid-cols-3 sm:gap-12;
+    @apply mb-8 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border-subtle pt-8 sm:gap-12 lg:grid-cols-4;
   }
   .ui-public-footer-heading {
     @apply mb-1 text-sm font-medium text-text-primary;
@@ -1101,11 +1134,22 @@
   .ui-public-footer-bottom {
     @apply flex flex-wrap items-center justify-between gap-3 text-xs text-text-tertiary;
   }
+  /* Both ends on one centre line: the release link is a 44px target on a
+     phone, the copyright beside it was a bare line of text. */
+  .ui-public-footer-bottom > * {
+    @apply inline-flex min-h-11 items-center;
+  }
   .ui-public-footer-fleet {
     @apply mb-8 border-t border-border-subtle pt-8;
   }
   .ui-public-footer-fleet-summary {
-    @apply inline-flex min-h-11 cursor-pointer list-none items-center text-sm text-text-tertiary transition-colors hover:text-text-secondary;
+    @apply inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+  .ui-public-footer-fleet-chevron {
+    @apply h-3.5 w-3.5 shrink-0 transition-transform;
+  }
+  .ui-public-footer-fleet[open] .ui-public-footer-fleet-chevron {
+    @apply rotate-180;
   }
   .ui-public-footer-fleet-summary::-webkit-details-marker {
     display: none;
@@ -1170,7 +1214,7 @@
      the label wrapped to two lines and the pill grew past the right edge of a
      390px viewport, clipping the action the whole header exists to offer. */
   .ui-public-primary-action-compact {
-    @apply inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-full border border-border-default px-4 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised active:scale-[0.97];
+    @apply inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border-default px-4 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised active:scale-[0.97];
   }
   .ui-public-section-kicker {
     @apply mb-3 text-xs font-semibold text-text-muted;
@@ -1649,6 +1693,16 @@
      floating, faintly-glassy panel with a top sheen, deep drop shadow, and the
      same status language the real Control view uses. Data is sourced from
      HOME_HERO_CONSOLE (marketing-content.ts) — no inline literals. */
+  /* The homepage's one action: the shared composer, at the width of the
+     paragraph above it, left-aligned text inside a centred hero. */
+  .ui-public-hero-composer {
+    @apply mx-auto mt-8 w-full max-w-xl text-left sm:mt-10;
+  }
+  /* The evidence, when there is no showcased project to frame: one quiet
+     line of real counts. */
+  .ui-public-hero-proof {
+    @apply mt-8 text-sm text-text-tertiary;
+  }
   .ui-public-hero-console {
     @apply relative mx-auto mt-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-border-subtle bg-surface-base p-4 text-left sm:mt-16 sm:p-6;
   }
@@ -1732,7 +1786,7 @@
     @apply font-mono text-xl text-text-primary sm:text-2xl;
   }
   .ui-public-hero-console-metric-label {
-    @apply mt-0.5 text-[11px] leading-tight text-text-tertiary sm:text-xs;
+    @apply mt-0.5 text-xs leading-tight text-text-tertiary;
   }
   .ui-public-display-lg {
     @apply font-semibold text-text-primary;
@@ -2213,6 +2267,71 @@
   .ui-public-howto-step {
     @apply flex flex-col border-t border-border-subtle py-5 text-left;
   }
+  /* The three loop figures (components/public/LoopFigure.tsx): one frame per
+     step, the same size, drawn in tokens so both themes get them. */
+  .ui-public-loop-frame {
+    @apply mb-5 flex h-36 flex-col justify-center overflow-hidden rounded-xl border border-border-subtle bg-surface-base p-4 text-left;
+  }
+  .ui-public-loop-box {
+    @apply flex flex-col gap-3 rounded-lg border border-border-default bg-background p-3;
+  }
+  .ui-public-loop-words {
+    @apply text-sm leading-snug text-text-primary;
+  }
+  .ui-public-loop-box-row {
+    @apply flex items-center justify-between;
+  }
+  .ui-public-loop-dot {
+    @apply flex h-7 w-7 items-center justify-center rounded-full bg-surface-raised text-text-secondary;
+  }
+  .ui-public-loop-dot-on {
+    background: var(--accent-primary);
+    color: var(--text-inverted);
+  }
+  .ui-public-loop-run {
+    @apply m-0 flex list-none flex-col gap-2 p-0;
+  }
+  .ui-public-loop-run-row {
+    @apply flex items-center gap-2.5 text-sm text-text-secondary;
+  }
+  .ui-public-loop-run-row-now {
+    @apply font-medium text-text-primary;
+  }
+  .ui-public-loop-run-row-next {
+    @apply text-text-tertiary;
+  }
+  .ui-public-loop-run-mark {
+    @apply h-3.5 w-3.5 shrink-0 text-text-tertiary;
+  }
+  .ui-public-loop-run-pulse {
+    @apply mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-text-primary motion-safe:animate-pulse;
+  }
+  .ui-public-loop-run-ring {
+    @apply mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full border border-border-strong;
+  }
+  .ui-public-loop-site {
+    @apply relative flex h-full flex-col gap-3;
+  }
+  .ui-public-loop-address {
+    @apply flex items-center gap-1.5 rounded-full border border-border-subtle bg-background px-3 py-1 text-xs text-text-tertiary;
+  }
+  .ui-public-loop-page {
+    @apply flex flex-col gap-2;
+  }
+  .ui-public-loop-line {
+    @apply block h-2 rounded-full bg-border-default;
+  }
+  .ui-public-loop-ask {
+    @apply absolute bottom-0 right-0 flex items-center gap-2;
+  }
+  .ui-public-loop-bubble {
+    @apply rounded-full border border-border-default bg-background px-3 py-1 text-xs text-text-primary;
+  }
+  .ui-public-loop-button {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full;
+    background: var(--accent-primary);
+    color: var(--text-inverted);
+  }
   .ui-public-howto-num {
     @apply font-mono text-sm text-text-tertiary;
   }
@@ -2258,7 +2377,7 @@
     text-wrap: pretty;
   }
   .ui-public-start-card-link {
-    @apply mt-3 inline-flex items-center text-sm font-medium text-text-primary;
+    @apply mt-auto inline-flex items-center pt-3 text-sm font-medium text-text-primary;
   }
   /* ── design reset: Public ──────────────────────────────────────────────
      The signed-out site on the same bar as the app
@@ -3921,6 +4040,16 @@
   }
   .ui-auth-hint {
     @apply text-center text-sm text-text-muted;
+  }
+  /* What the visitor said on the homepage, shown back above the form. */
+  .ui-auth-carried {
+    @apply -mt-3 mb-6 flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-base px-4 py-3 text-left;
+  }
+  .ui-auth-carried-label {
+    @apply text-xs text-text-tertiary;
+  }
+  .ui-auth-carried-words {
+    @apply line-clamp-3 text-sm text-text-primary;
   }
   /* the one line that puts Loki on a site — shown whole, copyable in one tap */
   .ui-auth-snippet {
@@ -6721,6 +6850,20 @@
   .ui-home-fix {
     @apply relative z-[1] inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-raised disabled:opacity-50;
   }
+  /* The answer under a row that needs you (ControlNow): one field and Send,
+     indented to the row's text so it reads as the row's own. */
+  .ui-home-reply {
+    @apply pb-3 pl-16 pr-3;
+  }
+  .ui-home-reply-form {
+    @apply flex min-w-0 items-center gap-2;
+  }
+  .ui-home-reply-input {
+    @apply h-11 min-w-0 flex-1 rounded-full bg-surface-raised px-4 text-base text-text-primary outline-none transition-shadow placeholder:text-text-muted focus-visible:ring-2 focus-visible:ring-border-strong;
+  }
+  .ui-home-reply-sent {
+    @apply text-sm text-text-secondary;
+  }
   /* A failure row: the title and its reason take the full text column (the
      reason in up to two lines), × stays at the end of that line, and the fix
      wraps underneath at the text's left edge — the fix right there, without
@@ -7658,11 +7801,25 @@
   }
   /* A sent message with pictures: the pictures first, right-aligned with the
      words under them, so a screenshot reads as part of what was said. */
+  /* The cap on how wide a sent message may be sits HERE, on the stack, as a
+     share of the row. It used to sit on the bubble as a share of the stack,
+     and the stack shrinks to fit its content: every bubble was capped at
+     75-90% of its own words and always wrapped ("What's going on?" measured
+     106px on two lines where one line needs 141px; "yes" was y / e / s). */
   .ui-loki-turn-user-stack {
-    @apply flex max-w-full flex-col items-end gap-1.5;
+    @apply flex flex-col items-end gap-1.5;
+    max-width: 90%;
+  }
+  @media (min-width: 640px) {
+    .ui-loki-turn-user-stack {
+      max-width: 75%;
+    }
+  }
+  .ui-loki-turn-user-stack > .ui-loki-bubble {
+    max-width: 100%;
   }
   .ui-loki-msg-images {
-    @apply flex max-w-full flex-wrap justify-end gap-1.5 sm:max-w-[75%];
+    @apply flex max-w-full flex-wrap justify-end gap-1.5;
   }
   .ui-loki-msg-image {
     @apply block overflow-hidden rounded-xl border border-border-subtle bg-surface-raised;
@@ -8542,9 +8699,13 @@
   .ui-page-action {
     @apply inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted;
   }
+  /* On a phone: a 44px box for the finger with the 40px circle drawn inside
+     it (the fill is clipped to the content box), the way .ui-topbar-btn does
+     it. It was a 40px box, beside two 44px ones. */
   @media (max-width: 47.99rem) {
     .ui-page-action {
-      @apply w-10 px-0;
+      @apply h-11 w-11 p-0.5;
+      background-clip: content-box;
     }
     .ui-page-action-label {
       @apply sr-only;
@@ -9220,12 +9381,16 @@
    in a borderless bar. Unlayered on purpose: the package's stylesheet is
    imported unlayered, and a rule inside @layer components can never beat it. */
 .ui-app-topbar .acct-trigger {
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  min-inline-size: 2.5rem;
-  margin-inline-start: 0.25rem;
+  /* 44px for the finger, the 40px circle drawn inside it: the fill is clipped
+     to the content box. It was a 40px box, the narrowest control in the bar. */
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  padding: 2px;
+  margin-inline-start: 0.125rem;
   border-color: transparent;
   background: var(--surface-raised);
+  background-clip: content-box;
 }
 
 /* The workbench is a focus screen (hooks/use-workbench-focus.ts): no

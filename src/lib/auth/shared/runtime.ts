@@ -12,6 +12,7 @@ import { authTables } from "@/db/schema/accountkit";
 import { verifyPassword } from "@/lib/password";
 import { ensureLokiUser } from "./accounts";
 import { lokiSignInHook } from "./sign-in-hook";
+import { lokiTokenSession } from "./token-session-plugin";
 import { LOKI_GITHUB_SIGN_IN } from "./runtime-options";
 
 /** The public origin every redirect and every AccountKit origin check uses. */
@@ -50,6 +51,7 @@ export const sharedAuth = createAuthRuntime({
   // Loki deletes a person itself (DELETE /api/me: every table, the mirror
   // removes the shared row), so the account panel offers Loki's own button.
   accountDeletion: false,
-  // Loki's row and bootstrap after every new session, whatever the way in.
-  plugins: [lokiSignInHook()],
+  // Loki's row and bootstrap after every new session, whatever the way in;
+  // and a browser session opened with an agent's token (lib/auth/token-session.ts).
+  plugins: [lokiSignInHook(), lokiTokenSession()],
 });

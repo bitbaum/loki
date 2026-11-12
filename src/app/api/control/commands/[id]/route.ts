@@ -51,10 +51,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Where the change is — the same track Watch draws (lib/run-track-load) —
   // and, once the run is over, what it did and what comes next, so the chat
   // card can say it instead of linking away.
-  const loaded = run ? await loadRunTrack(userId, run).catch(() => null) : null;
+  const loaded = run
+    ? await loadRunTrack(userId, run, { known: { claimed: command.claimedAt } }).catch(() => null)
+    : null;
   return NextResponse.json({
     // One status: while the run is open, the word is the track's.
-    ...alignLiveViewWithTrack(view, loaded?.track),
+    ...alignLiveViewWithTrack(view, loaded?.track, {
+      claimed: Boolean(command.claimedAt),
+      executed: Boolean(command.executedAt),
+    }),
     handoff: runHandoff(run?.finishedAt ? run.summary : null),
     follow: view.terminal ? (loaded?.follow ?? null) : null,
     track: loaded?.track ?? null,
@@ -142,7 +147,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
         // Delivery stamp: the close paths use payload.deliveredAt as the
         // handoff-freshness floor for per-run attribution.
-        await stampRunDelivered(runId, userId, deliveredAt).catch(() => {});
+        //
+        // A runner that does not report its injection time (any build before
+        // 2026-11-12, and every runner whose update waits on a drain) gets its
+        // claim time instead: the prompt cannot reach the agent before the
+        // runner claimed it, and the ack lands up to ~25 s after injection.
+        // On 2026-11-12 17:00 a probe's handoff (17:00:00) "predated" its ack
+        // (17:00:05) and the run sat at Needs you though the agent had done it.
+        await stampRunDelivered(
+          runId,
+          userId,
+          deliveredAt ?? command?.claimedAt?.toISOString() ?? undefined,
+        ).catch(() => {});
         // One alive-bit input for Feedback: stamp inject ack onto the run so
         // work-phase does not wait on a separate command join.
         if (typeof verified === "boolean") {

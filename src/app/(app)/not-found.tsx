@@ -2,23 +2,27 @@ import Link from "next/link";
 import { Compass } from "lucide-react";
 import { ROUTES } from "@/config/auth";
 import { APP_NAME } from "@/config/brand";
+import { EmptyState } from "@/components/ui/empty-state";
 
+/**
+ * A signed-in address that leads nowhere. One line and the way back (design
+ * reset rule 10: no box, no second paragraph). The button names where it goes:
+ * it said "Back to Today" for ten days after the home screen became Loki.
+ */
 export default function NotFound() {
   return (
-    <div className="ui-empty-page p-8">
-      <div className="ui-card-shell-raised flex max-w-2xl flex-col items-center gap-5 px-8 py-10 text-center">
-        <Compass className="h-14 w-14 text-text-muted" />
-        <div className="text-2xl font-medium text-text-primary">Page not found</div>
-        <div className="max-w-xl text-lg text-text-secondary">
-          That route doesn&rsquo;t exist in {APP_NAME}.
-        </div>
-        <Link
-          href={ROUTES.APP_HOME}
-          className="ui-btn-chip rounded-2xl px-5 py-3 text-base text-text-primary"
-        >
-          Back to Today
-        </Link>
-      </div>
+    <div className="ui-empty-page">
+      <h1 className="sr-only">Page not found</h1>
+      <EmptyState
+        icon={Compass}
+        title="This page doesn’t exist."
+        size="lg"
+        action={
+          <Link href={ROUTES.APP_HOME} className="ui-btn-secondary min-h-11">
+            Back to {APP_NAME}
+          </Link>
+        }
+      />
     </div>
   );
 }

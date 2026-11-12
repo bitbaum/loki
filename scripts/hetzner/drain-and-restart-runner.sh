@@ -172,13 +172,45 @@ sealed_container() {
   { tr '\0' ' ' < "${PROC_ROOT:-/proc}/$1/cmdline"; } 2>/dev/null | grep -qE '(^| )run .*--name fc-ws-[0-9a-f]+'
 }
 
+# sealed_name <pid> — the fc-ws-… name of a sealed session's podman run.
+sealed_name() {
+  { tr '\0' ' ' < "${PROC_ROOT:-/proc}/$1/cmdline"; } 2>/dev/null | grep -oE -- '--name fc-ws-[0-9a-f]+' | head -1 | cut -d' ' -f2
+}
+
+# open_run_containers — the fc-ws-… names of every project (or lane) that has
+# an open run in Loki's database, one per line; fails when it cannot be read.
+# The same rule as sealed-builds-ctl.sh stop-idle: a session is named
+# sha256("runner:" + tab)[0:24]. 2026-11-12: the relay of an idle sealed
+# session moves 3 to 10 KB a minute, so the quiet rule never fired, every open
+# session counted as working, and the runner kept the morning's code all day
+# while the delivery-time fix waited in it.
+open_run_containers() {
+  local tabs
+  tabs="$(sudo -u postgres psql -d "${LOKI_DB:-loki}" -qtAX -c "SELECT DISTINCT COALESCE(payload->>'sessionTab', project_key) FROM orchestration_runs WHERE finished_at IS NULL AND started_at > NOW() - INTERVAL '12 hours'" </dev/null 2>/dev/null)" || return 1
+  printf '%s\n' "$tabs" | while read -r t; do
+    [ -n "$t" ] && printf 'fc-ws-%s\n' "$(printf '%s' "runner:$t" | sha256sum | cut -c1-24)"
+  done
+  return 0
+}
+
+# between_runs <name> <open names> <age s> — a sealed session whose project has
+# no open run, and that is older than FRESH_SECS (its run may not be recorded
+# yet), is between tasks: a restart reopens it on the next message.
+# Pure, pinned by test-drain-and-restart-runner.sh.
+between_runs() {
+  [ -n "$1" ] || return 1
+  [ "${3:-0}" -ge "${FRESH_SECS:-900}" ] 2>/dev/null || return 1
+  ! grep -qx -- "$1" <<<"$2"
+}
+
 if [ -n "${DRAIN_LIB_ONLY:-}" ]; then return 0; fi
 
 count_agents() {
   [ -r "$CGROUP" ] || { echo 0; return 0; }
-  local c=0 p comm quiet now
+  local c=0 p comm quiet now open open_ok=""
   now="$(date +%s)"
   forget_ended
+  open="$(open_run_containers)" && open_ok=1
   for p in $(cat "$CGROUP" 2>/dev/null); do
     quiet=""
     comm="$(cat "/proc/$p/comm" 2>/dev/null || true)"
@@ -189,6 +221,9 @@ count_agents() {
     if [ "$comm" = podman ] && sealed_container "$p"; then
       comm=sealed-agent
       quiet="$(quiet_for "$p" "$now")"
+      if [ -n "$open_ok" ] && between_runs "$(sealed_name "$p")" "$open" "$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')"; then
+        continue
+      fi
     fi
     agent_is_busy "$comm" "$(session_status "$p")" "$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')" "$quiet" && c=$((c + 1))
   done

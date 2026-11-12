@@ -56,6 +56,35 @@ async function main(): Promise<void> {
   assert.equal(working.runId, run.id);
   assert.match(working.statusUrl ?? "", /\/api\/orchestration\/runs\/11111111-/);
   assert.equal(working.prUrl, run.prUrl);
+  assert.equal(working.session, "site", "a project's own session is named after it");
+  assert.match(
+    working.openUrl,
+    /^https:\/\/[^/]+\/terminal\?source=cloud&project=site&run=11111111-/,
+    "openUrl is the same session, on that run, in Loki's Terminal",
+  );
+  const lane = shapeSessionRow({
+    project: "site",
+    builderPref: "cloud",
+    presence,
+    run,
+    transcriptAt: null,
+    tab: "site~11111111",
+  });
+  assert.equal(lane.session, "site~11111111", "a parallel lane is named as its own tab");
+  assert.match(lane.openUrl, /\/terminal\?source=cloud&project=site~11111111&run=/);
+  const resolved = shapeSessionRow({
+    project: "plain",
+    builderPref: null,
+    presence,
+    run: null,
+    transcriptAt: null,
+    channel: "cloud",
+  });
+  assert.match(
+    resolved.openUrl,
+    /\/terminal\?source=cloud&project=plain$/,
+    "the link names the builder the session runs on, not this browser's last choice",
+  );
   console.log("  ✓ a working session: canonical state, one-line task, run and PR");
 
   const local = shapeSessionRow({
@@ -68,6 +97,11 @@ async function main(): Promise<void> {
   assert.equal(local.online, false, "online means the project's own builder");
   assert.equal(local.lastActivityAt, run.lastProgressAt, "no frame: the runner's last progress");
   assert.equal(local.prUrl, null, "a non-http URL never crosses");
+  assert.match(
+    local.openUrl,
+    /\/terminal\?source=machine&tab=site&run=/,
+    "a local session opens on This computer",
+  );
   console.log("  ✓ online follows the preferred builder; unsafe URL dropped");
 
   const idle = shapeSessionRow({
@@ -81,6 +115,7 @@ async function main(): Promise<void> {
   assert.equal(idle.label, "Idle");
   assert.equal(idle.runId, null);
   assert.equal(idle.statusUrl, null);
+  assert.match(idle.openUrl, /\/terminal\?project=quiet$/, "no run: the session itself");
   assert.equal(idle.online, true, "no preference: any builder counts");
   console.log("  ✓ no run on record is idle");
 
@@ -195,17 +230,23 @@ async function main(): Promise<void> {
 
   // The route watches BEFORE it reads, and waits for a frame newer than its join.
   const { readFileSync } = await import("node:fs");
-  const routeSrc = readFileSync("src/app/api/orangecat/sessions/route.ts", "utf8");
+  // The reads live in lib/session-reads.ts, shared with a person's own token.
+  const routeSrc = readFileSync("src/lib/session-reads.ts", "utf8");
+  assert.match(
+    readFileSync("src/app/api/orangecat/sessions/route.ts", "utf8"),
+    /readSessions\(user\.id, \{ project, runId, items, watch, poll \}\)/,
+  );
   assert.ok(
-    routeSrc.indexOf("await watchTab(") <
-      routeSrc.indexOf("await readTranscript(user.id, tab, channel)"),
+    routeSrc.indexOf("await watchTab(") > -1 &&
+      routeSrc.indexOf("await watchTab(") <
+        routeSrc.indexOf("await readTranscript(userId, tab, channel)"),
     "watch first, then read",
   );
   assert.match(routeSrc, /frame\.at >= joinedAt/, "a snapshot must be newer than the join");
   assert.match(routeSrc, /settledFrame\(/, "and whole: every batch of it, not the first");
   assert.match(
     routeSrc,
-    /rowFor\(user\.id, project, run, presence, !poll\)/,
+    /rowFor\(userId, project, run, presence, !poll\)/,
     "a poll never looks at GitHub",
   );
   console.log("  ✓ the route follows before it reads, and never passes an old copy off as live");

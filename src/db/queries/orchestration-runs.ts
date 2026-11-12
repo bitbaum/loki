@@ -23,6 +23,11 @@ import { emitRunEvent } from "./run-events";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 import { runLaneOfTab } from "@/lib/run-tab";
 import {
+  RUN_IDLE_RELEASE_MINUTES,
+  RUN_PROGRESS_HORIZON_SECONDS,
+  RUN_WENT_QUIET_SENTENCE as RUN_WENT_QUIET,
+} from "@/lib/run-progress";
+import {
   SESSION_EVENT_KINDS,
   runnerRestartReason,
   runsEndedByRestart,
@@ -88,6 +93,55 @@ export function laneLifeFloorSql(alias: RunAlias) {
 }
 
 /**
+ * A delivered run whose agent has gone quiet: no working beat for
+ * RUN_IDLE_RELEASE_MINUTES (lib/run-progress), and not blocked on a question
+ * for a person. Its session is sitting at a ready prompt, so it no longer
+ * holds its project's lane, and the reaper may close it.
+ *
+ * Unknown is not idle: a run the runner never reported on at all (no beat of
+ * any size) keeps its lane until the reaper's verdict, as before. Measured
+ * from the run's own beats, never from a timer on the run's age: the
+ * merged-sessions regression this file guards against was a lane released
+ * while the agent was printing.
+ *
+ * Two cases the first version of this rule got wrong (review, 2026-11-12):
+ *
+ * - The runner stops beating RUN_PROGRESS_MAX_MS into a run, whatever the
+ *   agent is doing. A run whose last working beat came at that horizon is not
+ *   known to be quiet: half an hour later it read as idle while it printed,
+ *   and the next prompt went into a working session. Silence that begins at
+ *   the horizon proves nothing, so such a run holds, as it did before.
+ * - A turn that ended before the runner began reporting on it (the agent
+ *   answered inside the dispatch's own verification window) never produced a
+ *   working beat, only the idle trickle afterwards. It read as "unknown" and
+ *   held its project for up to MAX_RUN_HOURS, which is the case this rule was
+ *   written for. A run the runner IS reporting on (lastBeatAt, any beat) that
+ *   has printed no work since its delivery is idle too.
+ */
+export function runIdleSql(alias: RunAlias) {
+  const t = sql.raw(alias);
+  const quietFor = sql`NOW() - make_interval(mins => ${RUN_IDLE_RELEASE_MINUTES})`;
+  // The last moment a working beat can still be told from the runner's own stop.
+  const horizon = sql`${runLifeStartSql(alias)} + make_interval(secs => ${RUN_PROGRESS_HORIZON_SECONDS})`;
+  return sql`(
+    (${t}.payload->>'blocked') IS NULL
+    AND (
+      (
+        (${t}.payload->>'lastProgressAt') IS NOT NULL
+        AND (${t}.payload->>'lastProgressAt')::timestamptz < ${quietFor}
+        AND (${t}.payload->>'lastProgressAt')::timestamptz < ${horizon}
+      )
+      OR (
+        (${t}.payload->>'lastProgressAt') IS NULL
+        AND (${t}.payload->>'lastBeatAt') IS NOT NULL
+        AND (${t}.payload->>'deliveredAt') IS NOT NULL
+        AND (${t}.payload->>'deliveredAt')::timestamptz < ${quietFor}
+      )
+    )
+  )`;
+}
+
+/**
  * The runs that hold a project's lane ahead of a given run, as ONE definition.
  *
  * Composed by the claim gate (fifoEligibilitySql), by findQueueBlockers (what
@@ -104,6 +158,9 @@ export function olderOpenRunSql(ownTuple: SQL, userId: SQL, projectKey: SQL) {
         AND r.project_key = ${projectKey}
         AND r.finished_at IS NULL
         AND ${laneLifeFloorSql("r")}
+        -- An agent idle at its prompt is done with its turn: the next prompt
+        -- may go in (runIdleSql). One printing, or asking a person, holds.
+        AND NOT ${runIdleSql("r")}
         AND r.payload->>'sessionTab' IS NULL
         -- Orphan open runs must not block the queue: a run with NO pending
         -- command row at all was never enqueued (or its command was deleted) —
@@ -587,6 +644,8 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
   // until its turn ends, so liveness must keep sheltering it (datacat wrote
   // until 11:01 after being stamped `timeout` at 05:00). This disqualifies only
   // runs the runner itself reported as never having started.
+  const idle = runIdleSql("orchestration_runs");
+
   const runNeverStarted = sql`EXISTS (
     SELECT 1 FROM pending_commands pc
     WHERE pc.payload->>'runId' = ${orchestrationRuns.id}::text
@@ -602,8 +661,9 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
     // otherwise linger open forever — reap it like a dead runner.
     inArray(orchestrationRuns.state, [ORCH_STATE.WAITING, ORCH_STATE.RUNNING]),
     // Stale by its WORKING life, not its age: a run that waited an hour in
-    // line was not an hour into its work (see runLifeStartSql).
-    sql`${effectiveStart} < NOW() - INTERVAL '1 minute' * ${STALE_RUN_MINUTES}`,
+    // line was not an hour into its work (see runLifeStartSql). Or idle: its
+    // agent has printed no work for half an hour and is not asking anyone.
+    sql`(${effectiveStart} < NOW() - INTERVAL '1 minute' * ${STALE_RUN_MINUTES} OR ${idle})`,
     // A run still waiting its turn is not stale at all — it has not been
     // allowed to start. The gate is withholding its command because an older
     // run holds the lane; reaping it here stamped `timeout` on work that never
@@ -623,7 +683,12 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
     // Live agents are spared — but only up to a hard ceiling, so a wedged
     // process that keeps its heartbeat alive can't hold a run open forever,
     // and never when the runner has already said this run never started.
-    sql`(NOT ${liveNow} OR ${runNeverStarted} OR ${effectiveStart} < NOW() - make_interval(hours => ${MAX_RUN_HOURS}))`,
+    //
+    // A live PROCESS is not a working agent: an agent idle at its prompt has
+    // one too, and its project's heartbeat sheltered the run for up to
+    // MAX_RUN_HOURS while the queue waited behind it (orangecat, 2026-11-12).
+    // The run's own beats say whether it is working (runIdleSql).
+    sql`(NOT ${liveNow} OR ${runNeverStarted} OR ${idle} OR ${effectiveStart} < NOW() - make_interval(hours => ${MAX_RUN_HOURS}))`,
   );
   const reaped = await db
     .update(orchestrationRuns)
@@ -675,6 +740,8 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
           THEN jsonb_set(COALESCE(payload, '{}'), '{note}', to_jsonb(${EXECUTOR_COPY.honesty.reapedButHandoffWritten}::text))
         WHEN ${runNeverStarted}
           THEN jsonb_set(COALESCE(payload, '{}'), '{error}', to_jsonb(${EXECUTOR_COPY.honesty.dispatchNeverConfirmed}::text))
+        WHEN ${idle}
+          THEN jsonb_set(COALESCE(payload, '{}'), '{error}', to_jsonb(${RUN_WENT_QUIET}::text))
         ELSE jsonb_set(COALESCE(payload, '{}'), '{error}', to_jsonb('Timed out — run exceeded maximum duration and was cleaned up'::text))
       END`,
     })
@@ -799,6 +866,9 @@ export async function isProjectBusy(
     // lapses. This check decides inject-directly vs queue, so a floor shorter
     // than the reaper's typed a second prompt into a live agent's PTY.
     laneLifeFloorSql("orchestration_runs"),
+    // An agent idle at its prompt holds nothing (runIdleSql), as in the gate:
+    // the next message goes into that session instead of queuing behind it.
+    sql`NOT ${runIdleSql("orchestration_runs")}`,
     // A parallel lane (derived tab, own worktree) does not occupy the base
     // lane — the claim gate already skips it (olderOpenRunSql). Counting it
     // here made a project with a free base lane look busy, so the next
@@ -1032,25 +1102,37 @@ export async function stampRunProgress(
   step: string | null = null,
   /** With blocked=permission: the agent's question. Cleared with blocked. */
   question: string | null = null,
-  /** The branch the agent's checkout is on now (lib/run-branches). */
-  branch: string | null = null,
+  /** The branches the runner saw the agent on now: the checkout's branch and
+   *  the remote branch it pushes to (lib/run-branches). */
+  reported: readonly (string | null)[] = [],
+  /** A working beat moves lastProgressAt; a trickle from an idle prompt only
+   *  says the session is there (lib/run-progress isWorkingBeat). */
+  working = true,
 ): Promise<boolean> {
   const now = new Date().toISOString();
+  // Any beat says the runner is reporting on this run (lastBeatAt): that is
+  // what lets "no work since delivery" be read as idle rather than unknown
+  // (runIdleSql). Only a working beat moves lastProgressAt.
+  const seenBeat = sql`jsonb_set(COALESCE(payload, '{}'), '{lastBeatAt}', ${JSON.stringify(now)}::jsonb)`;
+  const progressed = working
+    ? sql`jsonb_set(${seenBeat}, '{lastProgressAt}', ${JSON.stringify(now)}::jsonb)`
+    : seenBeat;
   const beat = sql`jsonb_set(jsonb_set(
-        jsonb_set(COALESCE(payload, '{}'), '{lastProgressAt}', ${JSON.stringify(now)}::jsonb),
+        ${progressed},
         '{blocked}', ${JSON.stringify(blocked)}::jsonb),
         '{blockedQuestion}', ${JSON.stringify(question)}::jsonb)`;
   // Read, then set: the list only changes when the agent changes branch, so
   // nearly every beat skips this.
   let branches: string[] | null = null;
-  if (branch) {
+  const seen = reported.filter((b): b is string => Boolean(b));
+  if (seen.length) {
     const [row] = await db
       .select({ payload: orchestrationRuns.payload })
       .from(orchestrationRuns)
       .where(and(eq(orchestrationRuns.id, runId), eq(orchestrationRuns.userId, userId)))
       .limit(1);
     const before = withReportedBranch(row?.payload?.branches, null);
-    const after = withReportedBranch(before, branch);
+    const after = seen.reduce<string[]>((list, b) => withReportedBranch(list, b), before);
     if (after.join("\n") !== before.join("\n")) branches = after;
   }
   const base = branches
@@ -1086,7 +1168,7 @@ export async function stampRunProgress(
 export async function stampRunEvidence(
   runId: string,
   userId: string,
-  evidence: { kind: string; url: string; title: string; atMs: number },
+  evidence: { kind: string; url: string; title: string; atMs: number; branch?: string },
 ): Promise<void> {
   await db
     .update(orchestrationRuns)
@@ -1100,6 +1182,25 @@ export async function stampRunEvidence(
         sql`payload->'evidence' IS NULL`,
       ),
     );
+}
+/**
+ * Set or remove a run's repo evidence whatever it holds now. Only for
+ * evidence recorded before it carried its branch, which was found by time
+ * alone and is checked again (run-evidence-live).
+ */
+export async function replaceRunEvidence(
+  runId: string,
+  userId: string,
+  evidence: { kind: string; url: string; title: string; atMs: number; branch?: string } | null,
+): Promise<void> {
+  await db
+    .update(orchestrationRuns)
+    .set({
+      payload: evidence
+        ? sql`jsonb_set(COALESCE(payload, '{}'), '{evidence}', ${JSON.stringify(evidence)}::jsonb)`
+        : sql`COALESCE(payload, '{}') - 'evidence'`,
+    })
+    .where(and(eq(orchestrationRuns.id, runId), eq(orchestrationRuns.userId, userId)));
 }
 export async function stampRunFix(runId: string, userId: string, fix: FixShipping): Promise<void> {
   await db

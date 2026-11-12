@@ -44,6 +44,7 @@ import {
   createOrchestrationRun,
   closeRunUndelivered,
   isProjectBusy,
+  mergeRunPayload,
   stampRunDelivered,
   stampRunCommandId,
 } from "@/db/queries/orchestration-runs";
@@ -53,10 +54,10 @@ import { getProjectState, persistProjectRuntimeIfNewer } from "@/db/queries/proj
 import { deriveProjectStateKey, projectStateDescription } from "@/lib/control-states";
 import { logDebug } from "@/db/queries/debug-logs";
 import { promptFingerprint, recordControlAuditEvent } from "@/db/queries/control-audit-events";
-import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
+import { enqueueHostedDispatchCommand, findQueueBlockers } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
-import { QUEUED_BEHIND_SENTENCE, rerouteNotice } from "@/lib/dispatch-status";
+import { queuedBehindSentence, rerouteNotice } from "@/lib/dispatch-status";
 import { builderHoldsNewWork } from "@/lib/builder-presence";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
@@ -64,6 +65,11 @@ import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { sessionOpenUrl } from "@/lib/dispatch-card";
 import { findInjectProject } from "@/lib/inject-project";
+import {
+  agentAvoidingSpent,
+  agentRerouteSentence,
+  type AgentReroute,
+} from "@/lib/dispatch-agent-route";
 import type { DispatchSession, WhenBusy } from "@/lib/orchestration/busy-placement";
 
 type ResolvedAdapter = (typeof ORCHESTRATION_ADAPTER_IDS)[number];
@@ -873,6 +879,11 @@ async function executeAndReport(
   // Queued for a cloud runner that is behind the deploy: it holds new work
   // until it has restarted (lib/runner-update-hold). Say so now, with the
   // bound, instead of "starting shortly" over a task that sits for minutes.
+  // What it waits behind, said with the run, its start and its last work.
+  const blocker =
+    queuedBehind && runId
+      ? ((await findQueueBlockers([runId]).catch(() => new Map())).get(runId) ?? null)
+      : null;
   const builderUpdating =
     result.mode === "queued" &&
     !queuedOffline &&
@@ -894,11 +905,24 @@ async function executeAndReport(
       ...(queuedBehind || builderUpdating
         ? {
             ...(queuedBehind ? { queuedBehind: true } : {}),
+            ...(blocker
+              ? {
+                  waitingOn: {
+                    runId: blocker.runId,
+                    label: blocker.label,
+                    since: blocker.startedAt.toISOString(),
+                    lastProgressAt: blocker.lastProgressAt?.toISOString() ?? null,
+                  },
+                }
+              : {}),
             ...(builderUpdating ? { builderUpdating: true } : {}),
             message: [
               notice,
-              queuedBehind ? QUEUED_BEHIND_SENTENCE : null,
-              builderUpdating ? BUILDER_UPDATING_SENTENCE : null,
+              queuedBehind ? queuedBehindSentence(blocker) : null,
+              // The update hold's bound ("five minutes at the latest") is not
+              // the bound of a task that also waits behind an open run: the
+              // run is what it waits on, and promising five minutes was false.
+              builderUpdating && !queuedBehind ? BUILDER_UPDATING_SENTENCE : null,
             ]
               .filter(Boolean)
               .join(" "),
@@ -939,6 +963,34 @@ async function executeAndReport(
  * /api/inject route returns. `userId` is already authenticated by the caller.
  */
 export async function injectPrompt(params: InjectParams, userId: string): Promise<InjectResult> {
+  const sink: { reroute?: AgentReroute } = {};
+  const result = await injectPromptOnce(params, userId, sink);
+  const r = sink.reroute;
+  if (!r || result.status >= 400) return result;
+  const runId = typeof result.body.runId === "string" ? result.body.runId : null;
+  if (runId) {
+    await mergeRunPayload(runId, {
+      reroutedFrom: r.from,
+      reroutedBecause: r.because,
+      reroutedWhy: r.why,
+    }).catch(() => undefined);
+  }
+  return {
+    ...result,
+    body: {
+      ...result.body,
+      agent: r.to,
+      agentReroutedFrom: r.from,
+      agentNotice: agentRerouteSentence(r),
+    },
+  };
+}
+
+async function injectPromptOnce(
+  params: InjectParams,
+  userId: string,
+  sink: { reroute?: AgentReroute },
+): Promise<InjectResult> {
   const { promptKey, customPrompt, adapter } = params;
   const runtimeAvailable = isRuntimeAvailable();
   let runId = params.runId;
@@ -957,7 +1009,19 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
   const ptyHandle = ptyExecutor ? ptyExecutor.get(ptyWorkspaceId) : null;
   const ptyBacked = !!ptyHandle && ptyHandle.status !== "exited";
 
-  const eventAdapter = resolveEventAdapter(adapter, dbMatch);
+  let eventAdapter = resolveEventAdapter(adapter, dbMatch);
+  // Nobody pinned an agent (a chat message, a voice turn): do not walk into
+  // one Loki has just watched run out (lib/dispatch-agent-route).
+  if (!adapter) {
+    const routed = await agentAvoidingSpent(userId, dbMatch, eventAdapter);
+    if (
+      routed.rerouted &&
+      (ORCHESTRATION_ADAPTER_IDS as readonly string[]).includes(routed.agent)
+    ) {
+      eventAdapter = routed.agent as ResolvedAdapter;
+      sink.reroute = routed.rerouted;
+    }
+  }
 
   // Model override: a caller-supplied model (Loki's composer model picker) wins
   // over the project's stored modelPref. The runner's execute_inject auto-launch

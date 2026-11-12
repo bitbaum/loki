@@ -33,6 +33,7 @@ import {
   LEGACY_PALETTE_RECENT_STORAGE_KEY,
 } from "@/config/brand-storage";
 import { cn } from "@/lib/utils";
+import { DialogFocus } from "@/components/ui/dialog-focus";
 
 const RECENT_LIMIT = 6;
 
@@ -203,8 +204,8 @@ export function CommandPalette() {
       }}
     >
       <div className="ui-palette-backdrop" aria-hidden="true" />
-      <div
-        ref={panelRef}
+      <DialogFocus
+        panelRef={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
@@ -331,7 +332,7 @@ export function CommandPalette() {
             <kbd className="ui-palette-kbd">⌘K</kbd> toggle
           </span>
         </div>
-      </div>
+      </DialogFocus>
     </div>
   );
 }

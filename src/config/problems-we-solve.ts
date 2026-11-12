@@ -39,8 +39,14 @@ type ProblemScale = {
   items: readonly ProblemCard[];
 };
 
+/** The three the homepage shows: the three ways in (start from an idea, redo
+ *  a site, change one). The rest are one press away on /why. */
+export const HOME_PROBLEMS = ["idea-no-code", "outdated-site", "small-changes-wait"] as const;
+
 export const PROBLEMS_SECTION = {
   title: "Real problems, small and large.",
+  /** The homepage's link to the whole list. `{n}` is the number of problems. */
+  all: { label: "All {n} problems Loki solves", href: "/why#solves" },
   closer: {
     text: "Don’t see yours? Describe it when you start a project — Loki asks a few short questions, and every one of them can be skipped.",
     /** Honest about who has the cloud builder today — see WHERE_IT_RUNS. */
@@ -91,7 +97,7 @@ export const PROBLEM_SCALES: readonly ProblemScale[] = [
         problem: "“Part of the job needs a person — a phone call, a signature, a visit.”",
         solution:
           "Write the task down and hand it to someone with a link. They accept, decline or deliver from that link, no account needed, and any fee is written on the task so both of you see the terms.",
-        link: { label: "Create an account", href: ROUTES.SIGN_UP },
+        link: { label: "Start a project", href: ROUTES.SIGN_UP },
       },
       {
         // Money: app/(app)/(private)/money — calculateMonthlyBurn, nextChargeDate
@@ -99,7 +105,7 @@ export const PROBLEM_SCALES: readonly ProblemScale[] = [
         problem: "“I don’t know what all these tools cost me each month.”",
         solution:
           "Keep every subscription in one list. Loki adds up your monthly total per currency and shows which charge comes next, so nothing renews without you noticing.",
-        link: { label: "Create an account", href: ROUTES.SIGN_UP },
+        link: { label: "Start a project", href: ROUTES.SIGN_UP },
       },
     ],
   },

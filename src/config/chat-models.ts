@@ -45,7 +45,16 @@ export type ChatLink = Link;
  * LOKI_GROQ_MODELS / LOKI_GROQ_DAILY_TOKENS and the OpenRouter pair — so a
  * rotted model is still routed around by an env change, without a deploy.
  */
-export const CHAT_CHAIN: ChatProvider[] = freeChain("LOKI");
+/**
+ * Google is left out. Its key on this box is the platform's paid Gemini key,
+ * and on 2026-11-12 it spent with no cap until the API was switched off. A
+ * vendor that bills is called only through a cap that refuses (OrangeCat's
+ * reserve_vendor_call); Loki has none, so Loki does not call it.
+ */
+export const UNCAPPED_PAID_PROVIDERS: readonly string[] = ["google"];
+export const CHAT_CHAIN: ChatProvider[] = freeChain("LOKI").filter(
+  (p) => !UNCAPPED_PAID_PROVIDERS.includes(p.id),
+);
 
 /** This provider's models, honouring its env override (read at call time). */
 export function providerModels(provider: ChatProvider): string[] {

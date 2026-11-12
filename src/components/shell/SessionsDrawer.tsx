@@ -27,6 +27,7 @@ import { projectTitle } from "@/lib/project-display";
 import { List, ListRow, ListSearch, RowInitial } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DialogFocus } from "@/components/ui/dialog-focus";
 
 const POLL_INTERVAL_MS = 30_000;
 /** Projects listed under "Start in another project" before "Show all". */
@@ -108,7 +109,14 @@ export function SessionsDrawer({ open, onClose }: { open: boolean; onClose: () =
   return (
     <>
       <div className="fixed inset-0 z-40 ui-backdrop" onClick={onClose} aria-hidden />
-      <aside className="ui-sessions" role="dialog" aria-labelledby="sessions-title">
+      {/* Focus enters the drawer and stays in it: it used to stay on the
+          page, with the drawer first reached at the 19th Tab stop. */}
+      <DialogFocus
+        className="ui-sessions"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sessions-title"
+      >
         <header className="ui-sessions-head">
           <h2 id="sessions-title" className="ui-sessions-title">
             Sessions
@@ -209,7 +217,7 @@ export function SessionsDrawer({ open, onClose }: { open: boolean; onClose: () =
             </Section>
           )}
         </div>
-      </aside>
+      </DialogFocus>
     </>
   );
 }

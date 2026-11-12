@@ -604,6 +604,7 @@ function serializeLatestRun(
     lastStep:
       payload?.lastStep && typeof payload.lastStep.text === "string" ? payload.lastStep : null,
     blocked: typeof payload?.blocked === "string" ? payload.blocked : null,
+    blockedQuestion: typeof payload?.blockedQuestion === "string" ? payload.blockedQuestion : null,
     sessionTab: typeof payload?.sessionTab === "string" ? payload.sessionTab : null,
     adapter: latestRun.adapter,
     intent: latestRun.intent,

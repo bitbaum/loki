@@ -17,16 +17,38 @@
  */
 import type { Session } from "next-auth";
 import { createNextAuthCompat } from "@bitbaum/accountkit/auth/nextauth-compat";
+import type { AuthSession } from "@bitbaum/accountkit/auth/next";
 import { ROUTES } from "@/config/auth";
 import { isDemoEmail } from "@/config/demo";
 import { logDebug } from "@/db/queries/debug-logs";
+import { tokenSessionState } from "@/db/queries/token-sessions";
 import { getDefaultUser, getUserById } from "@/db/queries/users";
 import { onboardingCompleteFlag } from "@/lib/onboarding-heal";
 import { sharedAuth, siteUrl } from "./runtime";
 
-async function lokiSession(userId: string, expiresAt: Date | string): Promise<Session | null> {
-  const row = await getUserById(userId);
+/**
+ * A session opened with an agent's token (lib/auth/token-session.ts) is marked
+ * `viaToken`, and reads as signed out once that token is revoked or expires.
+ * A database without the token_sessions table yet (before migration 0138) has
+ * no such sessions, so it reads every session as a person's.
+ */
+async function tokenSession(sessionId: string): Promise<{ live: boolean } | null> {
+  try {
+    return await tokenSessionState(sessionId);
+  } catch (error) {
+    const code = (error as { code?: string; cause?: { code?: string } }).cause?.code;
+    if (code === "42P01" || (error as { code?: string }).code === "42P01") return null;
+    throw error;
+  }
+}
+
+async function lokiSession(shared: AuthSession): Promise<Session | null> {
+  const [row, viaToken] = await Promise.all([
+    getUserById(shared.user.id),
+    tokenSession(shared.session.id),
+  ]);
   if (!row) return null;
+  if (viaToken && !viaToken.live) return null;
   return {
     user: {
       id: row.id,
@@ -38,8 +60,9 @@ async function lokiSession(userId: string, expiresAt: Date | string): Promise<Se
       onboardingComplete: onboardingCompleteFlag(row),
       emailVerified: row.emailVerified ?? null,
       isDemo: isDemoEmail(row.email),
+      ...(viaToken ? { viaToken: true } : {}),
     },
-    expires: new Date(expiresAt).toISOString(),
+    expires: new Date(shared.session.expiresAt).toISOString(),
   };
 }
 
@@ -54,7 +77,7 @@ export const compat = createNextAuthCompat<Session>({
   // endpoint opens, and next-auth/react on the other pages keeps working.
   screens: "accountkit",
   landing: "/",
-  toSession: (shared) => lokiSession(shared.user.id, shared.session.expiresAt),
+  toSession: (shared) => lokiSession(shared),
   credentials: {
     "email-password": {
       name: "Email and password",

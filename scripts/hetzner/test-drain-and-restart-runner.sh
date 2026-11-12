@@ -201,5 +201,25 @@ PROC_ROOT="$qtmp/proc" forget_ended
   || no "a recycled pid would inherit another session's quiet"
 rm -rf "$qtmp"
 
+# ── A sealed session whose project has no open run is between tasks ─────────
+# 2026-11-12: idle sessions relayed 3 to 10 KB a minute, so the quiet rule
+# never fired and the runner kept the morning's code all day.
+OPEN=$'fc-ws-aaaaaaaaaaaaaaaaaaaaaaaa\nfc-ws-bbbbbbbbbbbbbbbbbbbbbbbb'
+between_runs fc-ws-cccccccccccccccccccccccc "$OPEN" 5000 \
+  && ok "a sealed session with no open run does not hold the restart" \
+  || no "a sealed session between tasks still holds the restart"
+between_runs fc-ws-aaaaaaaaaaaaaaaaaaaaaaaa "$OPEN" 5000 \
+  && no "a sealed session with an open run was called between tasks" \
+  || ok "a sealed session with an open run holds the restart"
+between_runs fc-ws-cccccccccccccccccccccccc "$OPEN" 60 \
+  && no "a session younger than FRESH_SECS was called between tasks" \
+  || ok "a fresh session holds the restart (its run may not be recorded yet)"
+between_runs "" "$OPEN" 5000 \
+  && no "a session with no name was called between tasks" \
+  || ok "a session whose name cannot be read holds the restart"
+grep -q 'open="$(open_run_containers)" && open_ok=1' "$SCRIPT" \
+  && ok "count_agents reads the open runs, and keeps the old rule when it cannot" \
+  || no "count_agents does not read the open runs"
+
 printf 'drain-and-restart-runner: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

@@ -21,13 +21,18 @@ import {
   useCommandPaletteHotkey,
   useCommandPaletteState,
 } from "@/hooks/use-command-palette";
-import { SIDEBAR_COLLAPSE_STORAGE_KEY } from "@/config/shell";
+import {
+  SIDEBAR_COLLAPSE_COOKIE,
+  SIDEBAR_COLLAPSE_STORAGE_KEY,
+  SIDEBAR_COLLAPSED_BY_DEFAULT,
+} from "@/config/shell";
 
 export function AppShell({
   children,
   orangecatEnabled = false,
   feedbackWidget = false,
   viewerId = null,
+  initialSidebarCollapsed = SIDEBAR_COLLAPSED_BY_DEFAULT,
 }: {
   children: React.ReactNode;
   /** The signed-in person's id (server fact), the floating assistant's storage scope. */
@@ -37,29 +42,35 @@ export function AppShell({
   /** Whether Loki's own feedback widget is loaded here (server fact): the top
    *  bar then draws its launcher (FeedbackLauncher). */
   feedbackWidget?: boolean;
+  /** The sidebar's width as the server read it from the cookie, so the first
+   *  paint is already right and nothing slides after hydration. */
+  initialSidebarCollapsed?: boolean;
 }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialSidebarCollapsed);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const paletteApi = useCommandPaletteState();
   useCommandPaletteHotkey(paletteApi);
 
-  // Hydrate from localStorage on mount — deferred so server and client agree on initial render.
+  // A choice made before the cookie existed lives in localStorage only. Read
+  // it once: the page moves this one time for that person, the cookie is
+  // written below, and every later load is drawn right by the server.
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
-      if (stored !== null) {
+      if (stored !== null && (stored === "true") !== initialSidebarCollapsed) {
         setSidebarCollapsed(stored === "true"); // eslint-disable-line react-hooks/set-state-in-effect
-      } else {
-        setSidebarCollapsed(true);
       }
     } catch {
       /* ignore */
     }
+    // Only on mount: the prop is the server's reading of this same choice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     try {
       window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, String(sidebarCollapsed));
+      document.cookie = `${SIDEBAR_COLLAPSE_COOKIE}=${sidebarCollapsed}; path=/; max-age=31536000; samesite=lax`;
     } catch {
       /* ignore */
     }
@@ -68,6 +79,11 @@ export function AppShell({
   return (
     <CommandPaletteProvider value={paletteApi}>
       <ThemeSync />
+      {/* First Tab stop on every signed-in page. Without it the page's first
+          control was the 22nd stop, after the whole sidebar and the top bar. */}
+      <a href="#content" className="ui-skip-link">
+        Skip to content
+      </a>
       <div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary">
         <Sidebar
           collapsed={sidebarCollapsed}
@@ -81,7 +97,9 @@ export function AppShell({
             fallback={<EmailVerificationBanner />}
           />
           <FleetSurfaceGuide />
-          <main className="app-main">{children}</main>
+          <main id="content" tabIndex={-1} className="app-main">
+            {children}
+          </main>
           <AppFooter />
         </div>
         <MobileNav />

@@ -8,7 +8,8 @@
  * leaving stops it — so an unwatched session costs nothing.
  */
 import { NextRequest } from "next/server";
-import { getSessionUserId } from "@/lib/session";
+import { getApiActor } from "@/lib/session";
+import { mayPeekTab } from "@/lib/peek-access";
 import {
   sseBus,
   transcriptChannel,
@@ -35,12 +36,18 @@ const json = (status: number, error: string) =>
   });
 
 export async function GET(req: NextRequest) {
-  const userId = await getSessionUserId();
-  if (!userId) return json(401, "Unauthorized");
+  // A person's browser, or the person's own `ck_` token: an agent that started
+  // Claude Code in a session follows the conversation it asked for. Keyed by
+  // the caller's user id below, so a token only ever reaches its own user's
+  // tabs, and a plain shell stays a signed-in person's (lib/peek-access).
+  const actor = await getApiActor();
+  if (!actor) return json(401, "Unauthorized");
+  const { userId } = actor;
 
   const params = new URL(req.url).searchParams;
   const tab = params.get("tab")?.trim();
   if (!tab) return json(400, "tab required");
+  if (!mayPeekTab(tab, actor.via)) return json(403, "A shell is read in a signed-in browser.");
   const parsed = Channel.safeParse(params.get("channel"));
   const runnerChannel: RunnerChannel | undefined = parsed.success ? parsed.data : undefined;
   if (runnerChannel === "cloud") {

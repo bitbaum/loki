@@ -127,6 +127,15 @@ function terminalHonesty(input: {
   const channelOnline =
     source === "machine" ? presence.builderPresence?.local : presence.builderPresence?.cloud;
   const runnerConnected = channelOnline ?? tabs.length > 0;
+  // This account's own private builder is off; the fleet's runner may well be
+  // up, and "Cloud runner offline" said otherwise (lib/cloud-builder-scope).
+  if (source === "cloud" && !runnerConnected && presence.cloudScope === "private") {
+    return {
+      kind: "needs-builder",
+      label: EXECUTOR_COPY.builder.ownCloudOffline,
+      title: EXECUTOR_COPY.terminal.cloudPrivateOfflineHint,
+    };
+  }
   return deriveExecutorHonestyLabel(
     source === "machine"
       ? { runnerConnected, runtimeAvailable: false, scope: "machine" }
@@ -151,7 +160,13 @@ function emptyStateHint(input: {
 }): string {
   const copy = COPY[input.source === "machine" ? "machine" : "cloud"];
   if (!input.offline) return input.tabHint ?? copy.emptyHint;
-  if (input.source !== "machine") return copy.offlineHint;
+  if (input.source !== "machine") {
+    // Whose builder is off: this account's own, or none it can see at all.
+    if (input.presence.cloudScope === "private")
+      return EXECUTOR_COPY.terminal.cloudPrivateOfflineHint;
+    if (input.presence.cloudScope === "none") return EXECUTOR_COPY.terminal.cloudNotYoursHint;
+    return copy.offlineHint;
+  }
   const cloud = cloudBuilderState(
     input.presence.cloudBuilderAllowed,
     input.presence.builderPresence,

@@ -8,7 +8,8 @@
  * - passkeys: sign in with one, and add, list, rename or remove one's own;
  * - the second factor: turn it on or off (password-checked) and answer it at
  *   sign-in with a code or a backup code;
- * - the sign-in link: ask for one by email, and open it.
+ * - the sign-in link: ask for one by email, and open it;
+ * - a link minted with an agent's token, opened once (lib/auth/token-session.ts).
  *
  * `/sign-in/email` is already open in the compat layer; the sign-in screen
  * calls it directly so a second-factor answer can follow on the same card.
@@ -29,6 +30,7 @@ export const OPEN_SHARED_PATHS: ReadonlySet<string> = new Set([
   "/two-factor/generate-backup-codes",
   "/sign-in/magic-link",
   "/magic-link/verify",
+  "/loki/token-session",
 ]);
 
 /** Whether a request under /api/auth goes to AccountKit itself rather than the compat layer. */

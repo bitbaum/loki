@@ -12,6 +12,25 @@ src/
 ├── app/           → Pages + API routes (thin, delegate to queries/components)
 ├── components/
 │   ├── ui/        → Shared primitives (Card, Modal, Drawer, Field, PageLayout)
+│   ├── public/    → The signed-out site. PublicSurface = the shell every
+│   │                 public and auth page renders in: a skip link, the sticky
+│   │                 header (brand, PublicNav, PublicHeaderActions), the page,
+│   │                 PublicFooter (four groups). PublicNav = the Product menu
+│   │                 (opens on a press, never on hover) and, below 1120px, the
+│   │                 menu button and its full-screen drawer (focus enters,
+│   │                 Tab stays inside, closing hands focus back).
+│   │                 HeroComposer = the homepage's ONE action: the shared
+│   │                 composer (never a second message box); what a signed-out
+│   │                 visitor says is kept in the tab (lib/first-words), shown
+│   │                 back on sign-up (auth/FirstWordsNote) and handed to the
+│   │                 new-project form at the end of onboarding or sign-in.
+│   │                 Its microphone is the browser's own recogniser
+│   │                 (composer/voice.ts VISITOR_VOICE): the server leg needs
+│   │                 a session. LoopFigure = the three drawn figures on the
+│   │                 homepage's steps, in tokens, hidden from assistive tech.
+│   │                 ProblemsSection = three rows on the homepage, all of
+│   │                 them on /why. One label per destination: sign-up is
+│   │                 "Start a project" wherever it is a button or a row link.
 │   ├── shell/     → AppShell, Sidebar, AppTopBar + AccountMenu, MobileNav,
 │   │                 AskLokiButton → /loki.
 │   │                 The sidebar NAVIGATES; the account menu acts on the

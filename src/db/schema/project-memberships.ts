@@ -82,10 +82,6 @@ export const projectInvitations = pgTable(
     role: text("role").$type<ProjectRole>().notNull(),
     /** RETIRED 2026-10-20, never read (see project_memberships). */
     monthlyChanges: integer("monthly_changes"),
-    /** The owner lets this member drive the project's own agent session, on
-     *  the owner's builder (lib/session-drive.ts). Off unless the owner turns
-     *  it on: whoever asks pays, so this is the owner saying they will. */
-    drivesSession: boolean("drives_session").notNull().default(false),
     tokenHash: text("token_hash").notNull().unique(),
     invitedBy: uuid("invited_by")
       .notNull()

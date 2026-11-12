@@ -21,6 +21,7 @@ import {
 } from "@/config/project-templates";
 import { setDraft } from "@/lib/draft-storage";
 import { LinkGithubButton } from "@/components/onboarding/LinkGithubButton";
+import { PROJECT_BRIEF_MAX } from "@/config/project-brief";
 
 type CreateResponse = {
   ok: boolean;
@@ -66,7 +67,7 @@ type CreateResponse = {
  * Capped because a URL is attacker-controlled: a caller cannot use this to
  * paste a novel into the form.
  */
-const MAX_PREFILL = { name: 100, brief: 2000 };
+const MAX_PREFILL = { name: 100, brief: PROJECT_BRIEF_MAX };
 
 function NewFromScratchForm() {
   const router = useRouter();
@@ -349,9 +350,6 @@ function NewFromScratchForm() {
             the h1 of the same words, then repeated the intro paragraph. Both
             now live in the page header, where they are said once. */}
         <div className="ui-card-shell space-y-5 p-5 sm:p-6">
-          {error && <div className="ui-error p-3 rounded-md text-sm">{error}</div>}
-          {needsGithub && <LinkGithubButton callbackUrl="/control/new-from-scratch" />}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
@@ -377,7 +375,7 @@ function NewFromScratchForm() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="A peer-to-peer marketplace where cat owners find trusted sitters nearby."
-                maxLength={300}
+                maxLength={PROJECT_BRIEF_MAX}
                 rows={3}
                 className="ui-input w-full resize-y"
               />
@@ -456,6 +454,15 @@ function NewFromScratchForm() {
               </div>
             </details>
 
+            {/* The refusal is said HERE, beside the button that was pressed. It
+                used to be drawn at the top of the card, 611px above the button
+                on a phone: the tap looked like it did nothing. */}
+            {error && (
+              <div role="alert" className="ui-error rounded-md p-3 text-sm">
+                {error}
+              </div>
+            )}
+            {needsGithub && <LinkGithubButton callbackUrl="/control/new-from-scratch" />}
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
               <Link href="/control" className="ui-btn-ghost">
                 Cancel

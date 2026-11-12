@@ -8,6 +8,7 @@ import { normalizeUsername } from "@/lib/username";
 import { postJson, patchJson, throwApiError, getJson } from "@/lib/api/fetch";
 import { normalizeSiteUrl } from "@/lib/site-url";
 import { ROUTES } from "@/config/auth";
+import { clearFirstWords, firstWordsHref, readFirstWords } from "@/lib/first-words";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { APP_DOMAIN } from "@/config/brand";
 import {
@@ -66,6 +67,12 @@ export default function OnboardingPage() {
   const [installNote, setInstallNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  /** A repository was chosen from the picker. The confirmation row below is
+   *  for THAT, not for "the name is not empty": it used to test the name, so
+   *  the first letter typed into "Project name" replaced the field with a
+   *  read-only row reading that one letter, and the rest of the name went
+   *  nowhere. */
+  const [repoPicked, setRepoPicked] = useState(false);
   const [showFolder, setShowFolder] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -97,7 +104,9 @@ export default function OnboardingPage() {
         }
         if (data.complete && (data.projectCount ?? 0) === 0) {
           if (data.needsSessionRefresh) await updateRef.current();
-          setStep(data.isTeamInvitee ? "connect" : "project");
+          // A sentence carried from the homepage becomes the project at the
+          // end (see saveUsername below): the form is not put in front of it.
+          setStep(data.isTeamInvitee || readFirstWords() ? "connect" : "project");
           setIsTeamInvitee(data.isTeamInvitee ?? false);
           return;
         }
@@ -159,6 +168,14 @@ export default function OnboardingPage() {
       // Someone who gave their website lands on that project instead: its
       // page has the live link with Loki on it, the widget's status, and
       // the first change waiting to be said.
+      // Someone who said what they want on the homepage lands on the
+      // new-project form with that sentence already in it (lib/first-words).
+      const words = readFirstWords();
+      if (words && !site) {
+        clearFirstWords();
+        router.push(firstWordsHref(words));
+        return;
+      }
       router.push(site ? `/projects/${site.entityProjectId}` : "/control");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -179,7 +196,10 @@ export default function OnboardingPage() {
       const status = await getJson<OnboardingBootstrap>("/api/onboarding");
       const teamInvitee = status.isTeamInvitee ?? false;
       setIsTeamInvitee(teamInvitee);
-      setStep(teamInvitee ? "connect" : "project");
+      // A sentence carried from the homepage becomes the project at the end,
+      // so the name / folder / GitHub form is not put in front of it. It is
+      // the same path as that form's own "Skip for now".
+      setStep(teamInvitee || readFirstWords() ? "connect" : "project");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -190,6 +210,7 @@ export default function OnboardingPage() {
   function handleRepoSelect(repo: GitHubRepo) {
     setProjectName(repo.name);
     setGitUrl(repo.html_url);
+    setRepoPicked(true);
     setShowManual(false);
   }
 
@@ -325,7 +346,7 @@ export default function OnboardingPage() {
           <AuthCard>
             <RepoPicker onSelect={handleRepoSelect} />
 
-            {projectName && !showManual ? (
+            {repoPicked && !showManual ? (
               <div className="space-y-3">
                 <div className="ui-auth-confirmation-row">
                   <GitBranch className="h-4 w-4 ui-auth-icon-muted" />
@@ -346,13 +367,16 @@ export default function OnboardingPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowManual(true)}
+                  onClick={() => {
+                    setRepoPicked(false);
+                    setShowManual(true);
+                  }}
                   className="ui-auth-muted-link"
                 >
                   Enter details manually instead
                 </button>
               </div>
-            ) : showManual || !projectName ? (
+            ) : (
               <div className="space-y-3">
                 <AuthField label="Project name">
                   <AuthInput
@@ -378,7 +402,7 @@ export default function OnboardingPage() {
                   />
                 </AuthField>
               </div>
-            ) : null}
+            )}
 
             {/* The website, for a project that is already online. It is what
                 makes the next step possible: Loki on that site, watching, and

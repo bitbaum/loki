@@ -35,7 +35,7 @@ export const WORKBENCH_PANES: Record<WorkbenchPaneId, WorkbenchPane> = {
   session: {
     id: "session",
     label: "The robot",
-    description: "Say what to change; the agent at work",
+    description: "Tell the agent what to change",
     icon: SquareTerminal,
     pageHref: (p) => fleetSurfaceHref("terminal", p.workspaceKey),
   },

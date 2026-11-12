@@ -19,13 +19,16 @@ import { GITHUB_API_BASE } from "@/lib/github-api";
 import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { findCodeCustodyByGitUrl } from "@/db/queries/user-projects";
 import { stampRunFix } from "@/db/queries/orchestration-runs";
-import { decideAutoShip, prOpenedByRun, prPredatesRun } from "@/lib/feedback/auto-ship";
+import { decideAutoShip, prOwnership } from "@/lib/feedback/auto-ship";
 import {
   deriveShippingFromPr,
   healDeployFailed,
   pickDeployRun,
   FIX_SHIP_STATE,
+  isFailedCheckConclusion,
+  prBlockerFor,
   fixNeedsRefresh,
+  parsePrRef,
   resolveFixPrRef,
   type FixShipping,
   type GithubPrDetail,
@@ -66,12 +69,29 @@ export type FixRefreshInput = {
    */
   runStartedAt: string | Date | null;
   /**
+   * The run's own branches (lib/run-branches), and whether its runner
+   * reported any. REQUIRED for the same reason as runStartedAt: time alone
+   * let the ledger take a pull request somebody opened on another branch
+   * while the run was open, report it as the run's, and merge it.
+   */
+  runBranches: { own: readonly string[]; reported: boolean };
+  /** The pull request the runner reported when it closed the run on it
+   *  (payload.prUrl): seen at the agent's own HEAD, so as good as the handoff
+   *  naming it. */
+  reportedPrUrl?: string | null;
+  /**
    * Where the project is served. REQUIRED for the reason autoShip is: left
    * optional it is simply not passed, and "is it live" falls back to
    * workflow-run labels that are wrong on this fleet (feedback/served-
    * release.ts). Pass null for a project with no address.
    */
   liveUrl: string | null;
+  /**
+   * Also read whether the open pull request can merge as it stands (a
+   * conflict, a failed check) into `fix.blocked`. Off unless asked: it costs
+   * two GitHub reads a pull request.
+   */
+  readBlockers?: boolean;
   /**
    * The client said "Make it live" on a change opened as a draft for them:
    * take it out of draft first, then decide as for any other pull request.
@@ -101,7 +121,7 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
   );
   if (!res.ok) return null;
   const raw = (await res.json()) as Partial<GithubPrDetail> & {
-    head?: { sha?: string };
+    head?: { sha?: string; ref?: string };
     base?: { ref?: string };
     created_at?: string;
     body?: string | null;
@@ -119,6 +139,7 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
     draft: j.draft === true,
     mergeable: typeof j.mergeable === "boolean" ? j.mergeable : null,
     headSha: typeof raw.head?.sha === "string" ? raw.head.sha : null,
+    headRef: typeof raw.head?.ref === "string" ? raw.head.ref : null,
     createdAt: typeof raw.created_at === "string" ? raw.created_at : null,
     baseRef: typeof raw.base?.ref === "string" ? raw.base.ref : null,
     body: typeof raw.body === "string" ? raw.body : null,
@@ -163,7 +184,7 @@ async function fetchMergeReadiness(
   ref: PrRef,
   headSha: string,
   token: string,
-): Promise<{ checkConclusions: (string | null)[] } | null> {
+): Promise<{ checkConclusions: (string | null)[]; failedChecks: string[] } | null> {
   // check-runs covers GitHub Actions; commit statuses cover older integrations
   // (a repo can use either, and "no checks at all" must stay distinguishable
   // from "checks that passed").
@@ -179,21 +200,28 @@ async function fetchMergeReadiness(
   ]);
   if (!runsRes?.ok && !statusRes?.ok) return null;
   const conclusions: (string | null)[] = [];
+  const failedChecks: string[] = [];
   if (runsRes?.ok) {
     const j = (await runsRes.json().catch(() => null)) as {
-      check_runs?: Array<{ status?: string; conclusion?: string | null }>;
+      check_runs?: Array<{ name?: string; status?: string; conclusion?: string | null }>;
     } | null;
-    for (const r of j?.check_runs ?? [])
-      conclusions.push(r.status === "completed" ? (r.conclusion ?? null) : null);
+    for (const r of j?.check_runs ?? []) {
+      const conclusion = r.status === "completed" ? (r.conclusion ?? null) : null;
+      conclusions.push(conclusion);
+      if (isFailedCheckConclusion(conclusion)) failedChecks.push(r.name ?? "a check");
+    }
   }
   if (statusRes?.ok) {
     const j = (await statusRes.json().catch(() => null)) as {
-      statuses?: Array<{ state?: string }>;
+      statuses?: Array<{ state?: string; context?: string }>;
     } | null;
-    for (const st of j?.statuses ?? [])
+    for (const st of j?.statuses ?? []) {
       conclusions.push(st.state === "success" ? "success" : (st.state ?? null));
+      if (st.state === "failure" || st.state === "error")
+        failedChecks.push(st.context ?? "a status");
+    }
   }
-  return { checkConclusions: conclusions };
+  return { checkConclusions: conclusions, failedChecks };
 }
 
 /** Squash-merge the PR. Returns GitHub's answer, never throws. */
@@ -394,8 +422,21 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
       if (!picked) fix = claimed;
       else {
         const pr = await fetchPr(ref, picked.token);
-        if (!pr) fix = claimed;
-        else if (prPredatesRun(pr.createdAt, input.runStartedAt)) {
+        const owner = pr
+          ? prOwnership({
+              prCreatedAt: pr.createdAt,
+              headRef: pr.headRef,
+              runStartedAt: input.runStartedAt,
+              runBranches: input.runBranches,
+              namedInHandoff:
+                parsePrRef(input.summaryDone, input.gitUrl)?.number === pr.number ||
+                (input.reportedPrUrl
+                  ? parsePrRef(input.reportedPrUrl, input.gitUrl)?.number === pr.number
+                  : false),
+            })
+          : null;
+        if (!pr || !owner) fix = claimed;
+        else if (!owner.runs) {
           // The pull request is older than the run that claims it, so the run
           // cannot have produced it — the number came out of prose the agent
           // wrote, and it belongs to other work.
@@ -409,6 +450,10 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
           // to tell them what still needs them, and a false Live removes a row
           // from that queue. Refusing to act on evidence while still publishing
           // a conclusion from it was never coherent; one rule, both decisions.
+          //
+          // The same holds for a pull request on a branch that is not this
+          // run's (2026-11-12: run 70d1a78d was shown loki#1636, which a person
+          // had opened on another branch while the run was open).
           fix = {
             state: FIX_SHIP_STATE.NO_EVIDENCE,
             pr: { number: pr.number, url: pr.html_url, title: pr.title },
@@ -433,7 +478,7 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
             fix.state === FIX_SHIP_STATE.PR_OPEN &&
             !pr.draft &&
             pr.nodeId &&
-            prOpenedByRun(pr.createdAt, input.runStartedAt)
+            owner.mayAct
           )
             await setDraft(pr.nodeId, picked.token, true);
           // Opted in? Then Loki presses merge on THIS pull request —
@@ -453,7 +498,7 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
             const decision = decideAutoShip({
               autoShip: input.autoShip,
               fix,
-              fromOurDispatch: prOpenedByRun(pr.createdAt, input.runStartedAt),
+              fromOurDispatch: owner.mayAct,
               draft: pr.draft === true,
               mergeable: pr.mergeable ?? null,
               checkConclusions: readiness?.checkConclusions ?? [],
@@ -476,6 +521,18 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
             } else if (!decision.merge) {
               fix = { ...fix, autoShipHold: decision.hold };
             }
+          }
+          // Asked for by the caller that tells a person (run-follow-notify):
+          // can this open pull request merge as it stands? Two more GitHub
+          // reads, so not on every surface that shows a row.
+          if (input.readBlockers && fix.state === FIX_SHIP_STATE.PR_OPEN && pr.headSha) {
+            const readiness = await fetchMergeReadiness(ref, pr.headSha, picked.token);
+            const blocked = prBlockerFor({
+              mergeable: pr.mergeable ?? null,
+              failedChecks: readiness?.failedChecks ?? [],
+              headSha: pr.headSha,
+            });
+            if (blocked) fix = { ...fix, blocked };
           }
         }
       }

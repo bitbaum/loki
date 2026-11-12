@@ -227,6 +227,7 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
   const runId = typeof inject.body.runId === "string" ? inject.body.runId : null;
   const content = ok
     ? dispatchAssistantContent(opts.projectKey, dispatchInput) +
+      (typeof inject.body.agentNotice === "string" ? `\n\n${inject.body.agentNotice}` : "") +
       (opts.projectNote ? `\n\n${opts.projectNote}` : "")
     : `Could not dispatch to ${opts.projectKey}: ${
         typeof inject.body.error === "string" ? inject.body.error : "dispatch failed"
@@ -244,7 +245,7 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
       runnerConnected: dispatchInput.runnerConnected,
       channel: dispatchInput.channel,
       reroutedFrom: dispatchInput.reroutedFrom,
-      agent: opts.agent ?? null,
+      agent: opts.agent ?? (typeof inject.body.agent === "string" ? inject.body.agent : null),
       model: opts.model ?? null,
       commandId,
       runId,
