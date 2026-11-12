@@ -87,6 +87,10 @@ signed-in browser. What it could use:
 | 11:39 | Loki #1678 `check` | success on `0e48feb4` (the real-Postgres scenarios ran in CI). Waiting for the sweep; #1661 and #1673 merged ahead of it. |
 | 11:30 | `box-usage.yml` `mode=read` (run 43209749814) | cancelled at its 20-minute limit inside the first `du`, after printing the memory facts: **MemAvailable 0.6 GiB of 15.2, swap 4.0 GiB of 4.0 used.** Resident memory by program: `gvisor_sentry` 25186 MiB over 1734 processes (the sealed agent sessions; shared pages are counted once per process, 6.5 GiB is shared), `next-server` 3847 MiB over 24, `postgres` 2112 MiB. **20 out-of-memory kills since boot**: `openclaw-gateway` 10, `gvisor_sentry` 3, and one each of `next-server`, `java`, `python`, `node`, `bash`, `MainThread`. |
 | 11:55 | Read `src/lib/agent-execution/sandbox.ts` and `scripts/hetzner/install-box-runner.sh` | A sealed session started with podman gets no `--memory` (only the docker shape does); the code says "MemoryMax still bounds them", meaning the runner unit's. `loki-box-runner.service` has `OOMPolicy=continue` and **no `MemoryHigh` or `MemoryMax`**. Every site unit has `MemoryMax=1G` (`scripts/hetzner/sync-infra.sh`). So the builder is the one service on the box with no ceiling. `AGENT_MAX_OPEN_DEFAULT = 8` was sized at 0.4 GB a session. |
+| 12:50 | The review ended: 8 agents, 4 reviewers and 4 told to refute the most severe finding of each part | Every finding on the parts that remain was confirmed and is fixed: the notice (repeat, wrong project, two check outcomes), the address rule (see change 8), and OrangeCat's own-key promise (see journey B). The two on the idle rule were confirmed already fixed by change 7. |
+| 12:25 | `sealed-builds.yml` `mode=memory` from the branch (run 43217502457): the new read mode works on the box | **The builder holds 8.3 GiB** (6.3 at 12:19), `MemoryHigh` and `MemoryMax` infinity; the box has 0.6 GiB available and no swap free; 30 stopped for memory since boot. |
+| 12:19 | `box-usage.yml` `what=memory` from the branch (run 43216716898), two and a half minutes | `loki-box-runner.service` 6.3 GiB, no ceiling; **all 1909 sandbox processes are in that unit's cgroup**; a root session (`user-0.slice/session-6122.scope`, 4 tasks) holds 3 GiB, most likely a deploy build; sites 2.8 GiB over 21 processes; Postgres 37 of 100 connections. Stopped for memory since boot: **30** (20 at 11:30): gateway 15, `next-server` 3, sandbox 3. |
+| 12:19 | Both sites sampled from here | **unreachable from 12:19:43 to about 12:21** (every request reset after 12 s), then back. Also about 12 s at 12:01. |
 | 12:17 | Change 7 written and tested (below): three faults in #1680's idle rule, from the review | 17 of 17 on a real Postgres; 19 tests that read the queue code |
 | 12:12 | Loki #1678 `check` green on the merged head; OrangeCat #1672 all checks green (12:04) | both wait for the sweep |
 | 12:01 | `git fetch`: **#1680 merged at 11:56 UTC** (another session): an idle session does not hold its project's queue | it supersedes change 5; mine is removed from #1678 (see below). Both sites reset the connection for about 12 s at 12:01. |
@@ -130,6 +134,55 @@ What it does not do: make the restart land. The drain still counts every
 sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
+
+## The box: what holds its memory, and the control that is ready but not applied
+
+Measured (see the log at 11:30, 12:19, 12:25). The box has 15.2 GiB. Sites,
+databases and the front hold about 6.5 GiB; every site unit has a 1 GiB
+ceiling. A deploy build takes about 3 GiB while it runs. The builder
+(`loki-box-runner.service`, which holds every sealed session) took 6.3 to 8.3
+GiB with **no ceiling**: `src/lib/agent-execution/sandbox.ts` gives a podman
+session no `--memory` and says the unit's `MemoryMax` bounds it, and
+`scripts/hetzner/install-box-runner.sh` sets none. `AGENT_MAX_OPEN_DEFAULT = 8`
+was sized at 0.4 GB a session; a sealed session measures about 1 GiB. When the
+box runs out, the kernel stops whatever scores highest, and today that was the
+gateway 15 times and a live site 3 times.
+
+Ready, **not applied** (`scripts/hetzner/sealed-builds-ctl.sh`, run from
+`sealed-builds.yml`, which exists on main, so it can be run from the branch
+before the merge):
+
+- `mode=memory`: read. Proven on the box at 12:25.
+- `mode=memory-set`, `runs="<GiB>"`: `MemoryMax` on the unit, and the
+  builder's processes are marked to be stopped first when the whole box runs
+  out (`oom_score_adj` 300 on the running ones, a drop-in for new ones).
+  Nothing is restarted. Refused when the ceiling is below what the builder
+  holds, because that stops sessions at once; `force` after the number sets
+  it anyway. No `MemoryHigh`: a mark under what it holds would slow every
+  session the moment it is set.
+- `mode=memory-clear`: undo.
+
+It is not set by a deploy and I have not run it: a ceiling decides that an
+agent session gives way before a site does, which is the owner's call. My
+recommendation: set it one GiB above what the builder holds at that minute
+(that stops nothing), and bring it down toward 6 as sessions end.
+
+Not addressed: the deploy builds on the box (3 GiB each, several an hour
+across the fleet today), and the session cap of 8.
+
+## Change 8 (Loki): what counts as an address to the assistant
+
+The first rule (in this pull request) was reviewed and was wrong both ways:
+"ok loki is broken, fix its header" and "loki-loop-check is red" lost the
+project, "Loki - add a toggle" kept it. Now an address is the name set off
+from the sentence (a comma, a colon, any dash with space around it, "please",
+"can you"), at the start of any sentence or line; "loki's", "loki-…", "in
+loki", "@loki/ui" stay mentions. "loki: fix the header" is read as an
+address, so a selected project gets the work; with nothing selected and no
+other project named the name is the project (`projectNamedByAddress`, the
+last resort in `resolveFleetCommandProjectKey` and `pickProjectKey`).
+`scripts/test/project-mention.ts` holds 32 sentences, each with a project
+selected and with none.
 
 ## Change 7 (Loki): three faults in the idle rule that is on main (#1680)
 
@@ -187,6 +240,15 @@ pending PR simply waits"). A task that ended at such a pull request read
   forward is one paste on a phone.
 - Loki does not send the repair itself. `lib/auto-dispatch` records the
   owner's rule of 2026-09-29: no agent run that nobody asked for.
+
+Fixed after the review, before it ever ran: "already said" was kept in the
+ledger, which every refresh rebuilds, so the notice would have repeated every
+fifteen minutes (now `payload.prBlockerSaid`, per reason, beside the ledger);
+the repair line named the pull request by link, and the owner's name in the
+link sent the repair for loki to the Bitbaum project (now "In <project>, fix
+the failing checks on pull request #<n> and push to the same branch.", sent
+through the chat's own matcher in the test); `action_required` and `stale`
+count as failed.
 
 Tests: `scripts/test/run-follow-notify.ts`. Not proven on the live site: it
 needs a chat build whose pull request is red or conflicted.
@@ -383,6 +445,11 @@ only, plus one prompt line the runner reads at its next start; no file under
   bots answer on his own key whatever the pool does: add it at
   https://orangecat.ch/settings/ai . OrangeCat #1672 makes the failed send
   say that, with the button.
+- OrangeCat #1672 now also makes that true for every provider: a bot turn
+  read only an OpenRouter key marked primary; it reads the person's first
+  usable key in their saved order, on the one-to-one turn, the group chat and
+  the routine (`src/services/ai/own-key.ts`, `own-key-service.ts`). The whole
+  unit suite passes (686 files, 5568 tests).
 - What is not proven on the live site: a bot of a Loki-linked person sending
   a task, following the run and reporting the agent's answer.
 - A bot's task to Loki rides the same queue as the chat, so change 1 is a
@@ -431,23 +498,20 @@ Every runner change must bump `desktop/package.json` and prepend to `src/config/
 
 ## Next action
 
-1. Loki #1678 now holds: the loop check's sign-in (change 4), the routing
-   fix, the blocked pull request notice (change 6) and the usage report.
-   Follow CI and the sweep. After the merge the branch is deleted:
-   `git fetch --prune`, put the branch on `origin/main`, and any later change
-   is a new pull request.
-2. An independent review of #1678 and OrangeCat #1672 was started at 11:50
-   UTC (workflow run `wf_22c0cc48-298`); two of its four parts reviewed the
-   withdrawn rule. Apply what it finds on the parts that remain.
-3. OrangeCat #1672: follow CI and the sweep. After its deploy, run
-   `cat-diagnostics.yml`: `bots.links` names which link fails with which
-   status.
-4. Bots answer again only when the shared pool has a link with capacity, or
-   on a person's own key. Another session was given the chain (10:59 UTC,
-   lane `orangecat~ed39e1e1`); look at what it opened before touching
+1. Loki #1678 and OrangeCat #1672: follow CI and the sweep. After a merge
+   the branch is deleted: `git fetch --prune`, put the branch on
+   `origin/main`, and any later change is a new pull request.
+2. The owner decides on the builder's memory ceiling (section above). Until
+   then the box keeps running out: read it with `sealed-builds.yml`
+   `mode=memory`.
+3. After OrangeCat #1672 deploys: one bot turn as a new person
+   (`node <scratchpad>/pw/bot-turn.cjs` is gone with the session; the steps
+   are "Start instantly", New bot, Day Planner, send a line) should show the
+   new sentence with the button while the pool is down, and
+   `cat-diagnostics.yml` should list `bots.links`.
+4. After #1680 and #1678 are live: `loki-loop-check.yml`, `dispatch=true`,
+   on a project that is free, `minutes=15`.
+5. Bots answer on the shared pool again only when it has a link with
+   capacity. Another session was given the chain (10:59 UTC, lane
+   `orangecat~ed39e1e1`); look at what it opened before touching
    `src/config/free-vendors.ts` or `provider-catalog.ts`.
-5. The box: read `box-usage.yml` run 43213167515 (from the branch). The
-   builder has no memory ceiling; what to give it is the owner's call,
-   because a ceiling below what the agents hold stops some of them.
-6. Then one more `loki-loop-check.yml` run on a project that is free, now
-   that #1680 is live.

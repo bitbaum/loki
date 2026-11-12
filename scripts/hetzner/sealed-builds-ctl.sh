@@ -5,7 +5,7 @@
 #   sealed-builds-ctl.sh on   <unit>   # drop-in + .on flag, then drain-restart
 #   sealed-builds-ctl.sh off  <unit>   # drop-in removed, then drain-restart
 #   sealed-builds-ctl.sh memory <unit>             # read: what the builder holds and what bounds it
-#   RUNS="7" sealed-builds-ctl.sh memory-set <unit>  # ceiling in GiB; the builder gives first
+#   RUNS="9" sealed-builds-ctl.sh memory-set <unit>  # ceiling in GiB; the builder gives first
 #   sealed-builds-ctl.sh memory-clear <unit>       # undo memory-set
 # Prints verdicts only, never a secret (public Action logs).
 set -uo pipefail
@@ -83,13 +83,15 @@ memory-set)
   if [ "$verdict" != apply ]; then
     echo "✗ not set: ${verdict#refuse:}"; echo "$UNIT:"; memory_report; exit 1
   fi
-  high=$((gib - 1))
-  systemctl set-property "$UNIT.service" "MemoryMax=${gib}G" "MemoryHigh=${high}G" || { echo "✗ systemd refused the ceiling"; exit 1; }
+  # A ceiling only. No MemoryHigh below it: at the moment this is set the
+  # builder usually holds close to the ceiling, and a "high" mark under what
+  # it holds would slow every session at once, which nobody asked for.
+  systemctl set-property "$UNIT.service" "MemoryMax=${gib}G" MemoryHigh=infinity || { echo "✗ systemd refused the ceiling"; exit 1; }
   mkdir -p "/etc/systemd/system/$UNIT.service.d"
   printf '# Written by sealed-builds-ctl.sh memory-set. New agent processes inherit it.\n[Service]\nOOMScoreAdjust=%s\n' "$BUILDER_OOM_ADJ" \
     > "/etc/systemd/system/$UNIT.service.d/20-oom-first.conf"
   systemctl daemon-reload
-  echo "✓ $UNIT: ceiling ${gib}G, slowed from ${high}G; $(set_builder_oom_adj "$BUILDER_OOM_ADJ") running processes marked to give first"
+  echo "✓ $UNIT: ceiling ${gib}G; $(set_builder_oom_adj "$BUILDER_OOM_ADJ") running processes marked to give first"
   echo "$UNIT:"; memory_report ;;
 memory-clear)
   systemctl set-property "$UNIT.service" MemoryMax=infinity MemoryHigh=infinity
