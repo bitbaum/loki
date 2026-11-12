@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { getSessionUserId } from "@/lib/session";
+import { getApiUserId, getSessionUserId } from "@/lib/session";
 import { readIdParam, readJsonBody, isUniqueViolation } from "@/lib/api/route-helpers";
 import { readCronJobs } from "@/lib/crons";
 import {
@@ -181,7 +181,7 @@ function safeLocalProjectPath(
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await getSessionUserId();
+  const userId = await getApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const idOrResp = await readIdParam(params);
   if (idOrResp instanceof NextResponse) return idOrResp;

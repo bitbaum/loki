@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/session";
+import { getApiUserId, getSessionUserId } from "@/lib/session";
 import { readJsonBody, z, isUniqueViolation } from "@/lib/api/route-helpers";
 import { emptyToUndefined } from "@/lib/validation";
 import {
@@ -25,7 +25,7 @@ const CreateBody = z.object({
 });
 
 export async function GET() {
-  const userId = await getSessionUserId();
+  const userId = await getApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const projects = await ensureUserProjectEntityLinks(userId);
   // Attach the goal each project is currently aiming at (the roadmap the
