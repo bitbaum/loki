@@ -151,5 +151,55 @@ grep -q 'forced after cap\|restarting anyway' "$SCRIPT" \
   && ok "the default wait covers a multi-hour task (≥ 4h)" \
   || no "the default drain wait is shorter than a real task"
 
+# ── A sealed session that has been silent is not working ────────────────────
+# 2026-11-12: three open sealed sessions relayed 0, 40 and 96 bytes in a
+# minute and held the runner two releases behind for hours, because a sealed
+# session counted as working for as long as it was open.
+busyq() { agent_is_busy "$1" "$2" "${3:-}" "${4:-}" && echo busy || echo free; }
+[ "$(busyq sealed-agent "" 65268 "$QUIET_SECS")" = free ] \
+  && ok "a sealed session silent for the whole quiet period does not hold the restart" \
+  || no "a silent sealed session still holds every runner update"
+[ "$(busyq sealed-agent "" 65268 $((QUIET_SECS - 1)))" = busy ] \
+  && ok "a sealed session quiet for less than that still holds it" \
+  || no "a sealed session was called idle before the quiet period was over"
+[ "$(busyq sealed-agent "" 65268 0)" = busy ] && [ "$(busyq sealed-agent "" 65268 "")" = busy ] \
+  && ok "a sealed session that just moved, or whose quiet cannot be told, holds it" \
+  || no "unknown was read as idle for a sealed session"
+[ "$(busyq gemini "" 65268 "$QUIET_SECS")" = busy ] && [ "$(busyq claude generating 10 "$QUIET_SECS")" = busy ] \
+  && ok "the quiet rule is the sealed session's alone" \
+  || no "the quiet rule leaked to an agent whose output this script never measured"
+[ "$QUIET_SECS" -ge 900 ] 2>/dev/null \
+  && ok "the quiet period is far longer than a pause inside a task (≥ 15 min)" \
+  || no "the quiet period is short enough to cut a task off at a pause"
+
+# quiet_for: what the session relayed since the last look decides, and the
+# note outlives the drain that wrote it (every deploy starts a new one).
+qtmp="$(mktemp -d)"; mkdir -p "$qtmp/proc/9001" "$qtmp/proc/9002"
+QUIET_STATE="$qtmp/state"
+io() { printf 'rchar: %s\nwchar: %s\nsyscr: 1\n' "$2" "$3" > "$qtmp/proc/$1/io"; }
+io 9001 1000 1000
+[ "$(PROC_ROOT="$qtmp/proc" quiet_for 9001 1000)" = 0 ] \
+  && ok "the first look at a session starts its clock at zero" || no "a session was quiet before it was ever seen"
+io 9001 1040 1040
+[ "$(PROC_ROOT="$qtmp/proc" quiet_for 9001 1600)" = 600 ] \
+  && ok "80 bytes in ten minutes: quiet for those ten minutes" || no "an idle session's trickle reset its clock"
+io 9001 1048 1048
+[ "$(PROC_ROOT="$qtmp/proc" quiet_for 9001 2900)" = 1900 ] \
+  && ok "the clock carries over to a later drain's look" || no "the quiet clock restarted with the drain"
+io 9001 9000 9000
+[ "$(PROC_ROOT="$qtmp/proc" quiet_for 9001 3000)" = 0 ] \
+  && ok "a session that printed is working again from that look" || no "a working session kept its old quiet"
+io 9001 9010 9010
+[ "$(PROC_ROOT="$qtmp/proc" quiet_for 9001 3100)" = 100 ] \
+  && ok "and its quiet is counted from then" || no "quiet was not counted from the last movement"
+[ "$(PROC_ROOT="$qtmp/proc" quiet_for 9002 3100)" = 0 ] \
+  && ok "a process whose counters cannot be read is never quiet" || no "unreadable counters read as quiet"
+rm -rf "$qtmp/proc/9001"
+PROC_ROOT="$qtmp/proc" forget_ended
+[ ! -e "$qtmp/state/9001.io" ] && [ ! -e "$qtmp/state/9001.since" ] \
+  && ok "an ended session's note is dropped, so a recycled pid starts clean" \
+  || no "a recycled pid would inherit another session's quiet"
+rm -rf "$qtmp"
+
 printf 'drain-and-restart-runner: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

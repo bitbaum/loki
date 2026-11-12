@@ -1,0 +1,80 @@
+# Does Loki work, end to end, on the live site? Asked from GitHub, without a
+# laptop and without a signed-in browser.
+#
+# The check itself is scripts/test/loki-loop-e2e.ts, run ON the box by
+# scripts/hetzner/loki-e2e-check.sh --report with a session minted from the
+# app's own env (the same pair the six-hourly watch uses). It asks what the
+# Loki page asks, through the same HTTP API:
+#   1. Loki answers a question about the fleet from the fleet map.
+#   2. The fleet map is published.
+#   3. With `dispatch`: a request typed into a thread reaches an agent on the
+#      cloud runner and comes back into that thread as its outcome. The task
+#      is a no-change probe marked [loki-e2e]; a run that never returns is
+#      aborted, so the check leaves nothing in the queue.
+#
+# The dispatch leg starts a real agent turn on the owner's engine, so it runs
+# only when asked. Same SSH setup as box-doctor.yml. This repository is
+# public and so are these logs: the step prints PASS / FAIL / SKIP lines with
+# their evidence, long tokens masked.
+#
+#   gh workflow run loki-loop-check.yml
+#   gh workflow run loki-loop-check.yml -f dispatch=true -f project=loki
+name: Loki loop check
+
+on:
+  workflow_dispatch:
+    inputs:
+      dispatch:
+        description: "Also send one real no-change task to an agent and wait for it to report back"
+        required: false
+        default: false
+        type: boolean
+      project:
+        description: "Project the task goes to"
+        required: false
+        default: loki
+      minutes:
+        description: "How long to wait for the task to come back (minutes)"
+        required: false
+        default: "35"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: loki-loop-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  ServerAliveInterval 30\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Ask Loki
+        env:
+          DISPATCH: ${{ inputs.dispatch }}
+          PROJECT: ${{ inputs.project }}
+          MINUTES: ${{ inputs.minutes }}
+        run: |
+          set -o pipefail
+          case "$PROJECT" in ''|*[!a-z0-9-]*) echo "::error::bad project"; exit 1 ;; esac
+          case "$MINUTES" in ''|*[!0-9]*) echo "::error::bad minutes"; exit 1 ;; esac
+          [ "$DISPATCH" = "true" ] && D=1 || D=0
+          # The script travels on stdin and is never re-parsed in between.
+          ssh "root@$HETZNER_IP" \
+            E2E_FORCE_DISPATCH="$D" E2E_PROJECT="$PROJECT" E2E_DISPATCH_MINUTES="$MINUTES" E2E_EXIT_VERDICT=1 \
+            bash -s -- --report < scripts/hetzner/loki-e2e-check.sh \
+            | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-600

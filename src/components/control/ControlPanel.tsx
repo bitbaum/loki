@@ -492,7 +492,13 @@ export function ControlPanel({
 
         {/* Agents that stopped to ask you something, each with its question.
           They sat under "Being built" though nothing was being built. */}
-        {data.projects.length > 0 && <ControlWaiting jobs={nowJobs} nowMs={nowMs} />}
+        {data.projects.length > 0 && (
+          <ControlWaiting
+            jobs={nowJobs}
+            nowMs={nowMs}
+            onReply={(tab, text) => inject(tab, undefined, text)}
+          />
+        )}
 
         {/* ControlFleetStatus shows runner health + working/ready/open counters
           + autopilot pill. When the user has 0 projects, all counters are 0

@@ -76,7 +76,13 @@ export const lokiMcpServices: McpServices = {
   // come to them, exactly as it does for a dispatch asked for in Telegram.
   dispatch: (userId, project, task, opts) =>
     injectPrompt(
-      { tab: project, customPrompt: task, notifyOnClose: true, session: opts?.session },
+      {
+        tab: project,
+        customPrompt: task,
+        notifyOnClose: true,
+        session: opts?.session,
+        ...(opts?.builderChannel ? { builderChannel: opts.builderChannel } : {}),
+      },
       userId,
     ),
 

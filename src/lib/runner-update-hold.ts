@@ -23,7 +23,9 @@
  * session, closing a tab, looking at a screen — go through. The running
  * agents finish, nothing new starts, the drain restarts the runner, the
  * queue drains on the new code. Control's builder line says so meanwhile
- * (lib/builder-presence builderUpdateNote).
+ * (lib/builder-presence builderUpdateNote), and so does the answer to the
+ * person who sent the task (EXECUTOR_COPY.inject.builderUpdating). The wait
+ * is bounded: UPDATE_HOLD_MAX_MS below.
  *
  * Pure: the route reads the versions, this decides.
  */
@@ -48,6 +50,63 @@ export const HELD_WHILE_UPDATING: readonly FleetRunnerCommandType[] = [
 
 export function holdsNewWork(type: string): boolean {
   return (HELD_WHILE_UPDATING as readonly string[]).includes(type);
+}
+
+/**
+ * The longest one task waits for the restart. The hold had no end, and the
+ * restart it waits for does not always come: the drain counts every sealed
+ * session and every agent that is not Claude as working for as long as its
+ * session is open, gives up after six hours and is not tried again. On
+ * 2026-11-12 two runner releases landed 35 minutes apart, the drain read
+ * "5 agent(s) working" on every look from 05:08 to 06:07 UTC, and in that
+ * hour the builder claimed screen peeks and nothing else: every task a
+ * person sent sat queued while the chat said it would start shortly.
+ *
+ * So the hold buys the drain a quiet stretch and no more. A task that has
+ * waited this long is handed to the builder on the code it has; running on
+ * last week's runner is recoverable, a task that never starts is not. Five
+ * minutes is three looks of the drain on a loaded box (it logged one every
+ * 95 seconds that morning).
+ */
+export const UPDATE_HOLD_MINUTES = 5;
+export const UPDATE_HOLD_MAX_MS = UPDATE_HOLD_MINUTES * 60_000;
+
+/**
+ * How long after a runner release the hold applies at all. A builder that
+ * is still behind two hours after the release is not about to restart: its
+ * sessions have not gone idle in all that time, and holding each new task
+ * for the full bound would then be a tax on every task with nothing bought
+ * by it. Past the window work starts at once on the code the builder has,
+ * and the next release opens the window again.
+ */
+export const UPDATE_HOLD_WINDOW_MS = 2 * 60 * 60_000;
+
+/**
+ * Is the hold's window open for a release published at `releasedAt`? A date
+ * that cannot be read keeps it open: each task is still bounded on its own.
+ */
+export function holdWindowOpen(releasedAt: string | null | undefined, now: number): boolean {
+  const at = releasedAt ? Date.parse(releasedAt) : Number.NaN;
+  if (!Number.isFinite(at)) return true;
+  return now - at < UPDATE_HOLD_WINDOW_MS;
+}
+
+/**
+ * What a person is told while their task waits on the update, instead of
+ * "starting shortly": why it has not started, when it will at the latest,
+ * and that nothing is asked of them. One wording for the chat, the API
+ * answer and the run's track.
+ */
+export const BUILDER_UPDATING_SENTENCE = `The cloud runner is taking an update. This starts when its running agents finish, or in ${UPDATE_HOLD_MINUTES} minutes at the latest. Nothing to do.`;
+
+/** The same fact as a short label under a sent task. */
+export const BUILDER_UPDATING_LABEL = `With the cloud runner — starts within ${UPDATE_HOLD_MINUTES} minutes (it is updating)`;
+
+/** The work-starters among what a runner asked for (all of them when it
+ *  named none): the types handed over only once a row has waited out the hold. */
+export function heldTypes(requested: readonly string[] | undefined): string[] {
+  const asked = requested?.length ? requested : FLEET_RUNNER_COMMAND_TYPES;
+  return asked.filter(holdsNewWork);
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Check,
   CircleAlert,
@@ -69,24 +69,38 @@ export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
  * you · Waiting for your a…" — the state twice, cut off, and never the
  * question the owner had to open the session to learn (2026-11-12).
  */
-export function ControlWaiting({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
+export function ControlWaiting({
+  jobs,
+  nowMs,
+  onReply,
+}: {
+  jobs: NowJob[];
+  nowMs: number;
+  /** Answer the agent from here (the same /api/inject the box at the top of
+   *  Home uses); without it a waiting row only opens the session. */
+  onReply?: (tab: string, text: string) => Promise<unknown>;
+}) {
   const waiting = jobs.filter((j) => j.tone === "you");
   if (waiting.length === 0) return null;
   return (
     <List aria-label="Agents waiting for you" id="control-waiting">
       {waiting.map((job) => (
-        <ListRow
-          key={job.tab}
-          href={job.href}
-          icon={MessageCircle}
-          title={projectTitle({ name: job.tab })}
-          secondary={waitingLine(job)}
-          // Waiting for an answer is a to-do, not a warning: neutral, never
-          // the warning orange (owner: "Orange is not the color of Loki").
-          status="neutral"
-          trailing={elapsedLabel(job.since, nowMs) ?? undefined}
-          chevron
-        />
+        <Fragment key={job.tab}>
+          <ListRow
+            href={job.href}
+            icon={MessageCircle}
+            title={projectTitle({ name: job.tab })}
+            secondary={waitingLine(job)}
+            // Waiting for an answer is a to-do, not a warning: neutral, never
+            // the warning orange (owner: "Orange is not the color of Loki").
+            status="neutral"
+            trailing={elapsedLabel(job.since, nowMs) ?? undefined}
+            chevron
+          />
+          {job.reply && onReply && (
+            <ReplyRow tab={job.tab} question={job.question} onReply={onReply} />
+          )}
+        </Fragment>
       ))}
     </List>
   );
@@ -112,6 +126,77 @@ export function NowJobRow({ job, nowMs }: { job: NowJob; nowMs: number }) {
       trailing={job.tone === "quiet" ? undefined : (elapsedLabel(job.since, nowMs) ?? undefined)}
       chevron
     />
+  );
+}
+
+/**
+ * The answer, right under the question: one line and Send, which goes to the
+ * project's agent. Before, answering meant opening the session to find out
+ * what was being asked (owner, 2026-11-12). Its own list item, not inside the
+ * row: the row is a link, and a field inside a link is not a field.
+ */
+function ReplyRow({
+  tab,
+  question,
+  onReply,
+}: {
+  tab: string;
+  question: string | null;
+  onReply: (tab: string, text: string) => Promise<unknown>;
+}) {
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const name = projectTitle({ name: tab });
+  if (state === "sent") {
+    return (
+      <li className="ui-home-reply">
+        <span className="ui-home-reply-sent" role="status">
+          Sent to {name}
+        </span>
+      </li>
+    );
+  }
+  const send = async () => {
+    const reply = text.trim();
+    if (!reply || state === "sending") return;
+    setState("sending");
+    try {
+      await onReply(tab, reply);
+      setState("sent");
+    } catch {
+      setState("failed");
+    }
+  };
+  return (
+    <li className="ui-home-reply">
+      <form
+        className="ui-home-reply-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (state === "failed") setState("idle");
+          }}
+          placeholder={`Reply to ${name}`}
+          aria-label={question ? `Reply to ${name}: ${question}` : `Reply to ${name}`}
+          className="ui-home-reply-input"
+          enterKeyHint="send"
+        />
+        <button
+          type="submit"
+          className="ui-home-fix"
+          disabled={!text.trim() || state === "sending"}
+        >
+          {state === "failed" ? "Didn't send — retry" : state === "sending" ? "Sending" : "Send"}
+        </button>
+      </form>
+    </li>
   );
 }
 

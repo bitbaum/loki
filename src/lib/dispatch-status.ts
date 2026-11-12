@@ -4,6 +4,7 @@ import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import { AGENT_LABELS } from "@/lib/agent-labels";
+import { BUILDER_UPDATING_LABEL, BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
 
 export type DispatchStatusInput = {
   ok?: boolean;
@@ -18,7 +19,26 @@ export type DispatchStatusInput = {
   channel?: BuilderChannel | null;
   /** The builder the project prefers was offline, so `channel` took the work. */
   reroutedFrom?: BuilderChannel | null;
+  /** The cloud runner is behind the deploy, so this waits for its restart,
+   *  for a bounded time (lib/runner-update-hold). */
+  builderUpdating?: boolean | null;
+  /** The project has an open run, and this one waits behind it in the same
+   *  session (orchestration/busy-placement "queue"). */
+  queuedBehind?: boolean | null;
 };
+
+/**
+ * What a person is told when their task waits behind the project's open run.
+ * It read "a runner is online and will claim it shortly" while the task
+ * could wait for hours: the claim gate holds a project's next command until
+ * its older run has closed. One wording for the chat, the API answer and the
+ * run's track.
+ */
+export const QUEUED_BEHIND_SENTENCE =
+  "This project is still on an earlier task. Yours is next in line and starts when that one ends. To start it now, open the project's session and send it there, or stop the earlier task.";
+
+/** The same fact as a short label under a sent task. */
+export const QUEUED_BEHIND_LABEL = "Next in line — starts when the earlier task ends";
 
 /**
  * The builder named for a sentence, or null when we genuinely don't know.
@@ -68,6 +88,12 @@ export function dispatchStatusLabel(input: DispatchStatusInput): { label: string
   if (input.mode === "direct") {
     return { label: on ? `Running now on ${on}` : "Running now", warn: false };
   }
+  if (input.mode === "queued" && input.queuedBehind) {
+    return { label: QUEUED_BEHIND_LABEL, warn: false };
+  }
+  if (input.mode === "queued" && input.builderUpdating) {
+    return { label: BUILDER_UPDATING_LABEL, warn: false };
+  }
   if (input.mode === "queued") {
     const from = builderName(input.reroutedFrom);
     return {
@@ -93,6 +119,15 @@ export function dispatchAssistantContent(projectKey: string, input: DispatchStat
     return on
       ? `Running on **${projectKey}** in the agent terminal on ${on} now.`
       : `Running on **${projectKey}** in the agent terminal now.`;
+  }
+  if (input.mode === "queued" && !warn && input.queuedBehind) {
+    // Not "starting shortly" either: it waits for the run ahead of it.
+    return `Sent **${projectKey}**${on ? ` to ${on}` : ""}. ${QUEUED_BEHIND_SENTENCE}`;
+  }
+  if (input.mode === "queued" && !warn && input.builderUpdating) {
+    // Not "starting shortly": the runner holds new work until it has
+    // restarted on the new code, and the person is told how long at most.
+    return `Sent **${projectKey}** to the cloud runner. ${BUILDER_UPDATING_SENTENCE}`;
   }
   if (input.mode === "queued" && !warn) {
     const from = builderName(input.reroutedFrom);
