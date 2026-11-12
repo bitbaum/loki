@@ -398,6 +398,26 @@ async function main(): Promise<number> {
     assert((await runRow(a.runId)).finished_at === null, "a run waiting for a person was closed");
   });
 
+  await check("a run whose runner never reported output keeps its lane", async () => {
+    const user = await newUser("mute");
+    // Delivered 45 min ago, no beat ever: an old runner does not beat while
+    // its agent works, so silence here is not evidence of anything.
+    const a = await openRun({
+      user,
+      key: "mute",
+      createdAgo: 50,
+      deliveredAgo: 45,
+      command: "executed",
+    });
+    await openRun({ user, key: "mute", createdAgo: 10, command: "waiting" });
+    for (let look = 0; look < 2; look++) {
+      const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+      assert(claimed === null, `look ${look + 1}: claimed behind a run that never beat`);
+    }
+    assert((await runRow(a.runId)).finished_at === null, "a run that never beat was closed");
+    assert((await payloadOf(a.runId)).quietSeenAt === undefined, "a run that never beat was noted");
+  });
+
   await check("a silent run nobody waits behind is left to the reaper", async () => {
     const user = await newUser("alone");
     const a = await openRun({

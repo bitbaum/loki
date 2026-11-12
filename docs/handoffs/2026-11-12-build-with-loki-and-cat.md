@@ -167,9 +167,11 @@ screen the whole time.
 
 - `src/lib/orchestration/quiet-lane.ts`: the rule, pure. The runner beats
   while the terminal prints and while the agent waits at a sign-in or an
-  approval. No beat for 20 minutes (twice the window after which every
-  surface already says Stalled), not waiting for a person, no command
-  outstanding, and still so 90 seconds after it was first seen: release. The
+  approval. At least one beat ever (a runner from before beats existed
+  reports nothing while its agent works, so its silence proves nothing),
+  then no beat for 20 minutes (twice the window after which every surface
+  already says Stalled), not waiting for a person, no command outstanding,
+  and still so 90 seconds after it was first seen: release. The
   second look is there because a runner that lost its connection cannot beat,
   and its first request back may be the claim.
 - `src/db/queries/quiet-lane.ts`: gathers those facts for the run at the head
@@ -191,7 +193,7 @@ Tests: `scripts/test/quiet-lane.ts` (the rule), and five scenarios in
 `scripts/test/lane-and-reaper.ts` against a real Postgres (released on the
 second look and claimed at once; a printing run keeps its lane at eleven
 hours; a beat between the two looks keeps it; an approval prompt keeps it;
-nothing happens with nobody waiting). To run the second one locally:
+a run that never beat keeps it; nothing happens with nobody waiting). To run the second one locally:
 `pg_ctlcluster 16 main start`, `apt-get install postgresql-16-pgvector`,
 create a database, `CREATE EXTENSION vector`, `DATABASE_URL=… npx drizzle-kit
 push --force`, then `TEST_DATABASE_URL=… npx tsx scripts/test/lane-and-reaper.ts`.

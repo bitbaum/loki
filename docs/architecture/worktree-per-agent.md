@@ -64,7 +64,8 @@ nothing for twenty minutes (`src/lib/orchestration/quiet-lane.ts`). A run
 closes when its agent reports; an agent that ended its turn without reporting
 still has a process at its prompt, and the reaper shelters a run with a live
 process for up to `MAX_RUN_HOURS`. So at claim time, when a message is waiting,
-the run at the head of the lane is read from the runner's own beats: silent
+the run at the head of the lane is read from the runner's own beats: it has
+beaten at least once (a runner that never reports proves nothing), silent
 past the window, not waiting for a person at a sign-in or an approval, and
 still silent ninety seconds after it was first seen so, it is closed with that
 sentence and the message is claimed in the same request. A working agent

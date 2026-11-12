@@ -98,16 +98,18 @@ check("a beat after the note starts the confirmation again", () => {
   assert(step.kind === "mark", `a note older than the last beat released at once: ${step.kind}`);
 });
 
-check("a run that never printed is timed from delivery", () => {
+check("a run whose runner never reported output holds: silence proves nothing there", () => {
+  // A runner from before the beat existed reports nothing while its agent
+  // works. Delivered 25 minutes ago and no beat is not "stopped".
   assert(
-    lastSignOfLifeMs({ deliveredAtMs: min(25), lastProgressAtMs: null }) === min(25),
-    "delivery is the floor",
+    lastSignOfLifeMs({ deliveredAtMs: min(25), lastProgressAtMs: null }) === null,
+    "a run that never beat has no last sign of life to time",
   );
   const step = quietLaneStep(
     facts({ deliveredAtMs: min(25), lastProgressAtMs: null, quietSeenAtMs: min(2) }),
     NOW,
   );
-  assert(step.kind === "release", `delivered 25 min ago and silent since was ${step.kind}`);
+  assert(step.kind === "hold", `delivered 25 min ago with no beat ever was ${step.kind}`);
 });
 
 check("a run whose prompt never reached an agent holds", () => {

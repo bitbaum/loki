@@ -33,9 +33,9 @@
  */
 import { RUN_BLOCKED, RUN_PROGRESS_FRESH_MS } from "@/lib/run-progress";
 
-/** Silence, measured from the run's last beat (or from delivery when it never
- *  printed), after which a waiting message may take the session. Twice the
- *  window after which the product itself calls the run stalled. */
+/** Silence, measured from the run's last beat, after which a waiting message
+ *  may take the session. Twice the window after which the product itself
+ *  calls the run stalled. */
 export const QUIET_LANE_MS = 2 * RUN_PROGRESS_FRESH_MS;
 export const QUIET_LANE_MINUTES = QUIET_LANE_MS / 60_000;
 
@@ -68,12 +68,21 @@ export type QuietLaneStep =
   /** Still silent after the confirmation window: close it. */
   | { kind: "release"; quietSinceMs: number };
 
-/** The last moment the run's agent is known to have been doing anything. */
+/**
+ * The last moment the run's agent is known to have been doing anything, or
+ * null when silence proves nothing.
+ *
+ * A run that has never beaten is one of those: a runner from before the beat
+ * existed reports nothing while its agent works, and silence since delivery
+ * would then close a working run. Only a run whose runner HAS reported output
+ * can be read as having stopped. One that truly never printed is the
+ * reaper's: the runner acks it unverified and it is closed as never started.
+ */
 export function lastSignOfLifeMs(
   f: Pick<QuietLaneFacts, "deliveredAtMs" | "lastProgressAtMs">,
 ): number | null {
-  if (f.deliveredAtMs == null) return null;
-  return Math.max(f.deliveredAtMs, f.lastProgressAtMs ?? 0);
+  if (f.deliveredAtMs == null || f.lastProgressAtMs == null) return null;
+  return Math.max(f.deliveredAtMs, f.lastProgressAtMs);
 }
 
 /**
@@ -81,6 +90,7 @@ export function lastSignOfLifeMs(
  *
  * Holds whenever the silence could be something else:
  *   - the prompt never reached an agent (the run is itself still starting);
+ *   - the runner has never reported output for it (lastSignOfLifeMs);
  *   - a command for it is outstanding (the runner is delivering to it);
  *   - the agent waits for a person at a sign-in or an approval. Text typed
  *     there answers the question instead of starting the next task; the run
