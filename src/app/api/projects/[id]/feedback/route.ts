@@ -1,22 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readIdParam, readJsonBody, jsonOk, jsonError, z } from "@/lib/api/route-helpers";
+import { readIdParam, readJsonBody, jsonOk, jsonError } from "@/lib/api/route-helpers";
 import { getApiUserId, getSessionUserId } from "@/lib/session";
-import {
-  findFeedbackByIdempotencyKey,
-  getFeedbackLoopMetrics,
-  insertAgentFeedback,
-  insertSiteFeedback,
-  listProjectFeedback,
-} from "@/db/queries/site-feedback";
-import { FeedbackAttachmentsSchema } from "@/lib/feedback/attachment-schema";
-import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
-import { feedbackContentHash } from "@/lib/feedback/content-hash";
-import { startOwnerBuild } from "@/lib/feedback/owner-build";
-import { getUserProjectByEntityId } from "@/db/queries/user-projects";
-import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
-import { appUrl } from "@/lib/email";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
+import { getFeedbackLoopMetrics, listProjectFeedback } from "@/db/queries/site-feedback";
+import { AgentFiling, fileAgentFeedback } from "@/lib/feedback/agent-filing";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
 import { getProjectAccess } from "@/db/queries/project-access";
 
@@ -38,18 +24,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return jsonOk({ feedback, metrics, access: { role: access.role, canEdit: access.canEdit } });
 }
 
-const AgentFiling = z.object({
-  suggestion: z.string().trim().min(1).max(2000),
-  /** What the agent calls itself ("qa-bot"): a label for the inbox, not an identity. */
-  agentName: z.string().trim().min(1).max(80),
-  /** The caller's retry key. The same key again returns the same row. */
-  idempotencyKey: z.string().trim().min(8).max(200).optional(),
-  page: z.string().max(300).optional(),
-  url: z.string().max(1000).optional(),
-  pageTitle: z.string().max(300).optional(),
-  ...FeedbackAttachmentsSchema,
-});
-
 /**
  * An agent files a report with its own seat's Bearer token (`ck_…`) — the
  * same inbox the widget fills, no second one. Any seat on the project may
@@ -64,59 +38,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (idOrResp instanceof NextResponse) return idOrResp;
   const access = await getProjectAccess(userId, idOrResp);
   if (!access) return jsonError("Project not found", 404);
-  if (!checkRateLimit(`feedback:agent:${userId}:${idOrResp}`, 60, RATE_LIMIT_WINDOW_LONG_MS))
-    return jsonError("Too many submissions, try again later", 429);
   const data = await readJsonBody(req, AgentFiling);
   if (data instanceof NextResponse) return data;
 
-  const respond = (
-    row: { id: string; status: string },
-    replayed: boolean,
-    build?: { building: boolean; buildNote?: string },
-  ) =>
-    jsonOk(
-      {
-        id: row.id,
-        status: row.status,
-        statusUrl: `${appUrl()}/api/feedback/${row.id}/status`,
-        replayed,
-        ...build,
-      },
-      { status: replayed ? 200 : 201 },
-    );
-
-  if (data.idempotencyKey) {
-    const seen = await findFeedbackByIdempotencyKey(idOrResp, data.idempotencyKey);
-    if (seen) return respond(seen, true);
-  }
-  const values = {
-    projectId: idOrResp,
-    userId: access.ownerUserId,
-    suggestion: data.suggestion,
-    page: data.page ?? null,
-    url: data.url ?? null,
-    pageTitle: data.pageTitle ?? null,
-    captureContext: data.context ?? null,
-    screenshots: data.screenshots ?? null,
-    selectedElements: data.selectedElements ?? null,
-    moments: data.moments?.length ? data.moments : null,
-    source: FEEDBACK_SOURCE.AGENT,
-    agentName: data.agentName,
-    reporterUserId: userId,
-    contentHash: feedbackContentHash(data.suggestion, data.page ?? null, data),
-  };
-  // Without a key there is nothing to replay: a plain insert.
-  const stored = data.idempotencyKey
-    ? await insertAgentFeedback({ ...values, idempotencyKey: data.idempotencyKey })
-    : await insertSiteFeedback(values).then((row) => (row ? { row, replayed: false } : null));
-  if (!stored) return jsonError("Could not store feedback, try again later", 500);
-  if (stored.replayed) return respond(stored.row, true);
-  void notifyFeedbackReceived(stored.row);
-  // Filing alone never builds. Only a project whose OWNER opted in ("agent
-  // reports build unasked", default off) starts the build, on the owner's own
-  // builder and daily limit, through the same path as the Implement button.
-  const project = await getUserProjectByEntityId(access.ownerUserId, idOrResp).catch(() => null);
-  if (project?.agentBuildsUnasked !== true) return respond(stored.row, false);
-  const build = await startOwnerBuild(access.ownerUserId, idOrResp, stored.row.id);
-  return respond(stored.row, false, build);
+  // The filing itself (rate limit, idempotent replay, insert, the owner's
+  // opt-in build) is lib/feedback/agent-filing: one body for every door.
+  const filed = await fileAgentFeedback(userId, idOrResp, access, data);
+  if (!filed.ok) return jsonError(filed.error, filed.status);
+  return jsonOk(filed.body, { status: filed.status });
 }

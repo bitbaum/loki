@@ -30,11 +30,30 @@ assert.equal(capabilitiesForRole("editor").canEdit, true);
 assert.equal(capabilitiesForRole("client").canEdit, false);
 assert.equal(capabilitiesForRole("viewer").canEdit, false);
 
-// The route: Bearer-capable auth, the seat check, no build started, one retry key.
+// The route: Bearer-capable auth and the seat check, then the one filing body
+// (lib/feedback/agent-filing), which the signed OrangeCat door calls too.
 const route = read("src/app/api/projects/[id]/feedback/route.ts");
-const post = route.slice(route.indexOf("export async function POST"));
-assert.match(post, /getApiUserId\(\)/, "Bearer or session");
-assert.match(post, /getProjectAccess\(userId, idOrResp\)/, "the seat decides");
+const door = route.slice(route.indexOf("export async function POST"));
+assert.match(door, /getApiUserId\(\)/, "Bearer or session");
+assert.match(door, /getProjectAccess\(userId, idOrResp\)/, "the seat decides");
+assert.match(door, /fileAgentFeedback\(userId, idOrResp, access, data\)/);
+assert.doesNotMatch(door, /implementFeedback|dispatch|canEdit/);
+const filingLib = read("src/lib/feedback/agent-filing.ts");
+const post = filingLib.slice(
+  filingLib.indexOf("export async function fileAgentFeedback"),
+  filingLib.indexOf("export async function readFeedbackStatus"),
+);
+// The other door: signed, the linked account, the same body. Words only.
+const rail = read("src/app/api/orangecat/feedback/route.ts");
+assert.match(rail, /readSignedOrangeCatBody\(/);
+assert.match(rail, /isFreshIssuedAt\(/);
+assert.match(rail, /getProjectAccess\(user\.id, project\.entityProjectId\)/, "the seat decides");
+assert.match(rail, /fileAgentFeedback\(user\.id, project\.entityProjectId, access,/);
+assert.doesNotMatch(
+  rail,
+  /insertSiteFeedback|insertAgentFeedback|startOwnerBuild/,
+  "no second body",
+);
 assert.match(post, /FEEDBACK_SOURCE\.AGENT/);
 assert.match(post, /agentName/);
 assert.match(post, /idempotencyKey/);
@@ -47,7 +66,7 @@ assert.match(post, /agentBuildsUnasked !== true\) return respond/);
 assert.doesNotMatch(post, /canEdit/, "a reporter seat may file");
 
 // Attachments: the same schema object as the widget's ingest, not a copy.
-assert.match(route, /\.\.\.FeedbackAttachmentsSchema/);
+assert.match(filingLib, /\.\.\.FeedbackAttachmentsSchema/);
 assert.match(read("src/app/api/feedback/route.ts"), /\.\.\.FeedbackAttachmentsSchema/);
 assert.match(post, /captureContext: data\.context/);
 assert.match(post, /moments: data\.moments/);
