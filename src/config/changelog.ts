@@ -29,6 +29,26 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.70",
+    tag: "fleet-runner-v0.8.70",
+    date: "2026-11-12T07:40:00Z",
+    highlights: [
+      "The builder also reports the branch a task pushes to, and the branch it is on when it stops, so a task's own pull request is found even when the agent named its branch itself.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
+    version: "0.8.69",
+    tag: "fleet-runner-v0.8.69",
+    date: "2026-11-12T07:35:00Z",
+    highlights: [
+      "A task that runs beside a busy project's own session starts from the project's main branch, in a new conversation, and no longer pulls changes into the folder the busy session is working in.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.68",
     tag: "fleet-runner-v0.8.68",
     date: "2026-11-12T07:30:00Z",

@@ -161,6 +161,9 @@ export type ProjectState = {
     lastStep?: { text: string; at: string } | null;
     /** "auth" when the agent is waiting for someone to sign in. */
     blocked?: string | null;
+    /** With blocked "permission" or "exited": what the agent asked, or why it
+     *  stopped, as the runner read it off the screen. */
+    blockedQuestion?: string | null;
     /** The tab a parallel run lives in, when it is not the project's own. */
     sessionTab?: string | null;
     adapter: string;

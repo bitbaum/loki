@@ -110,7 +110,10 @@ check("a fresh session refused for lack of a lane is not a failing run", () => {
     "inject",
   );
   const q = read("src/db/queries/orchestration-runs.ts");
-  assert(/opts\.ladder !== false && ladderEffectForClose\(closed\.outcome\)/.test(q), "close");
+  assert(
+    /opts\.ladder !== false &&\s*ladderEffectForClose\(closed\.outcome(, closed)?\)/.test(q),
+    "close",
+  );
 });
 
 if (failures) {

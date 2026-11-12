@@ -67,6 +67,10 @@ worktree. The pieces that ARE alias-aware:
   row keeps the BASE `projectKey` so analytics/busy checks aggregate per project.
 - **Runner guard** (`poller.ts`): a derived tab FORCES worktree isolation
   regardless of the env flag — parallel-without-isolation is impossible.
+- **Lane base** (`worktree-workspace.ts` `laneBaseRef`): a derived tab's
+  worktree starts from the remote default branch, not from the checkout's
+  HEAD, which on the cloud builder is the shared session's own run branch
+  (`scripts/test/lane-base.ts`).
 - **Ingestion** (`runtime-state`): alias tabs are never persisted as
   project_states rows (no ghost cards; no clobbering the base project's runtime
   facts). A READY alias handoff closes exactly the run whose
@@ -86,7 +90,12 @@ When it reports ready on its own session file the run closes and Loki queues
 server flag does not apply (the caller asked by name); the lane limit does.
 When no lane can be had the request is refused with
 `fresh-session-unavailable` (409) and nothing is sent: a fresh session never
-falls back to the project's shared tab. However the run closes (its report,
+falls back to the project's shared tab. Nothing of the shared session goes into it
+(no escalation note, no shared handoff or session file in its prompt, no
+writes to the shared tab's files), and nothing of it goes back: its close
+leaves the project's escalation ladder alone, Control never closes it from
+the shared session's handoff, and a retry is a one-off again
+(`scripts/test/one-off-stays.ts`). However the run closes (its report,
 the reaper, a refused ack, a runner restart), `notifyRunClosed` queues
 `close_tab` for the lane (`src/lib/orchestration/one-off-close.ts`).
 

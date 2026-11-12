@@ -51,10 +51,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Where the change is — the same track Watch draws (lib/run-track-load) —
   // and, once the run is over, what it did and what comes next, so the chat
   // card can say it instead of linking away.
-  const loaded = run ? await loadRunTrack(userId, run).catch(() => null) : null;
+  const loaded = run
+    ? await loadRunTrack(userId, run, { known: { claimed: command.claimedAt } }).catch(() => null)
+    : null;
   return NextResponse.json({
     // One status: while the run is open, the word is the track's.
-    ...alignLiveViewWithTrack(view, loaded?.track),
+    ...alignLiveViewWithTrack(view, loaded?.track, {
+      claimed: Boolean(command.claimedAt),
+      executed: Boolean(command.executedAt),
+    }),
     handoff: runHandoff(run?.finishedAt ? run.summary : null),
     follow: view.terminal ? (loaded?.follow ?? null) : null,
     track: loaded?.track ?? null,

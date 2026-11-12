@@ -94,7 +94,7 @@ assert.match(runs, /payload->>'lastProgressAt'\) IS NOT NULL/, "unknown is not i
 
 const progress = read("src/app/api/control/runs/[id]/progress/route.ts");
 assert.match(progress, /isWorkingBeat\(\{ outputBytes, blocked \}\)/);
-assert.match(progress, /stampRunProgress\(id, userId, blocked, step, question, branch, working\)/);
+assert.match(progress, /\[branch, upstream\],\s*working,\s*\)/);
 
 const inject = read("src/lib/inject-core.ts");
 assert.match(inject, /queuedBehind \? queuedBehindSentence\(blocker\) : null/);
