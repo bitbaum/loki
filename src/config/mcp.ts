@@ -55,10 +55,12 @@ export const MCP_TOOL_SCOPES = {
   loki_projects: MCP_SCOPE.chat,
   loki_sessions: MCP_SCOPE.chat,
   loki_session_read: MCP_SCOPE.chat,
+  loki_approvals_list: MCP_SCOPE.chat,
   loki_decide: MCP_SCOPE.act,
   loki_dispatch: MCP_SCOPE.act,
   loki_book: MCP_SCOPE.act,
   loki_browser_task: MCP_SCOPE.act,
+  loki_approve: MCP_SCOPE.act,
 } as const satisfies Record<string, McpScope>;
 
 export type McpToolName = keyof typeof MCP_TOOL_SCOPES;

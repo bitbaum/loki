@@ -21,6 +21,7 @@ export const RUN_EVENT_KINDS = [
   "generating", // agent confirmed generating
   "progress", // runner heartbeat: the agent's PTY printed since the last beat (detail.outputBytes)
   "blocked", // agent blocked on input / auth / dialog (detail.reason)
+  "approval", // a permission prompt answered from Loki (detail: decision, by, via, at, question)
   "handoff", // session handoff received (pusher persisted it)
   "closed", // run closed with outcome (closeRunFromSession / reaper)
   // A closed run's outcome corrected after the fact: the reaper said

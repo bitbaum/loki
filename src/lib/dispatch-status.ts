@@ -228,6 +228,8 @@ export type DispatchLiveStatus =
   /** A builder has it; the agent has not shown the prompt yet. */
   | "starting"
   | "working"
+  /** At a permission prompt that can be answered from Loki (lib/approvals). */
+  | "waiting_approval"
   /** Stopped until a person acts; the track's sentence says on what. */
   | "needs_you"
   | "delivered"
@@ -603,6 +605,14 @@ export function alignLiveViewWithTrack(
       return { ...view, status: "queued", label: "Queued", detail, tone: "neutral" };
     case "starting":
       return { ...view, status: "starting", label: "Starting", detail, tone: "neutral" };
+    case "waiting_approval":
+      return {
+        ...view,
+        status: "waiting_approval",
+        label: "Waiting for your approval",
+        detail,
+        tone: "warning",
+      };
     case "needs_you":
       return { ...view, status: "needs_you", label: "Needs you", detail, tone: "warning" };
     case "working":

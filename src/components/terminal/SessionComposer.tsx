@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingApprovals } from "@/components/approvals/PendingApprovals";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertCircle, Plus, X } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
@@ -342,6 +343,7 @@ export function SessionComposer({
 
   return (
     <div ref={boxRef} className="ui-session-box relative shrink-0">
+      <PendingApprovals tab={tab} />
       {pickerOpen && (
         <SessionPicker
           agent={agent}

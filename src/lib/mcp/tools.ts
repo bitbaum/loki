@@ -24,6 +24,7 @@ import { BROWSER_RECIPES, BROWSER_RECIPE_IDS } from "@/config/browser-tasks";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 import { sessionOpenUrl } from "@/lib/dispatch-card";
 import { mayPeekTab } from "@/lib/peek-access";
+import { APPROVAL_DECISIONS, APPROVAL_DECISION_LABEL } from "@/lib/approvals";
 import { plainSessionText } from "@/lib/session-screen";
 import { isShellTab } from "@/lib/shell-session";
 
@@ -448,6 +449,51 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
       return text(
         `The end of ${args.session}'s terminal output (the owner can open it at ${openUrl}):\n\n${content}`,
         { session: args.session, content, openUrl },
+      );
+    },
+  }),
+
+  loki_approvals_list: define({
+    title: "Agent permission prompts",
+    description:
+      "List the permission prompts the owner's agent sessions are waiting on right now: a tool it wants to run, a folder to trust, a plan to approve, a network or environment request. Not Loki's own action queue (that is loki_pending_approvals). Each has an id, the session, the agent's own question, the answers it takes and how long it has waited. Answer one with loki_approve.",
+    input: z.object({
+      session: z
+        .string()
+        .trim()
+        .min(1)
+        .max(120)
+        .optional()
+        .describe("One session's prompts only, as loki_sessions named it."),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    async run(args, { userId, services }) {
+      const approvals = await services.sessionApprovals(userId, args.session ?? null);
+      if (approvals.length === 0) {
+        return text("No agent session is waiting for an approval.", { approvals: [] });
+      }
+      const lines = approvals.map(
+        (a) => `- ${a.id} in ${a.tab}: ${a.headline} — answers: ${a.choices.join(", ")}`,
+      );
+      return text(`${approvals.length} waiting:\n${lines.join("\n")}`, { approvals });
+    },
+  }),
+
+  loki_approve: define({
+    title: "Answer an agent permission prompt",
+    description:
+      "Answer one permission prompt an agent session is waiting on, by its id from loki_approvals_list: allow_once, allow_always (for this rule) or deny. The answer is typed into the session's terminal and recorded with who answered and when. Refused if the agent has since moved on or asks something else; list again and answer that. Do not allow what the owner would not: when unsure, deny and say why.",
+    input: z.object({
+      id: z.string().trim().min(1).max(80),
+      decision: z.enum(APPROVAL_DECISIONS),
+    }),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    async run(args, { userId, services }) {
+      const result = await services.answerSessionApproval(userId, args.id, args.decision);
+      if (!result.ok) return toolError(result.error);
+      return text(
+        `Answered "${APPROVAL_DECISION_LABEL[result.decision]}" to ${result.approval.tab}: ${result.approval.question}`,
+        { approval: result.approval, decision: result.decision },
       );
     },
   }),

@@ -1117,10 +1117,21 @@ export async function stampRunProgress(
   const progressed = working
     ? sql`jsonb_set(${seenBeat}, '{lastProgressAt}', ${JSON.stringify(now)}::jsonb)`
     : seenBeat;
-  const beat = sql`jsonb_set(jsonb_set(
+  // When the current block began: kept while the same block (and question)
+  // goes on, so "waiting for your approval for 6 minutes" is the wait, not
+  // the time since the last beat (db/queries/approvals).
+  const blockedAt = blocked
+    ? sql`CASE WHEN payload->>'blocked' = ${blocked}
+                 AND COALESCE(payload->>'blockedQuestion', '') = ${question ?? ""}
+                 AND payload->>'blockedAt' IS NOT NULL
+               THEN payload->'blockedAt'
+               ELSE ${JSON.stringify(now)}::jsonb END`
+    : sql`'null'::jsonb`;
+  const beat = sql`jsonb_set(jsonb_set(jsonb_set(
         ${progressed},
         '{blocked}', ${JSON.stringify(blocked)}::jsonb),
-        '{blockedQuestion}', ${JSON.stringify(question)}::jsonb)`;
+        '{blockedQuestion}', ${JSON.stringify(question)}::jsonb),
+        '{blockedAt}', ${blockedAt})`;
   // Read, then set: the list only changes when the agent changes branch, so
   // nearly every beat skips this.
   let branches: string[] | null = null;
