@@ -88,6 +88,8 @@ const events = buildActivityEvents({
   blockedReasons: new Map([
     ["r1", "injected to running claude (pty), but the agent isn't generating yet"],
   ]),
+  // r3 was sent ten minutes before "now": still on its way, so running.
+  nowMs: Date.parse("2026-08-26T04:10:00Z"),
 });
 
 const prompt = buildDigestUserPrompt({ events, projectKey: null, windowLabel: "day" });

@@ -59,6 +59,7 @@ check("counts each outcome into exactly one bucket", () => {
       run({ projectKey: "c", outcome: "error" }),
       run({ projectKey: "d", outcome: "running", state: "running", finishedAt: null }),
     ],
+    nowMs: T0.getTime() + 5 * 60_000,
   });
   const s = summarizeActivity(events);
   assert.equal(s.shipped, 2);
@@ -150,8 +151,8 @@ check("singulars read correctly", () => {
   assert.equal(activityHeadline({ ...base, running: 1 }), "1 agent is working right now.");
 });
 
-check("work waiting on a runner is surfaced, not silently dropped", () => {
-  assert.ok(activityHeadline({ ...base, queued: 2 }).includes("waiting on a runner"));
+check("work waiting to start is surfaced, not silently dropped", () => {
+  assert.ok(activityHeadline({ ...base, queued: 2 }).includes("waiting to start"));
 });
 
 check("an empty window says so plainly", () => {
@@ -170,7 +171,7 @@ check("reports a real swing with its direction", () => {
 });
 
 check("a huge swing is told as counts, not '967% busier'", () => {
-  assert.equal(computeMomentum(64, 6).label, "up from 6 the window before");
+  assert.equal(computeMomentum(64, 6).label, "64 tasks, up from 6 the window before");
   assert.equal(computeMomentum(30, 10).label, "200% busier than last window");
 });
 

@@ -49,9 +49,10 @@ export async function ActivityView({
   for (const p of projects) names[p.name] = { title: projectTitle(p), id: p.id };
   const titleOf = (key: string) => titleFor(names, key);
 
-  const summary = summarizeActivity(digest.events);
-  const momentum = computeMomentum(digest.events.length, digest.previousCount);
-  const attentionEvents = digest.events.filter(eventNeedsAttention);
+  // From every row in the window, not the 60 the list shows (2026-11-12).
+  const summary = summarizeActivity(digest.summaryEvents);
+  const momentum = computeMomentum(digest.currentCount, digest.previousCount);
+  const attentionEvents = digest.summaryEvents.filter(eventNeedsAttention);
   const context = [
     summary.agentLabel ? `${summary.agentLabel} of agent time` : null,
     momentum.label,
@@ -97,6 +98,9 @@ export async function ActivityView({
             projectKey={digest.projectKey}
             names={names}
           />
+          {digest.listCapped && (
+            <p className="text-sm text-text-tertiary">Showing the latest {digest.events.length}.</p>
+          )}
         </>
       ) : (
         <EmptyState

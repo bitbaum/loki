@@ -1,4 +1,5 @@
 import type { ActivityEvent } from "@/lib/activity-events";
+import { taskTitle } from "@/lib/task-title";
 import type { ProjectNames } from "./activity-shared";
 
 /**
@@ -23,19 +24,31 @@ export function plainFailure(event: Pick<ActivityEvent, "error" | "outcome">): s
   if (/no running agent|could not (be )?start|never started|not delivered/.test(lower))
     return "The agent did not start.";
   if (/usage limit|quota|rate limit|credit/.test(lower)) return "The AI provider's limit ran out.";
+  // The rest the owner read raw on 2026-11-12: a full builder, a missing
+  // folder, an exit code, a cancel, and a replaced request.
+  if (/already open on the|as many as it runs at once|no free (slot|session)/.test(lower))
+    return "Too many tasks were running at once. Run it again when one finishes.";
+  if (/cwd does not exist|no such file or directory/.test(lower))
+    return "The project's folder is missing on the builder.";
+  if (/exited \(code|process exited/.test(lower)) return "The agent quit unexpectedly.";
+  if (/stopped waiting/.test(lower)) return "You cancelled it before it started.";
+  if (/superseded/.test(lower)) return "Replaced by a newer request.";
   if (/timed out|timeout/.test(lower) || event.outcome === "timeout") return "It ran out of time.";
   if (event.outcome === "hang") return "It stopped answering.";
   if (event.outcome === "unconfirmed") return "Sent, but the agent never confirmed it.";
   if (!raw) return "It failed without saying why.";
-  const first = raw.split(/(?<=[.!?])\s/)[0] ?? raw;
-  return first.length > 140 ? `${first.slice(0, 139)}…` : first;
+  // An unknown cause is the builder's own text — paths, codes, flags. Watch
+  // shows it in full; the feed says where to look.
+  return "It failed — open it to see why.";
 }
 
 /** One line for a row in the feed: how it went, then what came of it. */
 export function eventLine(event: ActivityEvent): string {
   const outcome = event.outcomeLabel;
   if (event.status === "negative") return `${outcome} · ${plainFailure(event)}`;
-  const what = event.done ?? event.ask?.preview ?? event.intentLabel;
+  // What it is, the way Home titles it (lib/task-title) — never the raw
+  // instructions sent to the agent, flags and URLs included (2026-11-12).
+  const what = event.done ?? taskTitle(event.ask?.task ?? event.ask?.preview, event.intentId);
   return what ? `${outcome} · ${what}` : outcome;
 }
 

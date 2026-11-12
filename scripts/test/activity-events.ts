@@ -195,6 +195,7 @@ const mixed = buildActivityEvents({
     run({ id: "e4", projectKey: "d", outcome: "success", finishedAt: at(1) }),
     run({ id: "e5", projectKey: "e", state: "running", finishedAt: null }),
   ],
+  nowMs: T0.getTime() + 60_000,
 });
 
 check("tallies count what a person triages by", () => {
@@ -216,6 +217,40 @@ check("running and done filters are exact", () => {
   assert.equal(filterActivityEvents(mixed, "running").length, 1);
   assert.equal(filterActivityEvents(mixed, "done").length, 1);
   assert.equal(filterActivityEvents(mixed, "all").length, 5);
+});
+
+check("an unfinished run is only Running when it is (Home's rule, 2026-11-12)", () => {
+  const now = T0.getTime() + 3 * 3_600_000;
+  const fresh = new Date(now - 60_000).toISOString();
+  const stale = new Date(now - 2 * 3_600_000).toISOString();
+  const events = buildActivityEvents({
+    prompts: [],
+    runs: [
+      run({ id: "w", projectKey: "w", payload: { blocked: "permission" } }),
+      run({
+        id: "s",
+        projectKey: "s",
+        payload: { lastProgressAt: stale, lastStep: { text: "x" } },
+      }),
+      run({ id: "n", projectKey: "n" }),
+      run({
+        id: "r",
+        projectKey: "r",
+        payload: { lastProgressAt: fresh, lastStep: { text: "x" } },
+      }),
+    ],
+    nowMs: now,
+  });
+  const by = new Map(events.map((e) => [e.projectKey, e]));
+  assert.equal(by.get("w")?.outcome, "waiting");
+  assert.equal(by.get("w")?.outcomeLabel, "Waiting for you");
+  assert.equal(by.get("s")?.outcome, "silent");
+  assert.equal(by.get("n")?.outcome, "not_started");
+  assert.equal(by.get("r")?.outcome, "running");
+  const t = tallyActivityEvents(events);
+  assert.equal(t.running, 1, "only the run that is working counts as running");
+  assert.equal(t.attention, 1, "a run waiting for you needs you");
+  assert.equal(t.queued, 1, "a run never picked up is queued");
 });
 
 check("an unknown filter value falls back to all", () => {

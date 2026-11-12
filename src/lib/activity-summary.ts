@@ -145,7 +145,13 @@ export function computeMomentum(current: number, previous: number): ActivityMome
   // live 2026-10-01) and starts reading as noise. The two counts are the
   // same fact in words a person can check against the feed below.
   if (deltaPct > MOMENTUM_COUNTS_ABOVE_PCT) {
-    return { current, previous, deltaPct, label: `up from ${previous} the window before` };
+    // With its unit: "up from 9" beside agent time read as 9 hours (2026-11-12).
+    return {
+      current,
+      previous,
+      deltaPct,
+      label: `${current} tasks, up from ${previous} the window before`,
+    };
   }
   return {
     current,
@@ -263,7 +269,7 @@ export function activityHeadline(summary: ActivitySummary): string {
     return `${running} ${running === 1 ? "agent is" : "agents are"} working right now.`;
   }
   if (queued > 0) {
-    return `${queued} ${queued === 1 ? "task is" : "tasks are"} waiting on a runner.`;
+    return `${queued} ${queued === 1 ? "task is" : "tasks are"} waiting to start.`;
   }
   return "Nothing ran in this window.";
 }

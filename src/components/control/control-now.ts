@@ -15,13 +15,12 @@ import { STATE_DEFINITIONS } from "@/lib/control-states";
 import { describeRunShipping } from "@/lib/control-run-shipping";
 import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
 import { isRunProgressFresh } from "@/lib/run-progress";
+import { openRunState } from "@/lib/open-run-state";
 import { intentTitle } from "@/lib/task-title";
 import type { ProjectState } from "@/lib/control-types";
 import type { ProjectOperationsSnapshot } from "./control-presenter";
 
-/** A run sent this long ago that never reported a step has not been picked
- *  up: it is waiting on a builder, not being built. */
-export const NOT_PICKED_UP_MS = 30 * 60_000;
+export { NOT_PICKED_UP_MS } from "@/lib/open-run-state";
 
 /** A finished run stays in "Done" this long. */
 export const DONE_WINDOW_MS = 24 * 60 * 60_000;
@@ -101,6 +100,13 @@ export function buildNowJobs(
       (project.currentPrompt?.startedAt ? project.currentPrompt.startedAt * 1000 : null);
     const fresh = isRunProgressFresh(openRun?.lastProgressAt, nowMs);
     const step = openRun?.lastStep?.text;
+    // Silent or never picked up: the shared rule Activity reads too.
+    const openState = openRun
+      ? openRunState(
+          { startedAt: since, lastProgressAt: openRun.lastProgressAt, lastStep: openRun.lastStep },
+          nowMs,
+        )
+      : null;
 
     let tone: NowJob["tone"] = "working";
     let status: string;
@@ -122,7 +128,7 @@ export function buildNowJobs(
       status = WAITING_FOR_ANSWER;
     } else if (category === "working") {
       status = step && (fresh || !openRun?.lastProgressAt) ? step : "Working on it";
-    } else if (openRun && openRun.lastProgressAt && !fresh) {
+    } else if (openRun && openState === "silent") {
       // Say what it is waiting on, with when it was last heard from: "No
       // update for a while" under three rows told the owner nothing, and it
       // sat under "Being built" though nothing was (2026-10-22). Home lists
@@ -130,7 +136,7 @@ export function buildNowJobs(
       tone = "quiet";
       const heard = elapsedLabel(parseMs(openRun.lastProgressAt), nowMs);
       status = heard ? `No word from it for ${heard}` : "No word from it yet";
-    } else if (openRun && !step && since !== null && nowMs - since > NOT_PICKED_UP_MS) {
+    } else if (openState === "not_started") {
       // Sent long ago and never reported a step: no builder took it. Said
       // without "runner", a word the owner does not use (2026-11-12).
       tone = "quiet";
