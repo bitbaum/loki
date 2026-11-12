@@ -8,6 +8,7 @@ import { PageLayout } from "@/components/ui/page-layout";
 import { Section as PageSection } from "@/components/ui/section-heading";
 import { List, ListRow } from "@/components/ui/list-row";
 import { DeleteButton } from "@/components/ui/delete-button";
+import { TextArea } from "@/components/ui/text-area";
 import {
   SheetAction,
   SheetActions,
@@ -130,17 +131,17 @@ export function PersonDetail({ person }: { person: PersonDetailData }) {
       <PageSection title="Your note">
         {descEdit.editing ? (
           <div className="space-y-2">
-            <textarea
+            <TextArea
               value={descEdit.draft}
-              onChange={(e) => descEdit.setDraft(e.target.value)}
+              onChange={descEdit.setDraft}
               onKeyDown={(e) => {
                 if (e.key === "Escape") descEdit.cancel();
-                if (e.key === "Enter" && e.metaKey) commitDescription();
               }}
+              onSubmit={commitDescription}
               autoFocus
               rows={4}
+              ariaLabel="Your note"
               placeholder="How you know them, what they care about"
-              className="ui-input resize-none"
             />
             <div className="flex items-center gap-2">
               <button

@@ -28,6 +28,13 @@ export type TextAreaProps = Omit<
  * overrides). A label drawn by <Field> needs `htmlFor` and the same `id`
  * here; a field with no visible label passes `ariaLabel`.
  *
+ * Every other DictationField prop passes straight through (chatkit 0.27):
+ * `name` for a native form post, `autoFocus`, `readOnly`, `invalid`/`error`,
+ * `onKeyDown` (runs first), `onSubmit` (the package's submit keys: Cmd/Ctrl+
+ * Enter here), `onFocus`/`onBlur` (the WHOLE field's: pressing the microphone
+ * is not a blur, and a blur during a take waits for its words), `inputRef`,
+ * and `inputProps` (`spellCheck`, `aria-*`, `data-*`, `onPaste`).
+ *
  * Code, JSON, commands and URL lists stay a plain <textarea>, with the file
  * marked `experience-exempt`: dictated words would corrupt them.
  */

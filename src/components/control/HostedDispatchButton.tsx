@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { CloudUpload, Loader2, ExternalLink } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { TextArea } from "@/components/ui/text-area";
 import { postJson, throwApiError } from "@/lib/api/fetch";
 
 type DispatchOk = { ok: true; hostedDispatchId: string; projectName: string; gitUrl: string };
@@ -87,13 +88,13 @@ export function HostedDispatchButton({
             </div>
           ) : (
             <>
-              <textarea
+              <TextArea
                 value={task}
-                onChange={(e) => setTask(e.target.value)}
+                onChange={setTask}
                 rows={5}
                 autoFocus
+                ariaLabel="The change to make"
                 placeholder="Describe the change… e.g. Add a CONTRIBUTING.md with build + test steps"
-                className="ui-input w-full resize-y"
                 disabled={submitting}
               />
               {error && <p className="ui-error">{error}</p>}

@@ -5904,8 +5904,9 @@
   .ui-fb-read-ask-text {
     @apply block text-text-primary;
   }
+  /* The ask's <TextArea>: the frame is the shared field's (.ui-text-area). */
   .ui-fb-read-ask {
-    @apply mb-1 w-full rounded-lg border border-border-default bg-surface-base px-2.5 py-2 text-sm text-text-primary outline-none focus:border-border-interactive;
+    @apply mb-1 w-full;
   }
   .ui-fb-read-ask-actions {
     @apply flex flex-wrap items-center gap-x-4;

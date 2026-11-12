@@ -33,8 +33,9 @@ export function HeroComposer({ signedIn }: { signedIn: boolean }) {
           // Keep the words in the box while the next page loads.
           return false;
         }}
-        // One line on a 390px screen (the box holds about 38 characters).
-        placeholder="A website for my bakery, with a map…"
+        // One line on the narrowest phone: at 320px the box holds about
+        // thirty characters, and a longer example was cut mid-word.
+        placeholder="A website for my bakery…"
         ariaLabel="Say what you want built"
         attach={false}
         voice={signedIn ? true : "visitor"}
