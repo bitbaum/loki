@@ -18,7 +18,7 @@
  */
 import { isBareConfirmation } from "@/lib/loki/confirmation";
 import { callGroqText } from "@/lib/groq";
-import { projectMentionedIn } from "@/lib/project-mention";
+import { projectMentionedIn, projectNamedByAddress } from "@/lib/project-mention";
 import { ORCHESTRATION_TASK_INTENT_IDS, type OrchestrationTaskIntentId } from "@/lib/orchestration";
 
 export type CommandResolution = {
@@ -185,10 +185,14 @@ function pickProjectKey(
   selectedProject?: string,
   /** When true, a sole registered project is enough context for a develop handoff. */
   allowSingleProject = false,
+  /** The project named only by addressing the assistant ("loki: …"): the last
+   *  resort before a sole project (lib/project-mention projectNamedByAddress). */
+  namedByAddress: string | null = null,
 ): string | null {
   return (
     namedInText ??
     selectedProject ??
+    namedByAddress ??
     (allowSingleProject && projects.length === 1 ? projects[0] : null)
   );
 }
@@ -200,10 +204,11 @@ export async function resolveCommand(
   void userId; // reserved for per-user biasing; see doc comment.
   // Spacing- and case-tolerant: "Orange Cat" resolves the registered `orangecat`.
   const namedInText = projectMentionedIn(text, projects);
+  const namedByAddress = projectNamedByAddress(text, projects);
 
   // Fast path — "let's develop it" with a known project should dispatch, not chat.
   if (DEVELOP_READY_RE.test(text)) {
-    const projectKey = pickProjectKey(projects, namedInText, selectedProject, true);
+    const projectKey = pickProjectKey(projects, namedInText, selectedProject, true, namedByAddress);
     return {
       kind: "command",
       projectKey,
@@ -233,7 +238,7 @@ export async function resolveCommand(
 
   // Fast path — imperative task with project context → dispatch, not Loki chat.
   if (looksLikeDispatchTask(text)) {
-    const projectKey = pickProjectKey(projects, namedInText, selectedProject, true);
+    const projectKey = pickProjectKey(projects, namedInText, selectedProject, true, namedByAddress);
     if (projectKey) {
       return {
         kind: "command",
@@ -266,7 +271,13 @@ export async function resolveCommand(
       typeof raw.projectKey === "string" && projects.includes(raw.projectKey)
         ? raw.projectKey
         : null;
-    const projectKey = pickProjectKey(projects, llmProject ?? namedInText, selectedProject);
+    const projectKey = pickProjectKey(
+      projects,
+      llmProject ?? namedInText,
+      selectedProject,
+      false,
+      namedByAddress,
+    );
     const intentId =
       typeof raw.intentId === "string" &&
       (ORCHESTRATION_TASK_INTENT_IDS as readonly string[]).includes(raw.intentId)
@@ -288,7 +299,13 @@ export async function resolveCommand(
     // text or the current selection; ask if neither. A question stays a
     // question — queueing an agent to answer "are you able to…?" is the one
     // degradation worse than a slower answer.
-    const projectKey = pickProjectKey(projects, namedInText, selectedProject);
+    const projectKey = pickProjectKey(
+      projects,
+      namedInText,
+      selectedProject,
+      false,
+      namedByAddress,
+    );
     if (readsAsQuestion(text.trim())) {
       return {
         kind: "chat",

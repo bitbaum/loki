@@ -25,6 +25,8 @@ import {
   healDeployFailed,
   pickDeployRun,
   FIX_SHIP_STATE,
+  isFailedCheckConclusion,
+  prBlockerFor,
   fixNeedsRefresh,
   parsePrRef,
   resolveFixPrRef,
@@ -84,6 +86,12 @@ export type FixRefreshInput = {
    * release.ts). Pass null for a project with no address.
    */
   liveUrl: string | null;
+  /**
+   * Also read whether the open pull request can merge as it stands (a
+   * conflict, a failed check) into `fix.blocked`. Off unless asked: it costs
+   * two GitHub reads a pull request.
+   */
+  readBlockers?: boolean;
   /**
    * The client said "Make it live" on a change opened as a draft for them:
    * take it out of draft first, then decide as for any other pull request.
@@ -176,7 +184,7 @@ async function fetchMergeReadiness(
   ref: PrRef,
   headSha: string,
   token: string,
-): Promise<{ checkConclusions: (string | null)[] } | null> {
+): Promise<{ checkConclusions: (string | null)[]; failedChecks: string[] } | null> {
   // check-runs covers GitHub Actions; commit statuses cover older integrations
   // (a repo can use either, and "no checks at all" must stay distinguishable
   // from "checks that passed").
@@ -192,21 +200,28 @@ async function fetchMergeReadiness(
   ]);
   if (!runsRes?.ok && !statusRes?.ok) return null;
   const conclusions: (string | null)[] = [];
+  const failedChecks: string[] = [];
   if (runsRes?.ok) {
     const j = (await runsRes.json().catch(() => null)) as {
-      check_runs?: Array<{ status?: string; conclusion?: string | null }>;
+      check_runs?: Array<{ name?: string; status?: string; conclusion?: string | null }>;
     } | null;
-    for (const r of j?.check_runs ?? [])
-      conclusions.push(r.status === "completed" ? (r.conclusion ?? null) : null);
+    for (const r of j?.check_runs ?? []) {
+      const conclusion = r.status === "completed" ? (r.conclusion ?? null) : null;
+      conclusions.push(conclusion);
+      if (isFailedCheckConclusion(conclusion)) failedChecks.push(r.name ?? "a check");
+    }
   }
   if (statusRes?.ok) {
     const j = (await statusRes.json().catch(() => null)) as {
-      statuses?: Array<{ state?: string }>;
+      statuses?: Array<{ state?: string; context?: string }>;
     } | null;
-    for (const st of j?.statuses ?? [])
+    for (const st of j?.statuses ?? []) {
       conclusions.push(st.state === "success" ? "success" : (st.state ?? null));
+      if (st.state === "failure" || st.state === "error")
+        failedChecks.push(st.context ?? "a status");
+    }
   }
-  return { checkConclusions: conclusions };
+  return { checkConclusions: conclusions, failedChecks };
 }
 
 /** Squash-merge the PR. Returns GitHub's answer, never throws. */
@@ -506,6 +521,18 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
             } else if (!decision.merge) {
               fix = { ...fix, autoShipHold: decision.hold };
             }
+          }
+          // Asked for by the caller that tells a person (run-follow-notify):
+          // can this open pull request merge as it stands? Two more GitHub
+          // reads, so not on every surface that shows a row.
+          if (input.readBlockers && fix.state === FIX_SHIP_STATE.PR_OPEN && pr.headSha) {
+            const readiness = await fetchMergeReadiness(ref, pr.headSha, picked.token);
+            const blocked = prBlockerFor({
+              mergeable: pr.mergeable ?? null,
+              failedChecks: readiness?.failedChecks ?? [],
+              headSha: pr.headSha,
+            });
+            if (blocked) fix = { ...fix, blocked };
           }
         }
       }
