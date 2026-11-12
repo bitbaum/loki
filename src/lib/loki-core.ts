@@ -1,4 +1,4 @@
-import { CHAT_CHAIN, providerModels } from "@/config/chat-models";
+import { CHAT_CHAIN, providerModels, usableChatChain } from "@/config/chat-models";
 /**
  * Loki chat core — SSOT for the assistant logic behind the app.
  *
@@ -193,11 +193,7 @@ export function groundingMeta(factCount: number, violations: Violation[]) {
 type LokiProvenance = Omit<ProvenanceShape, "retrieved"> & { retrieved: RetrievedSource[] };
 
 function toolLoopEnabled(userId?: string): boolean {
-  return (
-    Boolean(userId) &&
-    process.env.LOKI_TOOL_LOOP !== "0" &&
-    Boolean(process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY)
-  );
+  return Boolean(userId) && process.env.LOKI_TOOL_LOOP !== "0" && usableChatChain().length > 0;
 }
 
 /**
@@ -656,10 +652,10 @@ async function askLokiViaGateway(
         ? "the model restated the fleet instead of answering"
         : "the model returned an empty/incomplete response";
     console.error("[loki] gateway unusable:", reason);
-    if (!process.env.GROQ_API_KEY) {
+    if (usableChatChain().length === 0) {
       return { status: 503, body: { error: `Loki is offline — ${reason}.` } };
     }
-    console.warn("[loki] degraded: falling back to Groq");
+    console.warn("[loki] degraded: falling back to the free model chain");
   }
 
   // Groq fallback — DEGRADED, labelled. Still grounded, still verified: the

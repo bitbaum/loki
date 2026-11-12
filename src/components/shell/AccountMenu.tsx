@@ -100,7 +100,13 @@ export function AccountMenu() {
 
   return (
     <SharedAccountMenu
-      user={{ name: user?.name, email: user?.email, image: user?.image }}
+      user={{
+        name: user?.name,
+        email: user?.email,
+        image: user?.image,
+        // No name: the menu shows @handle, not "Account".
+        handle: (user as { username?: string | null } | undefined)?.username ?? undefined,
+      }}
       groups={groups}
       extra={
         <div className="flex min-h-11 items-center gap-3">
