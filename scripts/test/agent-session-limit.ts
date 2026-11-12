@@ -13,6 +13,8 @@ const shell = shellTabFromHex("deadbeef");
 const tabs = (n: number): string[] => Array.from({ length: n }, (_, i) => `project-${i}`);
 
 assert.equal(agentMaxOpen({}), AGENT_MAX_OPEN_DEFAULT);
+// About 1 GiB a sealed session on a 15 GiB box shared with the sites.
+assert.ok(AGENT_MAX_OPEN_DEFAULT <= 5, "the default leaves the sites their memory");
 assert.equal(agentMaxOpen({ LOKI_AGENT_MAX_OPEN: "4" }), 4);
 assert.equal(agentMaxOpen({ LOKI_AGENT_MAX_OPEN: "0" }), AGENT_MAX_OPEN_DEFAULT);
 assert.equal(agentMaxOpen({ LOKI_AGENT_MAX_OPEN: "many" }), AGENT_MAX_OPEN_DEFAULT);

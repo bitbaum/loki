@@ -7,6 +7,7 @@
 #   sealed-builds-ctl.sh memory <unit>             # read: what the builder holds and what bounds it
 #   RUNS="9" sealed-builds-ctl.sh memory-set <unit>  # ceiling in GiB; the builder gives first
 #   sealed-builds-ctl.sh memory-clear <unit>       # undo memory-set
+#   sealed-builds-ctl.sh stop-idle <unit>          # stop sealed sessions idle for 2 min (RUNS=dry lists only)
 # Prints verdicts only, never a secret (public Action logs).
 set -uo pipefail
 MODE="${1:-read}"; UNIT="${2:-loki-box-runner}"; UNIT="${UNIT%.service}"
@@ -67,9 +68,50 @@ memory_report() {
   echo "  stopped for memory since boot: $(journalctl -k -b --no-pager 2>/dev/null | grep -ci 'out of memory')"
 }
 
+# idle_sessions "<name bytes lines before>" "<after>" <min bytes> — the names
+# that moved fewer than <min bytes> between the two snapshots. A session that
+# ended in between is not listed. Pure, pinned by test-sealed-builds-memory.sh.
+idle_sessions() {
+  printf '%s\n' "$1" | while read -r n before; do
+    [ -n "$n" ] || continue
+    after="$(printf '%s\n' "$2" | awk -v n="$n" '$1==n{print $2}')"
+    [ -n "$after" ] || continue
+    [ $((after - before)) -lt "$3" ] && echo "$n"
+  done
+  return 0
+}
+
 if [ -n "${SEALED_CTL_LIB_ONLY:-}" ]; then return 0 2>/dev/null || exit 0; fi
 
 case "$MODE" in
+stop-idle)
+  # Free memory without touching work: stop the sealed sessions (fc-ws-*) that
+  # relayed less than IDLE_BYTES over IDLE_SECS. A working agent prints (its
+  # spinner alone is more than that); one idle at its prompt trickles 40-96
+  # bytes a minute (#1676). The same line as lib/run-progress
+  # RUN_PROGRESS_MIN_BYTES. RUNS="dry" lists without stopping. Each session is
+  # about 1 GiB. The runner sees the session end and reopens it on the next
+  # message to that project.
+  IDLE_SECS="${IDLE_SECS:-120}"; IDLE_BYTES="${IDLE_BYTES:-512}"
+  CG="/sys/fs/cgroup$(systemctl show -p ControlGroup --value "$UNIT.service")/cgroup.procs"
+  U="$(unit_user)"; H="$(unit_home)"
+  sealed_snap() {
+    for p in $(cat "$CG" 2>/dev/null); do
+      [ "$(cat "/proc/$p/comm" 2>/dev/null)" = podman ] || continue
+      n="$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -oE -- '--name fc-ws-[0-9a-f]+' | head -1 | cut -d' ' -f2)"
+      [ -n "$n" ] && echo "$n $(awk '/^rchar/{r=$2} /^wchar/{w=$2} END{print r+w}' "/proc/$p/io" 2>/dev/null)"
+    done
+  }
+  a="$(sealed_snap)"; sleep "$IDLE_SECS"; b="$(sealed_snap)"
+  idle="$(idle_sessions "$a" "$b" "$IDLE_BYTES")"
+  echo "sealed sessions: $(printf '%s\n' "$a" | grep -c .); idle over ${IDLE_SECS}s: $(printf '%s\n' "$idle" | grep -c .)"
+  echo "before:"; memory_report
+  for c in $idle; do
+    if [ "${RUNS:-}" = dry ]; then echo "would stop $c"; continue; fi
+    echo "stopping $c"
+    systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$c" 2>&1 | grep -v level= | tail -1
+  done
+  sleep 5; echo "after:"; memory_report ;;
 memory)
   # Read-only. What the builder holds, what bounds it, what the box has left.
   echo "$UNIT:"; memory_report ;;
