@@ -21,7 +21,7 @@ async function main(): Promise<void> {
 
   assert.equal(
     busySentence(["orangecat"]),
-    "orangecat is already working on a run. Nothing was sent. Wait for it to finish, or send again saying either to queue it behind the open run or to start a separate session for it.",
+    "orangecat is already working on a run. Nothing was sent. Wait for it to finish, or send again saying either to queue it behind the open run or to ask it in a fresh session of its own.",
   );
   assert.match(busySentence(["loki", "solon"]), /^loki, solon are already working on a run\./);
   console.log("  ✓ a busy project is named, and the person is told nothing was sent");
@@ -70,6 +70,7 @@ async function main(): Promise<void> {
       { ...good, builderChannel: "moon" },
       { ...good, queueIfBusy: "yes" },
       { ...good, separateSession: "yes" },
+      { ...good, session: "lane" },
       { ...good, projects: [] },
       { ...good, task: "  " },
     ]) {
