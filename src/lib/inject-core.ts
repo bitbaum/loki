@@ -57,6 +57,9 @@ import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { rerouteNotice } from "@/lib/dispatch-status";
+import { builderHoldsNewWork } from "@/lib/builder-presence";
+import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
+import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { findInjectProject } from "@/lib/inject-project";
@@ -849,6 +852,16 @@ async function executeAndReport(
   }
 
   const notice = rerouteNotice(channel, reroutedFrom);
+  // Queued for a cloud runner that is behind the deploy: it holds new work
+  // until it has restarted (lib/runner-update-hold). Say so now, with the
+  // bound, instead of "starting shortly" over a task that sits for minutes.
+  const builderUpdating =
+    result.mode === "queued" &&
+    !queuedOffline &&
+    channel === "cloud" &&
+    builderHoldsNewWork(
+      (await getRuntimeSnapshot(userId, "cloud").catch(() => null))?.runnerVersion,
+    );
   return {
     status: 200,
     body: {
@@ -858,6 +871,13 @@ async function executeAndReport(
       // take a project pinned to an offline computer for one that runs on the
       // cloud. A runner-offline message further down replaces it.
       ...(notice ? { message: notice } : {}),
+      // Held for the runner's update: said after the reroute when both are true.
+      ...(builderUpdating
+        ? {
+            builderUpdating: true,
+            message: [notice, BUILDER_UPDATING_SENTENCE].filter(Boolean).join(" "),
+          }
+        : {}),
       mode: result.mode,
       // Which builder this went to. The operator should never have to guess
       // which machine has their work — especially when it queues.

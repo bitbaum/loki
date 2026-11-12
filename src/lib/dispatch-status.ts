@@ -4,6 +4,7 @@ import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import { AGENT_LABELS } from "@/lib/agent-labels";
+import { BUILDER_UPDATING_LABEL, BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
 
 export type DispatchStatusInput = {
   ok?: boolean;
@@ -18,6 +19,9 @@ export type DispatchStatusInput = {
   channel?: BuilderChannel | null;
   /** The builder the project prefers was offline, so `channel` took the work. */
   reroutedFrom?: BuilderChannel | null;
+  /** The cloud runner is behind the deploy, so this waits for its restart,
+   *  for a bounded time (lib/runner-update-hold). */
+  builderUpdating?: boolean | null;
 };
 
 /**
@@ -51,6 +55,9 @@ export function dispatchStatusLabel(input: DispatchStatusInput): { label: string
   if (input.mode === "direct") {
     return { label: on ? `Running now on ${on}` : "Running now", warn: false };
   }
+  if (input.mode === "queued" && input.builderUpdating) {
+    return { label: BUILDER_UPDATING_LABEL, warn: false };
+  }
   if (input.mode === "queued") {
     const from = builderName(input.reroutedFrom);
     return {
@@ -76,6 +83,11 @@ export function dispatchAssistantContent(projectKey: string, input: DispatchStat
     return on
       ? `Running on **${projectKey}** in the agent terminal on ${on} now.`
       : `Running on **${projectKey}** in the agent terminal now.`;
+  }
+  if (input.mode === "queued" && !warn && input.builderUpdating) {
+    // Not "starting shortly": the runner holds new work until it has
+    // restarted on the new code, and the person is told how long at most.
+    return `Sent **${projectKey}** to the cloud runner. ${BUILDER_UPDATING_SENTENCE}`;
   }
   if (input.mode === "queued" && !warn) {
     const from = builderName(input.reroutedFrom);

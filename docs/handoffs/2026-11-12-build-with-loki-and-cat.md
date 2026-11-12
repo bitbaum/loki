@@ -56,7 +56,41 @@ signed-in browser. What it could use:
 | 05:20 | Started a ten-way read-only investigation of both journeys | **cut short**: 12 of its 14 agents stopped on the account's usage limit. Two Loki maps came back (message → agent start; agent working → shipped). Nothing came back for the Cat bot, Loki's chat, the builder's state, the open pull requests or a scripted production test. The skeptic pass and the completeness critic did not run, so every finding below is one investigator's reading until re-checked. |
 | 05:25 | Pushed this file to `origin/ccr-6043476f-vhm900` | pushed |
 | 06:04 | Loki production serves `9253f40`; #1640 #1643 #1644 #1645 #1646 #1647 #1648 merged meanwhile (other sessions), so Loki's side of the bot rail is on main | read from `/api/health` and `git log origin/main` |
-| 06:05 | Dispatched `sealed-builds.yml` `mode=journal` (read-only) to see the runner's version and whether it claims work | queued |
+| 06:05 | Dispatched `sealed-builds.yml` `mode=journal` (read-only) to see the runner's version and whether it claims work | run 43165605499: one runner process all hour (never restarted); the drain logged "5 agent(s) working — deferring restart" on every look from 05:41 to 06:06 and restarted its clock at each deploy; the poller claimed `peek_start` / `peek_stop` and nothing else. The update hold is the live blocker. |
+| 06:10–07:00 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
+
+## Change 1 (Loki): a held task waits minutes, and says so
+
+Branch `ccr-6043476f-vhm900`. Server and box scripts only: no runner code, so
+no runner version bump, no collision with #1650 / #1652 and no new hold.
+
+- `src/lib/runner-update-hold.ts`: a held command is handed over once it has
+  waited `UPDATE_HOLD_MAX_MS` (5 minutes); the hold applies only within
+  `UPDATE_HOLD_WINDOW_MS` (2 hours) of the newest runner release's date.
+- `src/db/queries/pending-commands.ts` `claimNextPendingCommand`: an
+  `overdue` rule (held types become claimable by age). While holding, an
+  empty at-once list now claims nothing; it used to claim everything.
+- `src/app/api/control/commands/route.ts`: applies both.
+- The person is told: `BUILDER_UPDATING_SENTENCE` in the chat reply
+  (`src/lib/dispatch-status.ts`), in the `/api/inject` answer
+  (`builderUpdating: true` and `message`, `src/lib/inject-core.ts`) and as the
+  run track's headline while the job is unclaimed (`queueNote`,
+  `src/lib/run-track.ts`, `src/lib/run-track-load.ts`).
+- `.github/workflows/loki-loop-check.yml` (new): the production check of the
+  whole loop, on demand. Without inputs it asks Loki a fleet question and
+  reads the map; with `dispatch=true` it sends one real no-change task to an
+  agent on the cloud runner and waits for the outcome to come back into the
+  thread. It runs `scripts/hetzner/loki-e2e-check.sh --report` on the box.
+- `sealed-builds.yml` `mode=activity` (new, read-only): per agent process of
+  the runner unit, what the drain sees and the bytes it read and wrote over a
+  minute. This is the measurement the drain's rule needs before it can tell
+  an idle sealed session from a working one.
+- `.husky/pre-push`: the watchdog's `sleep` no longer holds the caller's pipe.
+
+What it does not do: make the restart land. The drain still counts every
+sealed session as working. Next step for that: run `mode=activity`, read the
+numbers, then change `agent_is_busy` in
+`scripts/hetzner/drain-and-restart-runner.sh` on what they show.
 
 ## Findings so far (journey A, Loki)
 
@@ -101,5 +135,11 @@ Every runner change must bump `desktop/package.json` and prepend to `src/config/
 
 ## Next action
 
-1. Read the journal run's log; if the runner is behind and holding, fix the hold on the server (a bound on the hold, the truth in the chat while it holds) and make the drain see idle sealed sessions.
-2. Ship from `ccr-6043476f-vhm900`, confirm on production, then journey B.
+1. Open the pull request for change 1, follow it through the sweep and the
+   deploy, then prove it on production: `loki-loop-check.yml` with
+   `dispatch=true`, and `sealed-builds.yml` `mode=journal` to see a
+   `claimed dispatch` line.
+2. `sealed-builds.yml` `mode=activity`, then the drain's rule.
+3. Journey B: read the bot's Loki tools against Loki's merged endpoints, run
+   OrangeCat's `live-rehearsal.yml` / `cat-diagnostics.yml`, fix what stops a
+   bot from sending a task and reading it back.

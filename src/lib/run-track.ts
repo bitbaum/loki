@@ -101,6 +101,12 @@ export type RunTrackInput = {
   needsYou: string | null;
   /** Which builder has it, in words ("the cloud builder", "this computer"). */
   builderLabel: string | null;
+  /**
+   * Why the job is still on the queue, when Loki knows: the cloud runner is
+   * taking an update and starts new work after it (lib/runner-update-hold).
+   * Without it a held job read "usually under a minute", then "none is online".
+   */
+  queueNote?: string | null;
   /** Repo-side evidence found during or after the run (lib/repo-evidence). */
   evidence: { kind: "pr" | "push"; url: string; title: string; atMs?: number | null } | null;
   /**
@@ -331,6 +337,12 @@ function builderStage(f: Facts): TrackStage {
   // The reason is the card's headline (summaryOf); saying it twice, one line
   // apart, is what the first preview showed.
   if (f.finished) return stage("builder", "No runner picked it up", "failed", { at: f.askedAt });
+  if (f.input.queueNote)
+    return stage("builder", "Waiting for the runner's update", "now", {
+      note: f.input.queueNote,
+      at: f.askedAt,
+      facts: [{ text: "The job is on the queue; nothing is lost while it waits." }],
+    });
   if (f.input.stalled)
     return stage("builder", "Waiting for a runner", "attention", {
       note: "Nobody has picked it up for a while.",
@@ -608,6 +620,7 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
         : `${p} finished — checking where the change is.`;
   if (f.finished) return f.input.failure ?? `${p} stopped before the change shipped.`;
   if (work.state === "attention") return work.note ?? `${p} needs you.`;
+  if (!f.started && f.input.queueNote) return f.input.queueNote;
   if (builder.state === "attention") return "Sent, but no runner has picked it up.";
   if (f.working || f.generated) return `${p} is making the change.`;
   if (f.started) return `${p} is starting.`;
