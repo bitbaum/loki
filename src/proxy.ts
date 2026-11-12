@@ -5,6 +5,7 @@ import { ROUTES } from "@/config/auth";
 import { sharedRuntimeEnabled } from "@bitbaum/accountkit/auth/switch";
 import { siteUrl } from "@/lib/auth/shared/runtime";
 import { compat } from "@/lib/auth/shared/compat";
+import { TOKEN_SESSION_WRITE_HEADER, isReadMethod } from "@/lib/auth/token-session";
 
 // Edge-safe auth middleware — uses only the JWT session and the authorized()
 // callback from auth.config.ts. No DB adapter, no Node.js crypto.
@@ -44,6 +45,16 @@ export default async function proxy(req: NextRequest, ev: NextFetchEvent) {
       `${siteUrl()}${req.nextUrl.pathname}${req.nextUrl.search}`,
     );
     return NextResponse.redirect(signIn);
+  }
+  // A write made with a token-opened session is marked for lib/session.ts,
+  // which then reads it as signed out on person-only routes. The mark is the
+  // proxy's alone: one sent by a client is dropped.
+  const tokenWrite = Boolean(session?.user?.viaToken) && !isReadMethod(req.method);
+  if (tokenWrite || req.headers.has(TOKEN_SESSION_WRITE_HEADER)) {
+    const headers = new Headers(req.headers);
+    headers.delete(TOKEN_SESSION_WRITE_HEADER);
+    if (tokenWrite) headers.set(TOKEN_SESSION_WRITE_HEADER, "1");
+    return NextResponse.next({ request: { headers } });
   }
   return NextResponse.next();
 }
