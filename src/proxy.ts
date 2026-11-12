@@ -62,6 +62,10 @@ export const config = {
      *   sign-in, sign-up, claim-feedback – public auth and feedback-claim pages
      *   studio/connect, studio/partner – an approved partner connecting or
      *                                signing in with OrangeCat (they sign in on the page)
+     *   studio/left                – where a sign-out begun on the studio site ends: there is
+     *                                no session left to ask for. studio/return is NOT listed, on
+     *                                purpose: it is the studio site's sign-in door, so the proxy
+     *                                sends a signed-out visitor through /sign-in and back to it.
      *   forgot-password, reset-password, verify-email, setup, invite
      *   download                    – public install/discovery page
      *   whitepaper, thoughts       – public content
@@ -168,6 +172,11 @@ export const config = {
      *   api/fleet/private          – unconsented client work for bitbaum's private area; the
      *                                route checks the owner's session itself, so its 401
      *                                carries the CORS headers the studio page needs to read it.
+     *   api/studio-session         – who is looking at the studio site: a name, a handle, a
+     *                                picture and what they can open. Signed out is an answer
+     *                                here, and the proxy's own 401 has no CORS headers, which a
+     *                                browser shows as a network failure. Reads the cookie session
+     *                                only; GET only; readable by the studio's origin alone.
      *   api/mcp                    – the MCP server AI apps connect to (docs/development/mcp.md).
      *                                It authenticates in-handler (resolveMcpCaller: a ck_* token
      *                                or an OrangeCat JWT minted for this resource), and it MUST
@@ -191,6 +200,6 @@ export const config = {
      *                                server for api/mcp. It describes how to GET a credential,
      *                                so it cannot require one.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|app-icons/|sw\\.js$|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|studio/connect|studio/partner|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|why|how-it-works|no-screen|compare|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|commission(?:/|$)|change(?:/|$)|take(?:/|$)|build(?:/|$)|u/|share/project/|share/task/|a/|w/|p/|beacon|fleet|import-from-local\\.sh|api/reviews/[^/]+/worker$|inspection-worker\\.mjs$|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/fleet/private|api/invitations/|api/share/task/|api/orangecat/|api/telegram/webhook$|api/solon/|api/studio-intake(?:/|$)|api/studio-partners(?:/|$)|api/studio-recover(?:/|$)|api/studio-portal/|api/commission(?:/|$)|api/site-consult(?:/|$)|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/understand|api/widget/tour|api/widget/owner|api/widget/continue|api/widget/preview|api/widget/self-report|api/chat/review-export|api/mcp|\\.well-known/fleet-release\\.json$|\\.well-known/oauth-protected-resource|widget\\.js|widget-chat\\.js).+)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|app-icons/|sw\\.js$|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|studio/connect|studio/partner|studio/left(?:/|$)|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|why|how-it-works|no-screen|compare|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|commission(?:/|$)|change(?:/|$)|take(?:/|$)|build(?:/|$)|u/|share/project/|share/task/|a/|w/|p/|beacon|fleet|import-from-local\\.sh|api/reviews/[^/]+/worker$|inspection-worker\\.mjs$|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/fleet/private|api/invitations/|api/share/task/|api/orangecat/|api/telegram/webhook$|api/solon/|api/studio-session(?:/|$)|api/studio-intake(?:/|$)|api/studio-partners(?:/|$)|api/studio-recover(?:/|$)|api/studio-portal/|api/commission(?:/|$)|api/site-consult(?:/|$)|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/understand|api/widget/tour|api/widget/owner|api/widget/continue|api/widget/preview|api/widget/self-report|api/chat/review-export|api/mcp|\\.well-known/fleet-release\\.json$|\\.well-known/oauth-protected-resource|widget\\.js|widget-chat\\.js).+)",
   ],
 };
