@@ -62,6 +62,14 @@ signed-in browser. What it could use:
 | 07:19 | Folded change 2 into #1663 and pushed | CI `check` green at 07:37 UTC |
 | 07:56 | `sealed-builds.yml` `mode=activity` from the branch (read-only) | three sealed sessions, 0 / 96 / 40 bytes in a minute, all counted as working (see change 3) |
 | 08:48 | #1663 merged by the sweep as `64e2c6b` | 70 minutes after its checks went green: the sweep takes the lowest-numbered green pull request, one at a time, and waits for main's CI between merges |
+| 09:03 | Loki production serves `64e2c6b` (#1663) | read from `/.well-known/fleet-release.json` |
+| 09:05 | The runner claims work again | Sealed builds run 43193588686 (`mode=journal`): `[poller] claimed dispatch` and `acking dispatch command: ok` at 09:05, 09:07, 09:09, 09:19 and 09:40 UTC. Between 05:41 and 06:07 it had claimed screen peeks only. |
+| 09:06 | **Claude on the box is out of usage** | same journal: three dispatches rejected at 09:06:14, 09:06:43 and 09:07:02 with "claude cannot generate because its usage limit is exhausted. Switch this project to a provider with available capacity, then Retry." |
+| 09:11 | First run of `loki-loop-check.yml` (run 43188095136) | "could not mint a session on the box" in two seconds, and a green job: see change 4 |
+| 09:19 | OrangeCat `live-rehearsal.yml` again, on the newest release (run 43188158095) | job success |
+| 09:23 | #1676 merged by the sweep as `7718294` (change 3 and the composer fallback) | the check's fix missed it by a minute and is #1678 |
+| 09:25 | `loki-loop-check.yml` from the branch with the fix (run 43191224470), `dispatch=true` | signed in (it no longer stops at two seconds) and waited on its task; verdict below |
+| 09:40 | The drain reads "8 agent(s) working" | eight is the cap on open agent sessions (`src/lib/agent-session-limit.ts`); the drain's clock restarted at 09:11, 09:22, 09:29 and 09:34 with each deploy |
 | 06:31 | OrangeCat `cat-diagnostics.yml` (read-only) | no Cat failure logged in the last hour |
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
 | 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
@@ -99,9 +107,31 @@ sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
 
+## Change 4 (Loki): the on-demand check can sign in (#1678)
+
+`loki-loop-check.yml` was added in #1663 to prove the loop on the live site.
+Its first run could not start, for three reasons, all fixed in #1678:
+
+- The deploy ships the runner a fixed list of scripts
+  (`scripts/deploy-hetzner.sh`, the `sync_runner` list) and nothing under
+  `scripts/test`, so the test and the token script were not on the box. The
+  workflow now copies its own files to `/opt/loki/runner/scripts/test/`.
+- The check minted an Auth.js session cookie; sign-in is AccountKit since
+  2026-11-01 and that cookie is no session. It now mints an agent token for
+  the operator (`scripts/test/mint-check-token.ts`, label `loki-e2e-check`,
+  two hours, removed on exit) and signs in with it as a bearer.
+- A check that could not sign in exited 0. It now says why and exits 1.
+
+`scripts/test/print-session-token.ts` and `scripts/test/authenticated-smoke.ts`
+still mint the Auth.js cookie; any script that relies on them cannot sign in
+to production until they are moved the same way.
+
 ## Change 3 (Loki): the runner's restart can land
 
-Its own pull request after #1663 merged (08:48 UTC, `64e2c6b`).
+Merged as #1676 (09:23 UTC, `7718294`), together with the composer fallback:
+`/api/control/tab-inject` passes the project's offline fallback, so a project
+registered from a computer that is shut goes to the cloud runner from the
+project composer as it already did from the chat.
 
 Measured on the box at 07:56 UTC with the new read-only read
 (`sealed-builds.yml` `mode=activity`, run 43178274733, dispatched from the
