@@ -64,7 +64,10 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="ui-mobile-nav-sheet" role="dialog" aria-label="More">
+      {/* data-fc-place="hidden": the top bar (and its feedback button) hides
+          under this sheet, and the widget then drew its own floating button
+          on the sheet's header, beside the close × — like <Modal> does. */}
+      <div className="ui-mobile-nav-sheet" role="dialog" aria-label="More" data-fc-place="hidden">
         <div className="ui-mobile-nav-sheet-header">
           <span className="ui-mobile-nav-sheet-title">More</span>
           <button
