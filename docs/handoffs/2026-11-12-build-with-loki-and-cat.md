@@ -1,8 +1,9 @@
 # Build with Loki and with a Cat bot — checkpoint, 2026-11-12
 
 One queue for work that spans `bitbaum/loki` and `bitbaum/orangecat`. Any agent
-can continue from this file without the chat that started it. OrangeCat's own
-record points here: `orangecat/docs/development/2026-11-12-cat-bot-build-handoff.md`.
+can continue from this file without the chat that started it; `AGENTS.md`
+points here. This session changed nothing in OrangeCat, so that repository
+carries no record of its own for this work.
 
 ## The objective, in the owner's words
 
@@ -57,7 +58,10 @@ signed-in browser. What it could use:
 | 05:25 | Pushed this file to `origin/ccr-6043476f-vhm900` | pushed |
 | 06:04 | Loki production serves `9253f40`; #1640 #1643 #1644 #1645 #1646 #1647 #1648 merged meanwhile (other sessions), so Loki's side of the bot rail is on main | read from `/api/health` and `git log origin/main` |
 | 06:05 | Dispatched `sealed-builds.yml` `mode=journal` (read-only) to see the runner's version and whether it claims work | run 43165605499: one runner process all hour (never restarted); the drain logged "5 agent(s) working — deferring restart" on every look from 05:41 to 06:06 and restarted its clock at each deploy; the poller claimed `peek_start` / `peek_stop` and nothing else. The update hold is the live blocker. |
-| 06:10–07:00 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
+| 06:23 | Opened [#1663](https://github.com/bitbaum/loki/pull/1663) (change 1) | CI `check` green at 06:38 UTC. The fleet sweep's runs sat queued: every Actions job waited about twelve minutes for a runner that morning, with a dozen agent sessions pushing at once. |
+| 06:31 | OrangeCat `cat-diagnostics.yml` (read-only) | no Cat failure logged in the last hour |
+| 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
+| 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
 
 ## Change 1 (Loki): a held task waits minutes, and says so
 
@@ -91,6 +95,93 @@ What it does not do: make the restart land. The drain still counts every
 sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
+
+## Change 2 (Loki): the run tells the truth after the agent finishes
+
+In the same pull request as change 1 (#1663): the sweep merges one pull
+request and then waits for main's CI, about twenty minutes a merge that
+morning, so a second pull request would have queued behind the first. Server
+only, plus one prompt line the runner reads at its next start; no file under
+`desktop/`.
+
+- **The "done" message finds the run's pull request.** The runner's own report
+  (`payload.prUrl`, written by `closeRunShipped`) is read first
+  (`reportedPrEvidence`, `src/lib/repo-evidence.ts`), and GitHub is asked with
+  the token that can read the repository (`repoTokenFor`) in
+  `src/lib/orchestration/run-outcome-post.ts` and `reap-evidence.ts`. The
+  person's own OAuth token is refused on the organisation's repositories, so
+  a run that shipped could be posted as "No pull request or push was found".
+- **"Live" is read from the site.** `src/lib/feedback/served-release.ts`: a
+  merged change is live when the commit in the site's
+  `/.well-known/fleet-release.json` is the merge or comes after it (one
+  guarded public read, one GitHub compare). It only upgrades; with no
+  receipt the workflow-run verdict stands. `FixRefreshInput.liveUrl` is
+  required so no caller can leave it out.
+- **A task behind the project's earlier run says so** (`QUEUED_BEHIND_SENTENCE`
+  in the chat reply, `queuedBehind` and `message` in the `/api/inject` answer,
+  the track's headline), instead of "will claim it shortly".
+- **Isolated runs ship through a pull request.** `worktreePromptNote` told
+  every lane and one-off session to `git push origin HEAD:main`.
+- The close message no longer prints `Live: <address>` beside a pull request
+  that has not merged.
+
+- **A chat build is followed to live.** `src/lib/run-follow-notify.ts`, called
+  from the existing fifteen-minute cron
+  (`src/app/api/crons/check-feedback-needs-you/route.ts`, so no new timer):
+  runs that came from a conversation, finished well in the last 48 hours,
+  ledger not terminal → the same ledger refresh (GitHub and the receipt, no
+  model) → on the change to live or to a failed deploy, one line in the
+  thread and one web push. A live moment more than two hours old is stamped
+  and not announced, so the first tick does not report two days of history.
+  The words are in `src/lib/run-shipped-message.ts`.
+
+## Still open after change 2 (journey A), in the order I would take them
+
+1. **Whether the push reaches the owner's phone** is not known from here:
+   it needs web push configured on the box and a subscribed device
+   (https://loki.orangecat.ch/settings → Notifications → Turn on
+   notifications → Send a test). The line in the thread is written either way.
+2. **A red or conflicted pull request has no way forward in Loki.** `fetchPr`
+   already returns `mergeable`; carry `blocked: conflict | checks_failed` on
+   the ledger, show it as Needs you with one action that sends the fix-up to
+   the same project on the same branch.
+3. **The drain's rule** (`agent_is_busy`), from `mode=activity` numbers.
+4. **The session cap**: a ninth dispatch is accepted and then refused.
+5. **"Create project X and build it"** from the chat queues a command no
+   runner can start; it should start the kickoff.
+6. The project composer for an idle project (`/api/control/tab-inject`) does
+   not share `injectPrompt`'s routing.
+
+## Other sessions on the same path (12 Nov, from the session list)
+
+- "Loki: runner folder + queue + status" — the runner fixes (#1650, #1652,
+  runner versions up to 0.8.68). Told at 06:25 UTC which files change 1
+  touches and that the drain rule and `desktop/` are left to it.
+- "Bot platform: Grok-Bot parity through Loki" — journey B itself: the bot's
+  Loki hands on OrangeCat (#1610, #1613, #1614, #1615) and Loki's side of the
+  rail (#1644, #1646, #1648). Asked at 06:25 UTC what is unproven on the live
+  site and how a bot's Loki hand can be exercised without the owner's phone.
+
+## Journey B, what is known
+
+- Loki production, signed out, 06:20 UTC: `/api/orangecat/task` 405,
+  `/api/orangecat/sessions` 405 (both exist), `/api/orangecat/feedback` 404
+  (merged as #1648, not yet deployed at that minute).
+- OrangeCat `cat-diagnostics.yml` run 43167860986 (06:31 UTC):
+  `{"matched": 0, "failures": []}` for the last hour.
+- OrangeCat `live-rehearsal.yml` run 43167876838 against
+  `https://orangecat.ch`, as a brand-new person: **7 passed in 10.3 minutes**
+  (06:30–06:40 UTC). The list of bots with the Cat first; a ready bot reads a
+  letter and keeps the thread; a group where each specialist keeps its lane;
+  a bot proposes an event and the tap creates it; a bot asks Loki twice; a
+  routine set, shown and stopped; the API's edges. Two of the demos took over
+  four minutes each. This exercises a new person's bots, not a bot working in
+  its owner's Loki (#1615, which needs an account linked to a Loki account
+  that has projects).
+- What is not proven on the live site: a bot of a Loki-linked person sending
+  a task, following the run and reporting the agent's answer.
+- A bot's task to Loki rides the same queue as the chat, so change 1 is a
+  precondition for journey B as well.
 
 ## Findings so far (journey A, Loki)
 

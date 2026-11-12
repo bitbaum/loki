@@ -20,7 +20,12 @@ import {
   UPDATE_HOLD_WINDOW_MS,
   UPDATE_HOLD_MINUTES,
 } from "@/lib/runner-update-hold";
-import { dispatchAssistantContent, dispatchStatusLabel } from "@/lib/dispatch-status";
+import {
+  dispatchAssistantContent,
+  dispatchStatusLabel,
+  QUEUED_BEHIND_LABEL,
+  QUEUED_BEHIND_SENTENCE,
+} from "@/lib/dispatch-status";
 import { builderHoldsNewWork } from "@/lib/builder-presence";
 import { FLEET_RUNNER_RELEASES } from "@/config/changelog";
 import { buildRunTrack, type RunTrackInput } from "@/lib/run-track";
@@ -150,11 +155,44 @@ for (const stalled of [false, true]) {
   assert.equal(builder?.label, "Waiting for the runner's update");
   assert.notEqual(builder?.state, "attention", "a bounded wait is not a fault");
 }
+// ── The other silent wait: behind the project's own open run ────────────
+// It read "will claim it shortly" too, while the claim gate held it until
+// the earlier run closed, hours when that agent sat idle at its prompt.
+const behind = dispatchAssistantContent("loki", { ...held, queuedBehind: true });
+assert.ok(
+  behind.includes(QUEUED_BEHIND_SENTENCE),
+  "says it is next in line, and how to start it now",
+);
+assert.doesNotMatch(behind, /shortly/);
+assert.equal(dispatchStatusLabel({ ...held, queuedBehind: true }).label, QUEUED_BEHIND_LABEL);
+assert.ok(
+  dispatchAssistantContent("loki", { ...held, queuedBehind: true, builderUpdating: true }).includes(
+    QUEUED_BEHIND_SENTENCE,
+  ),
+  "behind a run is the first thing it waits for",
+);
+const nextInLine = buildRunTrack({
+  ...queuedRun,
+  queueNote: QUEUED_BEHIND_SENTENCE,
+  queueLabel: "Next in line for this project",
+});
+assert.equal(nextInLine.summary, QUEUED_BEHIND_SENTENCE);
+assert.equal(
+  nextInLine.stages.find((x) => x.id === "builder")?.label,
+  "Next in line for this project",
+);
+
 const inject = readFileSync("src/lib/inject-core.ts", "utf8");
+assert.match(
+  inject,
+  /queuedBehind = result\.mode === "queued" && projectBusy && !queued\?\.parallelTab/,
+  "queued in the project's own session behind its open run, not in a lane",
+);
+assert.match(inject, /queuedBehind \? \{ queuedBehind: true \} : \{\}/);
 assert.match(inject, /builderUpdating: true/, "the inject answer carries the fact");
 assert.match(
   readFileSync("src/lib/run-track-load.ts", "utf8"),
-  /queueNote: waitingOnUpdate \? BUILDER_UPDATING_SENTENCE : null/,
+  /waitingOnUpdate\s*\?\s*BUILDER_UPDATING_SENTENCE/,
   "the track is given the reason while the job is unclaimed",
 );
 

@@ -107,6 +107,8 @@ export type RunTrackInput = {
    * Without it a held job read "usually under a minute", then "none is online".
    */
   queueNote?: string | null;
+  /** The stage's own words for that wait; the runner's update when omitted. */
+  queueLabel?: string | null;
   /** Repo-side evidence found during or after the run (lib/repo-evidence). */
   evidence: { kind: "pr" | "push"; url: string; title: string; atMs?: number | null } | null;
   /**
@@ -123,7 +125,8 @@ export type RunTrackInput = {
     prTitle: string | null;
     prNumber: number | null;
     mergedAt: string | null;
-    deploy: { name: string; url: string | null; at: string | null } | null;
+    /** `served`: read from the site's own release receipt, not a deploy run. */
+    deploy: { name: string; url: string | null; at: string | null; served?: boolean } | null;
     liveUrl: string | null;
     looked: {
       verdict: "looks_fixed" | "not_visible" | "cannot_tell";
@@ -338,7 +341,7 @@ function builderStage(f: Facts): TrackStage {
   // apart, is what the first preview showed.
   if (f.finished) return stage("builder", "No runner picked it up", "failed", { at: f.askedAt });
   if (f.input.queueNote)
-    return stage("builder", "Waiting for the runner's update", "now", {
+    return stage("builder", f.input.queueLabel ?? "Waiting for the runner's update", "now", {
       note: f.input.queueNote,
       at: f.askedAt,
       facts: [{ text: "The job is on the queue; nothing is lost while it waits." }],
@@ -526,7 +529,9 @@ function liveStage(f: Facts): TrackStage {
   const deployFact: TrackFact[] = fix?.deploy
     ? [
         {
-          text: `Deploy run: ${fix.deploy.name}.`,
+          text: fix.deploy.served
+            ? "The site serves a release that contains this change."
+            : `Deploy run: ${fix.deploy.name}.`,
           at: fix.deploy.at,
           href: fix.deploy.url,
         },

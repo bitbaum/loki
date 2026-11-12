@@ -56,7 +56,7 @@ import { promptFingerprint, recordControlAuditEvent } from "@/db/queries/control
 import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
-import { rerouteNotice } from "@/lib/dispatch-status";
+import { QUEUED_BEHIND_SENTENCE, rerouteNotice } from "@/lib/dispatch-status";
 import { builderHoldsNewWork } from "@/lib/builder-presence";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
@@ -852,6 +852,9 @@ async function executeAndReport(
   }
 
   const notice = rerouteNotice(channel, reroutedFrom);
+  // Queued in the project's own session behind its open run (not given a
+  // lane of its own): the claim gate holds it until that run has closed.
+  const queuedBehind = result.mode === "queued" && projectBusy && !queued?.parallelTab;
   // Queued for a cloud runner that is behind the deploy: it holds new work
   // until it has restarted (lib/runner-update-hold). Say so now, with the
   // bound, instead of "starting shortly" over a task that sits for minutes.
@@ -871,11 +874,19 @@ async function executeAndReport(
       // take a project pinned to an offline computer for one that runs on the
       // cloud. A runner-offline message further down replaces it.
       ...(notice ? { message: notice } : {}),
-      // Held for the runner's update: said after the reroute when both are true.
-      ...(builderUpdating
+      // Waiting behind the project's open run, or held for the runner's
+      // update: said after the reroute, in the order they will be lived.
+      ...(queuedBehind || builderUpdating
         ? {
-            builderUpdating: true,
-            message: [notice, BUILDER_UPDATING_SENTENCE].filter(Boolean).join(" "),
+            ...(queuedBehind ? { queuedBehind: true } : {}),
+            ...(builderUpdating ? { builderUpdating: true } : {}),
+            message: [
+              notice,
+              queuedBehind ? QUEUED_BEHIND_SENTENCE : null,
+              builderUpdating ? BUILDER_UPDATING_SENTENCE : null,
+            ]
+              .filter(Boolean)
+              .join(" "),
           }
         : {}),
       mode: result.mode,
