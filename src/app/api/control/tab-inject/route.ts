@@ -7,6 +7,7 @@ import {
 } from "@/db/queries/pending-commands";
 import { getUserProjects } from "@/db/queries/user-projects";
 import { getApiUserId } from "@/lib/session";
+import { resolveDriveTarget } from "@/db/queries/session-drive";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { executor } from "@/lib/agent-execution";
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
@@ -63,6 +64,8 @@ async function recordTabDispatch(opts: {
    *  can read a MISSING stamp as proof the prompt never landed — the queued
    *  path gets the same stamp later, from the runner ack. */
   delivered?: boolean;
+  /** A member driving the owner's session by the owner's grant (lib/session-drive). */
+  drivenBy?: string | null;
 }): Promise<string | null> {
   const { userId, tab, project, adapter } = opts;
   const projectId = project?.entityProjectId ?? null;
@@ -88,6 +91,7 @@ async function recordTabDispatch(opts: {
           projectKey,
           projectPath,
           ...(opts.delivered ? { deliveredAt: new Date().toISOString() } : {}),
+          ...(opts.drivenBy ? { drivenBy: opts.drivenBy } : {}),
         },
       });
       runId = run.id;
@@ -161,21 +165,29 @@ async function withHold(body: Record<string, unknown>): Promise<Record<string, u
 }
 
 export async function POST(req: NextRequest) {
-  const userId = await getApiUserId();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const callerId = await getApiUserId();
+  if (!callerId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const dataOrResp = await readJsonBody(req, Body);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { tab, prompt, attachments: rawAttachments } = dataOrResp;
+  const { prompt, attachments: rawAttachments } = dataOrResp;
   // A plain shell takes keys from a signed-in, unlocked person only
   // (tab-inject-raw); a prompt for one was queued here, answered 200, and then
   // refused by the runner, so the caller was told it worked.
-  if (isShellTab(tab)) {
+  if (isShellTab(dataOrResp.tab)) {
     return NextResponse.json(
       { error: "A shell takes keys from its owner's unlocked browser, not prompts." },
       { status: 403 },
     );
   }
+  // The caller's own session, or the one project session its owner lets this
+  // member drive (lib/session-drive.ts). From here on the session is the
+  // owner's: their builder, their project folder, their run ledger, with the
+  // member named on the run.
+  const target = await resolveDriveTarget(callerId, dataOrResp.tab);
+  const userId = target.ownerId;
+  const tab = target.tab;
+  const drivenBy = target.kind === "granted" ? target.drivenBy : null;
 
   // Stage attachments BEFORE project context is assembled, so the screenshot
   // is part of the task the agent is given rather than a trailer after the
@@ -233,6 +245,7 @@ export async function POST(req: NextRequest) {
     const runId = await recordTabDispatch({
       userId,
       tab,
+      drivenBy,
       project,
       adapter,
       customPrompt: prompt,
@@ -298,6 +311,7 @@ export async function POST(req: NextRequest) {
   const runId = await recordTabDispatch({
     userId,
     tab,
+    drivenBy,
     project,
     adapter,
     customPrompt: prompt,

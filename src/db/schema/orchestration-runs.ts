@@ -117,6 +117,8 @@ export type OrchestrationRunPayload = {
   kitPlan?: KitRunRecord;
   /** The runner's last progress beat (stampRunProgress, lib/run-progress). */
   lastProgressAt?: string;
+  /** A project member who drove the owner's session by the owner's grant (lib/session-drive). */
+  drivenBy?: string;
   /** ISO time of the runner's last beat of any size for this run: proof the
    *  runner is reporting on it (db/queries/orchestration-runs runIdleSql). */
   lastBeatAt?: string;

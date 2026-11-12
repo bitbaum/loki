@@ -124,10 +124,29 @@ export async function listProjectMembers(projectId: string) {
       name: users.name,
       email: users.email,
       role: projectMemberships.role,
+      drivesSession: projectMemberships.drivesSession,
     })
     .from(projectMemberships)
     .innerJoin(users, eq(users.id, projectMemberships.userId))
     .where(eq(projectMemberships.projectId, projectId));
+}
+
+/**
+ * The owner lets a member drive this project's own agent session, on the
+ * owner's builder, or takes it back (lib/session-drive.ts). Returns false when
+ * the person is not a member.
+ */
+export async function setMemberDrivesSession(
+  projectId: string,
+  userId: string,
+  drivesSession: boolean,
+): Promise<boolean> {
+  const rows = await db
+    .update(projectMemberships)
+    .set({ drivesSession, updatedAt: new Date() })
+    .where(and(eq(projectMemberships.projectId, projectId), eq(projectMemberships.userId, userId)))
+    .returning({ id: projectMemberships.id });
+  return rows.length > 0;
 }
 
 export async function upsertProjectMember(projectId: string, userId: string, role: ProjectRole) {

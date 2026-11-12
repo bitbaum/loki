@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getApiActor } from "@/lib/session";
+import { resolveDriveTarget } from "@/db/queries/session-drive";
 import { enqueuePendingCommand } from "@/db/queries/pending-commands";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 import { sessionOpenUrl } from "@/lib/dispatch-card";
@@ -23,7 +24,11 @@ export async function POST(req: NextRequest) {
 
   const dataOrResp = await readJsonBody(req, PeekTabBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
-  const { tab, channel } = dataOrResp;
+  const { channel } = dataOrResp;
+  // The caller's own session, or the one project session its owner lets this
+  // member drive (lib/session-drive.ts): asked on the owner's builder.
+  const target = await resolveDriveTarget(actor.userId, dataOrResp.tab);
+  const tab = target.tab;
   if (!mayPeekTab(tab, actor.via)) {
     return NextResponse.json(
       { error: "A shell's screen is read in a signed-in browser, not with a token." },
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   const peekId = await enqueuePendingCommand({
-    userId: actor.userId,
+    userId: target.ownerId,
     type: "peek_tab",
     payload: { tab, ...(channel ? { channel } : {}) },
   });

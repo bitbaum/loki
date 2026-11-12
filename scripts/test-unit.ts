@@ -55,6 +55,8 @@ const SKIP: Record<string, string> = {
   "rag-retrieval.ts": "needs EMBEDDINGS_BASE_URL (fastembed service)",
   "lane-and-reaper.ts":
     "needs a real Postgres it may write to (TEST_DATABASE_URL, or CI) — runs in CI as `pnpm run test:db` after the migrate step",
+  "session-drive-db.ts":
+    "needs a real Postgres it may write to (TEST_DATABASE_URL, or CI) — runs in CI as `pnpm run test:db` after the migrate step",
   "token-scope.ts":
     "needs a real Postgres it may write to (TEST_DATABASE_URL, or CI) — runs in CI as `pnpm run test:db` after the migrate step",
   "token-session-db.ts":

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCommandById } from "@/db/queries/pending-commands";
 import { getApiActor } from "@/lib/session";
+import { resolveDriveTarget } from "@/db/queries/session-drive";
 import { mayPeekTab } from "@/lib/peek-access";
 
 /**
@@ -15,9 +16,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const cmd = await getCommandById(id);
   const tab = (cmd?.payload as { tab?: unknown } | null)?.tab;
+  // The caller's own capture, or one of the session its owner lets this
+  // member drive (lib/session-drive.ts) — re-checked now, so a revoked grant
+  // reads nothing more.
+  const target =
+    cmd && typeof tab === "string" ? await resolveDriveTarget(actor.userId, tab) : null;
   if (
     !cmd ||
-    cmd.userId !== actor.userId ||
+    !target ||
+    cmd.userId !== target.ownerId ||
+    (target.kind === "granted" && target.tab !== tab) ||
     cmd.type !== "peek_tab" ||
     typeof tab !== "string" ||
     !mayPeekTab(tab, actor.via)

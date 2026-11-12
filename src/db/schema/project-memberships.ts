@@ -1,4 +1,13 @@
-import { index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { entities } from "./entities";
 import { users } from "./users";
 
@@ -31,6 +40,10 @@ export const projectMemberships = pgTable(
      *  whoever asks pays, in their own builder (private-builders.md). The
      *  column stays until dropped by hand (apply-schema.sh refuses DROP). */
     monthlyChanges: integer("monthly_changes"),
+    /** The owner lets this member drive the project's own agent session, on
+     *  the owner's builder (lib/session-drive.ts). Off unless the owner turns
+     *  it on: whoever asks pays, so this is the owner saying they will. */
+    drivesSession: boolean("drives_session").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
