@@ -108,7 +108,11 @@ check("it says what a flag COSTS", () => {
   // The operator should know a flag hoists the project and takes a health
   // point before writing one, not discover it afterwards.
   assert(/sorts? to the top/i.test(code), "the copy does not say a flag reorders the page");
-  assert(/health point/i.test(code), "the copy does not say a flag costs a health point");
+  // "Setup" is what the score is called on the page (HealthScoreBar).
+  assert(
+    /health point|point off its setup score/i.test(code),
+    "the copy does not say a flag costs a point",
+  );
 });
 
 check("provenance is shown, so a flag is never anonymous", () => {

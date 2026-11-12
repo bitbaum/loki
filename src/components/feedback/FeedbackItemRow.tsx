@@ -145,7 +145,7 @@ export function FeedbackItemRow({
     quiet = <QuietMove onClick={onReopen} busy={busy} label="Reopen" />;
   } else if (done) {
     moves = f.dispatchedRunId && liveHref && (
-      <WatchFixButton feedbackId={f.id} liveHref={liveHref} />
+      <WatchFixButton feedbackId={f.id} liveHref={liveHref} quiet />
     );
     quiet = (
       <>

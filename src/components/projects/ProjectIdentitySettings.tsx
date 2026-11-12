@@ -62,7 +62,8 @@ export function ProjectIdentitySettings({
         />
       </div>
       <p className="mt-2 text-sm text-text-tertiary">
-        How much of the profile is filled in — not a test of the site.
+        How much of the setup is done — the brief, the code, the address, the plan. Not a test of
+        the site.
       </p>
     </section>
   );

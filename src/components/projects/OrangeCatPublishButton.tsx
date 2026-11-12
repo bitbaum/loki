@@ -180,9 +180,9 @@ export function OrangeCatPublishButton({ projectId }: { projectId: string }) {
           {autopostBusy
             ? "Saving…"
             : autopost === true
-              ? "Activity: posting"
+              ? "Posting updates on OrangeCat: on"
               : autopost === false
-                ? "Activity: paused"
+                ? "Posting updates on OrangeCat: off"
                 : "Show build activity?"}
         </button>
         {error && <span className="ui-error-xs">{error}</span>}

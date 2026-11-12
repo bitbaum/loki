@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { StatusBadge } from "./project-badges";
 import { useInlineEdit } from "@/hooks/use-inline-edit";
@@ -19,6 +19,35 @@ export function DescriptionEditor({
   size?: "compact" | "lead" | "full";
 }) {
   const ie = useInlineEdit<string>("");
+  // "full" is the Story tab's "About it": an agent-written dossier filled a
+  // whole phone screen and pushed Mission and Problem below the fold
+  // (2026-11-12). Four lines, then "Show all" — measured, not guessed.
+  const clampable = size === "full";
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const clampRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = clampRef.current;
+    if (!clampable || expanded || !el) return;
+    const measure = () => setOverflows(el.scrollHeight - el.clientHeight > 1);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [clampable, expanded, value, ie.editing]);
+  const clampClass = clampable && !expanded ? "line-clamp-4" : null;
+  const toggle =
+    clampable && value && (overflows || expanded) ? (
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="ui-link-subtle-button -ml-1"
+      >
+        {expanded ? "Show less" : "Show all"}
+      </button>
+    ) : null;
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const commit = async () => {
@@ -30,18 +59,25 @@ export function DescriptionEditor({
 
   if (!editable) {
     return value ? (
-      <p
-        className={cn(
-          "mt-0.5 w-full cursor-default text-left leading-relaxed text-text-secondary",
-          size === "lead"
-            ? "line-clamp-3 text-sm sm:text-base"
-            : size === "full"
-              ? "text-sm sm:text-base"
-              : "ui-link-subtle",
-        )}
-      >
-        {value}
-      </p>
+      <>
+        <p
+          ref={(el) => {
+            clampRef.current = el;
+          }}
+          className={cn(
+            clampClass,
+            "mt-0.5 w-full cursor-default text-left leading-relaxed text-text-secondary",
+            size === "lead"
+              ? "line-clamp-3 text-sm sm:text-base"
+              : size === "full"
+                ? "text-sm sm:text-base"
+                : "ui-link-subtle",
+          )}
+        >
+          {value}
+        </p>
+        {toggle}
+      </>
     ) : null;
   }
 
@@ -81,22 +117,30 @@ export function DescriptionEditor({
   }
 
   return (
-    <button
-      onClick={() => {
-        setSaveError(null);
-        ie.start(value ?? "");
-      }}
-      className={cn(
-        "group/desc mt-0.5 flex min-h-11 w-full items-center gap-1.5 text-left leading-relaxed text-text-secondary",
-        size !== "compact" ? "text-sm sm:text-base" : "ui-link-subtle",
-      )}
-      title="Edit description"
-    >
-      <span className="flex-1">
-        {value ?? <span className="italic text-text-muted">Add a description…</span>}
-      </span>
-      <Pencil className="h-3 w-3 shrink-0 mt-0.5 text-text-muted sm:opacity-0 sm:group-hover/desc:opacity-100 transition-opacity" />
-    </button>
+    <>
+      <button
+        onClick={() => {
+          setSaveError(null);
+          ie.start(value ?? "");
+        }}
+        className={cn(
+          "group/desc mt-0.5 flex min-h-11 w-full items-center gap-1.5 text-left leading-relaxed text-text-secondary",
+          size !== "compact" ? "text-sm sm:text-base" : "ui-link-subtle",
+        )}
+        title="Edit description"
+      >
+        <span
+          ref={(el) => {
+            clampRef.current = el;
+          }}
+          className={cn("flex-1", clampClass)}
+        >
+          {value ?? <span className="italic text-text-muted">Add a description…</span>}
+        </span>
+        <Pencil className="h-3 w-3 shrink-0 mt-0.5 text-text-muted sm:opacity-0 sm:group-hover/desc:opacity-100 transition-opacity" />
+      </button>
+      {toggle}
+    </>
   );
 }
 

@@ -82,10 +82,8 @@ export function ProjectFlags({
         Flags
       </h2>
       <p className="mt-1 text-sm text-text-secondary">
-        A flag is a note someone wrote — an agent or you. Nothing here scans the project. One you
-        confirm here sorts to the top of Projects and costs a health point. A note imported from an
-        old snapshot, or one that restates a retired fact, stays on the page and does neither —
-        clear it, or rewrite it if it is still true.
+        A flag is a note someone wrote — you or an agent; nothing scans the project. Mark a problem
+        you know about: it sorts to the top of Projects and takes a point off its setup score.
       </p>
 
       <div className="mt-4 divide-y divide-border-subtle border-y border-border-subtle">

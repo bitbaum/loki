@@ -16,6 +16,14 @@ export function isTranscriptInterruption(text: string): boolean {
  */
 const DIAGNOSTICS_RE = /\n?[ \t]*-{3}\s*technical details\s*-{3}[\s\S]*$/i;
 
+/** A report without its diagnostics tail, and the tail apart (null if none). */
+export function splitDiagnostics(text: string): { text: string; details: string | null } {
+  const match = DIAGNOSTICS_RE.exec(text);
+  if (!match) return { text, details: null };
+  const cut = text.slice(0, match.index).trimEnd();
+  return cut ? { text: cut, details: match[0].trim() } : { text, details: null };
+}
+
 export function dispatchMessageDisplay(text: string): { text: string; details: string | null } {
   const shown = dispatchMessageParts(text);
   const result = !DIAGNOSTICS_RE.test(shown.text)

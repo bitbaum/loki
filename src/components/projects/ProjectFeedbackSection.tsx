@@ -240,10 +240,10 @@ export function ProjectFeedbackSection({
           />
           <span className="text-sm font-medium text-text-primary">
             {live
-              ? "Widget is live"
+              ? "Feedback button is on the site"
               : paused
-                ? "Widget is paused"
-                : "Widget is on, not seen on the site yet"}
+                ? "Feedback button is paused"
+                : "Feedback button is on, not seen on the site yet"}
           </span>
           {site && (
             <span className="truncate text-xs text-text-tertiary">
@@ -807,13 +807,13 @@ function BuildGrantsToggles({ projectId }: { projectId: string }) {
   const rows = [
     {
       grant: "agentBuildsUnasked" as const,
-      title: "Build agents' reports without asking",
-      says: "A report filed by an agent with its own seat starts a build on your builder at once. Off, it waits for you to start it.",
+      title: "Fix notes from helper agents without asking me",
+      says: "A note filed by one of your helper agents is worked on straight away. Off, it waits for you to start it.",
     },
     {
       grant: "editorsMayBuild" as const,
       title: "Let editors start builds",
-      says: "An editor can start a build on your builder. Off, only you can — what an editor asks for waits for you.",
+      says: "An editor can start work on a change. Off, only you can — what an editor asks for waits for you.",
     },
   ];
   return (

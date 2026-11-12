@@ -129,8 +129,8 @@ export function ProjectTeardown({
                 checked={deleteLocal}
                 onChange={(e) => setDeleteLocal(e.target.checked)}
               />
-              <FolderX className="h-3.5 w-3.5" aria-hidden="true" /> Delete local checkout under dev
-              root
+              <FolderX className="h-3.5 w-3.5" aria-hidden="true" /> Also delete the copy on this
+              computer
             </label>
           )}
         </div>

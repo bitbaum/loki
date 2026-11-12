@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   dispatchMessageDisplay,
+  splitDiagnostics,
   isTranscriptInterruption,
   transcriptActivity,
   toolWasInterrupted,
@@ -120,3 +121,17 @@ assert(!toolWasInterrupted({ ...tool, status: "error", result: "command exited 1
 console.log(
   "✓ dispatch presentation preserves requests; interruption, quiet and disconnected sessions report honest state",
 );
+
+// A feedback note shows its words, not its diagnostics tail (2026-11-12:
+// "--- technical details --- code: provider_unavailable …" inside the note).
+{
+  const note =
+    "The form fill button does nothing.\n\n--- technical details ---\ncode: provider_unavailable";
+  const split = splitDiagnostics(note);
+  assert.equal(split.text, "The form fill button does nothing.");
+  assert.equal(split.details, "--- technical details ---\ncode: provider_unavailable");
+  assert.deepEqual(splitDiagnostics("Just words."), { text: "Just words.", details: null });
+  const only = "--- technical details ---\ncode: x";
+  assert.deepEqual(splitDiagnostics(only), { text: only, details: null }, "nothing else: keep it");
+}
+console.log("✓ a feedback note folds its technical details away");

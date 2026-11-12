@@ -1,8 +1,9 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { Package } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import { loadProjectBuiltFrom } from "@/lib/packages/load";
-import { PACKAGE_UPDATE_SETTINGS } from "@/config/package-updates";
+import { PACKAGE_UPDATE_SETTING, PACKAGE_UPDATE_SETTINGS } from "@/config/package-updates";
 import { OpenUpdateLine } from "./OpenUpdateLine";
 import { PackageStatusTag } from "./PackageStatusTag";
 import { PackageUpdateSettingControl } from "./PackageUpdateSettingControl";
@@ -82,13 +83,25 @@ export async function ProjectBuiltFrom({
             const inner = (
               <>
                 <Package className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden />
-                <span className="min-w-0 flex-1 wrap-anywhere font-medium text-text-primary">
-                  {row.packageName}
+                {/* Sized to the name (flex-auto, not flex-1): a zero basis
+                    squeezed it to a sliver beside the version and cut
+                    "@bitbaum/g / eo-kit" mid-word. The version wraps to its
+                    own line instead; the only break inside is after the scope. */}
+                <span className="min-w-0 flex-auto break-words font-medium text-text-primary">
+                  {packageNameParts(row.packageName).map((part, i) => (
+                    <Fragment key={i}>
+                      {i > 0 && <wbr />}
+                      {part}
+                    </Fragment>
+                  ))}
                 </span>
                 <span className="font-mono text-xs text-text-secondary">
                   {row.version ? `v${row.version}` : row.spec}
                 </span>
-                <PackageStatusTag status={row.status} />
+                <PackageStatusTag
+                  status={row.status}
+                  calm={data?.setting !== PACKAGE_UPDATE_SETTING.ASK}
+                />
               </>
             );
             return (
@@ -129,4 +142,12 @@ export async function ProjectBuiltFrom({
       )}
     </section>
   );
+}
+
+/** "@bitbaum/geo-kit" → ["@bitbaum/", "geo-kit"]: the one place it may break. */
+function packageNameParts(name: string): string[] {
+  const slash = name.indexOf("/");
+  return name.startsWith("@") && slash > 0
+    ? [name.slice(0, slash + 1), name.slice(slash + 1)]
+    : [name];
 }

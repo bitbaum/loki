@@ -21,6 +21,7 @@ export function WatchFixButton({
   liveHref,
   size = "md",
   share = true,
+  quiet = false,
 }: {
   feedbackId: string;
   liveHref: string;
@@ -28,6 +29,9 @@ export function WatchFixButton({
   /** Off on the decision card, whose job is one yes: sharing lives in its
    *  "More" row, which renders this button again with sharing on. */
   share?: boolean;
+  /** Drawn as a secondary button: a list of fixed notes had one filled
+   *  "Watch the fix" per row — nineteen primaries on one screen. */
+  quiet?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -56,7 +60,11 @@ export function WatchFixButton({
         type="button"
         onClick={() => void open()}
         disabled={busy}
-        className={cn("ui-btn-save gap-1", size === "sm" && "ui-btn-sm")}
+        className={cn(
+          quiet ? "ui-btn-secondary" : "ui-btn-save",
+          "gap-1",
+          size === "sm" && "ui-btn-sm",
+        )}
         title="Opens the live page in a new tab; Loki points at each part of the change and says why"
       >
         {busy ? <Loader2 className="ui-spinner-xs" /> : <Play className="h-3 w-3" />}

@@ -476,6 +476,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* The browser's own bright blue is a colour outside the tokens, in both
+     themes (Settings' radios, 2026-11-12). The same ink .ui-inspection-choice
+     already uses; a control with its own accent-color still wins. */
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--text-primary);
+  }
   body {
     @apply bg-background text-foreground;
     font-size: 16px;
@@ -5881,13 +5888,13 @@
     @apply ml-auto flex flex-wrap items-center gap-x-3 gap-y-1;
   }
   .ui-fb-row-quiet-btn {
-    @apply min-h-9 text-xs text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline disabled:opacity-50;
+    @apply min-h-11 text-xs text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline disabled:opacity-50;
   }
   .ui-fb-row-details {
     @apply text-xs text-text-muted;
   }
   .ui-fb-row-details > summary {
-    @apply min-h-9 cursor-pointer list-none py-1 hover:text-text-secondary;
+    @apply min-h-11 cursor-pointer list-none py-1 hover:text-text-secondary;
   }
   .ui-fb-row-details > ul {
     @apply mt-1 space-y-1 border-l border-border-subtle pl-3;
