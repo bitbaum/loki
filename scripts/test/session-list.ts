@@ -6,7 +6,12 @@
  * Run: npx tsx scripts/test/session-list.ts
  */
 import assert from "node:assert/strict";
-import { OPEN_FRESH_MS, sessionListRow, type SessionStateRow } from "../../src/lib/session-list";
+import {
+  OPEN_FRESH_MS,
+  sessionListRow,
+  workingNow,
+  type SessionStateRow,
+} from "../../src/lib/session-list";
 
 const NOW = Date.parse("2026-10-19T18:00:00Z");
 const ago = (ms: number) => new Date(NOW - ms);
@@ -102,3 +107,39 @@ assert.deepEqual(
 );
 
 console.log("✓ session-list: open in words, the rest by when an agent last worked");
+
+// The top bar's "anything running?": only working sessions, linked to watch.
+{
+  const item = (name: string, session: ReturnType<typeof sessionListRow>, tab: string | null) => ({
+    name,
+    tab,
+    session,
+  });
+  const working = { open: true as const, status: "working" as const, line: "Working" };
+  const waiting = { open: true as const, status: "waiting" as const, line: "Waiting for you" };
+  assert.equal(
+    workingNow(
+      [item("a", waiting, "a"), item("b", { open: false, lastWorkedAt: null }, null)],
+      "/terminal",
+    ),
+    null,
+    "nothing working: nothing drawn (waiting is not working)",
+  );
+  assert.deepEqual(
+    workingNow([item("Loki", working, "loki-tab"), item("b", waiting, "b")], "/terminal"),
+    {
+      count: 1,
+      href: "/terminal?tab=loki-tab",
+      label: "1 agent working now — watch it",
+    },
+  );
+  assert.equal(
+    workingNow([item("Loki", working, null)], "/terminal")?.href,
+    "/terminal?project=Loki",
+    "no tab known: the project's session",
+  );
+  const two = workingNow([item("a", working, "a"), item("b", working, "b")], "/terminal");
+  assert.equal(two?.href, "/terminal", "several: the list to pick from");
+  assert.equal(two?.label, "2 agents working now — watch them");
+  console.log("✓ session-list: the top bar says when agents are working, and links to watch");
+}

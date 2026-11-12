@@ -6,6 +6,7 @@ import { Search, LayoutPanelLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCommandPalette } from "@/hooks/use-command-palette";
 import { NotificationsPill } from "./NotificationsPill";
+import { WorkingNowButton } from "./WorkingNowButton";
 import { FeedbackLauncher } from "./FeedbackLauncher";
 import { FleetRunnerStatusPill } from "@/components/desktop/FleetRunnerStatusPill";
 import { AccountMenu } from "@/components/shell/AccountMenu";
@@ -109,6 +110,7 @@ export function AppTopBar({
           </button>
         )}
         <FleetRunnerStatusPill />
+        <WorkingNowButton />
         <FeedbackLauncher enabled={feedbackWidget} />
         <NotificationsPill />
         <TopbarActionSlot />
