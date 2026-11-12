@@ -14,6 +14,7 @@ import { z } from "zod";
 import {
   MCP_LINK_ACCOUNT_URL,
   MCP_MESSAGE_MAX_CHARS,
+  MCP_RESOURCE_ORIGIN,
   MCP_SCOPE,
   MCP_TOOL_SCOPES,
   type McpScope,
@@ -21,6 +22,11 @@ import {
 } from "@/config/mcp";
 import type { McpCaller, McpServices } from "@/lib/mcp/types";
 import { BROWSER_RECIPES, BROWSER_RECIPE_IDS } from "@/config/browser-tasks";
+import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
+import { terminalHref } from "@/lib/dispatch-card";
+import { mayPeekTab } from "@/lib/peek-access";
+import { plainSessionText } from "@/lib/session-screen";
+import { isShellTab } from "@/lib/shell-session";
 
 export type McpToolResult = {
   content: Array<{ type: "text"; text: string }>;
@@ -355,6 +361,83 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
         return `- ${p.name}: ${parts.join(" · ")}`;
       });
       return text(`${projects.length} projects:\n${lines.join("\n")}`, { projects });
+    },
+  }),
+
+  loki_sessions: define({
+    title: "Open agent sessions",
+    description:
+      "List the agent sessions open right now on the owner's builders (the always-on cloud builder and, when connected, their own computer), each with the link that opens the same session in Loki's Terminal on any device the owner is signed in on. Use it to see whether a project's agent is up after loki_dispatch, and to hand the owner a session to look at. The list is what each builder last reported, so a session started seconds ago may not be in it yet.",
+    input: z.object({}),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    async run(_args, { userId, services }) {
+      const builders = (await services.sessions(userId)).map((b) => ({
+        ...b,
+        // A plain shell is the owner's own, in their browser: never listed here.
+        tabs: b.tabs.filter((tab) => !isShellTab(tab)),
+      }));
+      const sessions = builders.flatMap((b) =>
+        b.tabs.map((tab) => ({
+          session: tab,
+          builder: b.channel,
+          reportedAt: b.reportedAt,
+          openUrl: `${MCP_RESOURCE_ORIGIN}${terminalHref(tab, b.channel)}`,
+        })),
+      );
+      if (sessions.length === 0) {
+        return text(
+          builders.length === 0
+            ? "No builder has reported to Loki for this account, so no session is known."
+            : "No agent session is open on the owner's builders right now.",
+          { sessions: [] },
+        );
+      }
+      const lines = sessions.map(
+        (s) =>
+          `- ${s.session} on ${s.builder === "local" ? "the owner's computer" : "the cloud builder"}: ${s.openUrl}`,
+      );
+      return text(`${sessions.length} open:\n${lines.join("\n")}`, { sessions });
+    },
+  }),
+
+  loki_session_read: define({
+    title: "Read an agent session",
+    description:
+      "Read what an agent session's terminal shows now: the end of its output, as text. Use it after loki_dispatch to read what the project's agent answered or where it is stuck; call loki_sessions first for the session's exact name. It is the terminal's output, not a tidy transcript: lines can repeat, and it shows only what is on record at this moment, so say what you read and do not claim the work is finished unless the output says so. Waits up to about twenty seconds for the builder.",
+    input: z.object({
+      session: z.string().trim().min(1).max(120),
+      builder: z
+        .enum(BUILDER_CHANNELS)
+        .optional()
+        .describe("cloud or local, as loki_sessions listed it. Omit to let either answer."),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    async run(args, { userId, services }) {
+      if (!mayPeekTab(args.session, "token")) {
+        return toolError(
+          "That is a plain shell, which only the owner reads, in their own signed-in browser.",
+        );
+      }
+      const openUrl = `${MCP_RESOURCE_ORIGIN}${terminalHref(args.session, args.builder ?? null)}`;
+      const read = await services.readSession(userId, args.session, args.builder);
+      if (read.status === "pending") {
+        return toolError(
+          `No builder answered for ${args.session} in time; it may be offline or busy. The owner can open the session at ${openUrl}.`,
+        );
+      }
+      if (read.status === "error") return toolError(`${read.error} (${args.session})`);
+      const content = plainSessionText(read.content);
+      if (!content) {
+        return text(`${args.session} has printed nothing yet. Open it at ${openUrl}.`, {
+          session: args.session,
+          content: "",
+          openUrl,
+        });
+      }
+      return text(
+        `The end of ${args.session}'s terminal output (the owner can open it at ${openUrl}):\n\n${content}`,
+        { session: args.session, content, openUrl },
+      );
     },
   }),
 };
