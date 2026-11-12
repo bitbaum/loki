@@ -6,10 +6,17 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
+import {
+  FIX_SHIP_STATE,
+  isFailedCheckConclusion,
+  prBlockerFor,
+  prBlockerNews,
+  type FixShipping,
+} from "@/lib/feedback/fix-shipping";
 import {
   ANNOUNCE_FRESH_MS,
   chatRunAnnouncement,
+  chatRunBlockedMessage,
   chatRunShippedMessage,
 } from "@/lib/run-shipped-message";
 
@@ -94,6 +101,88 @@ assert.match(failed.content, /merged, but the deploy failed/);
 assert.match(failed.content, /still shows the old version/);
 assert.match(failed.content, /The failed deploy: https:\/\/loki\.orangecat\.ch\/r/);
 
+// ── A pull request that cannot merge as it stands ───────────────────────
+// The fleet's sweep leaves a red or conflicted pull request waiting. The
+// person who asked for the work is told once per commit, with the message
+// that repairs it.
+const HEAD = "b".repeat(40);
+assert.equal(prBlockerFor({ mergeable: true, failedChecks: [], headSha: HEAD }), null);
+assert.equal(
+  prBlockerFor({ mergeable: null, failedChecks: [], headSha: HEAD }),
+  null,
+  "GitHub still computing is not a conflict",
+);
+assert.deepEqual(prBlockerFor({ mergeable: false, failedChecks: ["check"], headSha: HEAD }), {
+  why: "conflict",
+  checks: [],
+  headSha: HEAD,
+});
+assert.deepEqual(
+  prBlockerFor({ mergeable: true, failedChecks: ["check", "e2e", "check"], headSha: HEAD }),
+  { why: "checks_failed", checks: ["check", "e2e"], headSha: HEAD },
+);
+assert.equal(isFailedCheckConclusion("failure"), true);
+assert.equal(isFailedCheckConclusion("timed_out"), true);
+assert.equal(isFailedCheckConclusion("cancelled"), false, "a superseded run is not a failure");
+assert.equal(isFailedCheckConclusion("skipped"), false);
+assert.equal(isFailedCheckConclusion(null), false, "still running");
+
+const red = { why: "checks_failed" as const, checks: ["check", "e2e"], headSha: HEAD };
+const openRed = ledger(FIX_SHIP_STATE.PR_OPEN, null, { blocked: red });
+assert.deepEqual(prBlockerNews(open, openRed), red, "first sight of a red pull request");
+assert.equal(prBlockerNews(openRed, openRed), null, "the same failure is not said twice");
+assert.deepEqual(
+  prBlockerNews(
+    openRed,
+    ledger(FIX_SHIP_STATE.PR_OPEN, null, { blocked: { ...red, headSha: "c".repeat(40) } }),
+  ),
+  { ...red, headSha: "c".repeat(40) },
+  "a repair that failed too is a new commit, and is said",
+);
+assert.equal(prBlockerNews(openRed, open), null, "no longer blocked is not news here");
+assert.equal(
+  prBlockerNews(open, ledger(FIX_SHIP_STATE.MERGED, null, { blocked: red })),
+  null,
+  "only an open pull request can be blocked",
+);
+
+const blockedSaid = chatRunBlockedMessage({
+  projectKey: "orangecat",
+  blocked: red,
+  prUrl: "https://github.com/bitbaum/orangecat/pull/1664",
+});
+assert.match(blockedSaid.content, /\*\*orangecat\*\* — the pull request cannot merge yet\./);
+assert.match(blockedSaid.content, /2 checks failed: check, e2e\./);
+assert.match(
+  blockedSaid.content,
+  /The pull request: https:\/\/github\.com\/bitbaum\/orangecat\/pull\/1664/,
+);
+// The way forward is a message that names the project, so sending it is a task.
+assert.match(
+  blockedSaid.content,
+  /> orangecat: fix the failing checks on https:\/\/github\.com\/bitbaum\/orangecat\/pull\/1664 and push to the same branch\./,
+);
+assert.equal(blockedSaid.title, "orangecat · the pull request needs a repair");
+const many = chatRunBlockedMessage({
+  projectKey: "loki",
+  blocked: { why: "checks_failed", checks: ["a", "b", "c", "d", "e"], headSha: HEAD },
+  prUrl: "u",
+});
+assert.match(many.content, /5 checks failed: a, b, c and 2 more\./);
+const one = chatRunBlockedMessage({
+  projectKey: "loki",
+  blocked: { why: "checks_failed", checks: ["check"], headSha: HEAD },
+  prUrl: "u",
+});
+assert.match(one.content, /A check failed: check\./);
+const conflict = chatRunBlockedMessage({
+  projectKey: "loki",
+  blocked: { why: "conflict", checks: [], headSha: HEAD },
+  prUrl: "u",
+});
+assert.match(conflict.content, /It conflicts with the main branch\./);
+assert.match(conflict.content, /> loki: bring the branch of u up to date with main/);
+
 // The wiring: the existing fifteen-minute cron, the conversation's own
 // thread, never a feedback fix (its row announces it), and no model.
 const src = readFileSync("src/lib/run-follow-notify.ts", "utf8");
@@ -101,11 +190,23 @@ assert.match(src, /payload\}->>'conversationId' IS NOT NULL/);
 assert.match(src, /getFeedbackByRunId\(run\.userId, run\.id\)/);
 assert.match(src, /liveUrl,\n/);
 assert.doesNotMatch(src, /lookAndRecord|checkAiBudget|callText/, "the timer spends no model call");
+assert.match(src, /readBlockers: true/, "the follower asks whether the pull request can merge");
+assert.match(src, /prBlockerNews\(before, fix\)/);
+assert.doesNotMatch(
+  src,
+  /executeInject|injectPrompt|enqueuePendingCommand/,
+  "the timer starts no agent run: nobody asked for one (lib/auto-dispatch)",
+);
+assert.match(
+  readFileSync("src/lib/feedback/fix-shipping-refresh.ts", "utf8"),
+  /if \(input\.readBlockers && fix\.state === FIX_SHIP_STATE\.PR_OPEN && pr\.headSha\)/,
+  "the two extra GitHub reads happen only for a caller that asks",
+);
 assert.match(
   readFileSync("src/app/api/crons/check-feedback-needs-you/route.ts", "utf8"),
   /await followChatRuns\(\)/,
 );
 
 console.log(
-  "✓ run-follow-notify: a chat build that goes live is said once, in its thread and by push",
+  "✓ run-follow-notify: a chat build that goes live, or whose pull request cannot merge, is said once, in its thread and by push",
 );

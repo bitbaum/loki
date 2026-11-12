@@ -78,6 +78,12 @@ export type FixShipping = {
    */
   liveVia?: "later_deploy" | "served_release";
   ownDeploy?: { url: string | null; name: string; conclusion: string | null };
+  /**
+   * The open pull request cannot merge as it stands (prBlockerFor). Read only
+   * for callers that ask (refreshFixShipping `readBlockers`), and rebuilt on
+   * every refresh: absent means "not blocked, or not looked".
+   */
+  blocked?: PrBlocker;
   /** ISO — when GitHub was last asked. */
   checkedAt: string;
   /** Loki read the live page once the fix was deployed (feedback/verify-live.ts):
@@ -184,6 +190,63 @@ export function fixCheckedAtMs(fix: FixShipping | null | undefined): number {
 
 /** Which ledger transitions are worth interrupting someone for. */
 export type ShipAnnouncement = "live" | "deploy_failed";
+
+/**
+ * Why an open pull request cannot merge as it stands.
+ *
+ * The fleet's sweep merges a green pull request by itself and leaves a red or
+ * conflicted one alone: it "simply waits" (bitbaum/fleet,
+ * scripts/ci/auto-merge-sweep.sh). Nothing told the person who asked for the
+ * work, so a task that ended at a pull request with a failed check read
+ * "done, it merges on its own" for as long as nobody opened GitHub.
+ */
+export type PrBlocker = {
+  why: "conflict" | "checks_failed";
+  /** Names of the failed checks, for the sentence. Empty for a conflict. */
+  checks: string[];
+  /** The commit this was read at: one notice per commit, not per look. */
+  headSha: string | null;
+};
+
+/** Check conclusions that will not turn green by waiting. `cancelled` is not
+ *  one: a superseded run is cancelled and the next one decides. */
+const FAILED_CHECK_CONCLUSIONS = new Set(["failure", "timed_out", "startup_failure"]);
+
+export function isFailedCheckConclusion(conclusion: string | null | undefined): boolean {
+  return !!conclusion && FAILED_CHECK_CONCLUSIONS.has(conclusion);
+}
+
+/**
+ * Pure: is this open pull request blocked? `mergeable` is GitHub's own word
+ * and null while it is still computing, which is never read as a conflict.
+ * A conflict is named first: checks on a conflicted branch are stale news.
+ */
+export function prBlockerFor(input: {
+  mergeable: boolean | null | undefined;
+  failedChecks: readonly string[];
+  headSha: string | null | undefined;
+}): PrBlocker | null {
+  const headSha = input.headSha ?? null;
+  if (input.mergeable === false) return { why: "conflict", checks: [], headSha };
+  const checks = [...new Set(input.failedChecks.map((n) => n.trim()).filter(Boolean))];
+  if (checks.length > 0) return { why: "checks_failed", checks, headSha };
+  return null;
+}
+
+/**
+ * Pure: is this blocker news? Once per commit and reason. A fix pushed to the
+ * branch is a new commit, so a second failure is said again; the same failure
+ * read on the next tick is not.
+ */
+export function prBlockerNews(
+  before: FixShipping | null | undefined,
+  after: FixShipping | null | undefined,
+): PrBlocker | null {
+  if (!after || after.state !== FIX_SHIP_STATE.PR_OPEN || !after.blocked) return null;
+  const was = before?.blocked;
+  if (was && was.why === after.blocked.why && was.headSha === after.blocked.headSha) return null;
+  return after.blocked;
+}
 
 /**
  * Pure: does moving from `before` to `after` deserve an announcement?

@@ -6,6 +6,7 @@
 import {
   shipAnnouncementFor,
   type FixShipping,
+  type PrBlocker,
   type ShipAnnouncement,
 } from "@/lib/feedback/fix-shipping";
 
@@ -59,5 +60,50 @@ export function chatRunShippedMessage(input: {
     content: lines.join("\n"),
     title: `${input.projectKey} · merged, but the deploy failed`,
     body: "The site still shows the old version.",
+  };
+}
+
+/** How many failed checks are named before "and N more". */
+const BLOCKED_CHECKS_NAMED = 3;
+
+/**
+ * Pure: the line for a pull request that cannot merge as it stands, and the
+ * push that points at it.
+ *
+ * It ends with the way forward as a message to send, because that is the one
+ * action that certainly exists on a phone: a message naming the project is a
+ * task for it. Loki does not send the repair itself: an agent run nobody
+ * asked for spends the owner's quota (lib/auto-dispatch).
+ */
+export function chatRunBlockedMessage(input: {
+  projectKey: string;
+  blocked: PrBlocker;
+  prUrl: string;
+}): { content: string; title: string; body: string } {
+  const { projectKey, blocked, prUrl } = input;
+  const conflict = blocked.why === "conflict";
+  const named = blocked.checks.slice(0, BLOCKED_CHECKS_NAMED).join(", ");
+  const more = blocked.checks.length - BLOCKED_CHECKS_NAMED;
+  const count =
+    blocked.checks.length === 1 ? "A check failed" : `${blocked.checks.length} checks failed`;
+  const what = conflict
+    ? "It conflicts with the main branch."
+    : `${count}: ${named}${more > 0 ? ` and ${more} more` : ""}.`;
+  const repair = conflict
+    ? `${projectKey}: bring the branch of ${prUrl} up to date with main, resolve the conflicts and push to the same branch.`
+    : `${projectKey}: fix the failing checks on ${prUrl} and push to the same branch.`;
+  return {
+    content: [
+      `🔴 **${projectKey}** — the pull request cannot merge yet.`,
+      "",
+      what,
+      `The pull request: ${prUrl}`,
+      "",
+      "It stays open until this is repaired. To have the agent repair it, send this here:",
+      "",
+      `> ${repair}`,
+    ].join("\n"),
+    title: `${projectKey} · the pull request needs a repair`,
+    body: conflict ? "It conflicts with the main branch." : what,
   };
 }

@@ -78,6 +78,7 @@ signed-in browser. What it could use:
 | 11:14 | Same journal | That third message reports an outage: since 09:49 UTC every OrangeCat bot send answers 502 `AI_ERROR`, two minutes after the Gemini API was switched off, and asks for the bot and Cat provider chain to leave Google. An agent on the box is on it. The 09:04 rehearsal (success) was before the outage. |
 | 11:14 | Same journal | `[run-progress] beat failed: The operation was aborted due to timeout` at 10:57 and 11:03, and `[workspace-source] …: aborted due to timeout` nine times between 10:56 and 11:09: the server answered the runner slowly in that window. Not looked into. The drain read 7 then 8 agents working; they are. |
 | 11:17 | OrangeCat `live-rehearsal.yml` started again, to see whether bots answer now | result below when it is in |
+| 11:28 | Change 6 written and tested (below): a red or conflicted pull request is said in the thread with the repair | `scripts/test/run-follow-notify.ts`, and the eleven other tests that read the shipping ledger |
 | 11:20 | Change 5 written and tested (below) | `scripts/test/quiet-lane.ts` 14 checks; `scripts/test/lane-and-reaper.ts` 13 of 13 against a local Postgres 16 with pgvector, migrated with `drizzle-kit push` as CI does |
 | 09:40 | The drain reads "8 agent(s) working" | eight is the cap on open agent sessions (`src/lib/agent-session-limit.ts`); the drain's clock restarted at 09:11, 09:22, 09:29 and 09:34 with each deploy |
 | 06:31 | OrangeCat `cat-diagnostics.yml` (read-only) | no Cat failure logged in the last hour |
@@ -116,6 +117,35 @@ What it does not do: make the restart land. The drain still counts every
 sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
+
+## Change 6 (Loki): a pull request that cannot merge is said, with the repair
+
+The fleet's sweep merges a green pull request and leaves a red or conflicted
+one waiting (`bitbaum/fleet` `scripts/ci/auto-merge-sweep.sh`: "a red or
+pending PR simply waits"). A task that ended at such a pull request read
+"done, it merges on its own" until somebody opened GitHub.
+
+- `src/lib/feedback/fix-shipping.ts`: `PrBlocker`, `prBlockerFor` (a
+  conflict when GitHub says `mergeable: false`, else the names of the checks
+  that failed; `cancelled` and still-running are not failures),
+  `prBlockerNews` (once per commit and reason).
+- `src/lib/feedback/fix-shipping-refresh.ts`: `readBlockers` on the refresh
+  input; only then are the head commit's check runs and statuses read.
+- `src/lib/run-follow-notify.ts`: the fifteen-minute follower asks, and on
+  news writes one line into the thread the task came from and sends one
+  push. `src/lib/run-shipped-message.ts` `chatRunBlockedMessage` holds the
+  words. The line ends with the message to send, for example
+  "orangecat: fix the failing checks on <pull request> and push to the same
+  branch." A message that names a project is a task for it, so the way
+  forward is one paste on a phone.
+- Loki does not send the repair itself. `lib/auto-dispatch` records the
+  owner's rule of 2026-09-29: no agent run that nobody asked for.
+
+Tests: `scripts/test/run-follow-notify.ts`. Not proven on the live site: it
+needs a chat build whose pull request is red or conflicted.
+
+Not done: the run's card does not show the blocker (only the thread line and
+the push do), and there is no one-tap button for the repair.
 
 ## Change 5 (Loki): a silent run gives its project to the waiting message
 
@@ -267,10 +297,9 @@ only, plus one prompt line the runner reads at its next start; no file under
    it needs web push configured on the box and a subscribed device
    (https://loki.orangecat.ch/settings → Notifications → Turn on
    notifications → Send a test). The line in the thread is written either way.
-2. **A red or conflicted pull request has no way forward in Loki.** `fetchPr`
-   already returns `mergeable`; carry `blocked: conflict | checks_failed` on
-   the ledger, show it as Needs you with one action that sends the fix-up to
-   the same project on the same branch.
+2. **A red or conflicted pull request**: change 6 says it in the thread and
+   by push, with the message that repairs it. Still open: the run's card
+   shows nothing of it, and the repair is a message to paste, not a button.
 3. **The drain's rule** for sealed sessions is change 3. Still to measure:
    what a working sealed session relays, and whether unsealed agents that are
    not Claude can be told idle the same way.

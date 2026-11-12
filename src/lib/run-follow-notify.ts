@@ -13,7 +13,10 @@
  * from a conversation. It reads GitHub and the site's release receipt and
  * calls no model (scripts/test/no-free-background-ai.ts holds every timer to
  * that). On the change to live, or to a failed deploy, it writes one line
- * into the thread the task was sent from and sends one push.
+ * into the thread the task was sent from and sends one push. It does the same
+ * when the pull request cannot merge as it stands (a conflict, a failed
+ * check): the fleet's sweep leaves such a pull request waiting, and nobody
+ * was told.
  *
  * Old news is not announced: a ledger first read long after the change went
  * live is stamped and nothing is sent, so the first tick after this ships
@@ -27,11 +30,20 @@ import { addMessage } from "@/db/queries/conversations";
 import { logDebug } from "@/db/queries/debug-logs";
 import { getFeedbackByRunId } from "@/db/queries/site-feedback";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
-import { FIX_SHIP_STATE, fixNeedsRefresh, type FixShipping } from "@/lib/feedback/fix-shipping";
+import {
+  FIX_SHIP_STATE,
+  fixNeedsRefresh,
+  prBlockerNews,
+  type FixShipping,
+} from "@/lib/feedback/fix-shipping";
 import { refreshFixShipping } from "@/lib/feedback/fix-shipping-refresh";
 import { pushToUser } from "@/lib/push-fanout";
 import { reportedPrEvidence } from "@/lib/repo-evidence";
-import { chatRunAnnouncement, chatRunShippedMessage } from "@/lib/run-shipped-message";
+import {
+  chatRunAnnouncement,
+  chatRunBlockedMessage,
+  chatRunShippedMessage,
+} from "@/lib/run-shipped-message";
 
 /** The window lib/run-follow follows a run in; past it nothing is asked. */
 export const CHAT_FOLLOW_WINDOW_MS = 48 * 60 * 60_000;
@@ -96,7 +108,32 @@ export async function followChatRuns(now: number = Date.now()): Promise<FollowRe
         runBranches: { own: runBranches(run), reported: runReportedBranches(run) },
         reportedPrUrl: typeof payload.prUrl === "string" ? payload.prUrl : null,
         liveUrl,
+        readBlockers: true,
       });
+      // A pull request that cannot merge is news too, and the only kind that
+      // needs the person: said once per commit, with the message that repairs it.
+      const blocked = prBlockerNews(before, fix);
+      if (blocked && fix.pr?.url) {
+        const said = chatRunBlockedMessage({
+          projectKey: run.projectKey,
+          blocked,
+          prUrl: fix.pr.url,
+        });
+        await addMessage(conversationId, {
+          role: "assistant",
+          kind: "outcome",
+          content: said.content,
+          meta: { runId: run.id, prUrl: fix.pr.url, blocked: blocked.why },
+        });
+        await pushToUser(run.userId, {
+          title: said.title,
+          body: said.body,
+          url: `/loki?c=${encodeURIComponent(conversationId)}`,
+          tag: `run-blocked:${run.id}`,
+        });
+        result.announced += 1;
+        continue;
+      }
       const announcement = chatRunAnnouncement(before, fix, now);
       if (!announcement) continue;
       const said = chatRunShippedMessage({
