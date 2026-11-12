@@ -25,7 +25,6 @@ import { useSiteDeployment } from "@/hooks/use-site-deployment";
 import { SiteDeploymentStatus } from "./SiteDeploymentStatus";
 import { DOC_PASTE_MAX } from "@/lib/constants";
 import { CharCount } from "@/components/ui/char-count";
-import { TextArea } from "@/components/ui/text-area";
 import { LinkGithubButton } from "@/components/onboarding/LinkGithubButton";
 import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import {
@@ -195,14 +194,14 @@ export function ProjectKickoff({
           <label htmlFor="project-kickoff-brief" className="ui-micro-label">
             The brief — everything is written from this
           </label>
-          <TextArea
+          <textarea
             id="project-kickoff-brief"
-            ariaLabel="The brief — everything is written from this"
             value={text}
-            onChange={setText}
+            onChange={(e) => setText(e.target.value)}
             rows={5}
             disabled={running}
             placeholder={`What is ${projectName}, who is it for, and what should exist at the end? A paragraph is plenty — everything else is derived from it.`}
+            className="ui-input w-full text-base leading-relaxed sm:text-sm"
           />
           <CharCount length={text.length} max={DOC_PASTE_MAX} />
           {isThinBrief(text) && (

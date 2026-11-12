@@ -17,7 +17,6 @@ import { useSiteConsultation } from "@/hooks/use-site-consultation";
 import { appendToBrief, extractWebsite, saysMoreThanAddress } from "@/lib/website-from-speech";
 import { clearWebsiteDraft, parseWebsiteDraft, saveWebsiteDraft } from "@/lib/website-draft";
 import { Segmented } from "@/components/ui/segmented";
-import { TextArea } from "@/components/ui/text-area";
 
 /**
  * "Change your website", told in your own words — typed or spoken.
@@ -274,10 +273,9 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
           <label htmlFor="change-brief-text" className="ui-change-brief-label">
             {report ? "Anything else you want (optional)" : copy.changesLabel}
           </label>
-          <TextArea
+          <textarea
             id="change-brief-text"
-            ariaLabel={report ? "Anything else you want (optional)" : copy.changesLabel}
-            voice={signedIn ? true : "visitor"}
+            className="ui-input min-h-24 w-full resize-y text-base"
             rows={Math.min(
               10,
               Math.max(3, changes.split("\n").length + Math.ceil(changes.length / 40)),
@@ -287,9 +285,9 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
             }
             maxLength={COMMISSION.maxChanges}
             value={changes}
-            onChange={(next) => {
+            onChange={(e) => {
               requestId.current = "";
-              setChanges(next);
+              setChanges(e.target.value);
             }}
           />
 

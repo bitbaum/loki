@@ -4,7 +4,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { CheckSquare, GripVertical, Pencil, Send, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TextArea } from "@/components/ui/text-area";
 
 /**
  * Props for a single queue row. The parent QueueList builds one of these
@@ -101,15 +100,12 @@ export function QueueItemRow({
 
       {/* Content */}
       {editing ? (
-        <TextArea
+        <textarea
           // Mounts only when this row enters edit mode — autoFocus replaces
           // the old ref + deferred .focus() (a ref may not cross render code).
           autoFocus
           value={editText}
-          onChange={onSetEditText}
-          ariaLabel={`Queued prompt ${index + 1}`}
-          // Enter confirms (Shift+Enter is a new line), Escape cancels: the
-          // queue's own keys, so they stay here rather than in onSubmit.
+          onChange={(e) => onSetEditText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -117,11 +113,10 @@ export function QueueItemRow({
             }
             if (e.key === "Escape") onCancelEdit();
           }}
-          // The whole field's blur: pressing its microphone does not confirm
-          // and close the editor under the finger.
           onBlur={onConfirmEdit}
           rows={2}
-          className="flex-1"
+          className="ui-input flex-1 resize-none text-sm"
+          style={{ fieldSizing: "content", maxHeight: "6rem" } as React.CSSProperties}
         />
       ) : (
         <button

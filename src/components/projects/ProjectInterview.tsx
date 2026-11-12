@@ -22,7 +22,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Loader2, MessageCircleQuestion, SkipForward } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
-import { TextArea } from "@/components/ui/text-area";
 import {
   INTERVIEW_ANSWER_MAX,
   interviewIntro,
@@ -204,10 +203,10 @@ export function ProjectInterview({
             <span className="mt-1 block text-sm text-text-muted">{current.hint}</span>
           </label>
 
-          <TextArea
+          <textarea
             id="project-interview-answer"
             value={draft}
-            onChange={setDraft}
+            onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               // Enter sends, Shift+Enter breaks the line. Five questions with a
               // mouse trip between each is the form this exists to not be.
@@ -220,8 +219,9 @@ export function ProjectInterview({
             maxLength={INTERVIEW_ANSWER_MAX}
             autoFocus
             disabled={saving}
+            className="ui-input w-full min-w-0"
             placeholder="Type your answer…"
-            inputProps={{ "aria-describedby": "project-interview-count" }}
+            aria-describedby="project-interview-count"
           />
           {/* The limit, said out loud. `maxLength` stops the keyboard at the cap
               and says nothing, so an owner writing a considered answer watched
