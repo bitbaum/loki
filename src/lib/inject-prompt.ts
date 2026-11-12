@@ -33,6 +33,8 @@ export type AssembleInjectPromptInput = {
   model?: string;
   /** The project's public address, when it has one (a preview's, above all). */
   liveUrl?: string | null;
+  /** A fresh one-off session: the project's escalation note is not its work. */
+  oneOff?: boolean;
 };
 
 export type AssembleInjectPromptResult =
@@ -66,6 +68,7 @@ export async function assembleInjectPrompt(
     customPrompt,
     model,
     liveUrl,
+    oneOff,
   } = input;
 
   if (!promptKey && !customPrompt) {
@@ -77,7 +80,9 @@ export async function assembleInjectPrompt(
     // Open escalation ladder (retry → patch → replan): the objection from the
     // last failing run goes back to the AGENT first — humans are only alerted
     // at the top rung. Best-effort like every block.
-    getOpenEscalationBlock(userId, projectKey).catch(() => ""),
+    // Not for a fresh one-off: "diagnose the last failure" would send a side
+    // question into the project's failing work.
+    oneOff ? Promise.resolve("") : getOpenEscalationBlock(userId, projectKey).catch(() => ""),
   ]);
   const projectContext = projectContextRaw ?? undefined;
 
