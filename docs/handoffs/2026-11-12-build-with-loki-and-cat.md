@@ -111,6 +111,21 @@ signed-in browser. What it could use:
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
 | 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
 
+## 17:45 to 18:10: #1690 live; what still holds the runner; Change 11
+
+- #1690 merged 17:39, Loki served `74183f94` at 17:45. The new drain counts
+  **1** agent working (the old one counted 3).
+- The six sessions `stop-idle` "stopped" at 17:15 are still listed: their
+  containers are gone, their `podman run` relays are not. The old drain counted
+  those relays as agents; the new rule skips them (no open run).
+- `runs-db runs=open` (new): two open runs. **loki**, Claude, queued 13:01 and
+  never delivered. **substrata**, Gemini (Antigravity), delivered 13:45, no beat
+  since: Gemini has been off since 10:47. Its session is the one agent the drain
+  counts. Both are the owner's; neither was aborted here.
+- **Change 11:** the ack route falls back to the command's claim time when the
+  runner reports no injection time, so a run closes from its own handoff even
+  while the runner is behind (`scripts/test/delivery-claim-floor.ts`).
+
 ## 16:30 to 17:20: Claude took the task, did it, and the run still read Needs you
 
 | When (UTC) | What | Result |
