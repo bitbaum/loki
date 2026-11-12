@@ -54,7 +54,14 @@ const DISPATCH_MINUTES = Number(process.env.E2E_DISPATCH_MINUTES ?? 30);
  */
 const MARKER = "[e2e-probe]";
 /** The handoff summary the probe asks for, and the proof that it came back. */
-const PROBE_SUMMARY = "e2e ok — no changes";
+/**
+ * Unique per run. A probe sent into a session that already holds "e2e ok — no
+ * changes" from the last probe left that handoff as it was (the words were
+ * already there), so its time never passed the new run's delivery and the run
+ * sat at Needs you (2026-11-12 18:28, orangecat). A fresh token makes the
+ * agent write, and proves the handoff is this run's.
+ */
+const PROBE_SUMMARY = `e2e ok — no changes (${Date.now().toString(36)})`;
 
 // A ck_ agent token signs in the way a runner does, and is what the box-side
 // check mints since sign-in moved to AccountKit (scripts/test/mint-check-
