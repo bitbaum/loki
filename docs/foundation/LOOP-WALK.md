@@ -80,7 +80,9 @@ at `POST /api/agent-tokens` with its own session. Any seat may file.
    `{id, source, state, label, cause, reason, nextAction}` for a report it filed
    (on Needs you the reason and next step are never empty: a filed, unstarted
    report is `awaiting_implement`, "nothing to do, the owner decides"; no
-   request, no evidence); another seat's report is
+   request, no evidence; a closed report, `closed_without_change` or
+   `done_unproven`, says nobody is acting on it: `nextAction.kind` is `none`,
+   so stop polling); another seat's report is
    `404`. Owner and editor seats get the whole status: `cause`, `reason`,
    `nextAction` (with the exact `request` when there is one) and `evidence`.
 4. **Read the state.** `state` is one of `queued starting working needs_you
@@ -89,3 +91,34 @@ at `POST /api/agent-tokens` with its own session. Any seat may file.
    change is `failed`. See RUN-STATUS-SSOT.
 
 Never put a token in an argument, a log line, a report or a commit.
+
+## Session walk
+
+An agent drives a project's coding agent (Claude Code when that is the
+project's agent) in a Loki session on the project's builder, the always-on
+cloud builder unless the project is set to another, and the owner opens the
+same session in Loki on any device. Every call takes a `ck_` token of the
+account the builder belongs to, as `Authorization: Bearer`; a token only ever
+reaches its own account's sessions.
+
+1. **Start or continue.** `POST /api/control/tab-inject` `{tab, prompt}`, where
+   `tab` is the project's name. A session that is running gets the prompt
+   typed into it; otherwise the builder starts the project's agent and hands
+   it the prompt. Returns `commandId` and `runId`.
+2. **See it is up.** `GET /api/control/open-tabs?channel=cloud` lists the
+   sessions open on the cloud builder, by name.
+3. **Read it.** `POST /api/control/peek-tab` `{tab, channel: "cloud"}` returns
+   `resultUrl` and `openUrl`. `GET <resultUrl>` is `pending`, then `done` with
+   `content` (the session's terminal output so far) or `error`. Ask again for
+   a newer capture.
+4. **Type a key or a command.** `POST /api/control/tab-inject-raw`
+   `{kind: "key", tab, data, channel: "cloud"}`, the bytes the Terminal page
+   sends for a keystroke.
+5. **Close it.** `POST /api/control/close-tab` `{tab, channel: "cloud"}`.
+6. **Hand it to a person.** `openUrl` (`/terminal?project=<tab>`) is the same
+   session in Loki's Terminal, for whoever is signed in as the owner, on a
+   phone or a computer.
+
+A plain shell (`loki-shell-…`) is never part of this: its screen and keys
+belong to a signed-in, unlocked browser, and a token gets `403` or `404`.
+`scripts/test/agent-session-read.ts` pins the read side.
