@@ -18,6 +18,7 @@ import { getApiUserId } from "@/lib/session";
 import { getOrgProjects } from "@/db/queries/user-projects";
 import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { normalizeGitHubCloneUrl } from "@/lib/git-url";
+import { baseProjectKey } from "@/lib/run-tab";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,9 @@ export async function GET(req: Request) {
   // projects and its org peers' — never a project the account merely has a
   // seat on.
   const projects = await getOrgProjects(userId);
-  const project = projects.find((p) => p.name.toLowerCase() === tab.data.toLowerCase());
+  // A parallel run's tab ("<project>~<run>") is still that project.
+  const name = baseProjectKey(tab.data).toLowerCase();
+  const project = projects.find((p) => p.name.toLowerCase() === name);
   if (!project) return NextResponse.json({ error: "Unknown project" }, { status: 404 });
 
   const gitUrl = project.gitUrl?.trim() ? normalizeGitHubCloneUrl(project.gitUrl.trim()) : null;

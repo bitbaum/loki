@@ -4,10 +4,12 @@
  * Cloud control plane: runner-pushed openTabs from box-runner (owned PTY tabs).
  * Local runtime host (`RUNTIME_AVAILABLE=true`): the owned PTYs it holds (`listOwnedTabs`).
  * Terminal Cloud and This computer both list these and stream via peek-stream.
+ * Names only; a shell's tab is listed but its screen stays behind the shell
+ * unlock (peek-stream, peek-tab).
  */
 import { NextResponse } from "next/server";
 import { z } from "@/lib/api/route-helpers";
-import { getSessionUserId } from "@/lib/session";
+import { getApiUserId } from "@/lib/session";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
@@ -18,7 +20,8 @@ export const runtime = "nodejs";
 const Channel = z.enum(BUILDER_CHANNELS);
 
 export async function GET(req: Request) {
-  const userId = await getSessionUserId();
+  // Session or `ck_` token: an agent that started a session can see it is up.
+  const userId = await getApiUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const channelParam = Channel.safeParse(new URL(req.url).searchParams.get("channel"));
   const requestedChannel = channelParam.success ? channelParam.data : null;
