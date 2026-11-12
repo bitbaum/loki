@@ -10,6 +10,7 @@
  * ledger (refreshFixShipping, throttled by fixNeedsRefresh, never merging —
  * the repo's own path decides that) and the live-page look (lookAndRecord).
  */
+import { runBranches, runReportedBranches } from "@/lib/run-branches";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { promptHistory } from "@/db/schema/prompt-history";
@@ -94,6 +95,7 @@ export async function followRunLedger(
       autoShip: null,
       deployBroken: false,
       runStartedAt: run.startedAt,
+      runBranches: { own: runBranches(run), reported: runReportedBranches(run) },
     }).catch(() => fix);
   }
   if (

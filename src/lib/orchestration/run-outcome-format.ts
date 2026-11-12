@@ -102,7 +102,7 @@ export function formatRunOutcomeMessage(
   } else if (run.outcome === ORCHESTRATION_OUTCOME.SUCCESS) {
     lines.push(
       "",
-      "No pull request or push was found for this run — the work may not have left the runner.",
+      "No pull request or push was found on this run's own branches — the work may not have left the runner.",
     );
   }
   if (liveUrl) lines.push("", `Live: ${liveUrl}`);

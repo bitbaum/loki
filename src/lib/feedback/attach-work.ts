@@ -1,3 +1,4 @@
+import { runBranches, runReportedBranches } from "@/lib/run-branches";
 import { providerLabel } from "@/config/quota-alternatives";
 import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
 import { getLatestRunEventKinds } from "@/db/queries/run-events";
@@ -151,6 +152,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
           // The only fact that ties a pull request to this run; automatic
           // merging refuses without it (see prOpenedByRun).
           runStartedAt: run.startedAt ?? null,
+          runBranches: { own: runBranches(run), reported: runReportedBranches(run) },
           // Without these two the merge path below can never run: decideAutoShip
           // reads `autoShip === true` and holds on anything else, so an omitted
           // field silently disables the whole feature. It shipped omitted once

@@ -34,6 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     question?: unknown;
     shipped?: unknown;
     branch?: unknown;
+    upstream?: unknown;
   };
   const outputBytes =
     typeof body.outputBytes === "number" && Number.isFinite(body.outputBytes)
@@ -73,9 +74,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // The branch the agent's checkout is on: what ties a pull request to this
   // run, instead of "the newest one opened since it started".
+  // And the remote branch it pushes to, which an agent can name differently
+  // (`git push origin HEAD:fix/x`): the pull request's head is that one.
   const branch = cleanBranchName(body.branch);
+  const upstream = cleanBranchName(body.upstream);
 
-  const live = await stampRunProgress(id, userId, blocked, step, question, branch);
+  const live = await stampRunProgress(id, userId, blocked, step, question, [branch, upstream]);
   if (live) {
     void emitRunEvent(id, userId, "progress", { outputBytes, lastOutputAt });
     // Once per stretch of being blocked, not once per beat: the runner clears

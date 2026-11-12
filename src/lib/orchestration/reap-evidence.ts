@@ -11,7 +11,7 @@
  * after the reap is still a correction.
  */
 
-import { runBranches } from "@/lib/run-branches";
+import { runBranches, runEvidenceUntilMs } from "@/lib/run-branches";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { entities, userProjects } from "@/db/schema";
@@ -30,6 +30,10 @@ export type ReapedRunForEvidence = {
   projectKey: string;
   outcome: string | null;
   startedAt: Date;
+  /** When it was reaped: the end of its evidence window. */
+  finishedAt?: Date | null;
+  /** Branches its runner reported (payload.branches). */
+  payload?: unknown;
 };
 
 /** Bound GitHub API work per sweep — a backlog of dead runs must not turn the
@@ -100,6 +104,7 @@ export async function correctTimeoutReapsWithRepoEvidence(
         token,
         run.startedAt.getTime(),
         runBranches(run),
+        runEvidenceUntilMs(run),
       );
       if (!evidence) continue;
 

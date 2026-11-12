@@ -87,12 +87,17 @@ export function startRunProgress(
       stopRunProgress(runId)
       const why = code == null ? 'the agent process was killed' : `the agent process exited (code ${code})`
       const beat = (question: string) =>
-        sendBeat(base, token, runId, {
-          outputBytes: 0,
-          lastOutputAt: new Date(track.lastOutputAt).toISOString(),
-          blocked: RUN_BLOCKED.EXITED,
-          question,
-        })
+        // Read at the end, after salvage: a branch it made for the agent's
+        // leftovers is the run's too.
+        currentBranches(dir).then((branches) =>
+          sendBeat(base, token, runId, {
+            outputBytes: 0,
+            lastOutputAt: new Date(track.lastOutputAt).toISOString(),
+            blocked: RUN_BLOCKED.EXITED,
+            question,
+            ...branches,
+          }),
+        )
       // Work it left behind still ships first (commit, push, draft PR), then
       // one beat closes the run as Failed with the cause and the PR.
       void salvageShip(tab, dir, runId)
@@ -180,6 +185,7 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
         lastOutputAt: new Date(t.lastOutputAt).toISOString(),
         blocked: null,
         shipped: url,
+        ...(await currentBranches(t.dir)),
       })
       await terminatePty(t.tab).catch((e) => console.warn('[run-done] stop failed:', (e as Error).message))
       return
@@ -189,14 +195,14 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   if (decision === 'stop') { stopRunProgress(runId); return }
   if (decision === 'wait') return
   const step = await currentStep(t.dir).catch(() => null)
-  const branch = await currentBranch(t.dir)
+  const branches = await currentBranches(t.dir)
   const beat: RunProgressBeat = {
     outputBytes: t.bytesSinceBeat,
     lastOutputAt: new Date(t.lastOutputAt).toISOString(),
     blocked: t.blocked,
     ...(t.question ? { question: t.question } : {}),
     ...(step ? { step } : {}),
-    ...(branch ? { branch } : {}),
+    ...branches,
   }
   t.bytesSinceBeat = 0
   t.lastBeatAt = Date.now()
@@ -227,14 +233,28 @@ async function sendBeat(base: string, token: string, runId: string, beat: RunPro
  * pull request from one somebody else opened meanwhile (lib/run-branches).
  * Null outside a repository or on a detached HEAD.
  */
-async function currentBranch(dir: string): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync('git', ['-C', dir, 'rev-parse', '--abbrev-ref', 'HEAD'], {
-      timeout: 5000,
-    })
-    return cleanBranchName(stdout)
-  } catch {
-    return null
+async function currentBranches(dir: string): Promise<Pick<RunProgressBeat, 'branch' | 'upstream'>> {
+  const git = (args: string[]) =>
+    execFileAsync('git', ['-C', dir, ...args], { timeout: 5000 })
+      .then(({ stdout }) => stdout.trim())
+      .catch(() => '')
+  const [head, tracking, originHead] = await Promise.all([
+    git(['rev-parse', '--abbrev-ref', 'HEAD']),
+    git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']),
+    git(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']),
+  ])
+  // The repository's default branch is everybody's: being on it attributes
+  // nothing, whatever it is called (main, dev, production).
+  const defaultBranch = originHead.replace(/^origin\//, '')
+  const keep = (name: string) => {
+    const clean = cleanBranchName(name)
+    return clean && clean !== defaultBranch ? clean : undefined
+  }
+  const branch = keep(head)
+  const upstream = keep(tracking.replace(/^[^/]+\//, ''))
+  return {
+    ...(branch ? { branch } : {}),
+    ...(upstream && upstream !== branch ? { upstream } : {}),
   }
 }
 

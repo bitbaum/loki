@@ -321,6 +321,8 @@ export type GithubPrDetail = {
   /** null while GitHub is still computing mergeability — never treat as true. */
   mergeable?: boolean | null;
   headSha?: string | null;
+  /** The branch it was opened from: whether it is the run's own. */
+  headRef?: string | null;
   /** When GitHub says the pull request was opened. The only hard evidence that
    *  ties a pull request to the run that supposedly produced it. */
   createdAt?: string | null;

@@ -1,4 +1,4 @@
-import { runBranches } from "@/lib/run-branches";
+import { runBranches, runEvidenceUntilMs } from "@/lib/run-branches";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { userProjects } from "@/db/schema";
@@ -52,6 +52,7 @@ export async function postRunOutcomeToConversation(run: OrchestrationRun): Promi
           token,
           run.startedAt.getTime(),
           runBranches(run),
+          runEvidenceUntilMs(run),
         ).catch(() => null);
       }
     }
