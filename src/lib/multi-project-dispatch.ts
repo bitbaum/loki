@@ -17,7 +17,7 @@ import { isProjectBusy } from "@/db/queries/orchestration-runs";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
 import { APP_URL } from "@/config/brand";
 import { injectPrompt } from "@/lib/inject-core";
-import type { WhenBusy } from "@/lib/orchestration/busy-placement";
+import type { DispatchSession, WhenBusy } from "@/lib/orchestration/busy-placement";
 import type { ORCHESTRATION_ADAPTER_IDS } from "@/lib/orchestration";
 import {
   MAX_TASK_LENGTH,
@@ -74,6 +74,9 @@ export type MultiDispatchInput = {
    * stands apart from the open run). orchestration/busy-placement.ts.
    */
   whenBusy?: WhenBusy;
+  /** "fresh": each project runs the task in a one-off session of its own
+   *  (inject-core `session`). */
+  session?: DispatchSession;
 };
 
 /** Where one run is read: the same address the run card polls. */
@@ -160,6 +163,7 @@ export async function dispatchToProjects(
             notifyOnClose: input.notifyOnClose,
             ...(input.builderChannel ? { builderChannel: input.builderChannel } : {}),
             ...(input.whenBusy ? { whenBusy: input.whenBusy } : {}),
+            ...(input.session ? { session: input.session } : {}),
           },
           userId,
         );

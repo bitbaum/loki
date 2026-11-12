@@ -17,7 +17,9 @@
  * /api/orangecat/sessions). `builderChannel: "cloud"` asks for the always-on
  * runner. A project that already has an open run refuses the whole task with
  * 409 and a sentence, unless the body says `queueIfBusy` (wait behind the open
- * run) or `separateSession` (a parallel session in its own worktree).
+ * run) or `separateSession` (a fresh one-off session in its own worktree,
+ * busy or not; refused with the reason when none can be had, never typed
+ * into the project's shared session).
  *
  * Every close outcome is announced: the person typed this into OrangeCat and
  * is not watching a Loki tab.
@@ -44,9 +46,9 @@ const Body = z.object({
   /** Queue behind a project's open run. Without it a busy project refuses the task (409). */
   queueIfBusy: z.boolean().optional(),
   /**
-   * A busy project starts a separate agent session for this task, in its own
-   * worktree, instead of refusing or queueing: for a one-off question that
-   * should not wait for, or be folded into, the open run.
+   * Run the task in a fresh one-off agent session in its own worktree
+   * (inject `session: "fresh"`), busy or not: for a one-off question that
+   * should not wait for, or be folded into, the project's own session.
    */
   separateSession: z.boolean().optional(),
   /** Where on OrangeCat this was sent from — for attribution, not routing. */
@@ -96,7 +98,10 @@ export async function POST(req: NextRequest) {
       // A person on OrangeCat is not watching Control: a busy project answers
       // with a sentence unless they asked to queue behind the open run.
       refuseBusy: !queueIfBusy && !separateSession,
-      ...(separateSession ? { whenBusy: "lane" as const } : {}),
+      // A session of its own, busy or not, or a refusal that says why. A
+      // lane request quietly queued in the shared session whenever no lane
+      // was free, which is what the option exists to avoid.
+      ...(separateSession ? { session: "fresh" as const } : {}),
     },
     user.id,
   );

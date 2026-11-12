@@ -491,6 +491,13 @@ function maybeCloseRunFromHandoff(
   seam: ReturnType<typeof adapterFor>,
   recentOutcomes: ControlSlices["recentOutcomesMap"] extends Map<string, infer V> ? V : never,
 ) {
+  // A lane run (a parallel run or a fresh one-off) reports on its own
+  // session file and closes only from that (close-sweep
+  // closeOpenRunBySessionTab). `session` here is the project's SHARED
+  // session: closing a lane run from it would hand the one-off's caller the
+  // shared session's summary, and leave the one-off running.
+  if (typeof (latestRun.payload as { sessionTab?: unknown } | null)?.sessionTab === "string")
+    return;
   const closePatch = seam?.closeRunFromSession?.(latestRun, session) ?? null;
   // Guard: closePatch stays non-null across polls until the close persists
   // (fire-and-forget). The in-flight set keeps the DoD judge from firing

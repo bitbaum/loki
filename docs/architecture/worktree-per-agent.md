@@ -85,7 +85,12 @@ When it reports ready on its own session file the run closes and Loki queues
 server flag does not apply (the caller asked by name); the lane limit does.
 When no lane can be had the request is refused with
 `fresh-session-unavailable` (409) and nothing is sent: a fresh session never
-falls back to the project's shared tab. A run that the reaper closes (no
+falls back to the project's shared tab. Nothing of the shared session goes into it
+(no escalation note, no shared handoff or session file in its prompt, no
+writes to the shared tab's files), and nothing of it goes back: its close
+leaves the project's escalation ladder alone, Control never closes it from
+the shared session's handoff, and a retry is a one-off again
+(`scripts/test/one-off-stays.ts`). A run that the reaper closes (no
 report) keeps its tab until it is closed by hand or the builder restarts.
 
 Trade-off (deliberate): parallel alias runs have no live project card — they
