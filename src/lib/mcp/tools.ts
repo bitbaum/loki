@@ -14,7 +14,6 @@ import { z } from "zod";
 import {
   MCP_LINK_ACCOUNT_URL,
   MCP_MESSAGE_MAX_CHARS,
-  MCP_RESOURCE_ORIGIN,
   MCP_SCOPE,
   MCP_TOOL_SCOPES,
   type McpScope,
@@ -23,7 +22,7 @@ import {
 import type { McpCaller, McpServices } from "@/lib/mcp/types";
 import { BROWSER_RECIPES, BROWSER_RECIPE_IDS } from "@/config/browser-tasks";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
-import { terminalHref } from "@/lib/dispatch-card";
+import { sessionOpenUrl } from "@/lib/dispatch-card";
 import { mayPeekTab } from "@/lib/peek-access";
 import { plainSessionText } from "@/lib/session-screen";
 import { isShellTab } from "@/lib/shell-session";
@@ -250,13 +249,16 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
             : `Queued for ${where}.`
           : `Delivered to the ${String(body.tab ?? args.project)} agent.`;
       const warning = typeof body.message === "string" ? ` ${body.message}` : "";
+      const openUrl = typeof body.openUrl === "string" ? body.openUrl : null;
+      const look = openUrl ? ` The owner can watch it at ${openUrl}.` : "";
       return text(
-        `${how}${warning} The outcome will reach the owner as a notification when the run finishes.`,
+        `${how}${warning} The outcome will reach the owner as a notification when the run finishes.${look}`,
         {
           mode: body.mode ?? null,
           channel: body.channel ?? null,
           runId: body.runId ?? null,
           warning: body.warning ?? null,
+          openUrl,
         },
       );
     },
@@ -381,7 +383,7 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
           session: tab,
           builder: b.channel,
           reportedAt: b.reportedAt,
-          openUrl: `${MCP_RESOURCE_ORIGIN}${terminalHref(tab, b.channel)}`,
+          openUrl: sessionOpenUrl(tab, b.channel),
         })),
       );
       if (sessions.length === 0) {
@@ -418,7 +420,7 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
           "That is a plain shell, which only the owner reads, in their own signed-in browser.",
         );
       }
-      const openUrl = `${MCP_RESOURCE_ORIGIN}${terminalHref(args.session, args.builder ?? null)}`;
+      const openUrl = sessionOpenUrl(args.session, args.builder ?? null);
       const read = await services.readSession(userId, args.session, args.builder);
       if (read.status === "pending") {
         return toolError(

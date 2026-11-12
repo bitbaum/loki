@@ -309,7 +309,16 @@ async function main() {
     },
     dispatch: async () => {
       calls.push("dispatch");
-      return { status: 200, body: { ok: true, tab: "loki", mode: "queued", channel: "cloud" } };
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          tab: "loki",
+          mode: "queued",
+          channel: "cloud",
+          openUrl: "https://loki.orangecat.ch/terminal?source=cloud&project=loki&run=r-1",
+        },
+      };
     },
     book: async () => {
       calls.push("book");
@@ -623,7 +632,10 @@ async function main() {
     "loki_dispatch says queued and that the outcome arrives as a notification",
     !dispatched.isError &&
       dispatched.content[0].text.includes("Queued") &&
-      dispatched.content[0].text.includes("notification"),
+      dispatched.content[0].text.includes("notification") &&
+      dispatched.content[0].text.includes("watch it at https://") &&
+      dispatched.structuredContent?.openUrl ===
+        "https://loki.orangecat.ch/terminal?source=cloud&project=loki&run=r-1",
   );
   // ── sessions: an agent sees what is open and reads what the agent said ─────
   const sessions = await call("loki_sessions", {}, chat);
@@ -631,7 +643,7 @@ async function main() {
   check(
     "loki_sessions lists agent sessions per builder with the link that opens each in Loki",
     sessionText.includes("- loki on the cloud builder: https://") &&
-      sessionText.includes("/terminal?project=loki") &&
+      sessionText.includes("/terminal?source=cloud&project=loki") &&
       sessionText.includes("- orangecat on the owner's computer") &&
       sessionText.includes("/terminal?source=machine&tab=orangecat"),
   );
@@ -645,7 +657,7 @@ async function main() {
       readOut.content[0].text.includes("I changed the header.\n\nDone.") &&
       !readOut.content[0].text.includes("\x1b") &&
       !readOut.content[0].text.includes("working") &&
-      readOut.content[0].text.includes("/terminal?project=loki"),
+      readOut.content[0].text.includes("/terminal?source=cloud&project=loki"),
   );
   calls.length = 0;
   const shellRead = await call("loki_session_read", { session: "loki-shell-0a1b2c3d" });
