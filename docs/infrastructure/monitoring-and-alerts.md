@@ -49,6 +49,21 @@ console *lists* cx43/cx53 as valid rescale targets ("supported"), but the API's
 polls the real signal and pings the moment a window opens — they can be brief.
 Needs a read-only API token in `/opt/monitoring/hcloud.env`.
 
+## Box-shaped repairs the agent hands back
+
+The sandboxed incident agent cannot touch `/boot` or systemd, so when it names
+a box-shaped cause the repair runs as a workflow: dry run first, then the real
+run, and both runs' logs are the before and after.
+
+- **`grub-initrd-fallback.service` failed, "invalid environment block"**:
+  `/boot/grub/grubenv` is corrupt. Run `gh workflow run grubenv-repair.yml`
+  (read-only check and plan), then `gh workflow run grubenv-repair.yml -f dry_run=false`.
+  The script (`scripts/hetzner/grubenv-repair.sh`) copies the old block to
+  `/root/grubenv.corrupt.<UTC time>`, creates and validates a fresh block, then
+  moves it into place. If `GRUB_DEFAULT=saved`, it sets the default back to
+  entry 0, then resets and restarts the unit. A valid block is never replaced.
+  To undo it, copy the backup back over `/boot/grub/grubenv`.
+
 ## Resource guards
 
 - Every `*-app` unit has `MemoryMax=1G` / `MemoryHigh=768M`: a leaking/runaway
