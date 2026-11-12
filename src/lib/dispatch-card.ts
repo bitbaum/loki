@@ -13,6 +13,7 @@
  * the thing it waits on, open it in Control when it failed. Everything else is
  * one quiet secondary link.
  */
+import { APP_URL } from "@/config/brand";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { withTerminalView } from "@/lib/fleet-context";
 import { builderWayForward, type CloudBuilderState } from "@/lib/builder-way-forward";
@@ -68,6 +69,18 @@ export type DispatchCardInput = {
 export function terminalHref(project: string, channel: BuilderChannel | null): string {
   const p = encodeURIComponent(project);
   return channel === "local" ? `/terminal?source=machine&tab=${p}` : `/terminal?project=${p}`;
+}
+
+/** The same session in Loki's Terminal as a full link, on that run when there
+ *  is one: what a caller that started or reads a session hands a person, to
+ *  open on any device they are signed in on. */
+export function sessionOpenUrl(
+  tab: string,
+  channel: BuilderChannel | null,
+  runId: string | null = null,
+): string {
+  const run = runId ? `&run=${encodeURIComponent(runId)}` : "";
+  return `${APP_URL}${terminalHref(tab, channel)}${run}`;
 }
 
 /** "Watch it" opens the agent's conversation; the raw terminal is one tap away
