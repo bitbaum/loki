@@ -1032,8 +1032,9 @@ export async function stampRunProgress(
   step: string | null = null,
   /** With blocked=permission: the agent's question. Cleared with blocked. */
   question: string | null = null,
-  /** The branch the agent's checkout is on now (lib/run-branches). */
-  branch: string | null = null,
+  /** The branches the runner saw the agent on now: the checkout's branch and
+   *  the remote branch it pushes to (lib/run-branches). */
+  reported: readonly (string | null)[] = [],
 ): Promise<boolean> {
   const now = new Date().toISOString();
   const beat = sql`jsonb_set(jsonb_set(
@@ -1043,14 +1044,15 @@ export async function stampRunProgress(
   // Read, then set: the list only changes when the agent changes branch, so
   // nearly every beat skips this.
   let branches: string[] | null = null;
-  if (branch) {
+  const seen = reported.filter((b): b is string => Boolean(b));
+  if (seen.length) {
     const [row] = await db
       .select({ payload: orchestrationRuns.payload })
       .from(orchestrationRuns)
       .where(and(eq(orchestrationRuns.id, runId), eq(orchestrationRuns.userId, userId)))
       .limit(1);
     const before = withReportedBranch(row?.payload?.branches, null);
-    const after = withReportedBranch(before, branch);
+    const after = seen.reduce<string[]>((list, b) => withReportedBranch(list, b), before);
     if (after.join("\n") !== before.join("\n")) branches = after;
   }
   const base = branches
@@ -1086,7 +1088,7 @@ export async function stampRunProgress(
 export async function stampRunEvidence(
   runId: string,
   userId: string,
-  evidence: { kind: string; url: string; title: string; atMs: number },
+  evidence: { kind: string; url: string; title: string; atMs: number; branch?: string },
 ): Promise<void> {
   await db
     .update(orchestrationRuns)
@@ -1100,6 +1102,25 @@ export async function stampRunEvidence(
         sql`payload->'evidence' IS NULL`,
       ),
     );
+}
+/**
+ * Set or remove a run's repo evidence whatever it holds now. Only for
+ * evidence recorded before it carried its branch, which was found by time
+ * alone and is checked again (run-evidence-live).
+ */
+export async function replaceRunEvidence(
+  runId: string,
+  userId: string,
+  evidence: { kind: string; url: string; title: string; atMs: number; branch?: string } | null,
+): Promise<void> {
+  await db
+    .update(orchestrationRuns)
+    .set({
+      payload: evidence
+        ? sql`jsonb_set(COALESCE(payload, '{}'), '{evidence}', ${JSON.stringify(evidence)}::jsonb)`
+        : sql`COALESCE(payload, '{}') - 'evidence'`,
+    })
+    .where(and(eq(orchestrationRuns.id, runId), eq(orchestrationRuns.userId, userId)));
 }
 export async function stampRunFix(runId: string, userId: string, fix: FixShipping): Promise<void> {
   await db

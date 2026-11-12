@@ -36,6 +36,11 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   with what the agent is doing this minute. "Connect a runner" is "Connect
   your computer".
 
+## 2026-11-12 — The studio site can tell who is signed in
+
+- **bitbaum.orangecat.ch can show who is signed in.** The studio site is static files with no accounts of its own; a person's account there is their Loki account. `GET /api/studio-session` answers that site, and only that site, with the reader's own session: a name, a handle, a picture, whether they run the studio, and their builder applications by status. No email address, no account or application id, no access key. Signed out is an answer too, with the address to sign in at.
+- **Signing in from the studio site comes back to the page you were on.** `/studio/return?to=/builders/` sends a signed-out visitor through sign-in and then back to that page of the studio site. The destination is a path on the studio's own origin and nothing else; anything that does not fit goes to its home page. Signing out from there ends on the studio site as well.
+
 ## 2026-11-02 — Take over the browser
 
 - **You can take over Loki's browser.** {#review-take-over} In a project

@@ -245,7 +245,16 @@ export function deriveDispatchLiveStatus(
   now: number = Date.now(),
 ): DispatchLiveView {
   const r = cmd.result ?? {};
-  if (!cmd.executedAt) {
+  // A run that is over is over, whatever became of its command: stopped by
+  // the person, reaped, or closed as undelivered while the command still sat
+  // unclaimed for an offline builder. Reading the row first answered "Queued"
+  // for a closed run, and every caller polled it forever.
+  const runOver =
+    cmd.run != null &&
+    cmd.run.state !== ORCH_STATE.WAITING &&
+    cmd.run.state !== ORCH_STATE.RUNNING &&
+    cmd.run.state !== ORCH_STATE.CLOSING;
+  if (!cmd.executedAt && !runOver) {
     if (!cmd.claimedAt) {
       return {
         status: "queued",
@@ -506,9 +515,24 @@ export function deriveMultiDispatchView(attempts: MultiDispatchAttempt[]): Multi
 export function alignLiveViewWithTrack(
   view: DispatchLiveView,
   track: RunTrack | null | undefined,
+  /** The command row: a runner holds it (claimed, not yet answered). */
+  command?: { claimed: boolean; executed: boolean } | null,
 ): DispatchLiveView {
   if (view.terminal || !track?.live) return view;
   const detail = track.summary;
+  // A runner has claimed the command and is starting the agent: it holds the
+  // claim for the 20-35 s a launch and its checks take, and nothing can be
+  // blocked or stalled before it answers. The track may not know yet (no run
+  // event marks a claim), so the row's own evidence sets the floor.
+  if (command?.claimed && !command.executed && track.live !== "working") {
+    return {
+      ...view,
+      status: "starting",
+      label: "Starting",
+      detail: "A builder picked it up and is starting the agent.",
+      tone: "neutral",
+    };
+  }
   switch (track.live) {
     case "queued":
       return { ...view, status: "queued", label: "Queued", detail, tone: "neutral" };
