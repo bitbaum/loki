@@ -14,6 +14,7 @@ import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { isDerivedRunTab, runLaneOfTab } from "@/lib/run-tab";
 import { agentLimitRefusal } from "@/lib/agent-session-limit";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
+import { sessionOpenUrl } from "@/lib/dispatch-card";
 
 const LaunchAgentBody = z.object({
   tab: z.string().trim().min(1).max(120),
@@ -162,6 +163,7 @@ export async function POST(req: NextRequest) {
       commandId,
       tab,
       agent,
+      openUrl: sessionOpenUrl(tab, execution.channel ?? null),
       runnerConnected: execution.runnerConnected,
     });
   }
@@ -183,7 +185,12 @@ export async function POST(req: NextRequest) {
     if (promptText) {
       writeInitialPromptWhenReady(userId, tab, promptText);
     }
-    return NextResponse.json({ ok: true, tab, agent: exactEntry.id });
+    return NextResponse.json({
+      ok: true,
+      tab,
+      agent: exactEntry.id,
+      openUrl: sessionOpenUrl(tab, null),
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: `Launch failed: ${message}` }, { status: 500 });

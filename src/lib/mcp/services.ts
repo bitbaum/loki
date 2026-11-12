@@ -7,6 +7,8 @@
  *   dispatch          → injectPrompt       (POST /api/inject, as the skill calls it)
  *   book              → enqueueAction      (POST /api/actions/propose, as `book` calls it)
  *   projects          → getUserProjects    (the list inject resolves names against)
+ *   sessions          → getRuntimeSnapshots (what GET /api/control/open-tabs reads)
+ *   readSession       → a peek_tab command  (POST /api/control/peek-tab, then its result)
  *   browserTask       → browserTaskPath   (the /fill link the chat's fill_web_form gives too)
  *
  * The only module under lib/mcp that touches the database; the route is its
@@ -23,7 +25,13 @@ import { enqueueReport } from "@/lib/actions/enqueue-report";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 import { APP_DOMAIN } from "@/config/brand";
 import { browserTaskPath, resolveBrowserTask, type BrowserRecipeId } from "@/config/browser-tasks";
+import { getRuntimeSnapshots } from "@/db/queries/runtime-snapshots";
+import { enqueuePendingCommand, getCommandById } from "@/db/queries/pending-commands";
 import type { BookRequest, McpServices } from "@/lib/mcp/types";
+
+/** How long a read waits for a builder to answer, and how often it looks. */
+const SESSION_READ_WAIT_MS = 20_000;
+const SESSION_READ_POLL_MS = 1_000;
 
 /**
  * The event payload the calendar drain books from — the same fields the
@@ -88,6 +96,32 @@ export const lokiMcpServices: McpServices = {
         { origin: "operator", operatorRequested: true },
       ),
     ),
+
+  sessions: async (userId) =>
+    (await getRuntimeSnapshots(userId)).map((snap) => ({
+      channel: snap.channel,
+      reportedAt: snap.updatedAt ? snap.updatedAt.toISOString() : null,
+      tabs: snap.openTabs ?? [],
+    })),
+
+  readSession: async (userId, tab, channel) => {
+    const id = await enqueuePendingCommand({
+      userId,
+      type: "peek_tab",
+      payload: { tab, ...(channel ? { channel } : {}) },
+    });
+    const deadline = Date.now() + SESSION_READ_WAIT_MS;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, SESSION_READ_POLL_MS));
+      const cmd = await getCommandById(id);
+      if (!cmd?.executedAt) continue;
+      const result = cmd.result as { ok?: boolean; text?: string; error?: string } | null;
+      return result?.ok
+        ? { status: "done", content: result.text ?? "" }
+        : { status: "error", error: result?.error ?? "The builder could not read the session." };
+    }
+    return { status: "pending" };
+  },
 
   projects: async (userId) => {
     const [projects, lastDispatch] = await Promise.all([

@@ -12,7 +12,8 @@
 import { readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process";
+import { createRequire } from "module";
+import { spawn, spawnSync } from "child_process";
 
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = join(SCRIPTS_DIR, "test");
@@ -71,6 +72,64 @@ for (const [file, envVar] of Object.entries(SKIP_UNLESS_ENV)) {
   }
 }
 
+/**
+ * The terminal tests (executor, sandbox-executor, plain-shell, …) drive a real
+ * PTY through node-pty, whose native binary is built where `pnpm install` ran.
+ * An agent sandbox that shares the box's node_modules but has an older glibc
+ * cannot load it ("GLIBC_2.42 not found"), so on 2026-11-12 every push from
+ * there failed five tests that no change could fix — and the only way out the
+ * hook offers is --no-verify, which also skips everything that DID run.
+ *
+ * So, off CI only: when node-pty cannot load on this machine, a test that
+ * fails with exactly that load error is reported as skipped, with the reason.
+ * Any other failure in the same file still fails. CI loads node-pty and never
+ * takes this path; its run is the gate.
+ */
+const PTY_LOAD_FAILURE = "Failed to load native module: pty.node";
+const PTY_UNLOADABLE = process.env.CI ? null : nodePtyLoadError();
+
+function nodePtyLoadError(): string | null {
+  const root = join(SCRIPTS_DIR, "..");
+  const probe = spawnSync(process.execPath, ["-e", 'require("node-pty")'], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  // Only node-pty's own load failure counts. Anything else (a missing
+  // package, a broken probe) leaves the PTY tests to run and fail loudly.
+  if (probe.status === 0 || !probe.stderr.includes(PTY_LOAD_FAILURE)) return null;
+  // The loader names only the LAST path it tried (a prebuild that does not
+  // exist on Linux); dlopen the built binary to name the real cause.
+  let cause = "node-pty's native binary does not load";
+  try {
+    const built = join(
+      dirname(createRequire(join(root, "package.json")).resolve("node-pty")),
+      "..",
+      "build",
+      "Release",
+      "pty.node",
+    );
+    const open = spawnSync(
+      process.execPath,
+      [
+        "-e",
+        "try { process.dlopen({ exports: {} }, process.argv[1]) } catch (e) { console.log(e.message) }",
+        built,
+      ],
+      { encoding: "utf8" },
+    );
+    const why = /version `GLIBC_[\d.]+' not found/.exec(open.stdout)?.[0] ?? open.stdout.trim();
+    if (why) cause = why;
+  } catch {
+    // keep the general cause
+  }
+  return cause;
+}
+
+if (PTY_UNLOADABLE) {
+  console.log(`↷ node-pty does not load on this machine: ${PTY_UNLOADABLE}`);
+  console.log("    tests that fail only on that are reported as skipped; CI runs them\n");
+}
+
 const MAX_PARALLEL = Number(process.env.TEST_UNIT_PARALLEL ?? 2);
 
 const files = readdirSync(TEST_DIR)
@@ -108,14 +167,16 @@ const FILE_TIMEOUT_MS = Number(process.env.UNIT_TEST_TIMEOUT_MS ?? 120_000);
 /** How much of a failed file's output is shown: enough for an assertion and its stack. */
 const FAIL_TAIL_LINES = 40;
 
-function run(file: string): Promise<{ file: string; ok: boolean; tail: string }> {
+type Result = { file: string; ok: boolean; tail: string; skipped?: string };
+
+function run(file: string): Promise<Result> {
   return new Promise((resolve) => {
     const child = spawn(runner, [...baseArgs, join(TEST_DIR, file)], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
     let settled = false;
-    const finish = (r: { file: string; ok: boolean; tail: string }) => {
+    const finish = (r: Result) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
@@ -143,6 +204,10 @@ function run(file: string): Promise<{ file: string; ok: boolean; tail: string }>
       // "    }": CI named terminal-idle-browser as failed three times on
       // 2026-11-11 and never once said why.
       const tail = out.trim().split("\n").slice(-FAIL_TAIL_LINES).join("\n    ");
+      if (code !== 0 && PTY_UNLOADABLE && out.includes(PTY_LOAD_FAILURE)) {
+        finish({ file, ok: true, tail, skipped: "needs node-pty, which does not load here" });
+        return;
+      }
       finish({ file, ok: code === 0, tail });
     });
   });
@@ -151,21 +216,29 @@ function run(file: string): Promise<{ file: string; ok: boolean; tail: string }>
 // No top-level await: tsx transforms this file to CJS (no "type":"module"),
 // which rejects top-level await. Orchestrate inside an async main() instead.
 async function main(): Promise<number> {
-  const results: { file: string; ok: boolean; tail: string }[] = [];
+  const results: Result[] = [];
   const queue = [...files];
   async function worker() {
     let f: string | undefined;
     while ((f = queue.shift())) {
       const r = await run(f);
       results.push(r);
+      const name = r.file.replace(/\.ts$/, "");
       console.log(
-        `${r.ok ? "✓" : "✗"} ${r.file.replace(/\.ts$/, "")}${r.ok ? "" : `\n    ${r.tail}`}`,
+        r.skipped
+          ? `↷ ${name} — ${r.skipped}`
+          : `${r.ok ? "✓" : "✗"} ${name}${r.ok ? "" : `\n    ${r.tail}`}`,
       );
     }
   }
   await Promise.all(Array.from({ length: MAX_PARALLEL }, worker));
   const failed = results.filter((r) => !r.ok);
-  console.log(`\n${results.length - failed.length}/${results.length} unit test files passed`);
+  const notRun = results.filter((r) => r.skipped);
+  const ran = results.length - notRun.length;
+  console.log(
+    `\n${ran - failed.length}/${ran} unit test files passed` +
+      (notRun.length ? `, ${notRun.length} skipped here (node-pty does not load)` : ""),
+  );
   if (failed.length) console.error(`✗ failed: ${failed.map((r) => r.file).join(", ")}`);
   return failed.length ? 1 : 0;
 }

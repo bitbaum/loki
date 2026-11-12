@@ -8,9 +8,17 @@
  * The chat card polls its status every few seconds; GitHub is asked at most
  * once a minute per run, and a failure of any kind is "nothing yet" —
  * progress is a bonus on the card, never a reason it fails to load.
+ *
+ * Only the run's own branches count (lib/run-branches). This used to take the
+ * newest pull request opened since the run began, and the newest push: on
+ * 2026-11-12 a run that only ran `git status` showed loki#1636, opened by hand
+ * on another branch, as its pull request and that pull request's commit as
+ * "Pushed: …". RUN-STATUS-SSOT: a pull request that is another run's is not
+ * proof.
  */
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { parseGithubRepo } from "@/lib/github-commits";
+import { refBelongsToRun } from "@/lib/run-branches";
 
 export type ChecksState = "running" | "passed" | "failed";
 
@@ -86,9 +94,12 @@ async function readRepoProgress(
   gitUrl: string,
   token: string,
   sinceMs: number,
+  /** The run's own branches (runBranches). None: nothing can be the run's. */
+  branches: readonly string[],
 ): Promise<RepoProgress | null> {
   const parsed = parseGithubRepo(gitUrl);
   if (!parsed) return null;
+  if (branches.length === 0) return { commits: [], pr: null };
   const base = `${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}`;
 
   // A pull request opened since the run began is the strongest trail: its
@@ -99,10 +110,13 @@ async function readRepoProgress(
       title: string;
       html_url: string;
       created_at: string;
-      head: { sha: string };
+      head: { sha: string; ref?: string | null };
     }[]
   >(`${base}/pulls?state=all&sort=created&direction=desc&per_page=10`, token);
-  const pr = (pulls ?? []).find((p) => Date.parse(p.created_at) >= sinceMs) ?? null;
+  const pr =
+    (pulls ?? []).find(
+      (p) => Date.parse(p.created_at) >= sinceMs && refBelongsToRun(p.head?.ref, branches),
+    ) ?? null;
   if (pr) {
     const [commits, checks] = await Promise.all([
       get<GhCommit[]>(`${base}/pulls/${pr.number}/commits?per_page=100`, token),
@@ -129,7 +143,10 @@ async function readRepoProgress(
     token,
   );
   const push = (events ?? []).find(
-    (e) => e.type === "PushEvent" && Date.parse(e.created_at) >= sinceMs && e.payload?.ref,
+    (e) =>
+      e.type === "PushEvent" &&
+      Date.parse(e.created_at) >= sinceMs &&
+      refBelongsToRun(e.payload?.ref, branches),
   );
   if (!push) return { commits: [], pr: null };
   const ref = push.payload!.ref!.replace(/^refs\/heads\//, "");
@@ -146,11 +163,12 @@ export function fetchRepoProgress(
   gitUrl: string,
   token: string,
   sinceMs: number,
+  branches: readonly string[],
   now: number = Date.now(),
 ): Promise<RepoProgress | null> {
   const hit = cache.get(runId);
   if (hit && now - hit.at < FRESH_MS) return hit.value;
-  const value = readRepoProgress(gitUrl, token, sinceMs).catch(() => null);
+  const value = readRepoProgress(gitUrl, token, sinceMs, branches).catch(() => null);
   cache.set(runId, { at: now, value });
   // Old runs fall out; the map never grows past the runs being watched.
   for (const [k, v] of cache) if (now - v.at > 10 * FRESH_MS) cache.delete(k);
