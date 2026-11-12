@@ -56,6 +56,26 @@ const IMPORT_PROJECT_CHIP: LokiComposerChip = {
   href: LOKI_IMPORT_PROJECT_HREF,
 };
 
+/**
+ * "I have one" for an account that belongs to projects it does not own (a
+ * seat): those projects, on /projects. It opened the GitHub import, which
+ * asked QA's Viewer seat to link a GitHub account it does not have, beside a
+ * project it already had (QA seat walk, 2026-11-12). Import stays one tap away.
+ */
+const YOUR_PROJECTS_CHIP: LokiComposerChip = {
+  id: "your_projects",
+  label: "I have one",
+  kind: "href",
+  href: "/projects",
+};
+
+const IMPORT_SECONDARY_CHIP: LokiComposerChip = {
+  id: "import_project",
+  label: "Import from GitHub",
+  kind: "href",
+  href: LOKI_IMPORT_PROJECT_HREF,
+};
+
 const OPEN_PROJECT_CHIP: LokiComposerChip = {
   id: "open_project",
   label: "Open a project",
@@ -97,6 +117,8 @@ export function fillSuggestedAction(template: string, projectName: string | null
 
 export function composerChips(input: {
   projectCount: number;
+  /** Projects shared with this account by someone else. */
+  sharedProjectCount?: number;
   selectedProjects: string[];
   selectedGoal?: { title: string } | null;
 }): LokiComposerChip[] {
@@ -129,6 +151,9 @@ export function composerChips(input: {
         template: "fix types and tests",
       },
     ];
+  }
+  if (input.projectCount === 0 && (input.sharedProjectCount ?? 0) > 0) {
+    return [NEW_PROJECT_CHIP, YOUR_PROJECTS_CHIP, IMPORT_SECONDARY_CHIP];
   }
   if (input.projectCount === 0) {
     return [NEW_PROJECT_CHIP, IMPORT_PROJECT_CHIP];

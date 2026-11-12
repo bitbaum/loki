@@ -260,6 +260,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "studio-intake", // Public fixed-owner write; query rejects a demo owner.
   "studio-portal", // Guest request capability; query rejects a demo owner.
   "studio-partners", // Public consented directory.
+  "studio-session", // Read-only: the caller's own name and what they may open on the studio site.
   "studio-recover", // Public write under the fixed studio owner; query rejects a demo owner; mails only the address a request already holds.
   "activity",
   "alerts",

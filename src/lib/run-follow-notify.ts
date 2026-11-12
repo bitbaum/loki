@@ -19,6 +19,7 @@
  * live is stamped and nothing is sent, so the first tick after this ships
  * does not report two days of history.
  */
+import { runBranches, runReportedBranches } from "@/lib/run-branches";
 import { and, desc, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ORCHESTRATION_OUTCOME, orchestrationRuns } from "@/db/schema/orchestration-runs";
@@ -69,6 +70,7 @@ export async function followChatRuns(now: number = Date.now()): Promise<FollowRe
         conversationId?: string;
         fix?: FixShipping;
         evidence?: { kind: string; url: string; title: string };
+        prUrl?: unknown;
       };
       const conversationId = payload.conversationId;
       const before = payload.fix ?? null;
@@ -91,6 +93,8 @@ export async function followChatRuns(now: number = Date.now()): Promise<FollowRe
         autoShip: null,
         deployBroken: false,
         runStartedAt: run.startedAt,
+        runBranches: { own: runBranches(run), reported: runReportedBranches(run) },
+        reportedPrUrl: typeof payload.prUrl === "string" ? payload.prUrl : null,
         liveUrl,
       });
       const announcement = chatRunAnnouncement(before, fix, now);

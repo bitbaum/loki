@@ -162,7 +162,12 @@ export async function executeInject(
           projectKey: payload.projectKey,
           runId: payload.runId,
           // A fresh session resumes nothing.
-          ...(plan && placement === "fresh" ? {} : { sessionId: payload.sessionId }),
+          // A lane is a new agent in a new folder: it resumes nothing. The
+          // caller's sessionId is the project's own conversation (feedback
+          // Implement passes the open run's), and `claude --resume` of it in
+          // the lane either finds nothing (Claude keys logs by folder) or
+          // runs a second copy of the live conversation.
+          ...(plan ? {} : { sessionId: payload.sessionId }),
           ...(payload.attachments?.length ? { attachments: payload.attachments } : {}),
         })
       : await enqueueInjectCommand(userId, channel ? { ...payload, channel } : payload);

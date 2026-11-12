@@ -7,6 +7,7 @@ import { postJson } from "@/lib/api/fetch";
 import {
   FINISH_PROMPT,
   HomeAllProjects,
+  HomeLoadFailed,
   HomeLoading,
   HomeNeeds,
   failureFixes,
@@ -337,7 +338,13 @@ export function ControlPanel({
   // inside the panel — the page showed the same heading and count twice.
   const livePanel = <LiveTerminalPanel {...livePanelProps} embedded />;
 
-  if (!data) return <HomeLoading />;
+  // A read that failed says so (and how to get in), not skeletons forever.
+  if (!data)
+    return error ? (
+      <HomeLoadFailed error={error} onRetry={() => void refresh(true)} />
+    ) : (
+      <HomeLoading />
+    );
 
   return (
     <div className="ui-home-page space-y-6">
@@ -544,7 +551,13 @@ export function ControlPanel({
 
       {/* What is being built for you right now. Each row opens the live
           session. */}
-      {data.projects.length > 0 && <ControlNow jobs={nowJobs} nowMs={nowMs} />}
+      {data.projects.length > 0 && (
+        <ControlNow
+          jobs={nowJobs}
+          nowMs={nowMs}
+          onReply={(tab, text) => inject(tab, undefined, text)}
+        />
+      )}
 
       {/* Nothing running, nothing waiting on you: that used to be the whole
           message — a grey "Paused" card over "28 idle projects". Idle is the

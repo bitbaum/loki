@@ -49,6 +49,7 @@ export function LokiComposer({
   defaultText = "",
   selectedProjects = [],
   projectCount = 0,
+  sharedProjectCount = 0,
   selectedGoal = null,
   onRemoveProject,
   onOpenProjects,
@@ -74,6 +75,8 @@ export function LokiComposer({
   defaultText?: string;
   selectedProjects?: string[];
   projectCount?: number;
+  /** Projects shared with this account; with none of its own, "I have one" opens them. */
+  sharedProjectCount?: number;
   selectedGoal?: LokiProject["topGoal"];
   onRemoveProject?: (name: string) => void;
   onOpenProjects?: () => void;
@@ -124,7 +127,12 @@ export function LokiComposer({
   }, [freshRequest]);
 
   const scopedProject = selectedProjects.length === 1 ? selectedProjects[0] : null;
-  const allChips = composerChips({ projectCount, selectedProjects, selectedGoal });
+  const allChips = composerChips({
+    projectCount,
+    sharedProjectCount,
+    selectedProjects,
+    selectedGoal,
+  });
   // Starters belong on an empty thread. Mid-conversation the project chips
   // (Move forward / Review / Fix tests) stay one tap away on wider screens, but
   // on a phone they were a full row taken from the transcript every turn.

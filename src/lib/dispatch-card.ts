@@ -123,7 +123,10 @@ export function presentDispatchCard(input: DispatchCardInput): DispatchCardView 
 
   // Waiting on a builder that is not there. The useful facts are which one,
   // that nothing is lost, and what wakes it — not three terminals to stare at.
-  const waiting = live ? live.status === "queued" : input.warn;
+  // An offline builder now reads Needs you on the live status (one status,
+  // from the track), and it is still this view: which builder, and the
+  // one-tap move to the other.
+  const waiting = live ? live.status === "queued" || live.status === "needs_you" : input.warn;
   if (waiting && input.warn) {
     return presentWaiting(input, on, control, only);
   }

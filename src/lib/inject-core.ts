@@ -53,10 +53,10 @@ import { getProjectState, persistProjectRuntimeIfNewer } from "@/db/queries/proj
 import { deriveProjectStateKey, projectStateDescription } from "@/lib/control-states";
 import { logDebug } from "@/db/queries/debug-logs";
 import { promptFingerprint, recordControlAuditEvent } from "@/db/queries/control-audit-events";
-import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
+import { enqueueHostedDispatchCommand, findQueueBlockers } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
-import { QUEUED_BEHIND_SENTENCE, rerouteNotice } from "@/lib/dispatch-status";
+import { queuedBehindSentence, rerouteNotice } from "@/lib/dispatch-status";
 import { builderHoldsNewWork } from "@/lib/builder-presence";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
@@ -211,8 +211,10 @@ async function buildLocalPrompt(args: {
   promptKey?: string;
   customPrompt?: string;
   eventAdapter: ResolvedAdapter;
+  /** A fresh one-off: none of the shared session's notes or recovery state. */
+  oneOff?: boolean;
 }): Promise<BuiltPrompt | InjectResult> {
-  const { userId, canonical, effectiveTab, promptKey, customPrompt, eventAdapter } = args;
+  const { userId, canonical, effectiveTab, promptKey, customPrompt, eventAdapter, oneOff } = args;
   const { readPrompts, readPromptMeta } = await import("@/lib/agent-config");
 
   // Broad intents can use the project roadmap. Explicit user tasks are kept
@@ -220,8 +222,9 @@ async function buildLocalPrompt(args: {
   const [projectContext, escalationBlock] = await Promise.all([
     customPrompt ? Promise.resolve(null) : getProjectContext(userId, canonical).catch(() => null),
     // Open escalation ladder — the last failure fed back to the agent with a
-    // rung-specific instruction. Mirrors assembleInjectPrompt.
-    getOpenEscalationBlock(userId, canonical).catch(() => ""),
+    // rung-specific instruction. Mirrors assembleInjectPrompt, and like it
+    // leaves a fresh one-off out.
+    oneOff ? Promise.resolve("") : getOpenEscalationBlock(userId, canonical).catch(() => ""),
   ]);
   const contextBlock = renderProjectContextBlock(projectContext ?? undefined);
   const withContext = (body: string) =>
@@ -259,7 +262,12 @@ async function buildLocalPrompt(args: {
     ((b: string) => b);
   const meta = readPromptMeta().find((m) => m.key === promptKey);
   return {
-    prompt: withContext(enrichPrompt(base, effectiveTab, projectStateDescription(stateKey))),
+    // The enrichment is the SHARED session's: its last handoff and an
+    // instruction to update its file. A fresh one-off gets neither; the lane
+    // gives it its own file (lane-prompt promptForOneOff).
+    prompt: withContext(
+      oneOff ? base : enrichPrompt(base, effectiveTab, projectStateDescription(stateKey)),
+    ),
     promptLabel: meta ? `${meta.icon} ${meta.label}` : promptKey,
   };
 }
@@ -275,6 +283,7 @@ async function buildRemotePrompt(args: {
   customPrompt?: string;
   eventModel?: string;
   liveUrl?: string | null;
+  oneOff?: boolean;
 }): Promise<BuiltPrompt | InjectResult> {
   const assembled = await assembleInjectPrompt({
     userId: args.userId,
@@ -286,6 +295,7 @@ async function buildRemotePrompt(args: {
     customPrompt: args.customPrompt,
     model: args.eventModel,
     liveUrl: args.liveUrl,
+    oneOff: args.oneOff,
   });
   if (!assembled.ok) return { status: assembled.status, body: { error: assembled.error } };
   return { prompt: assembled.prompt, promptLabel: assembled.promptLabel };
@@ -863,6 +873,11 @@ async function executeAndReport(
   // Queued for a cloud runner that is behind the deploy: it holds new work
   // until it has restarted (lib/runner-update-hold). Say so now, with the
   // bound, instead of "starting shortly" over a task that sits for minutes.
+  // What it waits behind, said with the run, its start and its last work.
+  const blocker =
+    queuedBehind && runId
+      ? ((await findQueueBlockers([runId]).catch(() => new Map())).get(runId) ?? null)
+      : null;
   const builderUpdating =
     result.mode === "queued" &&
     !queuedOffline &&
@@ -884,11 +899,24 @@ async function executeAndReport(
       ...(queuedBehind || builderUpdating
         ? {
             ...(queuedBehind ? { queuedBehind: true } : {}),
+            ...(blocker
+              ? {
+                  waitingOn: {
+                    runId: blocker.runId,
+                    label: blocker.label,
+                    since: blocker.startedAt.toISOString(),
+                    lastProgressAt: blocker.lastProgressAt?.toISOString() ?? null,
+                  },
+                }
+              : {}),
             ...(builderUpdating ? { builderUpdating: true } : {}),
             message: [
               notice,
-              queuedBehind ? QUEUED_BEHIND_SENTENCE : null,
-              builderUpdating ? BUILDER_UPDATING_SENTENCE : null,
+              queuedBehind ? queuedBehindSentence(blocker) : null,
+              // The update hold's bound ("five minutes at the latest") is not
+              // the bound of a task that also waits behind an open run: the
+              // run is what it waits on, and promising five minutes was false.
+              builderUpdating && !queuedBehind ? BUILDER_UPDATING_SENTENCE : null,
             ]
               .filter(Boolean)
               .join(" "),
@@ -965,6 +993,7 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
         promptKey,
         customPrompt,
         eventAdapter,
+        oneOff: params.session === "fresh",
       })
     : await buildRemotePrompt({
         userId,
@@ -976,6 +1005,7 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
         customPrompt,
         eventModel,
         liveUrl: dbMatch.liveUrl,
+        oneOff: params.session === "fresh",
       });
   if (isInjectResult(built)) return built;
   const { prompt, promptLabel } = built;
@@ -1030,7 +1060,9 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
     });
   }
 
-  if (runtimeAvailable) {
+  // The shared tab's prompt and handshake files describe the shared session.
+  // A fresh one-off runs in a lane of its own and must not touch them.
+  if (runtimeAvailable && params.session !== "fresh") {
     await writeLocalInjectSideEffects(userId, {
       effectiveTab,
       promptKey,

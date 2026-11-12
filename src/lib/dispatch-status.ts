@@ -5,6 +5,7 @@ import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import { AGENT_LABELS } from "@/lib/agent-labels";
 import { BUILDER_UPDATING_LABEL, BUILDER_UPDATING_SENTENCE } from "@/lib/runner-update-hold";
+import { RUN_IDLE_RELEASE_MINUTES } from "@/lib/run-progress";
 
 export type DispatchStatusInput = {
   ok?: boolean;
@@ -39,6 +40,70 @@ export const QUEUED_BEHIND_SENTENCE =
 
 /** The same fact as a short label under a sent task. */
 export const QUEUED_BEHIND_LABEL = "Next in line — starts when the earlier task ends";
+
+/** The run a queued task waits behind, as the queue knows it (findQueueBlockers). */
+export type QueueBlockerFacts = {
+  label: string | null;
+  startedAt: Date | string;
+  lastProgressAt: Date | string | null;
+};
+
+const ZURICH_CLOCK = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Zurich",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const ZURICH_DAY_CLOCK = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Zurich",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** A time a person reads: Zurich, with the day when it is not within the last 20 hours. */
+export function zurichClock(at: Date | string, now: Date = new Date()): string {
+  const d = new Date(at);
+  return now.getTime() - d.getTime() > 20 * 60 * 60_000
+    ? ZURICH_DAY_CLOCK.format(d)
+    : ZURICH_CLOCK.format(d);
+}
+
+/**
+ * What a task queued behind the project's open run waits on, and since when.
+ *
+ * "This project is still on an earlier task" was the whole answer, so two
+ * orangecat prompts read Queued for over an hour behind a session that had
+ * been idle since 06:17 (2026-11-12) and nobody could tell from the answer.
+ * Now it names the run, when it opened, when its agent last printed work, and
+ * the rule that ends the wait (lib/run-progress RUN_IDLE_RELEASE_MINUTES).
+ * Without the facts, the general sentence.
+ */
+export function queuedBehindSentence(
+  blocker: QueueBlockerFacts | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (!blocker) return QUEUED_BEHIND_SENTENCE;
+  const what = blocker.label ? `“${blocker.label}”` : "an earlier task";
+  const heard = blocker.lastProgressAt
+    ? `; its agent last printed work at ${zurichClock(blocker.lastProgressAt, now)}`
+    : "";
+  return (
+    `This project is still on ${what}, open since ${zurichClock(blocker.startedAt, now)}${heard}. ` +
+    `Yours is next in line: it starts when that one ends, or once that session has printed no work for ${RUN_IDLE_RELEASE_MINUTES} minutes. ` +
+    "To start it now, open the project's session and send it there, or stop the earlier task."
+  );
+}
+
+/** The short label for the same fact. */
+export function queuedBehindLabel(
+  blocker: QueueBlockerFacts | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (!blocker) return "Next in line for this project";
+  const what = blocker.label ? `“${blocker.label}”` : "an earlier task";
+  return `Next in line, behind ${what} (open since ${zurichClock(blocker.startedAt, now)})`;
+}
 
 /**
  * The builder named for a sentence, or null when we genuinely don't know.
@@ -245,7 +310,16 @@ export function deriveDispatchLiveStatus(
   now: number = Date.now(),
 ): DispatchLiveView {
   const r = cmd.result ?? {};
-  if (!cmd.executedAt) {
+  // A run that is over is over, whatever became of its command: stopped by
+  // the person, reaped, or closed as undelivered while the command still sat
+  // unclaimed for an offline builder. Reading the row first answered "Queued"
+  // for a closed run, and every caller polled it forever.
+  const runOver =
+    cmd.run != null &&
+    cmd.run.state !== ORCH_STATE.WAITING &&
+    cmd.run.state !== ORCH_STATE.RUNNING &&
+    cmd.run.state !== ORCH_STATE.CLOSING;
+  if (!cmd.executedAt && !runOver) {
     if (!cmd.claimedAt) {
       return {
         status: "queued",
@@ -506,9 +580,24 @@ export function deriveMultiDispatchView(attempts: MultiDispatchAttempt[]): Multi
 export function alignLiveViewWithTrack(
   view: DispatchLiveView,
   track: RunTrack | null | undefined,
+  /** The command row: a runner holds it (claimed, not yet answered). */
+  command?: { claimed: boolean; executed: boolean } | null,
 ): DispatchLiveView {
   if (view.terminal || !track?.live) return view;
   const detail = track.summary;
+  // A runner has claimed the command and is starting the agent: it holds the
+  // claim for the 20-35 s a launch and its checks take, and nothing can be
+  // blocked or stalled before it answers. The track may not know yet (no run
+  // event marks a claim), so the row's own evidence sets the floor.
+  if (command?.claimed && !command.executed && track.live !== "working") {
+    return {
+      ...view,
+      status: "starting",
+      label: "Starting",
+      detail: "A builder picked it up and is starting the agent.",
+      tone: "neutral",
+    };
+  }
   switch (track.live) {
     case "queued":
       return { ...view, status: "queued", label: "Queued", detail, tone: "neutral" };
