@@ -1,3 +1,4 @@
+import { closeOneOffSession } from "@/lib/orchestration/one-off-close";
 import { notifyPerson } from "@/lib/notify/person";
 import { logDebug } from "@/db/queries/debug-logs";
 import { formatRunCloseMessage, runCloseButtons } from "@/lib/orchestration/notify-close-format";
@@ -30,6 +31,9 @@ import type { OrchestrationRun } from "@/db/schema/orchestration-runs";
  * in notify-close-format.ts (pure, unit-tested).
  */
 export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
+  // A fresh one-off session ends with its run, however the run ended
+  // (one-off-close.ts). Every close path calls this once per closed run.
+  void closeOneOffSession(run);
   // The thread that asked for the work is a channel too — the one the person
   // is most likely still looking at. Independent of push/Telegram configuration.
   void postRunOutcomeToConversation(run);

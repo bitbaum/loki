@@ -124,8 +124,8 @@ assert.match(
 );
 assert.match(
   read("src/lib/feedback/fix-shipping-refresh.ts"),
-  /input\.keepDraft &&[\s\S]{0,200}prOpenedByRun\(pr\.createdAt, input\.runStartedAt\)[\s\S]{0,40}setDraft\(pr\.nodeId, picked\.token, true\)/,
-  "and only one this run opened",
+  /input\.keepDraft &&[\s\S]{0,200}owner\.mayAct[\s\S]{0,40}setDraft\(pr\.nodeId, picked\.token, true\)/,
+  "and only one this run opened, on its own branch (auto-ship prOwnership)",
 );
 assert.match(read("src/lib/feedback/recommend.ts"), /CLIENT\) return "Your client's request"/);
 const field = {

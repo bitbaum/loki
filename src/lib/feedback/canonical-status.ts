@@ -61,6 +61,13 @@ export const CANONICAL_CAUSE = {
   CLOSED_WITHOUT_CHANGE: "closed_without_change",
   /** Marked done, but PR, merge, deploy or a live URL is not on record. */
   DONE_UNPROVEN: "done_unproven",
+  /**
+   * A run that was not asked to ship a change (not a feedback fix: a question,
+   * a check, a one-off) finished well and pushed nothing. That is its answer,
+   * not a failure: a read-only `git status` probe used to end as Needs you,
+   * cause nothing_shipped (2026-11-12).
+   */
+  FINISHED_NO_CHANGE: "finished_no_change",
 } as const;
 export type CanonicalCause = (typeof CANONICAL_CAUSE)[keyof typeof CANONICAL_CAUSE];
 
@@ -238,6 +245,7 @@ const REASON: Record<CanonicalCause, string> = {
   confirmed: "Pull request merged, deployed and confirmed live.",
   closed_without_change: "The report was closed and no change was made for it.",
   done_unproven: "Marked done, but the proof Done needs is not on record.",
+  finished_no_change: "The agent finished and reported back; it pushed no change.",
 };
 
 /** The dispatch call: a retry, or the first start. */
@@ -271,7 +279,16 @@ function evidenceFrom(
 
 export function canonicalStatus(
   work: FeedbackWorkView,
-  opts: { liveUrl?: string | null; feedbackId?: string } = {},
+  opts: {
+    liveUrl?: string | null;
+    feedbackId?: string;
+    /**
+     * Was this run asked to ship a change? True (the default) for a feedback
+     * fix, whose Done needs a pull request, merge, deploy and live URL. False
+     * for any other run: one that finished well with nothing pushed is Done.
+     */
+    expectsChange?: boolean;
+  } = {},
 ): CanonicalStatus {
   const evidence = evidenceFrom(work.ship, opts.liveUrl ?? null);
   const make: Make = (state, cause, nextAction) => {
@@ -350,7 +367,7 @@ export function canonicalStatus(
       return make(CANONICAL_STATE.FAILED, cause, act("retry", work.waitingOn, label));
     }
     case FEEDBACK_WORK_PHASE.NEEDS_VERIFY:
-      return verifyStatus(work, make);
+      return verifyStatus(work, make, opts.expectsChange !== false);
     case FEEDBACK_WORK_PHASE.DONE: {
       // Done is earned, not recorded: an operator's Resolve alone, or a ledger
       // that never saw the deploy, is not Done to an agent reading this.
@@ -393,7 +410,7 @@ type Make = (
 ) => CanonicalStatus;
 
 /** The agent's run closed well; the ledger says how far the change got. */
-function verifyStatus(work: FeedbackWorkView, make: Make): CanonicalStatus {
+function verifyStatus(work: FeedbackWorkView, make: Make, expectsChange: boolean): CanonicalStatus {
   const who = work.waitingOn;
   const ship = work.ship;
   // No ledger yet: GitHub is still being asked. Nobody's move.
@@ -405,6 +422,12 @@ function verifyStatus(work: FeedbackWorkView, make: Make): CanonicalStatus {
     );
   switch (ship.state) {
     case FIX_SHIP_STATE.NO_EVIDENCE:
+      if (!expectsChange)
+        return make(
+          CANONICAL_STATE.DONE,
+          CANONICAL_CAUSE.FINISHED_NO_CHANGE,
+          act("none", WAITING_ON.NOBODY, "Nothing to do"),
+        );
       return make(
         CANONICAL_STATE.NEEDS_YOU,
         CANONICAL_CAUSE.NOTHING_SHIPPED,

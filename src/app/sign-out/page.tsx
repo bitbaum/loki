@@ -7,12 +7,14 @@ import { ROUTES } from "@/config/auth";
 
 export default function SignOutPage() {
   useEffect(() => {
-    signOut({ callbackUrl: ROUTES.SIGN_IN });
+    // A sign-out that began on the studio site ends there (/studio/left).
+    const studio = new URLSearchParams(window.location.search).get("then") === "studio";
+    signOut({ callbackUrl: studio ? "/studio/left" : ROUTES.SIGN_IN });
   }, []);
 
   return (
     <AuthShell>
-      <AuthHeading title="Signing out…" description="You'll be redirected to the sign-in page." />
+      <AuthHeading title="Signing out…" description="One moment." />
       <AuthLoadingCenter />
     </AuthShell>
   );

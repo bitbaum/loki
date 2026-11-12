@@ -100,6 +100,8 @@ The studio-owned transferable course is developed in bitbaum. Loki provides opti
 A builder found on Bitbaum is an OrangeCat account with a seat on one project and their own engine; the client pays them through the builder's own OrangeCat service. Bitbaum is the directory and the door.
 - [x] Assigning a builder grants the seat on that one project
 - [x] A fee on the assignment, paid to the builder's own wallet when the client accepts
+- [x] The studio site can ask who is signed in, and sign-in from it returns to the page a person was on
+- [ ] A builder's applications and briefs opened by their account, without making a new private link each time
 - [ ] More parallelism without routing work to a different machine silently
 
 ### The fleet learns from its own runs
