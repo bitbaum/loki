@@ -5,6 +5,7 @@
 // cycle: the poller starts the heartbeat.
 import fs from 'fs'
 import { claudeProjectSlug } from '@/lib/usage/claude-transcript-usage'
+import { looksLikeAgentCapacityIssue } from '@/lib/agent-resolution'
 
 const CLAUDE_AUTH_RE = /401 Invalid authentication|Please run \/login/i
 // What a CLI other than Claude prints when it is not signed in. Read from its
@@ -36,6 +37,47 @@ export type AuthCheck = {
  * was fine — and a Grok run a minute later was failed the same way, because
  * the canary read Claude's folder for an agent that never writes there.
  */
+function newestClaudeLog(dir: string): { path: string; mtimeMs: number } | null {
+  const projDir = `${process.env.HOME}/.claude/projects/${claudeProjectSlug(dir)}`
+  const newest = fs.readdirSync(projDir)
+    .filter((f) => f.endsWith('.jsonl'))
+    .map((f) => ({ path: `${projDir}/${f}`, mtimeMs: fs.statSync(`${projDir}/${f}`).mtimeMs }))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)[0]
+  return newest ?? null
+}
+
+/**
+ * Did Claude ITSELF report a usage wall for this run? Only Claude's own API
+ * error entries count, read from its transcript written since the prompt —
+ * never the screen, where our own brief's words are echoed back
+ * (2026-11-12: a Solon brief about a "rate limiter" that "resets on deploy"
+ * marked Claude out of quota while it went on working for fourteen minutes).
+ */
+export function claudeReportedCapacityWall(dir: string, since?: number): boolean {
+  try {
+    const newest = newestClaudeLog(dir)
+    if (!newest) return false
+    if (since != null && newest.mtimeMs < since - 1000) return false
+    const lines = fs.readFileSync(newest.path, 'utf-8').slice(-20000).split('\n')
+    for (const line of lines) {
+      if (!line.trim()) continue
+      let entry: { type?: string; isApiErrorMessage?: boolean; error?: unknown; timestamp?: string; message?: { content?: unknown } }
+      try { entry = JSON.parse(line) } catch { continue }
+      if (entry.type !== 'assistant') continue
+      if (!entry.isApiErrorMessage && !entry.error) continue
+      if (since != null && entry.timestamp && Date.parse(entry.timestamp) < since - 1000) continue
+      const content = entry.message?.content
+      const text = typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? content.map((c) => (c && typeof c === 'object' && 'text' in c ? String((c as { text: unknown }).text) : '')).join(' ')
+          : ''
+      if (looksLikeAgentCapacityIssue(`${text} ${typeof entry.error === 'string' ? entry.error : ''}`)) return true
+    }
+    return false
+  } catch { return false }
+}
+
 export function detectAuthFailure(dir: string, check: AuthCheck = {}): boolean {
   const agent = check.agent ?? 'claude'
   if (agent !== 'claude') {

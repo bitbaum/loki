@@ -27,7 +27,7 @@ import path from 'path'
 import { APP_URL } from '@/config/brand'
 import { APP_SLUG } from '@/config/brand'
 import { startPeek, stopPeek } from './peek-streamer'
-import { authFailureMessage, detectAuthFailure } from './agent-auth'
+import { authFailureMessage, claudeReportedCapacityWall, detectAuthFailure } from './agent-auth'
 import { startRunProgress } from './run-progress'
 import { getAgentInstallCommand, listAgentRegistry, type AgentOption } from '@/lib/agent-registry'
 import { executor } from '@/lib/agent-execution'
@@ -774,6 +774,16 @@ async function handleCommand(
               // Claude reports its own state. A session still generating ~12s
               // after the submit has not hit a wall, whatever its screen says —
               // "Approaching usage limit" is a warning it prints WHILE working.
+              // Claude: only its own API error entry since the prompt is a
+              // wall. The screen echoes our brief, and a brief that talks
+              // about rate limits is not Claude running out.
+              if (
+                capacityFailure &&
+                agent === 'claude' &&
+                !claudeReportedCapacityWall(transcriptDir, injectedAt ? Date.parse(injectedAt) : undefined)
+              ) {
+                capacityFailure = null
+              }
               if (capacityFailure && agent === 'claude') {
                 const live = claudeLiveSessionForDir(
                   readClaudeLiveSessions(),

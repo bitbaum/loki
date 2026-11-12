@@ -12,7 +12,12 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { authFailureMessage, detectAuthFailure } from "../../desktop/src/main/agent-auth";
+import {
+  authFailureMessage,
+  claudeReportedCapacityWall,
+  detectAuthFailure,
+} from "../../desktop/src/main/agent-auth";
+import { capacityFailureFromScreen } from "../../desktop/src/main/pty-runtime";
 import { claudeProjectSlug } from "@/lib/usage/claude-transcript-usage";
 
 function assert(condition: boolean, message: string): void {
@@ -97,6 +102,66 @@ try {
     !authFailureMessage("gemini").includes(".claude"),
     "gemini message must not name Claude's files",
   );
+  // Quota: only Claude's own API error entry since the prompt is a wall.
+  const capDir = "/home/ubuntu/dev/capacity";
+  const capProj = path.join(home, ".claude", "projects", claudeProjectSlug(capDir));
+  fs.mkdirSync(capProj, { recursive: true });
+  const capSent = Date.now() - 500;
+  const brief =
+    "Replace the in-memory per-process rate limiter. Per-process memory resets on deploy.";
+  const log = path.join(capProj, "s.jsonl");
+  fs.writeFileSync(
+    log,
+    JSON.stringify({
+      type: "user",
+      timestamp: new Date().toISOString(),
+      message: { content: brief },
+    }) +
+      "\n" +
+      JSON.stringify({
+        type: "assistant",
+        timestamp: new Date().toISOString(),
+        message: { content: [{ type: "text", text: "Replacing the rate limiter now." }] },
+      }) +
+      "\n",
+  );
+  assert(
+    !claudeReportedCapacityWall(capDir, capSent),
+    "our brief and Claude's prose about rate limits are not a wall",
+  );
+  fs.appendFileSync(
+    log,
+    JSON.stringify({
+      type: "assistant",
+      isApiErrorMessage: true,
+      timestamp: new Date().toISOString(),
+      message: {
+        content: [
+          { type: "text", text: "Claude usage limit reached. Your limit will reset at 9am." },
+        ],
+      },
+    }) + "\n",
+  );
+  assert(claudeReportedCapacityWall(capDir, capSent), "Claude's own usage-limit error is a wall");
+  assert(
+    !claudeReportedCapacityWall(capDir, Date.now() + 60_000),
+    "a wall from before the prompt is not this run's",
+  );
+
+  // The screen echo of our own brief, spaces lost in a redraw, is not a wall.
+  assert(
+    capacityFailureFromScreen(
+      "Replacethein-memoryper-processratelimiter.Per-processmemoryresetsondeploy.",
+      "grok",
+      brief,
+    ) === null,
+    "a redraw of our own brief must not read as a quota wall",
+  );
+  assert(
+    capacityFailureFromScreen("Error: usage limit reached, resets in 3h", "grok", brief) !== null,
+    "the agent's own wall still counts",
+  );
+
   console.log("agent-auth-canary: ok");
 } finally {
   process.env.HOME = prevHome;
