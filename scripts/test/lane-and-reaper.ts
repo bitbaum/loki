@@ -508,6 +508,159 @@ async function main(): Promise<number> {
     assert((await runRow(asking.runId)).finished_at === null, "a run asking a person was reaped");
   });
 
+  // ── three faults in the first idle rule (review, 2026-11-12) ───────────────
+  async function lastBeat(runId: string, minsAgo: number) {
+    await db.execute(sql`
+      UPDATE orchestration_runs
+         SET payload = jsonb_set(payload, '{lastBeatAt}', to_jsonb(NOW() - make_interval(mins => ${minsAgo})))
+       WHERE id = ${runId}`);
+  }
+  const closeReason = async (runId: string) => {
+    const [row] = await db.execute<{ error: string | null }>(
+      sql`SELECT payload->>'error' AS error FROM orchestration_runs WHERE id = ${runId}`,
+    );
+    return row?.error ?? "";
+  };
+
+  await check("the idle run is closed in the claim that lets the next task through", async () => {
+    // Left open until the hourly reaper, it was closed by the NEXT task's
+    // handoff, with that task's summary (close-sweep closes every delivered
+    // open run of the project).
+    const user = await newUser("idleclose");
+    await liveAgent(user, "idleclose");
+    const a = await openRun({
+      user,
+      key: "idleclose",
+      createdAgo: 51,
+      deliveredAgo: 50,
+      lastOutputAgo: 35,
+      command: "executed",
+    });
+    const b = await openRun({ user, key: "idleclose", createdAgo: 20, command: "waiting" });
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(claimed?.id === b.commandId, `B was not claimed (got ${claimed?.id})`);
+    const ra = await runRow(a.runId);
+    assert(
+      ra.finished_at !== null,
+      "A is still open after B was let through: B's handoff would close both with one summary",
+    );
+    assert(/went quiet/.test(await closeReason(a.runId)), "A's close does not say why");
+    assert((await runRow(b.runId)).finished_at === null, "B was closed by A's close");
+  });
+
+  await check("an idle run nobody waits behind is left to the hourly reaper", async () => {
+    const user = await newUser("idlealone");
+    await liveAgent(user, "idlealone");
+    const a = await openRun({
+      user,
+      key: "idlealone",
+      createdAgo: 51,
+      deliveredAgo: 50,
+      lastOutputAgo: 35,
+      command: "executed",
+    });
+    await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert((await runRow(a.runId)).finished_at === null, "closed at claim with no task waiting");
+  });
+
+  await check("a run whose last work came at the runner's six-hour stop still holds", async () => {
+    // The runner stops beating six hours into a run whatever the agent does.
+    // Last working beat at 6 h 00, now 6 h 31: that silence is the runner's.
+    const user = await newUser("horizon");
+    await liveAgent(user, "horizon");
+    const a = await openRun({
+      user,
+      key: "horizon",
+      createdAgo: 392,
+      deliveredAgo: 391,
+      lastOutputAgo: 31,
+      command: "executed",
+    });
+    const b = await openRun({ user, key: "horizon", createdAgo: 20, command: "waiting" });
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(claimed === null, `a prompt went into a session that may be working (${claimed?.id})`);
+    assert(
+      (await findQueueBlockers([b.runId])).get(b.runId)?.runId === a.runId,
+      "the six-hour run is not named as what B waits behind",
+    );
+    await cleanupStaleOrchestrationRuns(user);
+    assert((await runRow(a.runId)).finished_at === null, "reaped as quiet at the runner's stop");
+  });
+
+  await check("a run that went quiet early is idle however old it is", async () => {
+    const user = await newUser("early");
+    await liveAgent(user, "early");
+    // Delivered 6 h 40 ago, last work 5 h ago (100 minutes into the run).
+    const a = await openRun({
+      user,
+      key: "early",
+      createdAgo: 401,
+      deliveredAgo: 400,
+      lastOutputAgo: 300,
+      command: "executed",
+    });
+    const b = await openRun({ user, key: "early", createdAgo: 20, command: "waiting" });
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(claimed?.id === b.commandId, "B waited behind a run that stopped five hours ago");
+    assert((await runRow(a.runId)).finished_at !== null, "the early-quiet run was left open");
+  });
+
+  await check("a turn that ended before reporting began is idle after half an hour", async () => {
+    // The agent answered inside the dispatch's verification window: no
+    // working beat ever, only the idle trickle the runner reports afterwards.
+    const user = await newUser("quick");
+    await liveAgent(user, "quick");
+    const a = await openRun({
+      user,
+      key: "quick",
+      createdAgo: 41,
+      deliveredAgo: 40,
+      command: "executed",
+    });
+    await lastBeat(a.runId, 1);
+    const b = await openRun({ user, key: "quick", createdAgo: 20, command: "waiting" });
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(
+      claimed?.id === b.commandId,
+      "B waited behind a turn that ended before the runner began reporting on it",
+    );
+    assert((await runRow(a.runId)).finished_at !== null, "the answered turn was left open");
+  });
+
+  await check("a turn the runner reports on is not idle in its first half hour", async () => {
+    const user = await newUser("young");
+    await liveAgent(user, "young");
+    const a = await openRun({
+      user,
+      key: "young",
+      createdAgo: 11,
+      deliveredAgo: 10,
+      command: "executed",
+    });
+    await lastBeat(a.runId, 1);
+    await openRun({ user, key: "young", createdAgo: 5, command: "waiting" });
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(claimed === null, `claimed behind a ten-minute-old run (${claimed?.id})`);
+    assert((await runRow(a.runId)).finished_at === null, "a ten-minute-old run was closed");
+  });
+
+  await check("a run the runner never reported on keeps its lane", async () => {
+    // No beat of any size: an old runner, or a prompt typed in without one.
+    const user = await newUser("unknown");
+    await liveAgent(user, "unknown");
+    const a = await openRun({
+      user,
+      key: "unknown",
+      createdAgo: 41,
+      deliveredAgo: 40,
+      command: "executed",
+    });
+    await openRun({ user, key: "unknown", createdAgo: 20, command: "waiting" });
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(claimed === null, `claimed behind a run nothing is known about (${claimed?.id})`);
+    assert((await runRow(a.runId)).finished_at === null, "an unknown run was closed");
+  });
+
   // ── cleanup ────────────────────────────────────────────────────────────────
   // The reaper fires notifications and ledger updates as fire-and-forget
   // promises; give them a moment before deleting what they reference.

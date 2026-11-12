@@ -87,6 +87,8 @@ signed-in browser. What it could use:
 | 11:39 | Loki #1678 `check` | success on `0e48feb4` (the real-Postgres scenarios ran in CI). Waiting for the sweep; #1661 and #1673 merged ahead of it. |
 | 11:30 | `box-usage.yml` `mode=read` (run 43209749814) | cancelled at its 20-minute limit inside the first `du`, after printing the memory facts: **MemAvailable 0.6 GiB of 15.2, swap 4.0 GiB of 4.0 used.** Resident memory by program: `gvisor_sentry` 25186 MiB over 1734 processes (the sealed agent sessions; shared pages are counted once per process, 6.5 GiB is shared), `next-server` 3847 MiB over 24, `postgres` 2112 MiB. **20 out-of-memory kills since boot**: `openclaw-gateway` 10, `gvisor_sentry` 3, and one each of `next-server`, `java`, `python`, `node`, `bash`, `MainThread`. |
 | 11:55 | Read `src/lib/agent-execution/sandbox.ts` and `scripts/hetzner/install-box-runner.sh` | A sealed session started with podman gets no `--memory` (only the docker shape does); the code says "MemoryMax still bounds them", meaning the runner unit's. `loki-box-runner.service` has `OOMPolicy=continue` and **no `MemoryHigh` or `MemoryMax`**. Every site unit has `MemoryMax=1G` (`scripts/hetzner/sync-infra.sh`). So the builder is the one service on the box with no ceiling. `AGENT_MAX_OPEN_DEFAULT = 8` was sized at 0.4 GB a session. |
+| 12:17 | Change 7 written and tested (below): three faults in #1680's idle rule, from the review | 17 of 17 on a real Postgres; 19 tests that read the queue code |
+| 12:12 | Loki #1678 `check` green on the merged head; OrangeCat #1672 all checks green (12:04) | both wait for the sweep |
 | 12:01 | `git fetch`: **#1680 merged at 11:56 UTC** (another session): an idle session does not hold its project's queue | it supersedes change 5; mine is removed from #1678 (see below). Both sites reset the connection for about 12 s at 12:01. |
 | 11:58 | `box-usage.sh` now prints the runner unit's memory, its ceiling and the sandboxes' cgroup, and gives each disk walk a minute; run from the branch | result below when it is in |
 | 11:28 | Change 6 written and tested (below): a red or conflicted pull request is said in the thread with the repair | `scripts/test/run-follow-notify.ts`, and the eleven other tests that read the shipping ledger |
@@ -128,6 +130,40 @@ What it does not do: make the restart land. The drain still counts every
 sealed session as working. Next step for that: run `mode=activity`, read the
 numbers, then change `agent_is_busy` in
 `scripts/hetzner/drain-and-restart-runner.sh` on what they show.
+
+## Change 7 (Loki): three faults in the idle rule that is on main (#1680)
+
+Found by the independent review (workflow run `wf_22c0cc48-298`, two
+reviewers reading the server and the runner side), each checked by me in the
+code, each failing first in `scripts/test/lane-and-reaper.ts` against main's
+code (13 passed, 4 failed) and passing after (17 of 17):
+
+1. **One finished report closed two runs.** An idle run stopped holding its
+   project but stayed open until the hourly reaper. The next task went into
+   the same session, and its `ready` handoff closes every delivered open run
+   of the project (`src/lib/orchestration/close-sweep.ts`), so the idle run
+   was recorded as done with the other run's summary. Now the claim closes the
+   idle run first, with the reaper's own function and sentence
+   (`src/db/queries/idle-run-close.ts`, called in `claimNextPendingCommand`
+   before the gate), and only when a task is waiting in that project.
+2. **The runner's own stop read as the agent stopping.** The runner stops
+   beating six hours into a run (`RUN_PROGRESS_MAX_MS`). Half an hour later
+   the run read as idle while it printed, and the next prompt went into a
+   working session. A last working beat at that horizon no longer counts as
+   silence (`RUN_PROGRESS_HORIZON_SECONDS`, `runIdleSql`).
+3. **A turn answered within seconds held its project for up to twelve
+   hours.** The runner begins reporting on a run only after the dispatch's
+   verification (about twelve seconds); output before that is never counted.
+   Such a run had no working beat ever, read as "unknown", and kept its lane.
+   Every beat now stamps `lastBeatAt`; a run the runner reports on that has
+   printed no work since delivery is idle after the same half hour. A run
+   with no beat of any size keeps its lane, as before.
+
+Not fixed, recorded: beats that cannot be delivered for half an hour while
+the claim still gets through (a closed laptop; a web app slower than the
+beat's five-second timeout) make a working run read idle. The withdrawn rule
+had a second look for this; main has none. It needs the runner to resend a
+lost count, which is runner code.
 
 ## Change 6 (Loki): a pull request that cannot merge is said, with the repair
 

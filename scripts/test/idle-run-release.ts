@@ -20,6 +20,8 @@ import fs from "node:fs";
 import {
   RUN_BLOCKED,
   RUN_IDLE_RELEASE_MINUTES,
+  RUN_PROGRESS_HORIZON_SECONDS,
+  RUN_PROGRESS_MAX_MS,
   RUN_PROGRESS_MIN_BYTES,
   RUN_WENT_QUIET_SENTENCE,
   isWorkingBeat,
@@ -106,5 +108,38 @@ assert.match(
 assert.match(inject, /waitingOn: \{/, "the answer carries what it waits on");
 const track = read("src/lib/run-track-load.ts");
 assert.match(track, /queuedBehindSentence\(blocker, new Date\(now\)\)/);
+
+// ── three faults in the first rule (review, 2026-11-12) ─────────────────────
+// The database half of each is in scripts/test/lane-and-reaper.ts.
+// 1. The runner stops beating RUN_PROGRESS_MAX_MS into a run, so silence that
+//    begins there is the runner's, not the agent's.
+assert.equal(RUN_PROGRESS_HORIZON_SECONDS, RUN_PROGRESS_MAX_MS / 1000 - 300);
+assert.match(
+  runs,
+  /lastProgressAt'\)::timestamptz < \$\{horizon\}/,
+  "a last beat at the runner's own stop is not read as the agent stopping",
+);
+// 2. A turn that ended before the runner began reporting never has a working
+//    beat. One the runner does report on (any beat) is idle after the window.
+assert.match(runs, /payload->>'lastBeatAt'\) IS NOT NULL/, "reported on, but never worked");
+assert.match(
+  runs,
+  /const seenBeat = sql`jsonb_set\(COALESCE\(payload, '\{\}'\), '\{lastBeatAt\}'/,
+  "every beat says the runner is reporting on this run",
+);
+assert.match(runs, /: seenBeat;/, "a trickle stamps lastBeatAt and leaves lastProgressAt alone");
+// 3. The idle run is closed before the task behind it starts, or that task's
+//    handoff closes both runs with one summary.
+const claim = read("src/db/queries/pending-commands.ts");
+const closes = claim.indexOf("await closeIdleRunsAhead(userIds)");
+assert.ok(closes > 0, "the claim closes idle runs ahead");
+assert.ok(
+  claim.indexOf("fifoEligibilitySql()", closes) > closes,
+  "and does it before the gate lets the next task through",
+);
+const idleClose = read("src/db/queries/idle-run-close.ts");
+assert.match(idleClose, /\$\{runIdleSql\("r"\)\}/, "one definition of idle");
+assert.match(idleClose, /cleanupStaleOrchestrationRuns\(userId\)/, "the reaper's own close");
+assert.match(idleClose, /pc\.claimed_at IS NULL/, "only when a task is waiting");
 
 console.log("idle-run-release ok");
