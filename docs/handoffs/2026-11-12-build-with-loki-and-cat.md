@@ -111,6 +111,45 @@ signed-in browser. What it could use:
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
 | 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
 
+## 15:20 to 16:10: the loop check reaches the agent; Grok's balance is spent
+
+| When (UTC) | What | Result |
+| ---------- | ---- | ------ |
+| 15:39 | Loki #1687 merged (five sessions at once, `stop-idle`, Gemini kept out of Loki) | |
+| 15:21 | `loki-loop-check.yml`, `project=orangecat` (run 43246653314) | **4 of 5.** The task reached the builder and the outcome came back into the thread; the run itself failed in 15 s: "grok cannot generate because its usage limit is exhausted". |
+| 15:41 | `sealed-builds.yml` `mode=journal` | the runner refused claude 16 times from 14:42 to 14:50 and grok once at 15:21, all "usage limit is exhausted". It keeps no screen. |
+| 15:52 | new `mode=agent-probe`, `runs=claude` (from the branch) | Claude Code (the builder's Claude Ultra login) answered PONG in one second: Claude has capacity now. |
+| 15:56 | loop check again, `orangecat` (run 43253255172) | 4 of 5, grok again: grok is the orangecat project's own agent, not a reroute. |
+| 16:00 | `agent-probe`, `runs=grok`, headless turn | **"402 Payment Required: Grok Build usage balance exhausted".** Real: the xAI Grok Build balance is used up. Loki read it right. |
+
+Two findings:
+
+- **A chat message walked into a spent agent.** Kickoff, Implement and the
+  retry route around an agent Loki has seen run out (`routeAroundSpent`);
+  `injectPrompt` with no agent pinned (a chat message, a voice turn) did not.
+  Change 9 below.
+- **The builder's env file still holds `GEMINI_API_KEY`** (the agent probe
+  lists the credential names it passes). It stops mattering when the owner
+  deletes that key in Google Cloud; nothing new copies it (#1687).
+
+Owner: top up Grok Build at xAI, or switch orangecat to Claude Code in Loki.
+With change 9 live, an unpinned task goes to Claude while Grok is spent.
+
+## Change 9 (Loki): a task nobody pinned does not walk into a spent agent
+
+- `src/lib/dispatch-agent-route.ts`: `agentAvoidingSpent` asks
+  `providerChoiceFor` and `routeAroundSpent`, as kickoff does. Anything
+  unreadable keeps the project's agent.
+- `src/lib/inject-core.ts`: `injectPrompt` uses it only when the caller
+  pinned no agent; a rerouted run records `reroutedFrom` / `reroutedBecause`
+  for the Watch page, and the body carries `agentNotice`.
+- The chat's dispatch reply adds the sentence ("Grok has run out of usage, so
+  Claude Code took this one. The project's agent is unchanged…").
+- `scripts/hetzner/sealed-builds-ctl.sh` `agent-probe` and
+  `sealed-pty-probe.py`: one headless turn, then the interactive one, with
+  the terminal answers modern TUIs wait for. Read-only, about a cent.
+- `scripts/test/dispatch-agent-route.ts`.
+
 ## Change 1 (Loki): a held task waits minutes, and says so
 
 Branch `ccr-6043476f-vhm900`. Server and box scripts only: no runner code, so
