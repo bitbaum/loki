@@ -60,4 +60,12 @@ grep -q 'set in 0 file' <<<"$(bash "$HERE/fleet-env.sh" where GEMINI_API_KEY)" |
 bash "$HERE/fleet-env.sh" seed >/dev/null
 grep -qE '^GEMINI_API_KEY=' "$FLEET_ENV" && fail "seed never brings a retired key back"
 if bash "$HERE/fleet-env.sh" retire NODE_ENV >/dev/null 2>&1; then fail "retire refuses a name that is not a credential"; fi
+
+# usage-log: one line in the fleet file, once, and the directory exists.
+out="$(RESTART=0 FLEET_USAGE_DIR="$T/usage" bash "$HERE/fleet-env.sh" usage-log)"
+[ -d "$T/usage" ] || fail "usage-log makes the directory"
+grep -q "^AI_USAGE_DIR=\"$T/usage\"$" "$FLEET_ENV" || fail "usage-log sets AI_USAGE_DIR in the fleet file"
+RESTART=0 FLEET_USAGE_DIR="$T/usage" bash "$HERE/fleet-env.sh" usage-log | grep -q already || fail "usage-log is idempotent"
+[ "$(grep -c '^AI_USAGE_DIR=' "$FLEET_ENV")" = 1 ] || fail "usage-log never adds a second line"
+grep -q '^GROQ_API_KEY=' "$FLEET_ENV" || fail "usage-log touches no key"
 echo "fleet-env: all checks passed"
