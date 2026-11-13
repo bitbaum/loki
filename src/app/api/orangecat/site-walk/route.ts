@@ -14,6 +14,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { APP_URL } from "@/config/brand";
+import { saveShot, shotUrl } from "@/lib/bot-shots";
 import { getUserByOrangeCatActorId } from "@/db/queries/users";
 import { isFreshIssuedAt } from "@/lib/integrations/orangecat-actor-status";
 import { readSignedOrangeCatBody } from "@/lib/integrations/orangecat-webhook";
@@ -60,10 +62,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "bad walk", detail: walk.error }, { status: 400 });
     }
     const result = await runWalk(walk.steps);
-    const steps =
-      data.screenshots === false
-        ? result.steps.map(({ screenshot: _omit, ...rest }) => rest)
-        : result.steps;
+    // A picture crosses the rail as an address a thread can show, never as bytes.
+    const steps = await Promise.all(
+      result.steps.map(async ({ screenshot, ...rest }) => {
+        const token = screenshot && data.screenshots !== false ? await saveShot(screenshot) : null;
+        return { ...rest, ...(token ? { screenshotUrl: shotUrl(APP_URL, token) } : {}) };
+      }),
+    );
     return NextResponse.json(
       { ok: true, passed: result.ok, viewport: result.viewport, steps },
       { headers: { "Cache-Control": "no-store" } },

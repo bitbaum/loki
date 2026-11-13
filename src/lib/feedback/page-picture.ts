@@ -272,6 +272,43 @@ async function openContext(
   return context;
 }
 
+/**
+ * The route handler that keeps a server-side browser out of the private
+ * network: every request a page makes is let through only when its host
+ * resolves to public addresses alone. One per page or context (it remembers
+ * the hosts it has looked up).
+ */
+export function privateNetworkGuard(): (route: import("playwright").Route) => Promise<void> {
+  const seen = new Map<string, boolean>();
+  return async (route) => {
+    let host: string;
+    try {
+      const u = new URL(route.request().url());
+      if (u.protocol === "data:" || u.protocol === "blob:") return route.continue();
+      host = u.hostname;
+    } catch {
+      return route.abort();
+    }
+    return (await publicHost(host, seen)) ? route.continue() : route.abort();
+  };
+}
+
+/** The Chromium this server would launch, with Playwright, or why there is none. */
+export async function serverChromium(): Promise<
+  | { ok: true; chromium: typeof import("playwright").chromium; executablePath: string }
+  | { ok: false; reason: "no-playwright" | "no-browser" }
+> {
+  let chromium: typeof import("playwright").chromium;
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch {
+    return { ok: false, reason: "no-playwright" };
+  }
+  const executablePath = await browserPath(chromium);
+  if (!executablePath) return { ok: false, reason: "no-browser" };
+  return { ok: true, chromium, executablePath };
+}
+
 /** Open `url` in the context and wait for it to settle enough to photograph. */
 async function loadPage(
   context: import("playwright").BrowserContext,
@@ -280,19 +317,7 @@ async function loadPage(
   const page = await context.newPage();
   // On a person's own machine (the desktop app) the private network is
   // theirs — their dev server on localhost is the page to look at.
-  const seen = new Map<string, boolean>();
-  if (!isRuntimeAvailable())
-    await page.route("**/*", async (route) => {
-      let host: string;
-      try {
-        const u = new URL(route.request().url());
-        if (u.protocol === "data:" || u.protocol === "blob:") return route.continue();
-        host = u.hostname;
-      } catch {
-        return route.abort();
-      }
-      return (await publicHost(host, seen)) ? route.continue() : route.abort();
-    });
+  if (!isRuntimeAvailable()) await page.route("**/*", privateNetworkGuard());
   // The document is enough to photograph. "load" (every image) and "network
   // idle" are each waited for only as long as IDLE_WAIT_MS allows: a shop
   // homepage with hundreds of product images, or analytics beacons that
