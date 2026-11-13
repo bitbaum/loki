@@ -9,6 +9,8 @@
  * hanging is a dead end; this finds it so the thread can say so and offer
  * Try again.
  */
+import { unansweredTurn as chatkitUnansweredTurn } from "@bitbaum/chatkit";
+
 export interface ThreadMessageLike {
   id: string;
   role: string;
@@ -22,11 +24,9 @@ export function unansweredTurn(
   messages: readonly ThreadMessageLike[],
   state: { sending: boolean; loading: boolean; queued: number },
 ): { id: string; text: string } | null {
-  if (state.sending || state.loading || state.queued > 0) return null;
-  const last = messages[messages.length - 1];
-  if (!last || last.role !== "user") return null;
-  // Still on its way: the optimistic bubble of a send that is in flight.
-  if (last.id.startsWith("pending-")) return null;
-  const text = last.content.trim();
-  return text ? { id: last.id, text } : null;
+  // The rule is the package's. Loki marks a send still in flight by its id.
+  return chatkitUnansweredTurn(
+    messages.map((m) => ({ ...m, pending: m.id.startsWith("pending-") })),
+    state,
+  );
 }
