@@ -38,7 +38,8 @@ files=(${ENV_FILES:-/opt/*/shared/.env /opt/*/app/.env})
 keys() { grep -vE '^[[:space:]]*(#|$)' "$KEYS_FILE"; }
 
 value_of() {  # first VAR=… in a file, quotes and `export ` stripped
-  sed -nE "s/^(export[[:space:]]+)?$2=//p" "$1" 2>/dev/null | head -1 \
+  local run=""; [ -r "$1" ] || run="sudo -n"
+  $run sed -nE "s/^(export[[:space:]]+)?$2=//p" "$1" 2>/dev/null | head -1 \
     | sed -E 's/^["'\'']//; s/["'\'']$//; s/[[:space:]]+$//'
 }
 
@@ -105,10 +106,24 @@ key_name() {
   esac
 }
 
+# Env files outside the app layout: the builder's, each named runner's, the
+# Telegram gateway's, and anything else named like an env file. On 2026-11-13
+# the platform's Google key was retired from the app files while nothing had
+# looked at these; a key that bills is found wherever it is. Root-owned files
+# are read through sudo.
+elsewhere() {
+  [ -n "${ENV_FILES-}" ] && [ -z "${SWEEP_ROOTS-}" ] && return 0   # tests name their files
+  # shellcheck disable=SC2086
+  sudo -n find ${SWEEP_ROOTS:-/opt /etc/loki /home /root} -maxdepth 5 \
+    \( -name '.env' -o -name '.env.*' -o -name '*.env' -o -name 'env' \) -type f \
+    -not -path '*/node_modules/*' -not -path '*/releases/*' -not -path '*/.git/*' \
+    -not -name '.env.example' -not -name '*.example' 2>/dev/null || true
+}
+
 holders() {  # env files that set KEY to a non-empty value, the fleet file first
   local k="$1" f
-  for f in "$FLEET_ENV" "${files[@]}"; do
-    [ -f "$f" ] || continue
+  for f in "$FLEET_ENV" "${files[@]}" $(elsewhere); do
+    [ -f "$f" ] || sudo -n test -f "$f" 2>/dev/null || continue
     # The file itself, not a link to it: /opt/<app>/app/.env is a symlink to
     # shared/.env, and an in-place edit of a symlink replaces it with a copy
     # that later changes to shared/.env never reach.
@@ -129,10 +144,11 @@ where() {
 # of one file left it in the others, and a running app keeps the value it
 # started with, so retiring is one command that does all three.
 retire() {
-  local k="${1:-}" f n=0; key_name "$k"
+  local k="${1:-}" f n=0 run; key_name "$k"
   local stamp; stamp="$(date -u +%F)"
   while IFS= read -r f; do
-    sed -i -E "s/^([[:space:]]*(export[[:space:]]+)?$k=)/# retired $stamp: \\1/" "$f"
+    run=""; [ -w "$f" ] || run="sudo -n"
+    $run sed -i -E "s/^([[:space:]]*(export[[:space:]]+)?$k=)/# retired $stamp: \\1/" "$f"
     echo "retired $k in $f"; n=$((n + 1))
   done < <(holders "$k")
   echo "retired $k in $n file(s)"
