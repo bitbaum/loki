@@ -15,6 +15,8 @@ export type OwnModelRow = {
   label: string | null;
   /** The key also drives the agent CLIs in the person's private builder. */
   forBuilding: boolean;
+  /** The key also powers the person's OrangeCat bots, through Loki. */
+  forOrangecat: boolean;
   /** Which CLI it can drive ("Claude Code"), or null when it powers chat only. */
   buildEngine: string | null;
 };

@@ -38,6 +38,7 @@ import {
   reorderOwnModels,
   saveOwnModel,
   setForBuilding,
+  setForOrangecat,
   setOwnModelChoice,
   type OwnModelSummary,
 } from "@/db/queries/user-model-keys";
@@ -60,6 +61,7 @@ function view(summary: OwnModelSummary) {
     baseUrl: summary.baseUrl,
     label: summary.label,
     forBuilding: summary.forBuilding,
+    forOrangecat: summary.forOrangecat,
     // Which agent CLI this key can drive in a private builder, or null when
     // it powers chat only (config/build-engines.ts).
     buildEngine: buildEngineFor(summary.vendor)?.agent ?? null,
@@ -167,6 +169,9 @@ const PatchBody = z.union([
   // "Also for building": the key reaches the person's private builder on the
   // box as the agent CLI's own variable (scripts/write-tenant-engines.ts).
   z.object({ vendor: Vendor, forBuilding: z.boolean() }),
+  // "Also for your OrangeCat bots": Loki makes their model calls with this
+  // key (lib/orangecat-model.ts); the key itself stays here.
+  z.object({ vendor: Vendor, forOrangecat: z.boolean() }),
 ]);
 
 export async function PATCH(req: NextRequest) {
@@ -177,6 +182,11 @@ export async function PATCH(req: NextRequest) {
   if ("forBuilding" in body) {
     const changed = await setForBuilding(userId, body.vendor, body.forBuilding);
     if (!changed) return jsonError("That key cannot drive a runner, or is not stored.", 404);
+    return jsonOk({ model: view(changed) });
+  }
+  if ("forOrangecat" in body) {
+    const changed = await setForOrangecat(userId, body.vendor, body.forOrangecat);
+    if (!changed) return jsonError("That key is not stored, or cannot be shared.", 404);
     return jsonOk({ model: view(changed) });
   }
   return jsonOk({ models: (await reorderOwnModels(userId, body.order)).map(view) });
