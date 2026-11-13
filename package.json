@@ -126,7 +126,7 @@
     "@auth/drizzle-adapter": "^1.11.3",
     "@better-auth/passkey": "^1.7.14",
     "@bitbaum/accountkit": "^0.31.0",
-    "@bitbaum/ai-kit": "^1.27.0",
+    "@bitbaum/ai-kit": "^1.28.0",
     "@bitbaum/bip-kit": "^0.9.1",
     "@bitbaum/chatkit": "^0.34.0",
     "@bitbaum/limitkit": "^0.2.1",
