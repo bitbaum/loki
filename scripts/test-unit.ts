@@ -50,6 +50,8 @@ const SKIP: Record<string, string> = {
   "mint-check-token.ts": "helper — mints the box-side check's agent token, not a test",
   "print-private-zone-cookie.ts": "helper — prints the private-zone unlock, not a test",
   "authenticated-smoke.ts": "needs a running server + LOKI_SESSION_TOKEN (pre-push/prod dogfood)",
+  "orangecat-rail-e2e.ts":
+    "drives the OrangeCat rail's browser doors on the live site with the box's own secret (orangecat-rail-check.yml)",
   "loki-loop-e2e.ts":
     "end-to-end against a real deployment + LOKI_SESSION_TOKEN (pnpm run test:e2e:loki)",
   "rag-retrieval.ts": "needs EMBEDDINGS_BASE_URL (fastembed service)",

@@ -1,0 +1,64 @@
+# The OrangeCat rail's browser doors, exercised on the live site.
+#
+# On demand. From the box, with the rail's own secret (read there, never
+# printed), as the operator's linked OrangeCat actor: a site walk, and a bot's
+# own browser one step at a time (scripts/test/orangecat-rail-e2e.ts). What a
+# Cat Bot's walk_site and use_browser hands do, without a person tapping.
+#
+# Read-only apart from the browser's own cookies for a throwaway bot id: it
+# opens public pages and files nothing.
+name: OrangeCat rail check
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "The site to walk and browse"
+        type: string
+        default: "https://orangecat.ch"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orangecat-rail-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  ServerAliveInterval 30\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Drive the doors
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -o pipefail
+          case "$TARGET" in https://*) ;; *) echo "::error::target must be an https address"; exit 1 ;; esac
+          case "$TARGET" in *[!A-Za-z0-9.:/_-]*) echo "::error::bad target"; exit 1 ;; esac
+          ssh "root@$HETZNER_IP" 'install -d -m 755 /opt/loki/runner/scripts/test'
+          scp -q scripts/test/orangecat-rail-e2e.ts "root@$HETZNER_IP:/opt/loki/runner/scripts/test/"
+          # The secret and the database address are read on the box, into the
+          # check's own environment, and nothing here echoes them.
+          ssh "root@$HETZNER_IP" E2E_TARGET="$TARGET" bash -s <<'REMOTE' | sed -E 's/[A-Za-z0-9_-]{40,}/<masked>/g' | cut -c1-600
+          set -uo pipefail
+          APP_ENV=/opt/loki/app/.env
+          val() { grep -oE "^$1=\"?[^\" ]*" "$APP_ENV" | sed -E "s/^$1=\"?//"; }
+          cd /opt/loki/runner || { echo "down: no runner dir"; exit 1; }
+          env DATABASE_URL="$(val DATABASE_URL)" ORANGECAT_WEBHOOK_SECRET="$(val ORANGECAT_WEBHOOK_SECRET)" \
+            BASE=https://loki.orangecat.ch E2E_TARGET="$E2E_TARGET" \
+            node_modules/.bin/tsx scripts/test/orangecat-rail-e2e.ts
+          REMOTE
