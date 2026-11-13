@@ -599,13 +599,23 @@ env_run() { # run host-check with only the env check able to say anything
     DISK_PCT=82 bash "$TMP/host-check.sh" >/dev/null 2>&1 || true
 }
 
+# `chmod 000` is how this section makes a .env unreadable, and root reads any
+# file whatever its mode. Run as root (an agent's sandbox, a container) the
+# check under test never sees a broken file, so these four cases could only
+# fail; they are reported as not run rather than as failures. CI and a
+# developer's machine run them as an ordinary user.
+unreadable_check() {
+  if [ "$(id -u)" -eq 0 ]; then printf '  – %s (not run as root: root reads a mode-000 file)\n' "$1"
+  else check "$@"; fi
+}
+
 printf 'SECRET=1\n' > "$TMP/opt/demo/shared/.env"; chmod 000 "$TMP/opt/demo/shared/.env"
 env_run
 check "env: an unreadable .env is repaired, not merely reported" \
   "$([ -r "$TMP/opt/demo/shared/.env" ] && echo 0 || echo 1)"
-check "env: the repair targets the unit's own User=, not a backup's owner" \
+unreadable_check "env: the repair targets the unit's own User=, not a backup's owner" \
   "$(grep -q "$(id -un):$(id -un) $TMP/opt/demo/shared/.env" "$CHOWN_LOG" && echo 0 || echo 1)"
-check "env: exactly one message, and it says it is already fixed (got $(sent))" \
+unreadable_check "env: exactly one message, and it says it is already fixed (got $(sent))" \
   "$([ "$(sent)" -eq 1 ] && grep -q 'FIXED (no action needed)' "$SEND_LOG" && echo 0 || echo 1)"
 
 # Healthy is silent — the repair must not become its own recurring alert.
@@ -617,7 +627,7 @@ check "env: a healthy .env says nothing at all (got $(sent))" \
 # stamp, so a second corruption is not swallowed by the first repair's cooldown.
 chmod 000 "$TMP/opt/demo/shared/.env"
 env_run
-check "env: a fresh recurrence is reported again, not muted by the last repair" \
+unreadable_check "env: a fresh recurrence is reported again, not muted by the last repair" \
   "$([ "$(sent)" -eq 1 ] && echo 0 || echo 1)"
 
 # When the repair CANNOT be made, it becomes a question — asked once, with the
@@ -629,7 +639,7 @@ rm -f "$TMP"/state/host_failed_*
 rm -f "$TMP"/state/paged_envfix_demo "$TMP"/state/paged_envbad_demo
 CHOWN_FAIL=1 APPROOT="$TMP/opt" APP_UNITS="demo-app.service" UNIT_USER="$(id -un)" \
   DISK_PCT=82 bash "$TMP/host-check.sh" >/dev/null 2>&1 || true
-check "env: an unrepairable .env asks, and carries the exact fix command" \
+unreadable_check "env: an unrepairable .env asks, and carries the exact fix command" \
   "$([ "$(sent)" -eq 1 ] && grep -q 'chown .* && systemctl restart demo-app.service' "$SEND_LOG" && echo 0 || echo 1)"
 chmod 600 "$TMP/opt/demo/shared/.env"
 
