@@ -8593,6 +8593,11 @@
   .ui-loki-queue-remove {
     @apply -my-3 -mr-3 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary;
   }
+  /* Sends the first waiting message when no answer is running to send it
+     after (a reload brought the queue back). 44px tall, like its neighbours. */
+  .ui-loki-queue-send {
+    @apply -my-3 inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-medium text-accent-text transition-colors hover:bg-surface-overlay;
+  }
   /* The scope a message is aimed at — a quiet pill beside the model, like a
      recipient chip. Tap the name to change it, × to drop it. */
   .ui-loki-scope-pill {
