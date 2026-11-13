@@ -124,5 +124,8 @@ instead of asking for it again, for the linked account only.
   (Settings → Your model, "Also for your OrangeCat bots") or from OrangeCat
   by the signed-in person (`do: "share"`).
 - Never the person's own endpoint (`custom`). 240 calls an hour per account.
+- `complete` carries function definitions in the vendor's native tool format
+  and returns the calls the model asked for; OrangeCat runs them, Loki runs
+  none. This is what lets a bot use tools the way its model was trained to.
 - OrangeCat half (the offer in Settings → AI and the model row, and the
   service that calls this door) is the next pull request there.

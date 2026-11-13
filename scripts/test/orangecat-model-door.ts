@@ -66,9 +66,15 @@ async function main(): Promise<void> {
       { ...base, request: { ...ask, vendor: "nope" } },
       { ...base, request: { ...ask, messages: [] } },
       { ...base, request: { ...ask, tools: [{ type: "function" }] } },
+      {
+        ...base,
+        request: { ...ask, tools: [{ type: "function", function: { name: "bad name!" } }] },
+      },
+      { ...base, request: { ...ask, response_format: { type: "json_object" } } },
       { ...base, request: { ...ask, model: "../etc/passwd model" } },
       { ...base, request: { ...ask, maxTokens: 1_000_000 } },
       { ...base, request: { ...ask, messages: [{ role: "tool", content: "x" }] } },
+      { ...base, request: { ...ask, messages: [{ role: "developer", content: "x" }] } },
       { ...base, request: { do: "share", vendor: "xai" } },
       { ...base, request: { do: "reveal", vendor: "xai" } },
     ]) {
@@ -80,7 +86,9 @@ async function main(): Promise<void> {
       body: "{}",
     });
     assert.equal((await POST(huge)).status, 413);
-    console.log("  ✓ only a chat completion, a list or a switch; never custom, never tools (400)");
+    console.log(
+      "  ✓ only a chat completion, a list or a switch; never custom, no vendor fields (400)",
+    );
   } finally {
     if (original === undefined) delete process.env.ORANGECAT_WEBHOOK_SECRET;
     else process.env.ORANGECAT_WEBHOOK_SECRET = original;
@@ -111,10 +119,35 @@ async function main(): Promise<void> {
         },
       ],
     },
+    {
+      ...ask,
+      toolChoice: "auto",
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "walk_site",
+            description: "Walk a live site.",
+            parameters: { type: "object", properties: { url: { type: "string" } } },
+          },
+        },
+      ],
+      messages: [
+        { role: "user", content: "Check orangecat.ch" },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [
+            { id: "call_1", type: "function", function: { name: "walk_site", arguments: "{}" } },
+          ],
+        },
+        { role: "tool", tool_call_id: "call_1", content: "3 pages, no problems." },
+      ],
+    },
   ]) {
     assert.equal(OrangecatModelRequest.safeParse(good).success, true, JSON.stringify(good));
   }
-  console.log("  ✓ the four requests parse");
+  console.log("  ✓ the four requests parse, tool turns included");
 
   const key = "xai-SECRETSECRETSECRETSECRETSECRET1234";
   let seen: { url: string; auth: string | null; body: Record<string, unknown> } | null = null;
@@ -146,6 +179,7 @@ async function main(): Promise<void> {
   assert.deepEqual(ok, {
     ok: true,
     content: "Hello.",
+    toolCalls: [],
     model: "grok-4-0709",
     finishReason: "stop",
     usage: { promptTokens: 7, completionTokens: 2, totalTokens: 9 },
@@ -167,6 +201,38 @@ async function main(): Promise<void> {
   assert.equal(JSON.stringify(refused).includes(key), false);
   assert.equal(vendorSentence({ error: "Out of credit" }), "Out of credit");
   console.log("  ✓ a vendor refusal keeps its status and never echoes the key");
+
+  const tool = { type: "function" as const, function: { name: "walk_site" } };
+  const asked = await completeAtVendor(
+    { ...input, tools: [tool] },
+    vendor(200, {
+      choices: [
+        {
+          message: {
+            content: null,
+            tool_calls: [
+              {
+                id: "call_9",
+                type: "function",
+                function: { name: "walk_site", arguments: '{"url":"https://orangecat.ch"}' },
+              },
+              { id: "x", type: "function", function: { name: "rm -rf /" } },
+            ],
+          },
+          finish_reason: "tool_calls",
+        },
+      ],
+    }),
+  );
+  assert.equal(asked.ok, true);
+  assert.deepEqual(asked.ok && asked.toolCalls, [
+    { id: "call_9", name: "walk_site", arguments: '{"url":"https://orangecat.ch"}' },
+  ]);
+  assert.deepEqual(seen!.body.tools, [tool]);
+  assert.equal(seen!.body.tool_choice, "auto");
+  console.log(
+    "  ✓ a function the model asks for comes back to be run by the caller, native format",
+  );
 
   const empty = await completeAtVendor(input, vendor(200, { choices: [{ message: {} }] }));
   assert.equal(empty.ok, false);

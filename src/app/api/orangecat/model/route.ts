@@ -12,7 +12,8 @@
  *             signed in there, taps "use the key I saved in Loki"; the same
  *             switch is in Settings → Your model here.
  *   models    the models a switched-on key can use, from the vendor.
- *   complete  one chat completion with a switched-on key.
+ *   complete  one chat completion with a switched-on key, with the functions
+ *             the model may ask for. Loki runs none of them.
  *
  * The key is opened here, sent to the vendor's own host, and never returned
  * or logged. A key that is not switched on answers 403 whatever is asked.
@@ -142,6 +143,8 @@ export async function POST(req: NextRequest) {
       messages: request.messages,
       temperature: request.temperature,
       maxTokens: request.maxTokens,
+      tools: request.tools,
+      toolChoice: request.toolChoice,
     });
     if (!done.ok) {
       // The vendor's own refusal, passed on as a fact about the vendor: the
@@ -158,6 +161,7 @@ export async function POST(req: NextRequest) {
         vendor: vendor.id,
         model: done.model,
         content: done.content,
+        toolCalls: done.toolCalls,
         finishReason: done.finishReason,
         usage: done.usage,
       },

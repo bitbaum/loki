@@ -14,7 +14,8 @@
  *    never the person's own endpoint (`custom`): a private host is not
  *    something another product's server may reach through Loki;
  *  - a request is a chat completion and nothing else: messages, a model id,
- *    a temperature, an output cap. No tools, no arbitrary vendor fields;
+ *    a temperature, an output cap, and function definitions the model may
+ *    ask for. Loki runs none of them; no arbitrary vendor fields pass;
  *  - a ceiling on calls per account, so a fault or a stolen rail secret is a
  *    bounded bill, not an open one.
  */
@@ -29,6 +30,8 @@ export const ORANGECAT_MODEL_MAX_BODY_CHARS = 12_000_000;
 const VENDOR_TIMEOUT_MS = 110_000;
 
 const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/;
+const TOOL_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+const MAX_TOOLS = 64;
 
 const Part = z.union([
   z.object({ type: z.literal("text"), text: z.string() }).strict(),
@@ -40,10 +43,56 @@ const Part = z.union([
     .strict(),
 ]);
 
-const Message = z
+const ToolCall = z
   .object({
-    role: z.enum(["system", "user", "assistant"]),
-    content: z.union([z.string(), z.array(Part).min(1).max(12)]),
+    id: z.string().min(1).max(120),
+    type: z.literal("function"),
+    function: z
+      .object({ name: z.string().regex(TOOL_NAME), arguments: z.string().max(200_000) })
+      .strict(),
+  })
+  .strict();
+
+/**
+ * A turn of the conversation. Tool turns are the vendor's own shape: the
+ * model's request to call a function, and the result handed back. The
+ * function itself runs on OrangeCat, as the person; Loki only carries words.
+ */
+const Message = z.union([
+  z
+    .object({
+      role: z.enum(["system", "user"]),
+      content: z.union([z.string(), z.array(Part).min(1).max(12)]),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal("assistant"),
+      content: z.string().nullable(),
+      tool_calls: z.array(ToolCall).min(1).max(MAX_TOOLS).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      role: z.literal("tool"),
+      tool_call_id: z.string().min(1).max(120),
+      content: z.string(),
+    })
+    .strict(),
+]);
+export type OrangecatModelMessage = z.infer<typeof Message>;
+
+/** A function the model may ask for: a name, what it does, and its arguments as JSON Schema. */
+const Tool = z
+  .object({
+    type: z.literal("function"),
+    function: z
+      .object({
+        name: z.string().regex(TOOL_NAME),
+        description: z.string().max(4000).optional(),
+        parameters: z.record(z.string(), z.unknown()).optional(),
+      })
+      .strict(),
   })
   .strict();
 
@@ -68,6 +117,9 @@ export const OrangecatModelRequest = z.discriminatedUnion("do", [
       messages: z.array(Message).min(1).max(400),
       temperature: z.number().min(0).max(2).optional(),
       maxTokens: z.number().int().min(1).max(ORANGECAT_MODEL_MAX_OUTPUT_TOKENS).optional(),
+      /** Functions the model may ask for, in the vendor's native format. */
+      tools: z.array(Tool).min(1).max(MAX_TOOLS).optional(),
+      toolChoice: z.enum(["auto", "none", "required"]).optional(),
     })
     .strict(),
 ]);
@@ -84,6 +136,8 @@ export type Completion =
   | {
       ok: true;
       content: string;
+      /** Functions the model asked for, to be run by the caller. */
+      toolCalls: { id: string; name: string; arguments: string }[];
       model: string;
       finishReason: string | null;
       usage: { promptTokens: number; completionTokens: number; totalTokens: number };
@@ -112,15 +166,35 @@ export function vendorSentence(body: unknown): string {
     .slice(0, 240);
 }
 
+/** The function calls in a vendor's answer; anything not shaped like one is dropped. */
+export function readToolCalls(raw: unknown): { id: string; name: string; arguments: string }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, MAX_TOOLS).flatMap((c, i) => {
+    const call = (c ?? {}) as { id?: unknown; function?: { name?: unknown; arguments?: unknown } };
+    const name = call.function?.name;
+    if (typeof name !== "string" || !TOOL_NAME.test(name)) return [];
+    const args = call.function?.arguments;
+    return [
+      {
+        id: typeof call.id === "string" && call.id ? call.id.slice(0, 120) : `call_${i}`,
+        name,
+        arguments: typeof args === "string" ? args : JSON.stringify(args ?? {}),
+      },
+    ];
+  });
+}
+
 /** One chat completion at the vendor, with the person's key. Never throws; never returns the key. */
 export async function completeAtVendor(
   input: {
     baseUrl: string;
     apiKey: string;
     model: string;
-    messages: z.infer<typeof Message>[];
+    messages: OrangecatModelMessage[];
     temperature?: number;
     maxTokens?: number;
+    tools?: z.infer<typeof Tool>[];
+    toolChoice?: "auto" | "none" | "required";
   },
   fetchImpl: typeof fetch = fetch,
 ): Promise<Completion> {
@@ -134,6 +208,9 @@ export async function completeAtVendor(
         messages: input.messages,
         ...(input.temperature === undefined ? {} : { temperature: input.temperature }),
         ...(input.maxTokens === undefined ? {} : { max_tokens: input.maxTokens }),
+        ...(input.tools?.length
+          ? { tools: input.tools, tool_choice: input.toolChoice ?? "auto" }
+          : {}),
       }),
       signal: AbortSignal.timeout(VENDOR_TIMEOUT_MS),
     });
@@ -157,17 +234,19 @@ export async function completeAtVendor(
     };
   }
   const choice = (Array.isArray(body?.choices) ? body.choices[0] : null) as {
-    message?: { content?: unknown };
+    message?: { content?: unknown; tool_calls?: unknown };
     finish_reason?: unknown;
   } | null;
   const content = typeof choice?.message?.content === "string" ? choice.message.content : "";
-  if (!content.trim()) {
+  const toolCalls = readToolCalls(choice?.message?.tool_calls);
+  if (!content.trim() && toolCalls.length === 0) {
     return { ok: false, status: 502, detail: "The provider answered with no words." };
   }
   const usage = (body?.usage ?? {}) as Record<string, unknown>;
   return {
     ok: true,
     content,
+    toolCalls,
     model: typeof body?.model === "string" ? body.model : input.model,
     finishReason: typeof choice?.finish_reason === "string" ? choice.finish_reason : null,
     usage: {
