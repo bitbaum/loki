@@ -6,17 +6,25 @@ name: Fleet env
 # file lacks with the value the apps already share and never overwrites one;
 # "show" lists each key as set or not with an 8-character fingerprint. No
 # value is ever printed. Rotating a key is one edit to /opt/fleet/env.
+# "where" lists every env file on the box that sets the key named in `key`;
+# "retire" switches that key off in all of them (the line becomes a dated
+# comment) and restarts the apps, one at a time, so none keeps the old value.
 #
 # Manual on purpose: it writes to the box.
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: "seed or show"
+        description: "show, seed, where or retire"
         required: true
         default: show
         type: choice
-        options: [show, seed]
+        options: [show, seed, where, retire]
+      key:
+        description: "where / retire: the env name, e.g. GEMINI_API_KEY"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -44,10 +52,12 @@ jobs:
       - name: ${{ inputs.action }}
         env:
           ACTION: ${{ inputs.action }}
+          KEY: ${{ inputs.key }}
         run: |
           set -euo pipefail
+          case "$KEY" in *[!A-Z0-9_]*) echo "key must be an env name" >&2; exit 2 ;; esac
           BOX="ubuntu@$HETZNER_IP"
           SSH="ssh -o BatchMode=yes -i $HOME/.ssh/id_deploy"
           $SSH "$BOX" 'sudo mkdir -p /opt/fleet/bin && sudo chown ubuntu:ubuntu /opt/fleet /opt/fleet/bin'
           scp -q -o BatchMode=yes -i ~/.ssh/id_deploy scripts/hetzner/fleet-env.sh scripts/hetzner/fleet-keys.conf "$BOX:/opt/fleet/bin/"
-          $SSH "$BOX" "test -f /opt/fleet/env || { touch /opt/fleet/env && chmod 600 /opt/fleet/env; }; bash /opt/fleet/bin/fleet-env.sh $ACTION"
+          $SSH "$BOX" "test -f /opt/fleet/env || { touch /opt/fleet/env && chmod 600 /opt/fleet/env; }; bash /opt/fleet/bin/fleet-env.sh $ACTION $KEY"

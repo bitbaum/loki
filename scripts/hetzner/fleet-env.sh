@@ -19,6 +19,10 @@
 #   fleet-env.sh seed          # fill keys MISSING from /opt/fleet/env with the value most
 #                              # apps already share; never overwrites a key already there
 #   fleet-env.sh secret KEY    # generate KEY (32 random bytes, hex) if the file lacks it
+#   fleet-env.sh where KEY     # every env file on the box that sets KEY, by fingerprint
+#   fleet-env.sh retire KEY    # switch KEY off everywhere: its line in /opt/fleet/env and in
+#                              # every app env becomes a dated comment (the value is kept, so
+#                              # it can be restored by hand), and the units that held it restart
 #
 # Overridable for tests (test-fleet-env.sh): FLEET_ENV, ENV_FILES, KEYS_FILE.
 set -euo pipefail
@@ -90,9 +94,61 @@ secret() {
   echo "generated $k ($(fingerprint "$v"))"
 }
 
+# Vendor keys only: a name that is not a credential is never touched.
+key_name() {
+  case "${1:-}" in
+    *[!A-Z0-9_]*|"") echo "refused: not an env name: ${1:-}" >&2; exit 2 ;;
+    *_KEY|*_TOKEN|*_SECRET) ;;
+    *) echo "refused: $1 is not a key, token or secret" >&2; exit 2 ;;
+  esac
+}
+
+holders() {  # env files that set KEY to a non-empty value, the fleet file first
+  local k="$1" f
+  for f in "$FLEET_ENV" "${files[@]}"; do
+    [ -f "$f" ] || continue
+    [ -n "$(value_of "$f" "$k")" ] && printf '%s\n' "$f"
+  done | awk '!seen[$0]++'
+}
+
+where() {
+  local k="${1:-}" f n=0; key_name "$k"
+  while IFS= read -r f; do
+    printf '%-44s %s\n' "$f" "$(fingerprint "$(value_of "$f" "$k")")"; n=$((n + 1))
+  done < <(holders "$k")
+  echo "$k is set in $n file(s)"
+}
+
+# 2026-11: GEMINI_API_KEY sat here as a "free tier" on a Google project that
+# had billing, and every app read it: about $567 in two days. Taking a key out
+# of one file left it in the others, and a running app keeps the value it
+# started with, so retiring is one command that does all three.
+retire() {
+  local k="${1:-}" f unit n=0; key_name "$k"
+  local stamp; stamp="$(date -u +%F)"
+  while IFS= read -r f; do
+    sed -i -E "s/^([[:space:]]*(export[[:space:]]+)?$k=)/# retired $stamp: \\1/" "$f"
+    echo "retired $k in $f"; n=$((n + 1))
+  done < <(holders "$k")
+  echo "retired $k in $n file(s)"
+  [ "${RESTART:-1}" = 1 ] || return 0
+  # The fleet file feeds every app, so with it changed every app restarts;
+  # one at a time, so the box never loses them together.
+  local units
+  if [ "$n" -gt 0 ]; then
+    units="$(systemctl list-units --type=service --state=running --no-legend --plain '*-app.service' 2>/dev/null | awk '{print $1}')"
+    for unit in $units; do
+      sudo systemctl restart "$unit" && echo "restarted $unit" || echo "could not restart $unit" >&2
+      sleep 5
+    done
+  fi
+}
+
 case "${1:-show}" in
   show) show ;;
   seed) seed; show ;;
   secret) secret "${2:-}" ;;
-  *) echo "usage: fleet-env.sh show|seed|secret KEY" >&2; exit 2 ;;
+  where) where "${2:-}" ;;
+  retire) retire "${2:-}" ;;
+  *) echo "usage: fleet-env.sh show|seed|secret KEY|where KEY|retire KEY" >&2; exit 2 ;;
 esac
