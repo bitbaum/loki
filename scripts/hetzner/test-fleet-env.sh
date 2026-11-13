@@ -41,6 +41,8 @@ if bash "$HERE/fleet-env.sh" secret NOT_A_FLEET_KEY >/dev/null 2>&1; then fail "
 printf 'GEMINI_API_KEY="AIza_live"\n' >> "$FLEET_ENV"
 printf 'GEMINI_API_KEY=AIza_live\nKEEP=1\n' >> "$T/a/shared/.env"
 printf 'export GEMINI_API_KEY="AIza_other"\n' >> "$T/c/app/.env"
+# The box's layout: app/.env is a symlink to shared/.env. It is one file.
+mkdir -p "$T/a/app"; ln -s "$T/a/shared/.env" "$T/a/app/.env"
 out="$(bash "$HERE/fleet-env.sh" where GEMINI_API_KEY)"
 grep -q 'set in 4 file' <<<"$out" || fail "where counts every file that sets the key, a placeholder included"
 case "$out" in *AIza_*) fail "where never prints a value" ;; esac
@@ -51,6 +53,8 @@ for f in "$FLEET_ENV" "$T/a/shared/.env" "$T/c/app/.env" "$T/b/shared/.env"; do
 done
 grep -q '^# retired [0-9-]*: GEMINI_API_KEY="AIza_live"$' "$FLEET_ENV" || fail "retire keeps the value as a dated comment"
 grep -q '^KEEP=1$' "$T/a/shared/.env" || fail "retire touches no other line"
+[ -L "$T/a/app/.env" ] || fail "retire leaves a symlinked .env a symlink"
+grep -qE '^GEMINI_API_KEY=' "$T/a/app/.env" && fail "the link reads the retired file"
 grep -q '^GROQ_API_KEY=' "$FLEET_ENV" || fail "retire touches no other key"
 grep -q 'set in 0 file' <<<"$(bash "$HERE/fleet-env.sh" where GEMINI_API_KEY)" || fail "after retire the key is nowhere"
 bash "$HERE/fleet-env.sh" seed >/dev/null

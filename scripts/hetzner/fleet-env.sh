@@ -107,7 +107,10 @@ holders() {  # env files that set KEY to a non-empty value, the fleet file first
   local k="$1" f
   for f in "$FLEET_ENV" "${files[@]}"; do
     [ -f "$f" ] || continue
-    [ -n "$(value_of "$f" "$k")" ] && printf '%s\n' "$f"
+    # The file itself, not a link to it: /opt/<app>/app/.env is a symlink to
+    # shared/.env, and an in-place edit of a symlink replaces it with a copy
+    # that later changes to shared/.env never reach.
+    [ -n "$(value_of "$f" "$k")" ] && readlink -f "$f"
   done | awk '!seen[$0]++'
 }
 
