@@ -1,10 +1,10 @@
-import { renewedPassExpiry } from "@/lib/billing/pass-renewal";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { PLAN_VALUES } from "@/db/schema/users";
 import { getUserByOrangeCatActorId, updateUserBilling } from "@/db/queries/users";
 import { recordOcBillingGrant } from "@/db/queries/billing-grants";
 import { logDebug } from "@/db/queries/debug-logs";
+import { DAY_MS } from "@/lib/constants/time";
 import { readSignedOrangeCatBody } from "@/lib/integrations/orangecat-webhook";
 
 /**
@@ -50,8 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, granted: false, reason: "no-linked-user" });
     }
 
-    // Renewing early adds the days to the end instead of discarding them.
-    const expiresAt = renewedPassExpiry({ current: user, plan, periodDays, paidAt: new Date() });
+    const expiresAt = new Date(Date.now() + periodDays * DAY_MS);
     const grant = await recordOcBillingGrant({
       userId: user.id,
       externalId,

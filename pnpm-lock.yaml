@@ -49,9 +49,6 @@ importers:
       '@bitbaum/mail-kit':
         specifier: ^0.2.0
         version: 0.2.0
-      '@bitbaum/paykit':
-        specifier: ^0.3.0
-        version: 0.3.0
       '@bitbaum/searchkit':
         specifier: ^0.2.3
         version: 0.2.3(react@19.3.1)
@@ -621,10 +618,6 @@ packages:
 
   '@bitbaum/mail-kit@0.2.0':
     resolution: {integrity: sha512-YkgMFRQ6HuzIB0q/Ao4FB4zb/YxVc0iKyVdRkFe2psJ4CQJvGxBfDlURomZMkgQfpBQox4QiT/iN9IGRz6SeTg==}
-    engines: {node: '>=20'}
-
-  '@bitbaum/paykit@0.3.0':
-    resolution: {integrity: sha512-eGodeimnDGybr2fnYcXrkpys/r8I1PaFmnvWZVvDJb2OUZiqpUzDPuPPC4sKQnnzPn9wQMRIgQ6X0sbDqshkwA==}
     engines: {node: '>=20'}
 
   '@bitbaum/searchkit@0.2.3':
@@ -6062,8 +6055,6 @@ snapshots:
   '@bitbaum/listkit@0.2.2': {}
 
   '@bitbaum/mail-kit@0.2.0': {}
-
-  '@bitbaum/paykit@0.3.0': {}
 
   '@bitbaum/searchkit@0.2.3(react@19.3.1)':
     optionalDependencies:

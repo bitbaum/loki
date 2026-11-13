@@ -131,7 +131,6 @@
     "@bitbaum/chatkit": "^0.29.0",
     "@bitbaum/limitkit": "^0.2.1",
     "@bitbaum/mail-kit": "^0.2.0",
-    "@bitbaum/paykit": "^0.3.0",
     "@bitbaum/searchkit": "^0.2.3",
     "@bitbaum/whenkit": "^0.3.3",
     "@dnd-kit/core": "^6.3.1",
