@@ -195,15 +195,20 @@ async function main() {
     clicked.done && /\/discover/.test(clicked.view?.url ?? ""),
     `${clicked.view?.url ?? clicked.detail}`,
   );
+  // A field, never the "Open search" button that also says "search": the first
+  // run on the live site (2026-11-13) picked the button and failed on its own mistake.
   const search = clicked.view?.elements.find(
-    (e) => e.kind === "field:search" || /search/i.test(e.name),
+    (e) => e.kind.startsWith("field:") && (e.kind === "field:search" || /search/i.test(e.name)),
   );
   if (search) {
     const typed = await step({ do: "type", n: search.n, text: "bike", submit: true });
     record(
       "browser: typing into a numbered field and pressing Enter works",
       typed.done,
-      `${typed.view?.url ?? typed.detail}`.slice(0, 160),
+      `${typed.done ? "" : `${typed.detail} `}field ${search.n} (${search.kind}); now ${typed.view?.url ?? "?"}`.slice(
+        0,
+        200,
+      ),
     );
   } else {
     record(

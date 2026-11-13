@@ -11,31 +11,56 @@ The scorecard is OrangeCat `docs/PARITY.md`; the reference is OrangeCat
 **built** only when its pull request is merged; **exercised** only when it was
 used on the live site.
 
-## State at 06:10 UTC
+## State at 08:00 UTC
 
 | Capability | Where | State |
 | --- | --- | --- |
-| QA walk of a live site (`walk_site`) | Loki #1696 merged, live 05:22 (unsigned POST answers 401). OrangeCat #1697 open, green. | Loki half deployed; hand not merged |
-| A browser of its own for every bot (`use_browser`) | Loki #1697 open, green. OrangeCat #1697 (same PR as the walk). | not merged |
-| Pictures in the thread | Loki `lib/bot-shots.ts`, `GET /api/orangecat/shot/[token]` (in Loki #1697) | not merged |
-| Model picker | OrangeCat, local branch only | written, tested, not pushed |
-| Add and correct a memory | OrangeCat, local branch only | written, tested, not pushed |
-| Library (photos, files, links of a chat) | OrangeCat, local branch only | written, tested, not pushed |
-| Own rules checked before a bot acts on its own; time zone | OrangeCat, local branch only (migration `20261113130000`) | written, tested, not pushed |
-| Live rehearsal case 8 (model, rules, memory, library) | OrangeCat `tests/e2e/bots-rehearsal.live.spec.ts`, local | written, not run |
-| Voice mode (calls, server speech, push-to-talk) | — | not started; dictation and "Listen" exist |
+| QA walk of a live site (`walk_site`) | Loki #1696, OrangeCat #1697 | merged, deployed, **exercised live** |
+| A browser of its own for every bot (`use_browser`) | Loki #1697, OrangeCat #1697 | merged, deployed, **exercised live** |
+| Pictures in the thread | Loki `lib/bot-shots.ts`, `GET /api/orangecat/shot/[token]` | merged, deployed, exercised live (JPEGs served) |
+| Model picker; own rules and time zone; add and correct a memory; library | OrangeCat #1706 (migration `20261113130000`) | merged, deployed 07:25; live rehearsal case 8 running |
+| Voice mode | chatkit #89, released as 0.30.0 | merged, published |
+| "Talk" in a bot's chat | OrangeCat #1717 | green, waiting for the sweep |
 | Connectors (other apps, OAuth per app, MCP client) | — | not started |
 | Group avatar; more than one routine per bot; composer chips | — | not started |
 
-The OrangeCat work after #1697 sits on a local branch because each repository
-has one working branch (`ccr-6043476f-vhm900`) and it is held by the open
-pull request. It is pushed as the next pull request the moment #1697 merges.
-Unit suite with all of it: 734 files, 5958 tests.
+### Exercised live: `orangecat-rail-check.yml`, run 43388040356, 07:50 UTC, 15 of 15
+
+From the box, signed with the rail's own secret, as the operator's linked
+actor, against https://orangecat.ch:
+
+- an unsigned step, a request an hour old and an actor with no Loki account
+  are each refused (401, 401, 409);
+- a walk: the home page passes; `/discover` with words that are not there
+  fails with its sentence, and its picture is served as a 23 KB JPEG;
+- a bot's browser: a click with no page open is said; the home page opens
+  with 40 numbered elements and a 39 KB JPEG; a click on "Discover" lands on
+  `/discover`; typing "bike" into field 8 and Enter lands on
+  `/discover?q=bike`; back goes back; the password field on `/auth` is
+  refused; `127.0.0.1` and the metadata address are refused; it closes.
+
+The first run (43387876987) was 14 of 15: the check itself picked the "Open
+search" button as the field to type into. Fixed in the check.
+
+What this does not show: a bot's model choosing those steps in a chat. That
+needs the owner's account (a linked Loki account and a key of his own), or
+the shared pool answering.
+
+### The shared pool does not answer (06:24 UTC, first hand)
+
+A brand-new person's bot on orangecat.ch gets 502 in 0.7 s, "The free AI tier
+could not answer just now". `cat-diagnostics.yml` for that hour: google 403
+(the Gemini API is off), groq 429, openrouter 429. `live-rehearsal.yml` run
+43374705865 failed its bot cases and was cancelled at 30 minutes. The
+diagnostics now tell OrangeCat's own daily cap ("cap") from a vendor's 429
+(in OrangeCat #1706). Bots answer on a person's own key. The owner's way back
+to a free pool: unlink billing from the Gemini key's project and switch the
+API on again.
 
 ## What holds things up
 
-- **Loki's sweep is rate-limited.** Since 05:49 UTC every Auto-merge run on
-  Loki ends "API rate limit exceeded for installation" and skips every pull
+- **Loki's sweep is rate-limited, on and off.** At 05:49 and again at 06:47 UTC Auto-merge runs on
+  Loki ended "API rate limit exceeded for installation" and skips every pull
   request as "outside PR (UNKNOWN". Loki has about thirty open pull requests
   (fifteen `starter-sync/*`), and each sweep reads each one. It lifts when the
   hour's window resets; a push or a CI completion starts the next sweep. Do
@@ -72,12 +97,11 @@ Unit suite with all of it: 734 files, 5958 tests.
 
 ## Next, in order
 
-1. When OrangeCat #1697 merges: push the local branch as the next pull
-   request; when deployed, run `live-rehearsal.yml` (case 8 is new).
-2. When Loki #1697 is deployed: as the owner's account, a bot with
-   `use_browser` and `walk_site` on the live site; record what the thread
-   shows.
-3. Voice mode. 4. Connectors. 5. Group avatar, several routines per bot.
+1. OrangeCat #1717 (Talk) through the sweep; then a look at it on a phone is
+   the owner's: iOS and Android differ in when a voice may start.
+2. Read `live-rehearsal.yml` run 43385608909 (case 8: model, rules, memory,
+   library as a new person).
+3. Connectors. 4. Group avatar, several routines per bot, composer chips.
 
 ## Known limits, said plainly
 
