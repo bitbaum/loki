@@ -1,0 +1,1 @@
+ALTER TABLE "user_model_keys" ADD COLUMN "for_orangecat" boolean DEFAULT false NOT NULL;

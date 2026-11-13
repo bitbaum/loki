@@ -60,6 +60,14 @@ export const userModelKeys = pgTable(
      * otherwise (docs/architecture/private-builders.md, Settings → Your engine).
      */
     forBuilding: boolean("for_building").notNull().default(false),
+    /**
+     * Also for the person's OrangeCat bots: Loki makes the model call for
+     * them over the signed rail (/api/orangecat/model), as the linked
+     * account. The key itself never leaves Loki. Off by default: a key
+     * pasted for Loki's chat is not spent anywhere else until the person
+     * says so, here or on OrangeCat while signed in.
+     */
+    forOrangecat: boolean("for_orangecat").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
