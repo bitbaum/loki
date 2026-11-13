@@ -129,3 +129,17 @@ instead of asking for it again, for the linked account only.
   none. This is what lets a bot use tools the way its model was trained to.
 - OrangeCat half (the offer in Settings → AI and the model row, and the
   service that calls this door) is the next pull request there.
+
+## Talk is held by the rollout gate (2026-11-13 10:40 UTC)
+
+OrangeCat #1717 was green and did not merge: the sweep's shared-package
+rollout gate holds any pull request that bumps `@bitbaum/chatkit` until the
+canaries (bitbaum/kivvi and bitbaum/causius) have deployed that version. The
+Talk button needs chatkit 0.30.0, so it was taken off that pull request
+(two revert commits) and the pull request now carries only the key held in
+Loki and native tool calls.
+
+To bring Talk back once kivvi and causius run chatkit 0.30.0: on the OrangeCat
+branch, `git revert` the two revert commits ("Revert chore(deps): chatkit
+0.30.0" and "Revert feat(companions): Talk"), run `pnpm install`, verify, open
+a pull request.
