@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChatScreen, type Thinking } from "@bitbaum/chatkit/react";
-import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
+import { getJson, postJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { useNewChat } from "@/hooks/use-new-chat";
 import { initialLokiSelection } from "@/lib/loki/project-selection";
@@ -12,6 +12,8 @@ import { useSendQueue } from "@/hooks/use-send-queue";
 import { useDispatchOutcome } from "@/hooks/use-dispatch-outcome";
 import { useThreadInbox } from "@/hooks/use-thread-inbox";
 import { QueuedMessages } from "./QueuedMessages";
+import { useThreadRecovery } from "./use-thread-recovery";
+import { useDeleteConversation, useVisibleConversations } from "./use-visible-conversations";
 import { TurnError } from "./TurnError";
 import { clearLokiDraft, lokiDraftKey } from "@/lib/loki/draft";
 import { rememberFleetProject } from "@/lib/fleet-context";
@@ -70,12 +72,21 @@ export type LokiWorkspaceProps = {
  * Client orchestrator for Loki's chat-first surface. History is the only
  * persistent rail; project scope is available on demand from the composer.
  */
+type QueuedSend = {
+  text: string;
+  choice: ModelChoice;
+  attachments: Attachment[];
+  chatOnly?: boolean;
+};
+
 type SendOpts = {
   selectedProjectsOverride?: string[];
   dispatchOnly?: boolean;
   chatOnly?: boolean;
   /** Answer on the free chain this once, keys or not. */
   pool?: "free";
+  /** The thread this message belongs to, when the caller knows it better than the render does. */
+  conversationId?: string;
 };
 
 /**
@@ -379,28 +390,10 @@ export function LokiWorkspace({
   const sending = stream.sending;
 
   // Typed while a turn ran; sent, in order, when it ends (hooks/use-send-queue).
-  const queue = useSendQueue<{
-    text: string;
-    choice: ModelChoice;
-    attachments: Attachment[];
-    chatOnly?: boolean;
-  }>();
+  const queue = useSendQueue<QueuedSend>(activeId);
 
-  // Client-side project filter over the full list (deselect = show all).
-  const visibleConversations = useMemo(() => {
-    if (selectedProjects.length === 0) return conversations;
-    const wanted = new Set(selectedProjects);
-    // The thread you are IN is never filtered out of the rail.
-    //
-    // Scope follows the answer — a turn that resolves to a project selects it —
-    // so asking a question in a fresh thread could set a scope the thread
-    // itself does not carry yet, and the row for the conversation on screen
-    // vanished from the list while you were reading it. A filter may narrow
-    // what else is offered; it may not hide where you are.
-    return conversations.filter(
-      (c) => c.id === activeId || c.projectKeys.some((k) => wanted.has(k)),
-    );
-  }, [conversations, selectedProjects, activeId]);
+  const inFlightThread = useRef<string | null>(null); // the thread of the turn in flight
+  const visibleConversations = useVisibleConversations(conversations, selectedProjects, activeId);
 
   const createConversation = async (): Promise<string | null> => {
     const res = await postJson("/api/conversations", {
@@ -432,23 +425,22 @@ export function LokiWorkspace({
   };
   const newChat = useNewChat(startNewConversation, () => setHistoryOpen(false));
 
-  const deleteConversation = async (id: string) => {
-    setError(null);
-    const res = await deleteJson(`/api/conversations/${id}`);
-    if (!res.ok) {
-      await throwApiError(res, "Could not delete conversation.").catch((e: Error) =>
-        setError(e.message),
-      );
-      return;
-    }
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    if (activeId === id) {
-      setActiveId(null);
-      setMessages([]);
-    }
-  };
+  const deleteConversation = useDeleteConversation({
+    activeId,
+    setError,
+    setConversations,
+    onActiveDeleted: startNewConversation,
+  });
 
   const demo = useDemoChat();
+  const sendQueued = (threadId: string) => {
+    const next = queue.takeNext(threadId);
+    if (next)
+      void send(next.text, next.choice, next.attachments, {
+        chatOnly: next.chatOnly,
+        conversationId: threadId,
+      });
+  };
   const send = async (
     text: string,
     choice: ModelChoice = {},
@@ -460,8 +452,10 @@ export function LokiWorkspace({
     const scopedProjects = opts.selectedProjectsOverride ?? selectedProjects;
     const dispatchOnly = opts.dispatchOnly ?? false;
     const chatOnly = opts.chatOnly ?? false;
-    if (sending && !dispatchOnly) {
-      queue.add({ text, choice, attachments, chatOnly });
+    // A queued message names its thread; this closure may predate it (use-send-queue).
+    const threadId = opts.conversationId ?? activeId ?? inFlightThread.current;
+    if (sending && !dispatchOnly && threadId) {
+      queue.add(threadId, { text, choice, attachments, chatOnly });
       clearLokiDraft(lokiDraftKey(activeId));
       return;
     }
@@ -475,8 +469,9 @@ export function LokiWorkspace({
     clearLokiDraft(lokiDraftKey(activeId));
 
     // Ensure a thread exists; a fresh page send creates one implicitly.
-    const convoId = activeId ?? (await createConversation());
+    const convoId = threadId ?? (await createConversation());
     if (!convoId) return;
+    inFlightThread.current = convoId;
 
     // Optimistic user bubble — skipped when re-dispatching after a project
     // pick, because their message is already in the transcript.
@@ -514,8 +509,7 @@ export function LokiWorkspace({
     // function. A failed or stopped turn leaves the queue standing behind the
     // error and its Try again.
     if (landed) {
-      const next = queue.takeNext();
-      if (next) void send(next.text, next.choice, next.attachments, { chatOnly: next.chatOnly });
+      sendQueued(convoId);
     }
   };
 
@@ -670,17 +664,25 @@ export function LokiWorkspace({
     </>
   );
 
+  const recovery = useThreadRecovery({
+    messages,
+    sending,
+    loading: transcriptLoading,
+    error,
+    streamError: stream.error,
+    retryAfterError: lastSent ? retryAfterError : undefined,
+    askAgain: (text) => void send(text, {}, [], { dispatchOnly: true }),
+    sendNext: () => activeId && sendQueued(activeId),
+  });
+
   // Floats over the conversation (ChatScreen): the words scroll under it.
   const dock = (
     <>
       {/* A turn that failed says so where the answer would have been, with the
           way out next to it — not as a detached line above the input. */}
-      <TurnError
-        message={error ?? stream.error}
-        onRetry={stream.error && lastSent ? retryAfterError : undefined}
-      />
+      <TurnError {...recovery.turnError} />
 
-      <QueuedMessages items={queue.items} onRemove={queue.remove} />
+      <QueuedMessages items={queue.items} onRemove={queue.remove} onSendNow={recovery.onSendNow} />
 
       <VoiceConversation voice={voice} />
 

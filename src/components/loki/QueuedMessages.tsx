@@ -9,9 +9,12 @@ import { X } from "lucide-react";
 export function QueuedMessages({
   items,
   onRemove,
+  onSendNow,
 }: {
   items: Array<{ id: number; text: string }>;
   onRemove: (id: number) => void;
+  /** Given when no answer is running that these would follow: send the first now. */
+  onSendNow?: () => void;
 }) {
   if (items.length === 0) return null;
   return (
@@ -31,6 +34,11 @@ export function QueuedMessages({
           </button>
         </span>
       ))}
+      {onSendNow && (
+        <button type="button" className="ui-loki-queue-send" onClick={onSendNow}>
+          Send now
+        </button>
+      )}
     </div>
   );
 }
