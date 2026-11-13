@@ -56,6 +56,8 @@ stub="$work/stub"; mkdir -p "$stub"
 cat > "$stub/node" <<'STUB'
 #!/usr/bin/env bash
 echo "WOULD_RUN=$1"
+echo "AI_APP_ID=${AI_APP_ID-}"
+echo "AI_USAGE_DIR=${AI_USAGE_DIR-}"
 STUB
 chmod +x "$stub/node"
 
@@ -68,6 +70,19 @@ resolved="$(PATH="$stub:$PATH" bash "$work/app/launch-test.sh" 2>&1 || true)"
 check "finds server.js through the app symlink" \
       "WOULD_RUN=$work/releases/r1/server.js" \
       "$(echo "$resolved" | grep '^WOULD_RUN=' || echo "$resolved")"
+
+# --- 1b. The box's usage log: named after the app, only where the directory exists ---
+check "names the app after its directory, for the usage log" \
+      "AI_APP_ID=$(basename "$work" | tr 'a-z-' 'A-Z_')" "$(grep '^AI_APP_ID=' <<<"$resolved")"
+check "sets no usage directory where the box has none" \
+      "AI_USAGE_DIR=" "$(FLEET_USAGE_DIR="$work/none" PATH="$stub:$PATH" bash "$work/app/launch-test.sh" 2>&1 | grep '^AI_USAGE_DIR=')"
+mkdir -p "$work/usage"
+check "points every app at the box's usage directory when it exists" \
+      "AI_USAGE_DIR=$work/usage" "$(FLEET_USAGE_DIR="$work/usage" PATH="$stub:$PATH" bash "$work/app/launch-test.sh" 2>&1 | grep '^AI_USAGE_DIR=')"
+printf 'AI_APP_ID=MINE\nAI_USAGE_DIR=/elsewhere\n' > "$work/releases/r1/.env"
+check "an app's own .env wins for both" \
+      "AI_APP_ID=MINE AI_USAGE_DIR=/elsewhere" "$(FLEET_USAGE_DIR="$work/usage" PATH="$stub:$PATH" bash "$work/app/launch-test.sh" 2>&1 | grep -E '^AI_(APP_ID|USAGE_DIR)=' | tr '\n' ' ' | sed 's/ $//')"
+rm -f "$work/releases/r1/.env"
 
 # --- 2. Does it skip the node_modules decoy? ---
 if grep -q 'node_modules' <<<"$resolved"; then
