@@ -101,7 +101,7 @@ async function open(browser: Browser, html: string, width: number, height: numbe
 /** Past the widget's 800ms re-check and one mutation-throttle window. */
 const settle = (p: Page) => p.waitForTimeout(1300);
 
-async function fab(p: Page): Promise<(Box & { visible: boolean }) | null> {
+async function fab(p: Page): Promise<(Box & { visible: boolean; tab: boolean }) | null> {
   return p.evaluate(() => {
     const el = document.getElementById("loki-feedback-host")?.shadowRoot?.querySelector(".fab");
     if (!el) return null;
@@ -113,9 +113,16 @@ async function fab(p: Page): Promise<(Box & { visible: boolean }) | null> {
       right: r.right,
       bottom: r.bottom,
       visible: cs.visibility !== "hidden" && cs.display !== "none",
+      tab: el.classList.contains("tab"),
     };
   });
 }
+
+/** The edge tab, flush against the right edge of a `vw`-wide viewport, and
+ *  44px wide: the touch minimum. It was a 24px sliver until OrangeCat's UX
+ *  audit (2026-11-12) found it the hardest control on the page to hit. */
+const isRightTab = (f: (Box & { tab: boolean }) | null, vw: number) =>
+  !!f && f.tab && f.right >= vw - 1 && f.right - f.left >= 44 && f.right - f.left <= 48;
 
 async function box(p: Page, sel: string): Promise<Box> {
   return p.$eval(sel, (el) => {
@@ -288,7 +295,7 @@ async function main() {
       const html = page(`${filler}${btn("right", "ask")}${btn("left", "help")}`);
       const { p, close } = await open(browser, html, 390, 844, js);
       const f = await fab(p);
-      ok(!!f && f.visible && f.right >= 389 && f.right - f.left <= 32, "two floats: the edge tab");
+      ok(!!f && f.visible && isRightTab(f, 390), "two floats: the edge tab");
       ok(await clickReaches(p, "#ask"), "two floats: Ask receives its click");
       ok(await clickReaches(p, "#help"), "two floats: Help receives its click");
       await close();
@@ -554,12 +561,18 @@ async function main() {
       const small = (await fab(p))!;
       ok(!!(await isTab()), "minimize: the launcher is the edge tab");
       ok(
-        small.right >= 389 && small.right - small.left <= 32,
-        `minimize: flush right and slim (w=${small.right - small.left})`,
+        isRightTab(small, 390),
+        `minimize: flush right, 44px to hit (w=${small.right - small.left})`,
       );
+      // What it covers is the handle you see; the 12px of transparent padding
+      // inside it is only there to be easier to hit.
+      const handle = await p.evaluate(() => {
+        const el = document.getElementById("loki-feedback-host")?.shadowRoot?.querySelector(".fab");
+        return el ? parseFloat(getComputedStyle(el, "::after").width) : NaN;
+      });
       ok(
-        small.right - small.left < full.right - full.left,
-        "minimize: smaller than the button was",
+        handle < full.right - full.left,
+        `minimize: the handle is narrower than the button was (${handle} < ${full.right - full.left})`,
       );
       ok(small.visible, "minimize: still on screen, never gone");
       await p.reload();
@@ -598,7 +611,7 @@ async function main() {
       const { p, close } = await open(browser, html, 390, 844, js);
       const f = await fab(p);
       ok(!!f && f.visible, "wall of controls: the launcher is still on screen");
-      ok(!!f && f.right >= 389 && f.right - f.left <= 32, "…as the edge tab, flush right");
+      ok(isRightTab(f, 390), "…as the edge tab, flush right");
       await close();
     }
 
@@ -615,11 +628,26 @@ async function main() {
       });
       await settle(p);
       let f = await fab(p);
-      ok(
-        !!f && f.visible && f.right >= 1439 && f.right - f.left <= 32,
-        'data-fc-place="tab": edge tab',
-      );
+      ok(!!f && f.visible && isRightTab(f, 1440), 'data-fc-place="tab": edge tab');
       ok(!!f && f.top > 200 && f.bottom < 700, "…at the middle of the edge, where it always is");
+      const says = await p.evaluate(() => {
+        const el = document
+          .getElementById("loki-feedback-host")
+          ?.shadowRoot?.querySelector<HTMLElement>(".fab");
+        const label = el?.querySelector<HTMLElement>(".fab-label");
+        const glyph = el?.querySelector<HTMLElement>(".fab-tabicon");
+        return {
+          name: el?.getAttribute("aria-label"),
+          label: label && getComputedStyle(label).display !== "none" ? label.textContent : null,
+          glyph: !!glyph && glyph.getBoundingClientRect().width >= 14,
+        };
+      });
+      ok(says.name === "Send feedback", `…named "Send feedback" (${says.name})`);
+      ok(
+        says.label === "Feedback" && says.glyph,
+        `…and says so: a speech bubble and "${says.label}"`,
+      );
+
       await p.evaluate(() => document.getElementById("pane")?.remove());
       await settle(p);
       f = await fab(p);

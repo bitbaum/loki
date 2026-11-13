@@ -380,6 +380,15 @@ launcher is on screen, as the corner button or the edge tab, unless someone
 switched it off (see *Hiding it*). Owners use the edge tab too when no clear
 space fits the whole pill.
 
+The tab says what it is and is easy to hit: a speech bubble and the word
+"Feedback" set vertically (the owner's tab shows the live dot and "Watching" /
+"Paused" instead), named "Send feedback" for screen readers. The button is 44px
+wide, the touch minimum; the handle you see is its outer 32px, the surface
+ringed in the text colour, so one of the two clears 3:1 on a near-white page and
+on a near-black one in either mode. It was a 24px sliver marked only with the
+spiral until OrangeCat's UX audit (2026-11-12) found it the hardest control on
+the page to see or to tap (`scripts/test/widget-host-avoid-browser.ts`, 9-10).
+
 ## The host contract — for what the heuristics cannot see
 
 | attribute | where | effect |

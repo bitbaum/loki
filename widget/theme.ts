@@ -146,6 +146,62 @@ export function spiralCSS(theme: Pick<WidgetTheme, "accent" | "textMuted">): str
 `;
 }
 
+/**
+ * The edge tab: the launcher's second shape (launcher.ts, placeTab). Its own
+ * function so the reasoning stays next to the rules it explains.
+ */
+function edgeTabCSS(theme: WidgetTheme, rs: string): string {
+  return `
+/* The edge tab: the launcher's second shape (launcher.ts, placeTab). A slim
+   handle flush against the side edge for pages whose corners are busy — the
+   Terminal, a composer, a wall of controls. Same button, same click, same
+   long-press menu; only the shape changes, so it is never "missing". Wins over
+   the narrow-viewport and owner rules above by specificity, not order.
+
+   It says what it is and it can be hit (OrangeCat's UX audit, 2026-11-12: a
+   24px black sliver marked only with the spiral was the hardest control on a
+   near-black page to see or to tap). So:
+   - the BUTTON is 44px wide, the touch minimum; its inner 12px is transparent
+     padding, and the handle you see (::after) is the outer 32px;
+   - the handle is the surface ringed in the text colour. One of the two is
+     always light and the other dark, in either mode, so the tab clears 3:1
+     on a near-white page and on a near-black one alike;
+   - a visitor sees a speech bubble and the word "Feedback", set vertically;
+     the owner sees their live dot, the mark and "Watching" / "Paused".
+   Still a tab on the edge, never the round floating launcher it replaced. */
+.fab.tab, .fab.tab.owner {
+  width: 44px; height: auto; min-height: 64px; padding: 12px 0 12px 12px; gap: 8px;
+  flex-direction: column; justify-content: center;
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+  color: ${theme.text}; opacity: 1; transform: none; pointer-events: auto;
+}
+.fab.tab.on-left { padding: 12px 12px 12px 0; }
+.fab.tab::after {
+  content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: 12px; right: 0;
+  background: ${theme.surface}; border: 2px solid ${theme.text}; border-right: 0;
+  border-radius: ${rs} 0 0 ${rs}; box-shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+.fab.tab.on-left::after { left: 0; right: 12px; border-right: 2px solid ${theme.text}; border-left: 0; border-radius: 0 ${rs} ${rs} 0; }
+.fab.tab:hover, .fab.tab:focus-visible { opacity: 1; transform: none; box-shadow: none; }
+.fab.tab:hover::after, .fab.tab:focus-visible::after { background: ${theme.surfaceRaised}; }
+.fab.tab .fab-icon, .fab.tab .fab-badge, .fab.tab::before, .fab.tab .dot.spiral { display: none; }
+.fab.tab .fab-tabicon { display: block; width: 16px; height: 16px; flex: none; }
+.fab.tab .fab-tabicon svg { width: 16px; height: 16px; display: block; }
+.fab.tab .fab-label {
+  display: block; writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 12px; font-weight: 600; line-height: 1; letter-spacing: .02em; color: ${theme.text};
+}
+/* The owner's tab still says whether Loki is watching — the same live dot as
+   the corner button, above the mark — and is not faded: it is their status,
+   in every shape (2026-10-18: the tab read as "a different widget"). */
+.fab.tab.owner .fab-tabicon { display: none; }
+.fab.tab.owner::before, .fab.tab.owner .dot.spiral { display: block; }
+.fab.tab.owner .dot.spiral { display: inline-flex; width: 14px; height: 14px; }
+.fab.tab.owner .fab-badge { display: block; top: 2px; right: 2px; min-width: 16px; padding: 0 2px; font-size: 10px; }
+.fab.tab.owner.on-left .fab-badge { right: 14px; }
+`;
+}
+
 export function buildShadowCSS(theme: WidgetTheme): string {
   const ink = theme.inkOnAccent ?? theme.black;
   const sans = theme.fontSans ?? "system-ui, -apple-system, sans-serif";
@@ -203,7 +259,7 @@ ${spiralCSS(theme)}
 }
 .fab:hover .fab-label, .fab:focus-visible .fab-label { display: inline; }
 @media (prefers-reduced-motion: reduce) { .fab { transition: opacity .2s ease; transform: none; } .fab:hover, .fab:focus-visible { transform: none; } }
-.fab .fab-icon { display: none; width: 18px; height: 18px; }
+.fab .fab-icon, .fab .fab-tabicon { display: none; width: 18px; height: 18px; }
 .fab .fab-icon svg { width: 18px; height: 18px; display: block; }
 @media (max-width: 480px) {
   /* Narrow viewports: content spans the full width, so collapse to an icon.
@@ -250,29 +306,7 @@ ${spiralCSS(theme)}
 }
 @media (prefers-reduced-motion: reduce) { .fab.watching::before { animation: none; } }
 
-/* The edge tab: the launcher's second shape (launcher.ts, placeTab). A slim
-   handle flush against the side edge for pages whose corners are busy — the
-   Terminal, a composer, a wall of controls. Same button, same click, same
-   long-press menu; only the shape changes, so it is never "missing". Wins over
-   the narrow-viewport and owner rules above by specificity, not order. */
-.fab.tab, .fab.tab.owner {
-  width: 24px; height: 64px; padding: 0; gap: 0; justify-content: center;
-  border-radius: ${rs} 0 0 ${rs}; border-right: 0;
-  opacity: 1; transform: none; pointer-events: auto;
-  box-shadow: 0 1px 2px rgba(0,0,0,.4);
-}
-.fab.tab.on-left { border-radius: 0 ${rs} ${rs} 0; border-right: 1px solid ${theme.borderDark}; border-left: 0; }
-.fab.tab .fab-label, .fab.tab .fab-icon, .fab.tab .fab-badge, .fab.tab::before { display: none; }
-/* The owner's tab still says whether Loki is watching — the same live dot as
-   the corner button, above the mark — and is not faded: it is their status,
-   in every shape (2026-10-18: the tab read as "a different widget"). */
-.fab.tab.owner { width: 28px; height: 72px; flex-direction: column; gap: 8px; opacity: 1; }
-.fab.tab.owner::before { display: block; }
-.fab.tab.owner:hover, .fab.tab.owner:focus-visible { width: 32px; }
-.fab.tab.owner .fab-badge { display: block; top: 2px; right: 2px; min-width: 16px; padding: 0 2px; font-size: 10px; }
-.fab.tab .dot.spiral { display: inline-flex; width: 14px; height: 14px; }
-.fab.tab:hover, .fab.tab:focus-visible { opacity: 1; width: 30px; transform: none; }
-
+${edgeTabCSS(theme, rs)}
 /* No backdrop beside a corner card: the panel says "use your site as usual",
    so the site stays bright and clickable next to it (2026-10-15: the owner's
    site sat greyed out behind a panel inviting them to use it). Close is ✕ or
