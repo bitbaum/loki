@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { parseStoredQueue, storableQueue, takeQueuedFor } from "@bitbaum/chatkit";
 
 /**
  * Messages typed while a turn ran, waiting their turn.
@@ -17,8 +18,9 @@ import { useCallback, useRef, useState } from "react";
  * front of it. The list is mirrored in a ref so `takeNext` reads the current
  * queue from inside an async send that closed over an older render.
  *
- * Each message belongs to the CONVERSATION it was typed in, as in
- * `@bitbaum/chatkit`'s `useChatApp`. Without that, a message queued in a new
+ * The rules are `@bitbaum/chatkit`'s (`send-queue`); this hook is their React
+ * state and their place in the tab's storage. Each message belongs to the
+ * CONVERSATION it was typed in. Without that, a message queued in a new
  * chat was sent by a closure that still saw "no conversation" and opened a
  * second one: three quick messages became three conversations, and the screen
  * kept only the last (2026-11-13).
@@ -31,39 +33,22 @@ export type Queued<T> = T & { id: number; conversationId: string };
 
 const STORE_KEY = "loki:send-queue:v1";
 
+/** Read back what was stored (`@bitbaum/chatkit` `parseStoredQueue`), ids as Loki writes them. */
 export function readStoredQueue<T extends object>(raw: string | null): Queued<T>[] {
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (q): q is Queued<T> =>
-        !!q &&
-        typeof q === "object" &&
-        typeof (q as { id?: unknown }).id === "number" &&
-        typeof (q as { conversationId?: unknown }).conversationId === "string" &&
-        typeof (q as { text?: unknown }).text === "string",
-    );
-  } catch {
-    return [];
-  }
+  return parseStoredQueue<{ text: string }>(raw).filter(
+    (q) => typeof q.id === "number",
+  ) as unknown as Queued<T>[];
 }
 
-/** What may be written down: everything but a message that carries files. */
-export function storableQueue<T extends object>(items: Queued<T>[]): Queued<T>[] {
-  return items.filter((q) => {
-    const files = (q as { attachments?: unknown }).attachments;
-    return !Array.isArray(files) || files.length === 0;
-  });
-}
-
-/** The oldest message waiting in `conversationId`, and the queue without it. */
+/** The package's rules, under the names this hook's callers and tests use. */
+export { storableQueue };
 export function takeFor<T extends object>(
   items: Queued<T>[],
   conversationId: string,
 ): { next: Queued<T> | null; rest: Queued<T>[] } {
-  const next = items.find((q) => q.conversationId === conversationId) ?? null;
-  return { next, rest: next ? items.filter((q) => q.id !== next.id) : items };
+  const { next, rest } = takeQueuedFor(items, conversationId);
+  // The same list back when nothing was taken, so a render that compares it sees no change.
+  return { next, rest: next ? rest : items };
 }
 
 export function useSendQueue<T extends object>(activeConversationId: string | null) {
