@@ -117,6 +117,61 @@ RETRY_OUT=$(cat "$TMP/retry-out.txt")
 check "retries through a transient connection-refused window and succeeds" \
   "$(grep -q '\"drafted\":3' <<<"$RETRY_OUT" && [ "$RETRY_RC" -eq 0 ] && echo 0 || echo 1)"
 
+# The other half of the restart window: the request is accepted, then the old
+# process is stopped under it (curl 52, empty reply). The job runs once more
+# only when loki-app.service's start time moved; a send-once job never does.
+BIN="$TMP/bin"; mkdir -p "$BIN"
+echo 100 > "$TMP/app-started"
+cat > "$BIN/systemctl" <<SYS
+#!/usr/bin/env bash
+cat "$TMP/app-started"
+SYS
+chmod +x "$BIN/systemctl"
+DROP_PORT=$(free_port)
+sed "s#http://127.0.0.1:$PORT#http://127.0.0.1:$DROP_PORT#" "$TMP/fc-cron.sh" > "$TMP/fc-cron-drop.sh"
+chmod +x "$TMP/fc-cron-drop.sh"
+python3 - "$DROP_PORT" "$TMP" <<'PY' &
+import sys, http.server, os
+tmp = sys.argv[2]
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        name = self.path.rsplit("/", 1)[-1]
+        mark = os.path.join(tmp, f"dropped-{name}")
+        if not os.path.exists(mark):
+            open(mark, "w").close()
+            # "restart" the app only for the jobs that test a restart
+            if name != "no-restart":
+                path = os.path.join(tmp, "app-started")
+                with open(path) as fh:
+                    started = int(fh.read().strip() or "0")
+                with open(path, "w") as fh:
+                    fh.write(str(started + 1))
+            self.close_connection = True
+            return  # no response at all: curl reads an empty reply (52)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json"); self.end_headers()
+        self.wfile.write(b'{"ok":true,"converged":1}')
+    def log_message(self, *a): pass
+http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+PY
+DROP_SRV=$!
+for _ in $(seq 1 40); do
+  curl -s -o /dev/null "http://127.0.0.1:$DROP_PORT/api/crons/probe" && break
+  sleep 0.25
+done
+set +e
+DROP_OUT=$(PATH="$BIN:$PATH" "$TMP/fc-cron-drop.sh" sync-package-updates 2>&1); DROP_RC=$?
+ONCE_OUT=$(PATH="$BIN:$PATH" "$TMP/fc-cron-drop.sh" send-digest-emails 2>&1); ONCE_RC=$?
+NORE_OUT=$(PATH="$BIN:$PATH" "$TMP/fc-cron-drop.sh" no-restart 2>&1); NORE_RC=$?
+set -e
+kill "$DROP_SRV" 2>/dev/null
+check "restart mid-run: the job runs once more on the new process and succeeds" \
+  "$(grep -q 'restarted during this run (curl exit 52)' <<<"$DROP_OUT" && grep -q '"converged":1' <<<"$DROP_OUT" && [ "$DROP_RC" -eq 0 ] && echo 0 || echo 1)"
+check "restart mid-run: a send-once job is not repeated, it fails as before" \
+  "$([ "$ONCE_RC" -ne 0 ] && ! grep -q 'running it once more' <<<"$ONCE_OUT" && echo 0 || echo 1)"
+check "an empty reply with no restart still fails (a real fault is not retried away)" \
+  "$([ "$NORE_RC" -ne 0 ] && ! grep -q 'running it once more' <<<"$NORE_OUT" && echo 0 || echo 1)"
+
 # The prune: a timer whose job left SCHED must leave the box. nudge-idle was
 # retired on 2026-10-10 and its timer kept calling a deleted route (HTTP 404)
 # every night, because the installer only ever added timers.

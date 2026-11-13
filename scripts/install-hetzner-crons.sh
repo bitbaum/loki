@@ -63,14 +63,41 @@ rc=0
 # HTTP error status still fails on the first try, same as before.
 RETRY_ATTEMPTS=5
 RETRY_SLEEP_SECS=4
+# The other half of the same window: the request was ACCEPTED, then the old
+# process was stopped under it, so curl reads an empty reply (52), a reset
+# (56) or nothing until its timeout (28). sync-package-updates paged on 13 Nov
+# with "Empty reply from server" while four deploys landed in 50 minutes, and
+# the 120 s timeouts that paged for every job on 12 Nov have the same shape.
+#
+# Only when loki-app.service really restarted after this run began (its start
+# time moved) is the job run once more, on the new process. A job that sends
+# or starts something exactly once is not repeated: a request cut off
+# mid-handler may already have done it, so it fails as before and a person
+# looks. Every other job here converges, so a second run is the same as one.
+ONCE_ONLY=" send-digest-emails email-canary autopilot-night autopilot-plan propose-checkins review-chats "
+app_started() { systemctl show -p ActiveEnterTimestampMonotonic --value loki-app.service 2>/dev/null || echo 0; }
+APP_STARTED="$(app_started)"
+rerun_done=0
 attempt=1
 while :; do
   curl --fail-with-body -sS -m 120 "http://127.0.0.1:4002/api/crons/${NAME}" \
     -H "Authorization: Bearer ${SECRET}" \
     -o "$BODY_FILE" -w "fc-cron ${NAME}: HTTP %{http_code}\n" && { rc=0; break; } || rc=$?
-  [ "$rc" -eq 7 ] && [ "$attempt" -lt "$RETRY_ATTEMPTS" ] || break
-  sleep "$RETRY_SLEEP_SECS"
-  attempt=$((attempt + 1))
+  if [ "$rc" -eq 7 ] && [ "$attempt" -lt "$RETRY_ATTEMPTS" ]; then
+    sleep "$RETRY_SLEEP_SECS"
+    attempt=$((attempt + 1))
+    continue
+  fi
+  if { [ "$rc" -eq 52 ] || [ "$rc" -eq 56 ] || [ "$rc" -eq 28 ]; } && [ "$rerun_done" -eq 0 ] &&
+    [[ "$ONCE_ONLY" != *" ${NAME} "* ]] && [ "$(app_started)" != "$APP_STARTED" ]; then
+    echo "fc-cron ${NAME}: loki-app restarted during this run (curl exit $rc); running it once more on the new process"
+    rerun_done=1
+    APP_STARTED="$(app_started)"
+    attempt=1
+    sleep "$RETRY_SLEEP_SECS"
+    continue
+  fi
+  break
 done
 echo "fc-cron ${NAME}: $(head -c 2000 "$BODY_FILE" | tr -d '\n')"
 exit "$rc"
