@@ -58,6 +58,6 @@ jobs:
           case "$KEY" in *[!A-Z0-9_]*) echo "key must be an env name" >&2; exit 2 ;; esac
           BOX="ubuntu@$HETZNER_IP"
           SSH="ssh -o BatchMode=yes -i $HOME/.ssh/id_deploy"
-          $SSH "$BOX" 'sudo mkdir -p /opt/fleet/bin && sudo chown ubuntu:ubuntu /opt/fleet /opt/fleet/bin'
+          $SSH "$BOX" 'sudo mkdir -p /opt/fleet/bin /opt/fleet/ai-usage && sudo chown ubuntu:ubuntu /opt/fleet /opt/fleet/bin /opt/fleet/ai-usage'
           scp -q -o BatchMode=yes -i ~/.ssh/id_deploy scripts/hetzner/fleet-env.sh scripts/hetzner/fleet-keys.conf "$BOX:/opt/fleet/bin/"
           $SSH "$BOX" "test -f /opt/fleet/env || { touch /opt/fleet/env && chmod 600 /opt/fleet/env; }; bash /opt/fleet/bin/fleet-env.sh $ACTION $KEY"

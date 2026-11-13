@@ -35,6 +35,21 @@ for __fk in $__fleet_keys; do
 done
 for __fk in ${FLEET_KEYS_OFF-}; do unset "$__fk"; done
 unset __fleet_keys __fk __fv
+# One usage log for the whole box (@bitbaum/ai-kit `usage-log`): each model
+# call an app makes is one line under AI_USAGE_DIR, with the app's name, the
+# vendor, the model and what came of it, never the content. About $567 went
+# to Google on 10-11 Nov 2026 and nobody could say which app spent it. An
+# app's own .env may point elsewhere or name itself; neither is set where the
+# directory is missing, so a box without it runs exactly as before.
+__usage_dir="${FLEET_USAGE_DIR:-/opt/fleet/ai-usage}"
+if [ -z "${AI_USAGE_DIR-}" ] && [ -d "$__usage_dir" ] && [ -w "$__usage_dir" ]; then
+  export AI_USAGE_DIR="$__usage_dir"
+fi
+if [ -z "${AI_APP_ID-}" ]; then
+  __app="${HERE%/releases/*}"; __app="${__app%/app}"; __app="${__app##*/}"
+  [ -n "$__app" ] && export AI_APP_ID="$(printf '%s' "$__app" | tr 'a-z-' 'A-Z_')"
+fi
+unset __usage_dir __app
 # HOSTNAME defaults to loopback; an app sets BIND_HOST in its .env (sourced
 # just above, so it wins) to bind elsewhere. Solon needed BIND_HOST=0.0.0.0
 # (2026-09-25, ~30 min of 500s): Next 16 standalone plus any middleware rewrite
