@@ -32,6 +32,14 @@ export async function register() {
     console.warn("[instrumentation] env check failed:", e);
   }
 
+  // Loki's own model calls go to the box's one usage log (lib/ai/usage-dir).
+  try {
+    const { adoptFleetUsageLog } = await import("@/lib/ai/usage-dir");
+    adoptFleetUsageLog();
+  } catch (e) {
+    console.warn("[instrumentation] usage log not adopted:", e);
+  }
+
   const { setupNotifyTrigger } = await import("@/db/setup-notify-trigger");
   await setupNotifyTrigger().catch((e) =>
     console.warn("[instrumentation] trigger setup failed:", e),

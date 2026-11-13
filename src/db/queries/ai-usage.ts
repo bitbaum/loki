@@ -1,7 +1,11 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { aiUsage } from "@/db/schema/ai-usage";
+import { emitUsage } from "@bitbaum/ai-kit";
 import { utcDayKey } from "@/lib/ai-budget/fair-share";
+
+/** Vendors that bill per call (ai-kit `spend`). */
+const PAID_VENDORS = new Set(["google", "xai", "anthropic", "openai"]);
 
 /**
  * Record what a completed call cost, and who asked for it.
@@ -23,6 +27,20 @@ export async function recordUsage(input: {
 }): Promise<void> {
   const day = utcDayKey(input.now ?? new Date());
   const amount = Math.max(0, Math.round(input.tokens));
+  // The box's one usage log (ai-kit usage-log), so Loki appears beside every
+  // other app in "Every app on this server". Loki walks its own chain, so the
+  // package cannot see these calls; answered calls are reported here. Never
+  // throws, never waits.
+  emitUsage({
+    t: (input.now ?? new Date()).getTime(),
+    app: process.env.AI_APP_ID?.trim() || "LOKI",
+    provider: input.provider,
+    model: input.model,
+    outcome: "served",
+    paid: PAID_VENDORS.has(input.provider),
+    byok: false,
+    inputTokens: amount,
+  });
   try {
     await db
       .insert(aiUsage)

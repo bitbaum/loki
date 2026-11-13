@@ -3,6 +3,7 @@ import { jsonOk, jsonError } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
 import { getUserById } from "@/db/queries/users";
 import { FLEET_VENDORS, fleetUsageView } from "@/lib/ai/fleet-usage";
+import { fleetUsageDir } from "@/lib/ai/usage-dir";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export async function GET() {
   if (!user?.isDefault) return jsonError("Only the operator sees the whole server.", 403);
 
   const now = Date.now();
-  const dir = process.env.AI_USAGE_DIR?.trim();
+  const dir = fleetUsageDir();
   const events = dir ? readUsageDay(dir, new Date(now).toISOString().slice(0, 10)) : null;
   const keysSet = new Set(
     FLEET_VENDORS.map((v) => v.keyEnv).filter((name) => Boolean(process.env[name]?.trim())),
