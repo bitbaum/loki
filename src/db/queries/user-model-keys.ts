@@ -47,6 +47,8 @@ export type OwnModelSummary = {
   label: string | null;
   /** Also drives the agent CLIs in the person's private builder (config/build-engines.ts). */
   forBuilding: boolean;
+  /** Also powers the person's OrangeCat bots, through Loki (lib/orangecat-model.ts). */
+  forOrangecat: boolean;
 };
 
 /** The two columns only `custom` carries; read for no other vendor. */
@@ -65,6 +67,7 @@ function summaryOf(row: typeof userModelKeys.$inferSelect): OwnModelSummary | nu
     verifiedAt: row.verifiedAt,
     position: row.position,
     forBuilding: row.forBuilding,
+    forOrangecat: row.forOrangecat,
     ...endpointOf(row),
   };
 }
@@ -181,6 +184,40 @@ export async function setForBuilding(
     .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor)))
     .returning();
   return row ? summaryOf(row) : null;
+}
+
+/**
+ * Mark one vendor's key as also for the person's OrangeCat bots, or Loki-only
+ * again. Null when that vendor is not stored, or is the person's own endpoint
+ * (`custom`): a private host is not something another product's server should
+ * be able to reach through Loki.
+ */
+export async function setForOrangecat(
+  userId: string,
+  vendor: VendorId,
+  forOrangecat: boolean,
+): Promise<OwnModelSummary | null> {
+  if (vendor === CUSTOM_VENDOR_ID) return null;
+  const [row] = await db
+    .update(userModelKeys)
+    .set({ forOrangecat, updatedAt: new Date() })
+    .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor)))
+    .returning();
+  return row ? summaryOf(row) : null;
+}
+
+/**
+ * One vendor's key, opened, ONLY when the person switched it on for their
+ * OrangeCat bots. The one reader the OrangeCat model door has: a key that was
+ * not shared is not returned, whatever was asked for.
+ */
+export async function getOrangecatModelKey(
+  userId: string,
+  vendor: VendorId,
+): Promise<OwnKeyConfig | null> {
+  if (vendor === CUSTOM_VENDOR_ID) return null;
+  const shared = (await rowsFor(userId)).some((r) => r.vendor === vendor && r.forOrangecat);
+  return shared ? getOwnModelKey(userId, vendor) : null;
 }
 
 /**

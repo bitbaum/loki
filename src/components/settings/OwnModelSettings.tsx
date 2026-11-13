@@ -10,6 +10,7 @@ import { AutoRouting } from "@/components/models/AutoRouting";
 import { RowActions } from "@/components/ui/row-actions";
 import { OwnModelForm } from "./OwnModelForm";
 import { BuildEngineToggle } from "./BuildEngineToggle";
+import { OrangecatToggle } from "./OrangecatToggle";
 import { SettingsSectionHeader } from "./SettingsSectionHeader";
 
 /**
@@ -110,6 +111,22 @@ export function OwnModelSettings({
       alive = false;
     };
   }, []);
+
+  // "Also for your OrangeCat bots": one PATCH, the row as the server now holds it.
+  async function toggleOrangecat(row: OwnModelRow, forOrangecat: boolean) {
+    setBusy(true);
+    try {
+      const data = await ownModelRequest<{ model: OwnModelRow }>("/api/settings/model", "PATCH", {
+        vendor: row.vendor,
+        forOrangecat,
+      });
+      setModels((rows) => rows.map((r) => (r.vendor === row.vendor ? data.model : r)));
+    } catch (e) {
+      setNote({ tone: "warn", text: e instanceof Error ? e.message : "That did not save." });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // "Also for building": one PATCH, the row as the server now holds it. The
   // box picks the change up within a minute (scripts/write-tenant-engines.ts).
@@ -264,6 +281,13 @@ export function OwnModelSettings({
                       on={row.forBuilding}
                       busy={busy}
                       onChange={(next) => void toggleBuild(row, next)}
+                    />
+                  )}
+                  {row.vendor !== CUSTOM_VENDOR_ID && (
+                    <OrangecatToggle
+                      on={row.forOrangecat}
+                      busy={busy}
+                      onChange={(next) => void toggleOrangecat(row, next)}
                     />
                   )}
                 </div>
