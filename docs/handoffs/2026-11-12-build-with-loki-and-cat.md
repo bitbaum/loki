@@ -111,6 +111,72 @@ signed-in browser. What it could use:
 | 06:40 | OrangeCat `live-rehearsal.yml` | 7 passed (see journey B) |
 | 06:10–06:23 | Wrote the fix (below) on `ccr-6043476f-vhm900` | checked locally: `tsc`, eslint on the changed files, `scripts/test/runner-update-hold.ts` and the eleven tests that read the changed files. `test:ops` stops at `test-host-alerts.sh` with 4 failures that an untouched tree shows too in this sandbox. Full `verify` is CI's. |
 
+## 18:20 to 19:05: 5 of 5
+
+- #1691 (delivery falls back to the claim time) merged 18:20, live 18:27.
+- 18:27 loop check: 4 of 5. The run's `deliveredAt` was now the claim time
+  (18:27:45), but the session's handoff was still the 17:00:00 one: the probe
+  asked for the same words the session had already written, and Claude left
+  the file as it was.
+- The probe now asks for a summary with a token per run
+  (`scripts/test/loki-loop-e2e.ts`).
+- **18:50 loop check from the branch (run 43283193186): 5 of 5.** Loki routed
+  the task from Grok (spent) to Claude Code, Claude did it on the box, and the
+  thread got "✅ orangecat — done. e2e ok — no changes (mwdwf70c)".
+- OrangeCat #1672 merged 18:08, but its migration shared version
+  `20261112200000` with another session's; main went red and the deploy did
+  not run. Another session's OrangeCat #1691 renamed it to `20261112206000`;
+  main went green and deployed at 19:09 (`bc7b44f`). `cat-diagnostics.yml`
+  after it: no Cat or bot failures logged. (My duplicate, OrangeCat #1692, was
+  closed.)
+- Loki #1692 (the probe's token) merged 19:08.
+
+Still open: the runner on the box has the morning's code (its drain waits on
+the substrata Gemini run open since 13:45, which cannot progress while Gemini
+is off); the owner's Grok Build balance; the old Gemini key.
+
+## 17:45 to 18:10: #1690 live; what still holds the runner; Change 11
+
+- #1690 merged 17:39, Loki served `74183f94` at 17:45. The new drain counts
+  **1** agent working (the old one counted 3).
+- The six sessions `stop-idle` "stopped" at 17:15 are still listed: their
+  containers are gone, their `podman run` relays are not. The old drain counted
+  those relays as agents; the new rule skips them (no open run).
+- `runs-db runs=open` (new): two open runs. **loki**, Claude, queued 13:01 and
+  never delivered. **substrata**, Gemini (Antigravity), delivered 13:45, no beat
+  since: Gemini has been off since 10:47. Its session is the one agent the drain
+  counts. Both are the owner's; neither was aborted here.
+- **Change 11:** the ack route falls back to the command's claim time when the
+  runner reports no injection time, so a run closes from its own handoff even
+  while the runner is behind (`scripts/test/delivery-claim-floor.ts`).
+
+## 16:30 to 17:20: Claude took the task, did it, and the run still read Needs you
+
+| When (UTC) | What | Result |
+| ---------- | ---- | ------ |
+| 16:23 | #1689 merged; Loki served `b0c6d58e` by 16:30 | |
+| 16:30 | loop check, orangecat (run 43259323658) | Loki said "Grok has run out of usage, so Claude Code took this one" and the run started on Claude. 4 of 5: Needs you after 25 min. |
+| 17:00 | loop check again from the branch (run 43264581135) | 4 of 5 the same way. |
+| 17:05 | `sealed-builds.yml` `mode=journal` | `[watcher] worker.idle orangecat · e2e ok — no changes` at **17:00:01**: Claude did the probe and wrote its handoff. |
+| 17:10 | new `mode=runs-db`, `runs=orangecat` | the run's `deliveredAt` is **17:00:05.682**, the ack time. The handoff (17:00:00) "predates" its own delivery, so `closeRunFromSession` never closes it. |
+| 17:15 | `mode=stop-idle` dry, then for real | 8 sealed sessions, 6 with no open run, stopped. |
+
+Why the delivery was stamped late: the runner sends its injection time only
+since a fix made earlier today (`desktop/src/main/poller.ts` `ackCommand`), and
+the runner on the box has not restarted since the morning. Each deploy starts
+a drain (`scripts/hetzner/drain-and-restart-runner.sh`) that waits for no agent
+working, and it counted every open sealed session as working: an idle
+session's relay moves 3 to 10 KB a minute, so the quiet rule never fired.
+
+## Change 10 (Loki): a session between tasks does not hold the runner's update
+
+The drain now reads the open runs from Loki's database, as `stop-idle` does: a
+sealed session older than fifteen minutes whose project or lane has no open
+run is between tasks. When the database cannot be read, the old rule stands.
+`between_runs` is pinned by `test-drain-and-restart-runner.sh` (51 of 51).
+After it is deployed, the drain restarts the runner at the next moment with no
+open run, the new runner sends its injection time, and the loop check can close.
+
 ## 15:20 to 16:10: the loop check reaches the agent; Grok's balance is spent
 
 | When (UTC) | What | Result |

@@ -32,6 +32,7 @@ on:
             "memory-clear",
             "stop-idle",
             "agent-probe",
+            "runs-db",
           ]
       unit:
         description: "Runner unit (owner: loki-box-runner)"
