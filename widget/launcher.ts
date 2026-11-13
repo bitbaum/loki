@@ -23,7 +23,7 @@
  * as "sometimes it is there, sometimes not", which is the one thing a way to
  * report problems must never be.
  */
-import { h, PENCIL_SVG, spiralMark } from "./dom";
+import { CHAT_SVG, h, PENCIL_SVG, spiralMark } from "./dom";
 import {
   dragTop,
   readDragPosition,
@@ -97,11 +97,15 @@ export function createLauncher(opts: {
   const fab = h("button", "fab");
   const fabIcon = h("span", "fab-icon");
   fabIcon.innerHTML = PENCIL_SVG;
+  // Drawn only in the edge tab (theme.ts): there the visitor's spiral gives
+  // way to a speech bubble, the one shape that says "feedback" on any site.
+  const tabIcon = h("span", "fab-tabicon");
+  tabIcon.innerHTML = CHAT_SVG;
   const fabLabel = h("span", "fab-label", "Feedback");
   const badge = h("span", "fab-badge");
   badge.style.display = "none";
-  fab.append(spiralMark(), fabLabel, fabIcon, badge);
-  fab.setAttribute("aria-label", "Give feedback");
+  fab.append(spiralMark(), tabIcon, fabLabel, fabIcon, badge);
+  fab.setAttribute("aria-label", "Send feedback");
   fab.setAttribute("aria-haspopup", "dialog");
   fab.addEventListener("click", (e) => {
     // The click that ends a drag is not a tap: the person moved it, they did
@@ -158,7 +162,7 @@ export function createLauncher(opts: {
       "aria-label",
       status
         ? `Open Loki${status.watching ? " — watching" : ""}${unread ? `, ${unread} new` : ""}`
-        : "Give feedback",
+        : "Send feedback",
     );
     // Re-measure only when the launcher changes KIND (visitor ↔ owner pill).
     // Watching/Paused flips and unread-count ticks used to re-run the whole

@@ -6,6 +6,16 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-11-13 — The feedback tab says what it is
+
+- **The feedback tab on your site is easy to see and to tap.** {#feedback-tab-legible}
+  When a page's corners are busy, the feedback button folds into a tab on the
+  side edge. That tab was a thin dark strip marked only with Loki's spiral,
+  close to invisible on a dark page and half the size a finger needs. It now
+  shows a speech bubble and the word "Feedback", has an outline that stands out
+  on light and dark pages alike, and is wide enough to tap. Sites that load the
+  widget get it without changing anything.
+
 ## 2026-11-12 — Small things that were in the way
 
 - **A short message stays on one line.** {#chat-bubble-width} A message you
