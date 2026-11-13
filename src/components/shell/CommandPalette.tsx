@@ -13,7 +13,7 @@ import {
   Mic,
   MicOff,
   Loader2,
-  Repeat2,
+  Sparkles,
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { useCommandPalette } from "@/hooks/use-command-palette";
@@ -22,6 +22,7 @@ import { useOverlayLock } from "@/hooks/use-overlay-lock";
 import type { AgentPrompt } from "@/app/api/prompts/agent/route";
 import {
   buildPaletteEntries,
+  enterTarget,
   filterPaletteEntries,
   type PaletteEntry,
   type PaletteRow,
@@ -44,6 +45,9 @@ export function CommandPalette() {
   const panelRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
+  // True once the arrow keys moved the cursor: only then may Enter hand the
+  // typed words to an agent (palette-entries `enterTarget`).
+  const [chosen, setChosen] = useState(false);
   // Hydrate recents once, lazily, so the order survives across page loads.
   // Migration: read loki.* first; fall back to the legacy cockpit.* key
   // so existing users don't lose their recents after the 2026-06 rebrand. The
@@ -173,13 +177,15 @@ export function CommandPalette() {
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      setChosen(true);
       setHighlight(Math.min(filtered.length - 1, safeHighlight + 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      setChosen(true);
       setHighlight(Math.max(0, safeHighlight - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const entry = filtered[safeHighlight];
+      const entry = enterTarget(filtered, safeHighlight, chosen);
       if (entry) onSelect(entry);
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -208,22 +214,29 @@ export function CommandPalette() {
         panelRef={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label="Search Loki"
         className="ui-palette-panel"
+        // The widget's own button otherwise floats over the open sheet, a
+        // second shape of the header's feedback button (as <Modal> does).
+        data-fc-place="hidden"
       >
         <div className="ui-palette-input-row">
           <Search className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setHighlight(0);
+              setChosen(false);
+            }}
             onKeyDown={onKeyDown}
             placeholder={
               voice.status === "recording"
                 ? "Listening…"
                 : pending
                   ? "Pick a project (type to filter)…"
-                  : "Type a command (e.g. “code review for kivvi”) or search…"
+                  : "Search projects and pages"
             }
             className="ui-palette-input"
             spellCheck={false}
@@ -251,7 +264,8 @@ export function CommandPalette() {
               )}
             </button>
           )}
-          <kbd className="ui-palette-kbd">esc</kbd>
+          {/* No Escape key on a phone: the hint is for keyboards only. */}
+          <kbd className="ui-palette-kbd hidden md:inline-flex">esc</kbd>
         </div>
         {voice.error && <div className="ui-palette-voice-error">{voice.error}</div>}
         {note && <div className="ui-palette-voice-error">{note}</div>}
@@ -289,8 +303,7 @@ export function CommandPalette() {
                   {entry.kind === "prompt-template" && <Zap className="h-3.5 w-3.5" />}
                   {entry.kind === "nav" && <FolderOpen className="h-3.5 w-3.5" />}
                   {entry.kind === "project" && <FolderKanban className="h-3.5 w-3.5" />}
-                  {entry.kind === "switch-agent" && <Repeat2 className="h-3.5 w-3.5" />}
-                  {entry.kind === "run-command" && <Zap className="h-3.5 w-3.5" />}
+                  {entry.kind === "run-command" && <Sparkles className="h-3.5 w-3.5" />}
                   {entry.kind === "pick-project" && <FolderKanban className="h-3.5 w-3.5" />}
                 </span>
                 <span className="min-w-0 flex-1">

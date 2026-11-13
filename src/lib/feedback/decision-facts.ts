@@ -1,5 +1,6 @@
 import { NOTE_NONE, tidyFixNote } from "@/lib/feedback/fix-note";
 import type { FeedbackWorkView } from "@/lib/feedback/work-phase";
+import { withoutTechnicalTail } from "@/lib/feedback/asked-text";
 
 /**
  * The three facts a decision card states under its headline, each on its own
@@ -42,7 +43,7 @@ export function decisionFacts(item: {
 }): DecisionFacts {
   const one = item.suggestion.replace(/\s+/g, " ").trim();
   // The agent-filed "--- technical details ---" tail is not the report.
-  const asked = cut(one.split(/\s*---\s*technical details/i)[0], 160);
+  const asked = cut(withoutTechnicalTail(one), 160);
   const raw = item.work?.ship?.pr?.note ?? null;
   const note = raw ? tidyFixNote(raw) : null;
   const behind = note?.shows === "behind";

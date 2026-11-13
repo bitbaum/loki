@@ -181,6 +181,21 @@ export const PROJECT_STAGE_MEANING: Record<ProjectStage, string> = {
 };
 
 /**
+ * Each stage as a person says it. The stored value is a key ("production");
+ * the Story tab printed it as-is beside a project list that calls the same
+ * state "Live" (2026-11-12).
+ */
+export const PROJECT_STAGE_WORD: Record<ProjectStage, string> = {
+  idea: "Idea",
+  blueprint: "Planned",
+  development: "Being built",
+  "pre-launch": "Almost ready",
+  production: "Live",
+  paused: "Paused",
+  archived: "Archived",
+};
+
+/**
  * Values written before the vocabulary existed, mapped to what they meant.
  *
  * Deliberately NOT a fuzzy normaliser: every entry is a value actually present

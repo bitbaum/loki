@@ -23,9 +23,12 @@ type Handled = { update: UpdateCard; chose: string; message: string };
 export function PackageUpdateQueue({
   updates,
   recent = [],
+  quietYes = false,
 }: {
   updates: UpdateCard[];
   recent?: DecidedUpdate[];
+  /** Another action is the page's primary (Approvals, locked). */
+  quietYes?: boolean;
 }) {
   const [handled, setHandled] = useState<Handled[]>([]);
   const handledIds = new Set(handled.map((h) => h.update.id));
@@ -87,7 +90,7 @@ export function PackageUpdateQueue({
         {waiting.length > 0 && (
           <div className="ui-approvals-list">
             {waiting.map((u) => (
-              <PackageUpdateCard key={u.id} update={u} onHandled={onHandled} />
+              <PackageUpdateCard key={u.id} update={u} onHandled={onHandled} quietYes={quietYes} />
             ))}
           </div>
         )}

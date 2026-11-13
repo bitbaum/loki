@@ -17,6 +17,7 @@ import fs from "fs";
 import { executor } from "@/lib/agent-execution";
 import { isShellTab } from "@/lib/shell-session";
 import { agentLimitRefusal } from "@/lib/agent-session-limit";
+import { agentIdleCloseMs, idleSessionsToClose } from "@/lib/idle-sessions";
 import { provisionAgentWorkspace } from "@/lib/agent-execution/launch";
 import type { AgentOption } from "@/lib/agent-registry";
 import { missingAgentReason } from "@/lib/agents/launch-check";
@@ -450,6 +451,32 @@ export async function terminatePty(tab: string): Promise<void> {
   forgetTab(tab);
   await executor.terminate(runnerWorkspaceId(tab));
   agentByTab.delete(tab.toLowerCase());
+}
+
+/**
+ * Close agent sessions on the cloud builder that nobody has touched for hours
+ * (lib/idle-sessions). Returns the tabs it closed. Closed like a person closing
+ * them: forgotten, so a restart does not bring them back.
+ */
+export async function closeIdleSessions(now = Date.now()): Promise<string[]> {
+  const prefix = "runner:";
+  const sessions = executor
+    .list()
+    .filter((h) => h.status !== "exited" && h.id.startsWith(prefix))
+    .map((h) => ({ tab: h.id.slice(prefix.length), lastActivityAt: h.lastActivityAt }));
+  const tabs = idleSessionsToClose({
+    channel: (process.env.LOKI_RUNNER_PRESENCE_CHANNEL ?? "local").trim(),
+    now,
+    sessions,
+    maxIdleMs: agentIdleCloseMs(),
+  });
+  for (const tab of tabs) {
+    console.log(`[idle-close] ${tab}: no input or output for hours; closing to free memory`);
+    await terminatePty(tab).catch((e) =>
+      console.warn(`[idle-close] ${tab}: ${e instanceof Error ? e.message : String(e)}`),
+    );
+  }
+  return tabs;
 }
 
 /** Tabs currently backed by a live owned PTY (for the heartbeat's open-tabs). */

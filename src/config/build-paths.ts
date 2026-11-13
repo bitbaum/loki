@@ -20,14 +20,11 @@ export type BuildPath = {
   body: string;
   cta: string;
   href: string;
-  /** Who it is for, in one phrase — the card's label. */
-  who: string;
 };
 
 export const BUILD_PATHS: readonly BuildPath[] = [
   {
     id: "yourself",
-    who: "Do it yourself",
     title: "Build it yourself",
     body: "Describe it in plain words. AI coding agents build it, put it online, and change it whenever you say what should be different. Free while Loki is in beta.",
     cta: "Start a project",
@@ -35,7 +32,6 @@ export const BUILD_PATHS: readonly BuildPath[] = [
   },
   {
     id: "partner",
-    who: "With a builder",
     title: "Build it with a builder",
     body: "Independent engineers the studio approves. They watch over a project built with Loki and move it forward, at their own price — you stay the owner.",
     cta: "Find a builder",
@@ -43,7 +39,6 @@ export const BUILD_PATHS: readonly BuildPath[] = [
   },
   {
     id: "studio",
-    who: "Have it built",
     title: "Have bitbaum build it",
     body: "The studio behind Loki ships systems and keeps them running. Bring a brief; the studio takes it from there and you follow along on Loki.",
     cta: "Hire the studio",

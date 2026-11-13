@@ -10,9 +10,11 @@ import assert from "node:assert/strict";
 process.env.AUTH_SECRET ??= "test-secret-for-progress-update";
 
 import {
+  askForMissing,
   buildProgressUpdate,
   progressUpdateText,
   readProgressUpdate,
+  supersededUpdates,
   UPDATE_SECTIONS,
   UPDATE_STAGE,
 } from "../../src/lib/loki/progress-update";
@@ -345,6 +347,56 @@ const note = {
   // A missing picture (no browser on the server) still posts the update.
   assert.equal(buildShippedUpdate({ ...base, after: null }).images.length, 1);
   assert.equal(readProgressUpdate({ update: u })?.images.length, 2, "both survive the read");
+}
+
+// ---- owner audit, 2026-11-12 ----
+{
+  // A run that ended badly but opened a pull request is part done, never
+  // "Not done — nothing reached the site" beside a link to the change.
+  const failedWithPr = formatRunOutcomeMessage(
+    {
+      id: "run-2",
+      projectKey: "loki",
+      outcome: "error",
+      finishedAt: new Date(),
+      payload: { conversationId: "c1" },
+      summary: null,
+    } as never,
+    { evidence: { kind: "pr", url: "https://github.com/bitbaum/loki/pull/1156", title: "t" } },
+  );
+  assert.ok(failedWithPr);
+  assert.equal(failedWithPr.meta.update.stage, UPDATE_STAGE.PARTIAL);
+
+  // The same, already stored as "Not done", reads as part done.
+  const stored = buildProgressUpdate({
+    stage: UPDATE_STAGE.NOT_DONE,
+    project: "loki",
+    asked:
+      "A request failed: GET /api/beacon-settings → no response. Fix it. --- technical details --- filed by: Loki watch mode step 1: tap div",
+    links: [{ label: "What changed", href: "https://github.com/bitbaum/loki/pull/1156" }],
+  });
+  assert.ok(!/technical details|step 1/.test(stored.asked ?? ""), "the machine tail is dropped");
+  const read = readProgressUpdate({ update: stored });
+  assert.equal(read?.stage, UPDATE_STAGE.PARTIAL);
+  assert.ok(
+    !/technical details/.test(
+      readProgressUpdate({ update: { ...stored, asked: "Fix it. --- technical details --- x" } })
+        ?.asked ?? "",
+    ),
+  );
+
+  // An earlier card for the same change folds into the later one.
+  const live = buildProgressUpdate({
+    stage: UPDATE_STAGE.LIVE,
+    project: "loki",
+    where: "/control",
+    links: [{ label: "What changed", href: "https://github.com/bitbaum/loki/pull/1156" }],
+  });
+  assert.deepEqual([...supersededUpdates([stored, null, live])], [0]);
+  assert.match(live.headline, /live on Home\./, "Loki's own page by its menu name");
+
+  // What was left unsaid becomes one question to send.
+  assert.match(askForMissing({ missing: ["helps", "costs"], asked: "fix it" }), /help.*cost/);
 }
 
 console.log("progress-update: ok");

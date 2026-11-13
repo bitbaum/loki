@@ -15,7 +15,9 @@ import { postJson } from "@/lib/api/fetch";
 export function PackagesRefresh({
   autoStart = false,
   projectId,
-  label = "Refresh",
+  // One name for one action: the list said "Read again" in a text link and
+  // the package page "Refresh" on a button (2026-11-12).
+  label = "Check again",
   variant = "button",
 }: {
   autoStart?: boolean;
@@ -70,7 +72,7 @@ export function PackagesRefresh({
           type="button"
           onClick={() => void run()}
           disabled={state === "reading"}
-          className="ui-link-muted"
+          className="ui-link-muted inline-flex min-h-11 items-center"
         >
           {state === "reading" ? "Reading…" : state === "error" ? "Try again" : label}
         </button>

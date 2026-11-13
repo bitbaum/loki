@@ -129,7 +129,7 @@ for (const missing of [undefined, null]) {
 
 // A failed dispatch names no machine: the failure, not the locus, is the point.
 const failedNamed = dispatchStatusLabel({ ok: false, mode: "direct", channel: "cloud" });
-if (failedNamed.label !== "Dispatch failed" || !failedNamed.warn) {
+if (failedNamed.label !== "Couldn't start" || !failedNamed.warn) {
   throw new Error("failure copy must not be altered by the channel");
 }
 

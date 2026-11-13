@@ -5,6 +5,7 @@ import { Brain, Download, KeyRound, Loader2, Lock, ShieldCheck, ShieldOff } from
 import { DetailSheet } from "@/components/ui/detail-sheet";
 import { List, ListRow } from "@/components/ui/list-row";
 import { Section } from "@/components/ui/section-heading";
+import { PRIVATE_AREAS_PHRASE } from "@/config/navigation";
 import { useFetch } from "@/hooks/use-fetch";
 import { usePrivateZone } from "@/hooks/use-private-zone";
 import { postJson, deleteJson, patchJson } from "@/lib/api/fetch";
@@ -101,8 +102,8 @@ export function PrivacySettings() {
       <section className="ui-settings-section">
         <Section title="Private zone">
           <p className="ui-settings-lede">
-            Memory, People, Crew, Goals, Habits, Events and Money sit behind a PIN. Once you enter
-            it, they stay open for 30 minutes.
+            {PRIVATE_AREAS_PHRASE} sit behind a PIN. Once you enter it, they stay open for 30
+            minutes.
           </p>
           <List aria-label="Private zone">
             <ListRow
@@ -159,8 +160,12 @@ export function PrivacySettings() {
         <Section title="Your data">
           <p className="ui-settings-lede">
             Your private data lives in the same database as your account. It is yours: index it or
-            not, take it with you, delete it. Memory is deleted on the Memory page, everything under
-            Account → Danger zone.
+            not, take it with you, delete it. Memory is deleted on the Memory page, everything else
+            with{" "}
+            <a href="/settings#account" className="underline underline-offset-2">
+              Delete account
+            </a>{" "}
+            in Account.
           </p>
           <MemoryConsentToggle />
           <ExportDataButton />

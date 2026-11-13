@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
+import { RELEASE_RUN_COPY } from "@/config/package-releases";
 import type { LastRelease, ReleaseState } from "@/lib/packages/release";
 import type { CommitKind } from "@/lib/packages/release-notes";
 
@@ -57,8 +58,7 @@ export function ReleaseChanges({ release }: { release: ReleaseState }) {
 
 /** The newest release run, in one line: running, released, or failed — with the way to look. */
 export function ReleaseRunLine({ run }: { run: LastRelease }) {
-  const v = run.version ? `v${run.version}` : "the last release";
-  const when = run.startedAt ? ` · started ${timeAgo(new Date(run.startedAt).getTime())}` : "";
+  const when = run.startedAt ? timeAgo(new Date(run.startedAt).getTime()) : null;
   const link = (
     <a
       href={run.url}
@@ -73,9 +73,7 @@ export function ReleaseRunLine({ run }: { run: LastRelease }) {
   if (run.phase === "failed") {
     return (
       <p className="ui-callout-negative flex-wrap" role="status">
-        <span className="min-w-0">
-          Releasing {v} failed{when}. Nothing was tagged.
-        </span>
+        <span className="min-w-0">{RELEASE_RUN_COPY.failed(run.version, when)}</span>
         {link}
       </p>
     );
@@ -87,21 +85,14 @@ export function ReleaseRunLine({ run }: { run: LastRelease }) {
         role="status"
       >
         <span className="ui-tag ui-tag-accent">releasing</span>
-        <span>
-          {v}
-          {when} — it appears as the latest version once tagged.
-        </span>
+        <span>{RELEASE_RUN_COPY.running(run.version, when)}</span>
         {link}
       </p>
     );
   }
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
-      <span>
-        {run.tagged
-          ? `Last released: ${v}${when}.`
-          : `${v} was released${when}; its tag shows here on the next read.`}
-      </span>
+      <span>{RELEASE_RUN_COPY.released(run.version, when, run.tagged)}</span>
       {link}
     </p>
   );

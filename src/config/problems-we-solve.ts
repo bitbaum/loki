@@ -1,5 +1,6 @@
 import { ROUTES } from "./auth";
 import { COMMISSION } from "./commission";
+import { PUBLIC_WHERE } from "./executor-copy";
 
 /**
  * "What it solves" — the homepage's answer to "what is this actually for?"
@@ -50,7 +51,7 @@ export const PROBLEMS_SECTION = {
   closer: {
     text: "Don’t see yours? Describe it when you start a project — Loki asks a few short questions, and every one of them can be skipped.",
     /** Honest about who has the cloud builder today — see WHERE_IT_RUNS. */
-    note: "During the beta the agents run on the cloud runner for invited accounts, or on your own computer with the free Fleet Runner app.",
+    note: `During the beta the agents work on ${PUBLIC_WHERE.cloud} for invited accounts, or on ${PUBLIC_WHERE.local} with the free Fleet Runner app.`,
   },
 } as const;
 

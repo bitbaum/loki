@@ -26,17 +26,17 @@ export const TRANSCRIPTION_PROVIDERS: readonly {
   {
     value: "auto",
     label: "Auto",
-    note: "Groq first (~2s, free), local Whisper as fallback on auth/quota/timeout",
+    note: "fast online service first, Loki's own as a backup",
   },
   {
     value: "groq",
-    label: "Groq cloud",
-    note: "whisper-large-v3-turbo via API — rate limited, no fallback",
+    label: "Online only",
+    note: "fastest; stops when the service is busy",
   },
   {
     value: "local",
-    label: "Local Whisper",
-    note: "the server's Whisper runtime — no Groq attempt",
+    label: "Loki's own only",
+    note: "never leaves Loki's computer; slower",
   },
 ];
 
@@ -58,13 +58,13 @@ export const AUTO_INJECT_MODES: readonly {
   {
     value: "off",
     label: "Off",
-    description: "Loki dispatches nothing. You type every prompt in /control and click Send.",
+    description: "Nothing starts until you send it.",
   },
   {
     value: "on",
     label: "On",
     description:
-      "When an agent finishes, Loki sends the next queued instruction. Overnight it works through your feedback under the run budget below and reads one site. Busy agents, blockers, and failing health checks still pause dispatch.",
+      "When an agent finishes, Loki sends it the next instruction waiting in line, and works through your feedback overnight.",
   },
 ];
 

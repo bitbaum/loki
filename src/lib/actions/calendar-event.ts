@@ -9,6 +9,7 @@
  * an argv element through `runToolArgs` (execFile, no shell), never interpolated
  * into a shell string. See lib/tools.ts.
  */
+import { usableChatChain } from "@/config/chat-models";
 import type { ActionPayload } from "@/db/schema/actions";
 import { runToolArgs } from "@/lib/tools";
 import { callGroqText, GROQ_FAST_MODEL } from "@/lib/groq";
@@ -160,7 +161,8 @@ export const recoverEventPayloadFromText: EventRecovery = async (
   fallbackTitle,
   context,
 ) => {
-  if (!process.env.GROQ_API_KEY) return payload;
+  // The call walks the whole free chain, not Groq alone.
+  if (usableChatChain().length === 0) return payload;
   const text = [payload?.subject, payload?.body, payload?.eventTitle, fallbackTitle, context]
     .map((v) => (typeof v === "string" ? v.trim() : ""))
     .filter(Boolean)

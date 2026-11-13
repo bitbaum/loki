@@ -11,6 +11,7 @@
  */
 import { createHash } from "node:crypto";
 import type { NoticeRequest } from "@/lib/notify/policy";
+import { BOX_NAME, intrusionBody, intrusionTitle } from "@/lib/notify/intrusion-words";
 
 /**
  * Lines that mean "someone may be in the box". Everything else is the list's.
@@ -35,12 +36,15 @@ export function isIntrusion(text: string): boolean {
 /**
  * The list key: the line's kind, before its first colon ("⚙️ STILL FAILING",
  * "🧩 reparaturbonus-zh"), so a line repeated with new details is ONE row
- * whose count rises, not a new row every five minutes.
+ * whose count rises, not a new row every five minutes. Numbers are not the
+ * kind: "DISK GC could not free space — still 93%" and "… still 91%" (no
+ * colon, so the whole line was the head) were two rows on /system
+ * (2026-11-12), both disagreeing with the live disk reading below them.
  */
 export function boxKey(text: string): string {
   const t = text.trim();
   const head = t.split(":")[0]?.trim() || t;
-  return `box:${head.slice(0, 80)}`;
+  return `box:${head.replace(/\d+(?:\.\d+)?%?/g, "#").slice(0, 80)}`;
 }
 
 /** A rescale window on Hetzner opens rarely and closes fast: the owner asked to hear it. */
@@ -66,10 +70,12 @@ export function boxNotice(text: string, appUrl: string): NoticeRequest {
     // Keyed on the whole line: a second login from another address, or a
     // second suspicious process, is a new sign, not a reminder of the first.
     const id = createHash("sha256").update(t).digest("hex").slice(0, 16);
+    // Said plainly (lib/notify/intrusion-words): the raw line — pids, shell
+    // commands, addresses — stays in the body, behind "Details".
     return {
       source: "box",
-      title: `bitbaum: ${title}`.slice(0, 140),
-      body,
+      title: (intrusionTitle(t) ?? `${BOX_NAME}: ${title}`).slice(0, 140),
+      body: intrusionBody(t).slice(0, 600),
       // The notice is an operator row, so it is listed on /today.
       actions: [{ label: "See what happened", url: `${appUrl}/today` }],
       urgency: "now",

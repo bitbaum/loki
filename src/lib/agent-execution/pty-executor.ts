@@ -63,7 +63,12 @@ export abstract class PtyExecutor<M = undefined> implements Executor {
     const { pty, meta } = await this.launch(spec);
 
     const state: PtyWorkspaceState<M> = {
-      handle: { id: spec.id, status: "starting", startedAt: Date.now() },
+      handle: {
+        id: spec.id,
+        status: "starting",
+        startedAt: Date.now(),
+        lastActivityAt: Date.now(),
+      },
       pty,
       buffer: [],
       seq: 0,
@@ -74,6 +79,7 @@ export abstract class PtyExecutor<M = undefined> implements Executor {
     this.workspaces.set(spec.id, state);
 
     pty.onData((data) => {
+      state.handle.lastActivityAt = Date.now();
       this.setStatus(state, "running");
       this.emit(state, { kind: "output", data });
       this.armIdle(state);
@@ -93,7 +99,9 @@ export abstract class PtyExecutor<M = undefined> implements Executor {
 
   write(id: WorkspaceId, data: string): void {
     const state = this.workspaces.get(id);
-    if (state?.pty) state.pty.write(data);
+    if (!state?.pty) return;
+    state.handle.lastActivityAt = Date.now();
+    state.pty.write(data);
   }
 
   resize(id: WorkspaceId, cols: number, rows: number): void {

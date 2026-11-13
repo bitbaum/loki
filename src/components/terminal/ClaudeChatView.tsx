@@ -24,6 +24,7 @@ import {
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { useStableSteps } from "@/hooks/use-stable-steps";
 import { runAction, screenActions } from "@/lib/terminal-commands";
+import { LOKI_SENT_COPY } from "@/config/terminal-copy";
 import { SessionComposer } from "./SessionComposer";
 import { ReplySteps } from "./SuggestionChips";
 import { SessionInfo, sessionInfoFrom } from "./SessionInfo";
@@ -87,7 +88,7 @@ export function ClaudeChatView({
   const blocks = groupTranscript(items);
   const last = lastConversationItem(items);
   const now = useSecondTick(last?.kind === "user" || last?.kind === "tool");
-  const activity = transcriptActivity(items, now, connected);
+  const activity = transcriptActivity(items, now, connected, "Claude");
   const working = activity.working;
   const liveStatus = activity.label;
   // Claude has finished and is waiting for you: its last reply says what it
@@ -327,22 +328,27 @@ function Block({ block }: { block: TranscriptBlock }) {
     const display = dispatchMessageDisplay(item.text);
     return (
       <div className="ui-loki-turn-user">
-        <div className="ui-loki-bubble ui-loki-bubble-user">
-          <p className="whitespace-pre-wrap break-words">{display.text}</p>
-          {display.details && (
-            <details className="ui-bubble-details group/details">
-              <summary className="ui-bubble-details-summary">
-                <ChevronRight
-                  className="h-3.5 w-3.5 shrink-0 transition-transform group-open/details:rotate-90"
-                  aria-hidden
-                />
-                Dispatch details
-              </summary>
-              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
-                {display.details}
-              </pre>
-            </details>
-          )}
+        <div className="ui-loki-turn-user-stack">
+          <div className="ui-loki-bubble ui-loki-bubble-user">
+            <p className="whitespace-pre-wrap break-words">{display.text}</p>
+            {display.details && (
+              <details className="ui-bubble-details group/details">
+                <summary className="ui-bubble-details-summary">
+                  <ChevronRight
+                    className="h-3.5 w-3.5 shrink-0 transition-transform group-open/details:rotate-90"
+                    aria-hidden
+                  />
+                  {LOKI_SENT_COPY.fold}
+                </summary>
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
+                  {display.details}
+                </pre>
+              </details>
+            )}
+          </div>
+          {/* Loki typed it in, not the person: said, so a task they never
+              wrote does not read as their own words. */}
+          {display.details && <span className="ui-chat-meta pr-1">{LOKI_SENT_COPY.byline}</span>}
         </div>
       </div>
     );

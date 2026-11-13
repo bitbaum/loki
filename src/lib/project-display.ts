@@ -1,4 +1,5 @@
 import { withoutRetiredClaims } from "@/lib/project-signals";
+import { baseProjectKey } from "@/lib/run-tab";
 // Display helpers for project metadata shown on PUBLIC surfaces (hero, profile).
 //
 // The bulk GitHub-import flow stamped every project with a placeholder
@@ -21,8 +22,11 @@ export function projectTitle(project: {
 }): string {
   const own = project.title?.trim();
   if (own) return own;
-  const legacy = /^(.+)-refresh-[0-9a-f]{32}$/.exec(project.name);
-  if (!legacy) return readableName(project.name);
+  // A run's own lane ("substrata~39554470") is the project, not a second one:
+  // the chats panel listed it as a project of its own (owner audit, 2026-11-12).
+  const name = baseProjectKey(project.name);
+  const legacy = /^(.+)-refresh-[0-9a-f]{32}$/.exec(name);
+  if (!legacy) return readableName(name);
   const host = /https?:\/\/(?:www\.)?([a-z0-9-]+)\./i.exec(project.description ?? "")?.[1];
   const word = host ?? legacy[1].split("-")[0]!;
   return word.charAt(0).toUpperCase() + word.slice(1);

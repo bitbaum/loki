@@ -200,6 +200,11 @@ export function nightRunsStarted(s: NightSummary): number {
   return s.fixes.filter((f) => f.runId).length + s.reads.filter((r) => r.runId).length;
 }
 
+/** The clause a morning note carries when nobody approved the plan. /feedback
+ *  looks for it to put the way forward beside the sentence. It said "tonight's
+ *  plan" in a sentence about last night (2026-11-12). */
+export const NIGHT_NOT_APPROVED = "the plan was not approved";
+
 /**
  * The morning note, one sentence, from the summary. Returns null when the
  * night did nothing — a note that says "nothing" every morning is the digest
@@ -216,7 +221,7 @@ export function nightNoteText(
   // the one case where "nothing" is the news, and the way to a night that
   // builds is one line away (Settings → Autopilot).
   if (s.approval === NIGHT_APPROVAL.NOT_APPROVED) {
-    parts.push("built nothing (tonight's plan was not approved)");
+    parts.push(`built nothing (${NIGHT_NOT_APPROVED})`);
   }
   const started = s.fixes.filter((f) => f.runId);
   // A yes that led nowhere is owed an answer too: the owner approved runs and

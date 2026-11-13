@@ -67,3 +67,13 @@ export const PALETTE = {
   widget: WIDGET_THEME,
   widgetThemes: WIDGET_THEMES,
 } as const;
+
+/**
+ * The browser-chrome colour for the theme actually rendered. The page is dark
+ * unless the reader picked light (next-themes `defaultTheme="dark"`), so the
+ * chrome follows the resolved theme, not the OS: a light-mode phone used to
+ * get a light status bar over a black page (2026-11-12).
+ */
+export function themeColorFor(resolvedTheme: string | undefined): string {
+  return resolvedTheme === "light" ? PALETTE.light.surfacePage : PALETTE.dark.surfacePage;
+}

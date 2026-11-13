@@ -17,6 +17,7 @@
  */
 
 import { readWork, type WorkStep } from "@/lib/loki/work";
+import { toolLabel } from "@/config/loki-tool-labels";
 
 export type LokiVia = "tool-loop" | "gateway" | "groq-fallback";
 
@@ -145,36 +146,71 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 export type ProvenanceLine = {
-  /** The one-line summary, segments joined with " · ". */
+  /** The one-line summary, segments joined with " · ": who answered, how
+   *  much of the person's own data it checked, how long it took. */
   segments: string[];
+  /** Behind "Details": the model, what was read per source, which steps ran. */
+  details: string[];
   /** True when the answer must be visibly marked as containing unchecked claims. */
   warn: boolean;
   /** The spans verification could not support, for the warning. */
   unsupported: string[];
 };
 
-/** Render provenance as segments the UI joins. Pure; unit-tested. */
+/** "2.3s", "2.5 min" — a turn's length, said the way a person would. */
+function durationWords(ms: number): string {
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(1)}s`;
+  return `${(s / 60).toFixed(1).replace(/\.0$/, "")} min`;
+}
+
+/**
+ * Render provenance as segments the UI joins. Pure; unit-tested.
+ *
+ * The line under every answer read "your key: xAI · grok-4.7 (+1 more) —
+ * standard turn (an ordinary ask) · read runs 4, fleet status 1 … · used
+ * fleet_status, search_knowledge, list_runs · 152.4s" (owner audit,
+ * 2026-11-12). The summary now says who answered and how much of his own
+ * data it checked; model ids, routing and steps wait behind "Details".
+ */
 export function describeProvenance(p: LokiProvenance): ProvenanceLine {
-  const { model, vendor } = splitModelId(p.model);
   const segments: string[] = [];
-  if (model) segments.push(model);
-  if (vendor) segments.push(vendor);
+  const details: string[] = [];
+
+  const own = /^your key: (.+?)(?: — (.+))?$/.exec(p.model);
+  if (own) {
+    const vendor = own[1].split(" · ")[0];
+    segments.push(`Answered with your ${vendor} key`);
+    details.push(own[2] ? `${own[1]} — ${own[2]}` : own[1]);
+  } else {
+    const { model, vendor } = splitModelId(p.model);
+    if (model) details.push(vendor ? `${model} · ${vendor}` : model);
+  }
+  // A degraded path is said up front: a fallback answer must not pass as
+  // the real one.
   const viaLabel = VIA_LABEL[p.via];
   if (viaLabel) segments.push(viaLabel);
 
-  const read = p.retrieved
-    .filter((r) => r.count > 0)
-    .map((r) => `${SOURCE_LABEL[r.source] ?? r.source} ${r.count}`);
-  if (read.length > 0) segments.push(`read ${read.join(", ")}`);
-  else if (p.grounding.checked) segments.push(`${p.grounding.factCount} records`);
+  const read = p.retrieved.filter((r) => r.count > 0);
+  const records = read.reduce((n, r) => n + r.count, 0);
+  if (records > 0) segments.push(`checked ${records} of your records`);
+  else if (p.grounding.checked) segments.push(`checked ${p.grounding.factCount} records`);
+  if (read.length > 0) {
+    details.push(
+      `read ${read.map((r) => `${SOURCE_LABEL[r.source] ?? r.source} ${r.count}`).join(", ")}`,
+    );
+  }
 
-  if (p.toolsUsed.length > 0) segments.push(`used ${[...new Set(p.toolsUsed)].join(", ")}`);
-  if (p.durationMs > 0) segments.push(`${(p.durationMs / 1000).toFixed(1)}s`);
+  if (p.toolsUsed.length > 0) {
+    details.push([...new Set(p.toolsUsed)].map((t) => toolLabel(t, "end")).join(", "));
+  }
+  if (p.durationMs > 0) segments.push(durationWords(p.durationMs));
   if (!p.grounding.checked) segments.push("unchecked — no records to verify against");
 
   const warn = p.grounding.checked && !p.grounding.ok;
   return {
     segments,
+    details,
     warn,
     unsupported: warn ? p.grounding.unsupported.map((u) => u.text) : [],
   };

@@ -33,8 +33,7 @@ export function decideWorkspaceAccessFromSignals(input: {
       ok: false,
       status: 403,
       code: "cloud-builder-private",
-      error:
-        "Hosted sandbox workspaces are private for this account. Connect Fleet Runner on this computer to run agent work.",
+      error: "This page is not open to your account yet. Watch your agents work in Terminal.",
     };
   }
   return { ok: true };

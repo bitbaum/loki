@@ -1,7 +1,7 @@
-import { AGENT_LABELS, type AnyAgentId } from "@/lib/agent-labels";
-import { NAV_ITEMS, type NavItem } from "@/config/navigation";
+import { NAV_ITEMS, SIDEBAR_SECTIONS, type NavItem } from "@/config/navigation";
 import { CATEGORY_META, PROMPT_TEMPLATES, type PromptTemplate } from "@/config/prompt-library";
 import type { AgentPrompt } from "@/app/api/prompts/agent/route";
+import { projectTitle } from "@/lib/project-display";
 import { rankByQuery, searchHits, TEXT_SPEC, type Range, type SearchSpec } from "@/lib/search";
 
 export type PaletteEntry =
@@ -9,9 +9,11 @@ export type PaletteEntry =
   | { kind: "prompt-template"; key: string; label: string; sub: string; icon: null; href: string }
   | { kind: "nav"; key: string; label: string; sub: string; icon: null; href: string }
   | { kind: "project"; key: string; label: string; sub: string; icon: null; href: string }
-  | { kind: "switch-agent"; key: string; label: string; sub: string; icon: null; href: string }
-  // Composer (Loki Phase 1): run a natural-language command, and the project
-  // picker shown when the command is project-ambiguous ("ask when ambiguous").
+  // Composer (Loki Phase 1): hand typed words to an agent as a task, and the
+  // project picker shown when the command is project-ambiguous ("ask when
+  // ambiguous"). Offered LAST and never on Enter by default: the box is
+  // opened by a magnifier, and a search that started a build on Enter was a
+  // build nobody meant (audit, 2026-11-12).
   | { kind: "run-command"; key: string; label: string; sub: string; icon: null; href: null }
   | {
       kind: "pick-project";
@@ -29,26 +31,48 @@ export type PaletteRow = PaletteEntry & { labelMatches?: readonly Range[] };
 export type UserProjectLite = {
   id: string;
   name: string;
-  dirPath?: string | null;
+  title?: string | null;
+  description?: string | null;
+  liveUrl?: string | null;
   isActive?: boolean;
 };
 
-export const SWITCHABLE_AGENT_IDS = [
-  "claude",
-  "cursor",
-  "codex",
-  "gemini",
-  "grok",
-] as const satisfies readonly AnyAgentId[];
-
 export const PALETTE_RESULT_LIMIT = 60;
 
+/** Pages in the order the sidebar shows them, then every other page (Cmd-K reaches them all). */
+function navInSidebarOrder(): NavItem[] {
+  const seen = new Set<string>();
+  const ordered: NavItem[] = [];
+  for (const item of [...SIDEBAR_SECTIONS.flatMap((s) => s.items), ...NAV_ITEMS]) {
+    if (!item.active || seen.has(item.id)) continue;
+    seen.add(item.id);
+    ordered.push(item);
+  }
+  return ordered;
+}
+
+/** "https://www.xhiva.art/" → "xhiva.art"; null when the project has no site. */
+function siteHost(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Everything the palette can offer, in its default order.
+ * Everything the palette can offer, in its default order: the pages first, in
+ * the sidebar's order, then the projects, then prompts.
  *
- * Projects come right after navigation because the most-common Cmd-K intent in
- * a fleet-management product is "jump to project X". The href uses
- * /control?focus=<tab>, which ControlPanel's deep-link handler picks up.
+ * Pages lead because with nothing typed the list is a map of the app; the
+ * projects (40-odd) used to come first and pushed every page past the row
+ * limit, so Activity, Prompts or Settings never showed (audit, 2026-11-12).
+ * A project row says what a person knows it by (its title, its site), not
+ * the server folder it lives in. Switching a project's agent is not here:
+ * it is done on the project's own screen, where the agent is visible.
+ * The project href uses /control?focus=<tab>, which ControlPanel's
+ * deep-link handler picks up.
  */
 export function buildPaletteEntries(input: {
   agentPrompts: AgentPrompt[] | null | undefined;
@@ -60,7 +84,7 @@ export function buildPaletteEntries(input: {
       kind: "agent-prompt",
       key: `agent:${p.key}`,
       label: p.label,
-      sub: `Agent · ${p.category}`,
+      sub: `Prompt · ${p.category}`,
       icon: p.icon,
       href: `/control?prompt=${encodeURIComponent(p.key)}`,
     }));
@@ -72,45 +96,35 @@ export function buildPaletteEntries(input: {
     icon: null,
     href: `/prompts?template=${encodeURIComponent(t.id)}`,
   }));
-  const nav = NAV_ITEMS.filter((n) => n.active).map<PaletteEntry>((n: NavItem) => ({
+  const nav = navInSidebarOrder().map<PaletteEntry>((n: NavItem) => ({
     kind: "nav",
     key: `nav:${n.id}`,
     label: n.label,
-    sub: `Go to · ${n.description}`,
+    sub: `Page · ${n.description}`,
     icon: null,
     href: n.href,
   }));
   const active = (input.projects ?? []).filter((p) => p.isActive !== false && p.name);
-  const projectEntries = active.map<PaletteEntry>((p) => ({
-    kind: "project",
-    key: `project:${p.id}`,
-    label: p.name,
-    sub: `Project · ${p.dirPath ?? "no local path"}`,
-    icon: null,
-    href: `/control?focus=${encodeURIComponent(p.name)}`,
-  }));
-  const switchEntries = active
-    .filter((p) => p.dirPath)
-    .flatMap((p) =>
-      SWITCHABLE_AGENT_IDS.map<PaletteEntry>((agentId) => ({
-        kind: "switch-agent",
-        key: `switch:${p.id}:${agentId}`,
-        label: `Switch ${p.name} to ${AGENT_LABELS[agentId]}`,
-        sub: `Agent · quits current CLI and launches ${AGENT_LABELS[agentId]}`,
-        icon: null,
-        href: `/control?focus=${encodeURIComponent(p.name)}&switchTo=${encodeURIComponent(agentId)}`,
-      })),
-    );
-  return [...projectEntries, ...switchEntries, ...nav, ...agent, ...templates];
+  const projectEntries = active.map<PaletteEntry>((p) => {
+    const host = siteHost(p.liveUrl);
+    return {
+      kind: "project",
+      key: `project:${p.id}`,
+      label: projectTitle(p),
+      sub: host ? `Project · ${host}` : "Project",
+      icon: null,
+      href: `/control?focus=${encodeURIComponent(p.name)}`,
+    };
+  });
+  return [...nav, ...projectEntries, ...agent, ...templates];
 }
 
 /**
- * The default order of kinds, kept as the last tie-break once something is
- * typed: between two equally good matches, a project still beats a Go-to row.
+ * The last tie-break once something is typed: between two equally good
+ * matches, a project still beats a page ("Loki" the project, "Loki" the chat).
  */
 const KIND_ORDER: readonly PaletteEntry["kind"][] = [
   "project",
-  "switch-agent",
   "nav",
   "agent-prompt",
   "prompt-template",
@@ -153,27 +167,39 @@ export function filterPaletteEntries(input: {
   }
 
   if (!q) {
-    // Default ordering: recents (in order) → nav → agent → templates.
+    // Default ordering: recents (in order) → pages → projects → prompts.
     const byKey = new Map(entries.map((e) => [e.key, e]));
     const recentEntries = recent.map((k) => byKey.get(k)).filter(Boolean) as PaletteEntry[];
     const remaining = entries.filter((e) => !recent.includes(e.key));
     return [...recentEntries, ...remaining].slice(0, PALETTE_RESULT_LIMIT);
   }
 
-  // A free-text query is a candidate command — offer it as the top action,
-  // above any matching navigate/prompt entries.
-  const runRow: PaletteRow = {
-    kind: "run-command",
-    key: "__run__",
-    label: `Run: ${q}`,
-    sub: "Resolve in natural language & dispatch",
-    icon: null,
-    href: null,
-  };
-
   // One slip in a name still finds it ("lkoi" → Loki), best match first.
   const matches = searchHits(entries, PALETTE_SEARCH_SPEC, q)
     .slice(0, PALETTE_RESULT_LIMIT - 1)
     .map<PaletteRow>((hit) => ({ ...hit.item, labelMatches: hit.matches.label }));
-  return [runRow, ...matches];
+
+  // The typed words can also be handed to an agent — offered last, after
+  // everything they found, and worded as what it does.
+  const askRow: PaletteRow = {
+    kind: "run-command",
+    key: "__run__",
+    label: `Ask Loki to do: “${q}”`,
+    sub: "Sends these words to an agent as a task",
+    icon: null,
+    href: null,
+  };
+  return [...matches, askRow];
+}
+
+/**
+ * The row Enter opens. Enter is a search's key, so it opens the best match;
+ * it never hands the words to an agent unless that row was chosen with the
+ * arrow keys first (`chosen`).
+ */
+export function enterTarget(rows: PaletteRow[], index: number, chosen: boolean): PaletteRow | null {
+  const row = rows[index];
+  if (!row) return null;
+  if (row.kind === "run-command" && !chosen) return null;
+  return row;
 }

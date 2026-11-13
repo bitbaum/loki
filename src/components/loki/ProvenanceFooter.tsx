@@ -24,7 +24,7 @@ import { describeProvenance, readProvenance } from "@/lib/loki/provenance";
 export function ProvenanceFooter({ meta }: { meta: Record<string, unknown> | null }) {
   const provenance = readProvenance(meta);
   if (!provenance) return null;
-  const { segments, warn, unsupported } = describeProvenance(provenance);
+  const { segments, details, warn, unsupported } = describeProvenance(provenance);
 
   return (
     <>
@@ -36,6 +36,18 @@ export function ProvenanceFooter({ meta }: { meta: Record<string, unknown> | nul
               {seg}
             </span>
           ))}
+          {/* Model, routing and steps: there for whoever wants them, not
+              read out under every answer. */}
+          {details.length > 0 && (
+            <details className="ui-loki-provenance-details">
+              <summary className="ui-tap cursor-pointer">Details</summary>
+              {details.map((d, i) => (
+                <span key={`${d}-${i}`} className="block">
+                  {d}
+                </span>
+              ))}
+            </details>
+          )}
         </div>
       )}
       {warn && (

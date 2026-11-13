@@ -23,6 +23,20 @@ const TOOL_LABELS: Record<string, { running: string; done: string }> = {
   list_crew: { running: "Reading your crew", done: "Read your crew" },
   list_human_tasks: { running: "Reading handed-over work", done: "Read handed-over work" },
   propose_human_task: { running: "Drafting an assignment", done: "Drafted an assignment" },
+  // The rest of the handlers (lib/agent/tools): the answer's footer read
+  // "used fleet_status, search_knowledge, list_runs" (owner audit, 2026-11-12).
+  list_feedback: { running: "Reading the reports", done: "Read the reports" },
+  list_runs: { running: "Reading recent work", done: "Read recent work" },
+  list_active_agents: { running: "Checking who is working", done: "Checked who is working" },
+  fleet_status: { running: "Checking your projects", done: "Checked your projects" },
+  list_alerts: { running: "Reading your alerts", done: "Read your alerts" },
+  list_notes: { running: "Reading your notes", done: "Read your notes" },
+  set_away: { running: "Setting you away", done: "Set you away" },
+  fill_web_form: { running: "Filling in a form", done: "Filled in a form" },
+  suggest_builds: { running: "Looking for what to build", done: "Found what to build next" },
+  create_website: { running: "Starting a website", done: "Started a website" },
+  set_preview_code: { running: "Setting the preview code", done: "Set the preview code" },
+  read_website: { running: "Reading the website", done: "Read the website" },
 };
 
 export function toolLabel(name: string, phase: "start" | "end" | "fail"): string {

@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, AlertTriangle, Check, ChevronRight, Loader2, Server } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, Loader2, Server } from "lucide-react";
 import { useControlInbox } from "@/hooks/use-control-inbox";
 import { LokiDispatchButton } from "@/components/shared/LokiDispatchButton";
 import {
   composeNeedsYou,
-  needsYouHeadline,
   type NeedsYouAlert,
   type NeedsYouApprovals,
   type NeedsYouItem,
@@ -126,10 +125,10 @@ export function NeedsYouVerdict({
   const urgentItems = items.filter((i) => i.tier === "urgent");
   return (
     <section className="ui-verdict ui-verdict-alert" aria-label="What needs you">
-      <p className="ui-verdict-line">
-        <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" aria-hidden />
-        {needsYouHeadline(items)}
-      </p>
+      {/* No summary sentence over the rows: "7 approvals and 10 reports to
+          triage." then "7 actions waiting for approval" and "10 feedback
+          reports to triage" said each fact twice, in two words, and drew a
+          to-do in the warning orange (2026-11-12). The rows are the answer. */}
       {urgentItems.length > 0 && (
         <ul className="ui-verdict-list">
           {urgentItems.map((item) => (
@@ -193,6 +192,8 @@ function NeedsYouList({ items }: { items: NeedsYouItem[] }) {
 }
 
 function NeedsYouRow({ item }: { item: NeedsYouItem }) {
+  // A row that opens something carries the chevron, on the label's line, like
+  // "11 system alerts ›" below it: the rows were links that looked like text.
   const head = (
     <>
       {item.urgent && (
@@ -202,6 +203,9 @@ function NeedsYouRow({ item }: { item: NeedsYouItem }) {
         />
       )}
       <span className="ui-verdict-label">{item.label}</span>
+      {(item.href || (item.detail?.length ?? 0) > 0) && (
+        <ChevronRight className="ui-verdict-chevron" aria-hidden />
+      )}
       {item.reason && <span className="ui-verdict-reason">{item.reason}</span>}
     </>
   );
@@ -212,10 +216,7 @@ function NeedsYouRow({ item }: { item: NeedsYouItem }) {
   if (detail.length > 0) {
     return (
       <details className="ui-verdict-expand">
-        <summary className="ui-verdict-item">
-          {head}
-          <ChevronRight className="ui-verdict-chevron" aria-hidden />
-        </summary>
+        <summary className="ui-verdict-item">{head}</summary>
         <div className="ui-verdict-detail">
           {detail.length > 1 ? (
             <ul className="space-y-1">

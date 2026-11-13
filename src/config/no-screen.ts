@@ -41,12 +41,12 @@ export const NO_SCREEN_COMMANDS: readonly VoiceCommandDoc[] = [
   {
     kind: "status",
     say: ["Status", "What's going on?", "How's the fleet?"],
-    does: "The briefing: who is working, what is waiting on you, what failed.",
+    does: "The briefing: what is being worked on, what is waiting for you, what failed.",
   },
   {
     kind: "waiting",
     say: ["What's waiting on me?", "Approvals"],
-    does: "Reads the approval queue, numbered, so you can answer by number.",
+    does: "Reads the things waiting for your OK, numbered, so you can answer by number.",
   },
   {
     kind: "approve",
@@ -60,23 +60,23 @@ export const NO_SCREEN_COMMANDS: readonly VoiceCommandDoc[] = [
   },
   {
     kind: "dispatch",
-    say: ["Tell heidi to fix the header on the phone", "Orangecat: run the tests"],
+    say: ["Tell Heidi to fix the header on the phone", "Orangecat: run the tests"],
     does: "Starts that work on that project, and tells you when it finishes.",
   },
   {
     kind: "failures",
     say: ["What failed?", "Read the last failure"],
-    does: "The runs that ended in an error today, with the error.",
+    does: "The work that stopped with an error today, and why.",
   },
   {
     kind: "pause",
-    say: ["Pause everything", "Pause heidi"],
-    does: "Autopilot off, on every project or on one. Nothing new starts until you resume.",
+    say: ["Pause everything", "Pause Heidi"],
+    does: "Stops starting new work, on every project or on one, until you resume.",
   },
   {
     kind: "resume",
-    say: ["Resume everything", "Resume heidi"],
-    does: "Autopilot back on.",
+    say: ["Resume everything", "Resume Heidi"],
+    does: "New work starts again.",
   },
   {
     kind: "repeat",
@@ -86,7 +86,7 @@ export const NO_SCREEN_COMMANDS: readonly VoiceCommandDoc[] = [
   {
     kind: "details",
     say: ["Details", "Tell me more"],
-    does: "After an announcement: what each run actually did, in its own words.",
+    does: "After an announcement: what each piece of work actually did, in its own words.",
   },
   {
     kind: "quiet",
@@ -105,7 +105,9 @@ export const NO_SCREEN_COMMANDS: readonly VoiceCommandDoc[] = [
   },
   {
     kind: "end",
-    say: ["End no-screen mode", "Goodbye"],
+    // "Stop voice" is what a page called Voice is ended with; "End no-screen
+    // mode" still works (lib/voice/commands.ts), it is just not the example.
+    say: ["Stop voice", "Goodbye", "End no-screen mode"],
     does: "Ends the session. The microphone closes.",
   },
 ] as const;
@@ -280,13 +282,15 @@ export const NO_SCREEN_TTS_MAX_CHARS = 200;
 
 export type NoScreenVoice = "phone" | "autumn" | "diana" | "hannah" | "austin" | "daniel" | "troy";
 
+/** `note` only where a voice differs from the others: "Studio voice" under six
+ *  of seven names explained nothing (owner audit, 2026-11-12). */
 export const NO_SCREEN_VOICES: readonly { id: NoScreenVoice; label: string; note: string }[] = [
-  { id: "autumn", label: "Autumn", note: "Studio voice" },
-  { id: "hannah", label: "Hannah", note: "Studio voice" },
-  { id: "diana", label: "Diana", note: "Studio voice" },
-  { id: "troy", label: "Troy", note: "Studio voice" },
-  { id: "austin", label: "Austin", note: "Studio voice" },
-  { id: "daniel", label: "Daniel", note: "Studio voice" },
+  { id: "autumn", label: "Autumn", note: "" },
+  { id: "hannah", label: "Hannah", note: "" },
+  { id: "diana", label: "Diana", note: "" },
+  { id: "troy", label: "Troy", note: "" },
+  { id: "austin", label: "Austin", note: "" },
+  { id: "daniel", label: "Daniel", note: "" },
   { id: "phone", label: "Phone", note: "Your phone's own voice. Works offline, costs nothing." },
 ] as const;
 export const NO_SCREEN_DEFAULT_VOICE: NoScreenVoice = "autumn";
@@ -327,7 +331,7 @@ export const NO_SCREEN_OPTIONS = {
   },
   important: {
     title: "Only what needs me",
-    note: "Finished runs every five minutes.",
+    note: "Speaks only when you're needed; the rest every 5 minutes.",
   },
 } as const;
 

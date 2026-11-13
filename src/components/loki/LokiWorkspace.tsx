@@ -594,10 +594,26 @@ export function LokiWorkspace({
     onLeaveThread: startNewConversation,
     temporary: activeId ? temporary.id === activeId : temporary.armed,
     onToggleTemporary: temporary.toggle,
-    onOpenProjects: () => setFilterOpen(true),
     onSaveContext: () => setSaveFor(activeId ?? "new"),
     onTogglePin: inbox.pinConversation,
     onRename: inbox.renameConversation,
+  };
+
+  // Every way into a chat — the rail, Recent, the inbox line — opens it the
+  // same way, on its own project. Recent used to set only the id, so the same
+  // chat read "No project" from there and "Loki" from the rail (owner audit,
+  // 2026-11-12).
+  const openConversation = (id: string) => {
+    // A deliberate switch: release the just-created claim so the transcript
+    // is fetched even when they click back into the thread they just made.
+    setJustCreatedId(null);
+    const convo = conversations.find((c) => c.id === id);
+    if (convo && convo.projectKeys.length > 0) {
+      const known = convo.projectKeys.filter((k) => projects.some((p) => p.name === k));
+      setSelectedProjects(known.length > 0 ? known : convo.projectKeys);
+    }
+    setActiveId(id);
+    setHistoryOpen(false);
   };
 
   const conversation = (
@@ -609,7 +625,9 @@ export function LokiWorkspace({
           conversations={conversations}
           railPinned={historyPinned}
           loading={convosLoading}
-          onResume={(id) => setActiveId(id)}
+          error={convosError}
+          onRetry={() => void reloadConversations()}
+          onResume={openConversation}
           onBrowseAll={() => (wide ? setHistoryPinned(true) : setHistoryOpen(true))}
           onBuild={(prompt, project) => void send(prompt, {}, [], suggestionScope(project))}
         />
@@ -708,18 +726,7 @@ export function LokiWorkspace({
       mode={inbox.railMode}
       onModeChange={inbox.setRailMode}
       onPin={inbox.pinConversation}
-      onSelect={(id) => {
-        // A deliberate switch: release the just-created claim so the transcript
-        // is fetched even when they click back into the thread they just made.
-        setJustCreatedId(null);
-        const convo = conversations.find((c) => c.id === id);
-        if (convo && convo.projectKeys.length > 0) {
-          const known = convo.projectKeys.filter((k) => projects.some((p) => p.name === k));
-          setSelectedProjects(known.length > 0 ? known : convo.projectKeys);
-        }
-        setActiveId(id);
-        setHistoryOpen(false);
-      }}
+      onSelect={openConversation}
       onNew={newChat.start}
       onDelete={(id) => void deleteConversation(id)}
     />

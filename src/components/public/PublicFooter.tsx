@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { ChevronDown } from "lucide-react";
-import { CURRENT_RELEASE } from "@/config/changelog";
 import { useInsideFleetRunner } from "@/hooks/use-inside-fleet-runner";
 import { APP_NAME } from "@/config/brand";
 import { ECOSYSTEM, ECOSYSTEM_LINKS } from "@/config/ecosystem";
 import { FLEET_SITES } from "@/config/fleet-sites";
+import { ROUTES } from "@/config/auth";
+import { visitorLink } from "@/lib/visitor-link";
 
 // PublicFooter — links to legal pages and support surfaces on every
 // unauthenticated marketing page. Rendered by PublicSurface so individual
@@ -21,6 +24,7 @@ const FOOTER_GROUPS = [
     links: [
       { label: "Pricing", href: "/pricing" },
       { label: "Download", href: "/download" },
+      { label: "Sign in", href: ROUTES.SIGN_IN },
       { label: "Roadmap", href: "/roadmap" },
       { label: "Changelog", href: "/changelog" },
       { label: "Fleet Runner releases", href: "/releases" },
@@ -70,6 +74,10 @@ export function PublicFooter() {
   // Inside the desktop app, the "Download" link is circular — strip it (the
   // rest of the footer stays useful: sign in, docs, legal, source).
   const insideRunner = useInsideFleetRunner();
+  // Signed in, "Sign in" becomes "Open Loki"; on /sign-in it is the page
+  // itself, so it is not offered again.
+  const signedIn = useSession().status === "authenticated";
+  const pathname = usePathname();
 
   return (
     <footer className="ui-public-footer mx-auto max-w-6xl px-4 pb-10 sm:px-6 sm:pb-12">
@@ -83,6 +91,8 @@ export function PublicFooter() {
             <div className="ui-public-footer-heading">{group.heading}</div>
             {group.links
               .filter((link) => !(insideRunner && link.href === "/download"))
+              .filter((link) => !(link.href === ROUTES.SIGN_IN && pathname === ROUTES.SIGN_IN))
+              .map((entry) => visitorLink(entry, signedIn))
               .map((link) =>
                 "external" in link && link.external ? (
                   <a
@@ -148,12 +158,12 @@ export function PublicFooter() {
         </div>
       </details>
       <div className="ui-public-footer-bottom">
+        {/* One line, no version: "Fleet Runner v0.8.66" went to /releases, which
+            "Fleet Runner releases" above already links, and "Loki · Cato" did
+            not say who Cato is (2026-11-12). The terms say it: Loki is run by Cato. */}
         <div>
-          © {new Date().getFullYear()} {APP_NAME} · Cato
+          © {new Date().getFullYear()} {APP_NAME}, run by Cato
         </div>
-        <Link href="/releases" className="ui-public-link font-mono">
-          Fleet Runner v{CURRENT_RELEASE.version}
-        </Link>
       </div>
     </footer>
   );

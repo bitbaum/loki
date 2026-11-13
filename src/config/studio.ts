@@ -209,3 +209,21 @@ export const STUDIO_STATUS = {
   ],
 } as const;
 export type StudioStatus = keyof typeof STUDIO_STATUS;
+
+/**
+ * What the studio owner does next, per status — the reviewer's side of
+ * STUDIO_STATUS. The review page showed the applicant's own line ("take it if
+ * you want its credential on your profile") to the person deciding
+ * (2026-11-12). A status without one falls back to STUDIO_STATUS.
+ */
+export const STUDIO_REVIEW: Partial<Record<StudioStatus, string>> = {
+  waitlisted: "Reply when there is room, or close the request.",
+  review: "Read the brief, then reply or set the next step.",
+  needs_information: "Waiting for their answer to your questions.",
+  applied: "Read their work and decide: approve or decline.",
+  course_in_progress: "Read their work and decide: approve or decline.",
+  course_submitted: "Assess their course evidence, and decide on the application.",
+  course_passed: "Decide on the application: approve or decline.",
+  approved: "Review their proposed profile before it appears in the directory.",
+  declined: "Declined. They can reply with more work for a new review.",
+};

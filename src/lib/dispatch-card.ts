@@ -15,15 +15,21 @@
  */
 import { APP_URL } from "@/config/brand";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { NAV } from "@/config/navigation";
 import { withTerminalView } from "@/lib/fleet-context";
 import { builderWayForward, type CloudBuilderState } from "@/lib/builder-way-forward";
 import type { BuilderChannel, StatusTone } from "@/lib/constants/statuses";
-import type { DispatchLiveStatus } from "@/lib/dispatch-status";
+import {
+  DISPATCH_FAILED_LABEL,
+  dispatchFailureForPerson,
+  type DispatchLiveStatus,
+} from "@/lib/dispatch-status";
 
 export type DispatchCardLink = { label: string; href: string };
 
-/** A primary that DOES something here, rather than leading somewhere. */
-export type DispatchCardAction = { label: string; action: "run-in-cloud" };
+/** A primary that DOES something here, rather than leading somewhere:
+ *  move the work to the cloud, or send the same words again. */
+export type DispatchCardAction = { label: string; action: "run-in-cloud" | "send-again" };
 
 export type DispatchCardView = {
   headline: string;
@@ -63,6 +69,8 @@ export type DispatchCardInput = {
    * cloud is private. Defaults to unknown, which offers neither.
    */
   cloud?: CloudBuilderState;
+  /** The words that were sent are known, so the card can send them again. */
+  canResend?: boolean;
 };
 
 /** The terminal that can show THIS dispatch — not one per builder. */
@@ -95,6 +103,8 @@ export function watchHref(project: string, channel: BuilderChannel | null): stri
   return withTerminalView(terminalHref(project, channel), "chat");
 }
 
+const NAV_HOME = NAV.control.label;
+
 const controlHref = (project: string) => `/control?focus=${encodeURIComponent(project)}`;
 
 export function presentDispatchCard(input: DispatchCardInput): DispatchCardView {
@@ -111,13 +121,33 @@ export function presentDispatchCard(input: DispatchCardInput): DispatchCardView 
     ...all,
   ];
 
-  if (input.failed || live?.tone === "negative") {
+  const again = (label: string): DispatchCardAction | null =>
+    input.canResend && project ? { label, action: "send-again" } : null;
+
+  // An old card whose record is gone: say that, plainly, with the one way on.
+  if (live?.status === "gone") {
     return {
-      headline: live?.label ?? "Dispatch failed",
-      detail: live?.detail ?? "Nothing is running. Control shows why and can retry it.",
+      headline: live.label,
+      detail: "Loki no longer follows this one. If it still matters, send it again.",
+      tone: "neutral",
+      primary: again("Send it again") ?? control,
+      secondary: [],
+    };
+  }
+
+  // It did not start. There is nothing to watch, so no "Watch it": the way
+  // on is to try again, and Home has the why (owner audit, 2026-11-12: the
+  // card printed the runner's admin instructions over "Open on Home" and
+  // "Watch it").
+  if (input.failed || live?.tone === "negative") {
+    const retry = again("Try again");
+    return {
+      headline:
+        !live?.label || live.label === "Dispatch failed" ? DISPATCH_FAILED_LABEL : live.label,
+      detail: dispatchFailureForPerson(live?.detail) ?? `Nothing ran. ${NAV_HOME} shows why.`,
       tone: "negative",
-      primary: control,
-      secondary: only(watch),
+      primary: retry ?? control,
+      secondary: retry ? only(control) : only(),
     };
   }
 

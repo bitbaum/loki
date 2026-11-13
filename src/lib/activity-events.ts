@@ -15,6 +15,7 @@
 import { getAdapterLabel, getIntentLabel } from "@/config/control-intents";
 import { promptDisplay, runStatus, type PromptDisplay } from "@/lib/activity-status";
 import type { StatusTone } from "@/lib/constants/statuses";
+import { openRunSignalsFromPayload, openRunState } from "@/lib/open-run-state";
 
 /** How far apart a dispatch and its run may be recorded and still be the same
  *  work. Both rows are written in the same request handler, so real pairs land
@@ -32,6 +33,13 @@ export type ActivityOutcome =
   | "user_abort"
   | "unconfirmed"
   | "running"
+  /** Unfinished, stopped for a person (lib/open-run-state). */
+  | "waiting"
+  /** Unfinished, reported once, then nothing for a while. */
+  | "silent"
+  /** Unfinished, sent long ago and never picked up. */
+  | "not_started"
+  | "replaced"
   | "dispatched";
 
 /** Reading order for the outcome filter — worst first, because triage is the
@@ -40,13 +48,27 @@ export const ACTIVITY_OUTCOME_LABEL: Record<ActivityOutcome, string> = {
   error: "Failed",
   unconfirmed: "Never confirmed",
   timeout: "Timed out",
-  hang: "Hung",
-  user_abort: "Stopped",
+  hang: "Stopped answering",
+  replaced: "Replaced",
+  user_abort: "Stopped by you",
   partial: "Partial",
+  waiting: "Waiting for you",
+  silent: "Gone quiet",
+  not_started: "Not started",
   running: "Running",
   success: "Done",
   dispatched: "Sent",
 };
+
+/**
+ * Closes that need nobody. Live on 2026-11-12, "33 runs need you" counted
+ * briefs a newer one replaced ("superseded: the same brief was typed into the
+ * live solon session…") and waits the owner cancelled himself ("you stopped
+ * waiting from Control after no runner picked it up"). Neither is a failure
+ * to act on, so they read as what they are and leave the needs-you count.
+ */
+const REPLACED_ERROR = /^superseded\b/i;
+const STOPPED_BY_YOU_ERROR = /\byou stopped waiting\b/i;
 
 export type RunVerification = { judge: string; met: boolean; gap?: string | null };
 
@@ -72,7 +94,14 @@ export type RunSource = {
     next?: string | null;
     verification?: RunVerification | null;
   } | null;
-  payload: { error?: string | null; resultText?: string | null } | null;
+  payload: {
+    error?: string | null;
+    resultText?: string | null;
+    /** Liveness the runner writes on an open run (lib/open-run-state). */
+    lastProgressAt?: unknown;
+    lastStep?: unknown;
+    blocked?: unknown;
+  } | null;
   startedAt: Date;
   finishedAt: Date | null;
 };
@@ -130,7 +159,9 @@ export function formatDuration(startMs: number, endMs: number): string | null {
   return `${h}h ${m % 60}m`;
 }
 
-function runOutcome(run: RunSource): ActivityOutcome {
+function runOutcome(run: RunSource, error: string, nowMs: number): ActivityOutcome {
+  if (REPLACED_ERROR.test(error)) return "replaced";
+  if (STOPPED_BY_YOU_ERROR.test(error)) return "user_abort";
   const known: ActivityOutcome[] = [
     "success",
     "partial",
@@ -143,7 +174,10 @@ function runOutcome(run: RunSource): ActivityOutcome {
   if (run.outcome && (known as string[]).includes(run.outcome))
     return run.outcome as ActivityOutcome;
   if (run.payload?.error) return "error";
-  if (!run.finishedAt) return "running";
+  // Not every unfinished run is running: Home's rule says which are waiting
+  // for a person, silent, or never picked up (2026-11-12).
+  if (!run.finishedAt)
+    return openRunState(openRunSignalsFromPayload(run.startedAt, run.payload), nowMs);
   return "success";
 }
 
@@ -169,8 +203,10 @@ export function buildActivityEvents(input: {
   /** Real failure causes keyed by run id — beats the reaper's circular
    *  "timed out: exceeded max duration". */
   blockedReasons?: Map<string, string>;
+  /** "Now", for telling a running run from one that went quiet. */
+  nowMs?: number;
 }): ActivityEvent[] {
-  const { prompts, runs, localChats = [], blockedReasons = new Map() } = input;
+  const { prompts, runs, localChats = [], blockedReasons = new Map(), nowMs = Date.now() } = input;
 
   const unclaimed = new Map<string, PromptSource[]>();
   for (const p of prompts) {
@@ -201,8 +237,8 @@ export function buildActivityEvents(input: {
 
   for (const run of runs) {
     const prompt = claimPromptFor(run);
-    const outcome = runOutcome(run);
     const rawError = (blockedReasons.get(run.id) || run.payload?.error || "").trim();
+    const outcome = runOutcome(run, rawError, nowMs);
     const done = run.summary?.done?.trim() || null;
     const next = run.summary?.next?.trim() || null;
     const resultText = run.payload?.resultText?.trim() || null;
@@ -216,7 +252,12 @@ export function buildActivityEvents(input: {
       agentLabel: getAdapterLabel(run.adapter),
       intentLabel: getIntentLabel(run.intent),
       intentId: run.intent,
-      status: runStatus(run),
+      status:
+        outcome === "hang"
+          ? "negative"
+          : outcome === "replaced" || outcome === "user_abort"
+            ? "neutral"
+            : runStatus(run),
       outcome,
       outcomeLabel: ACTIVITY_OUTCOME_LABEL[outcome],
       durationLabel: run.finishedAt
@@ -309,6 +350,8 @@ const NEEDS_ATTENTION: ReadonlySet<ActivityOutcome> = new Set<ActivityOutcome>([
   // nothing will retry it on its own, and the fault is in the delivery path
   // rather than in the work.
   "unconfirmed",
+  // An agent stopped to ask the person something.
+  "waiting",
 ]);
 
 export function eventNeedsAttention(event: ActivityEvent): boolean {
@@ -330,7 +373,11 @@ export function eventNeedsAttention(event: ActivityEvent): boolean {
  * patiently waiting.
  */
 export function eventIsQueued(event: ActivityEvent): boolean {
-  return !eventNeedsAttention(event) && event.outcome === "dispatched" && !event.isLocalChat;
+  return (
+    !eventNeedsAttention(event) &&
+    (event.outcome === "dispatched" || event.outcome === "not_started") &&
+    !event.isLocalChat
+  );
 }
 
 export function filterActivityEvents(

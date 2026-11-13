@@ -12,8 +12,9 @@
 // BrandMark.tsx (alternating semicircular arcs of growing radius, two-layer
 // fade). icon.svg + all opengraph-*.tsx MUST stay pixel-identical (see
 // comments in those files). Never introduce a second mark. Public surfaces
-// always dark; ui-public-* / ui-auth-* intentionally use white/opacity inside
-// globals.css only.
+// open dark (ThemeProvider's defaultTheme) and follow the reader's Appearance
+// choice, so new ui-public-* / ui-auth-* rules use theme tokens. The
+// changelog and release rules still carry white/opacity: migrate as touched.
 //
 // Name evaluation criteria (from first principles + product positioning):
 // - Must preserve "fleet" language in copy (run your fleet, fleet scale,

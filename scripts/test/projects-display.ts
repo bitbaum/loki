@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { sanitizeActivityPreview, isNoisyProfileActivity } from "../../src/lib/activity-display";
 import { mergeDuplicateProjectRows } from "../../src/lib/domain/project-canonical";
 import { shortProjectStatus } from "../../src/lib/projects-display";
-import { filterProjects, hasProjectAttention, isSiteDown } from "../../src/lib/projects-page-stats";
+import {
+  computeProjectsPageStats,
+  filterProjects,
+  hasProjectAttention,
+  isSiteDown,
+} from "../../src/lib/projects-page-stats";
 import type { ProjectGridRow } from "../../src/components/projects/ProjectGridCard";
 
 function row(
@@ -73,3 +78,31 @@ console.log("✓ projects-display tests passed");
   assert.deepEqual(stale, ["b", "y"], "after a day the usual alphabetical order applies");
 }
 console.log("✓ projects-display: fresh projects sort first");
+
+// Priority reads the row's own line: a row saying "Needs you: 1 note" sat 11th
+// under a dozen rows saying "Live" (owner's phone, 2026-11-12), and the "With a
+// problem" lens never counted it.
+{
+  const now = Date.now();
+  const live = (id: string) => row({ id, name: id, liveUrl: `https://${id}.test`, siteOk: true });
+  const rows = [live("fresh-live"), live("kivvi"), live("bitbaum")];
+  const seen = {
+    "fresh-live": new Date(now - 60e3).toISOString(),
+    kivvi: new Date(now - 6 * 24 * 3600e3).toISOString(),
+    bitbaum: new Date(now - 9 * 24 * 3600e3).toISOString(),
+  };
+  const facts = {
+    newNotesByProject: { kivvi: 1 },
+    runNowByProject: { bitbaum: "building" as const },
+  };
+  const order = filterProjects(rows, "", null, seen, "priority", facts).map((r) => r.id);
+  assert.deepEqual(
+    order,
+    ["kivvi", "bitbaum", "fresh-live"],
+    `waiting on you, then building: ${order}`,
+  );
+  const wants = filterProjects(rows, "", "attention", seen, "priority", facts).map((r) => r.id);
+  assert.deepEqual(wants, ["kivvi"], "the problem lens counts a row that says Needs you");
+  assert.equal(computeProjectsPageStats(rows, facts).attention, 1);
+}
+console.log("✓ projects-display: rows that want you sort first");

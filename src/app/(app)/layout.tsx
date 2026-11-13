@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/shell/AppShell";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
 import { auth } from "@/auth";
+import { ownSitePass } from "@/lib/feedback/own-site-pass";
 import { cookies } from "next/headers";
 import { SIDEBAR_COLLAPSE_COOKIE, SIDEBAR_COLLAPSED_BY_DEFAULT } from "@/config/shell";
 
@@ -16,6 +17,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // for a storage key; nothing is read from the database for it.
   const session = await auth();
   const viewerId = session?.user?.id ?? null;
+  // The owner, signed in, is the owner to his own widget too: its panel is
+  // then his tool, not the visitor's sign-in door (lib/feedback/own-site-pass).
+  const widgetToken = process.env.FEEDBACK_WIDGET_TOKEN?.trim() ?? "";
+  const ownerPass =
+    widgetToken && viewerId ? await ownSitePass(widgetToken, viewerId).catch(() => null) : null;
   // The sidebar's width, known before the first paint (config/shell).
   const stored = (await cookies()).get(SIDEBAR_COLLAPSE_COOKIE)?.value;
   const sidebarCollapsed =
@@ -25,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       orangecatEnabled={orangecat}
       feedbackWidget={feedbackWidget}
       viewerId={viewerId}
+      ownerPass={ownerPass ? { token: widgetToken, pass: ownerPass } : null}
       initialSidebarCollapsed={sidebarCollapsed}
     >
       {children}

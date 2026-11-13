@@ -44,6 +44,16 @@ function nonblank(text: string | null | undefined): string | null {
   return text?.trim() || null;
 }
 
+/**
+ * "4 of 14 goals reported done" — the one progress measure a mission shows.
+ * A row used to say "0 of 1 goals reported done" beside "25%" (the average
+ * of each goal's self-reported progress): two numbers that disagree, and one
+ * of them ungrammatical (2026-11-12).
+ */
+export function goalsLine(done: number, total: number): string {
+  return `${done} of ${total} ${total === 1 ? "goal" : "goals"} reported done`;
+}
+
 export function missionFromProject(source: MissionSource): MissionProjection {
   const objectives = source.goals
     .filter((g) => g.status !== GOAL_STATUS.ABANDONED)

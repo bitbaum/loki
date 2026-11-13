@@ -24,7 +24,7 @@ export function runningNow(counts: { working: number; waiting: number }): Runnin
     working > 0
       ? `${agents(working)} working now`
       : waiting > 0
-        ? "Nothing is working. Waiting for your reply"
+        ? `Nothing is running. ${waiting === 1 ? "1 agent is" : `${waiting} agents are`} waiting for you`
         : "Nothing Loki started is running right now";
   return { headline, working, waiting };
 }

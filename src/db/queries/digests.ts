@@ -110,6 +110,15 @@ export type ProjectDigest = {
    *  momentum line. Counted, not fetched: the comparison needs a magnitude,
    *  not 200 more rows. */
   previousCount: number;
+  /** Actions in THIS window, counted the way previousCount is: momentum
+   *  compared the capped list (60) with an uncapped count, so a week read
+   *  the same as a day (2026-11-12). */
+  currentCount: number;
+  /** The headline's numbers, read from every row fetched (up to
+   *  MAX_RAW_ROWS_PER_QUERY), not just the 60 the list shows. */
+  summaryEvents: ActivityEvent[];
+  /** True when the list shows fewer events than the window holds. */
+  listCapped: boolean;
 };
 
 // ─── Window resolution ───────────────────────────────────────────────────────
@@ -457,7 +466,17 @@ export async function getProjectDigest(
     runs: rows.runs.slice(0, MAX_RUN_SAMPLES_FOR_EVENTS),
     localChats: rows.localChats.slice(0, MAX_LOCAL_CHAT_SAMPLES_FOR_EVENTS),
     blockedReasons,
+    nowMs: until.getTime(),
   }).slice(0, MAX_EVENTS);
+  // The headline and agent time count every row fetched, so a week is not
+  // summed from the same 60 rows as a day.
+  const summaryEvents = buildActivityEvents({
+    prompts: rows.prompts,
+    runs: rows.runs,
+    localChats: rows.localChats,
+    nowMs: until.getTime(),
+  });
+  const currentCount = Math.max(stats.promptsSent, stats.runsStarted);
 
   return {
     window,
@@ -472,5 +491,8 @@ export async function getProjectDigest(
     prompts: compacted.prompts,
     events,
     previousCount,
+    currentCount,
+    summaryEvents,
+    listCapped: summaryEvents.length > events.length,
   };
 }

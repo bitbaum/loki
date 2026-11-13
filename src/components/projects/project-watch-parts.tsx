@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Bot, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/dates";
+import { LOKI_SENT_COPY } from "@/config/terminal-copy";
 import { dispatchMessageDisplay } from "@/lib/terminal-conversation";
 import type { WatchItem } from "@/lib/project-watch";
 
@@ -40,13 +41,15 @@ export function UserMessage({ text, at }: { text: string; at: string }) {
       </div>
       {display.details && (
         <details className="w-full text-xs">
-          <summary className="ui-tap">Dispatch details</summary>
+          <summary className="ui-tap">{LOKI_SENT_COPY.fold}</summary>
           <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words">
             {display.details}
           </pre>
         </details>
       )}
-      <span className="ui-chat-meta pr-1">You · {timeAgo(new Date(at).getTime())}</span>
+      <span className="ui-chat-meta pr-1">
+        {display.details ? LOKI_SENT_COPY.byline : "You"} · {timeAgo(new Date(at).getTime())}
+      </span>
     </div>
   );
 }

@@ -115,16 +115,21 @@ export function formatRunOutcomeMessage(
         : `The site: ${liveUrl}`,
     );
 
+  // "Not done — nothing reached the site" is only true with no pull request
+  // and no push. A run that ended badly but left a change is part done: the
+  // thread called one "Not done" and then "Live" for the same pull request
+  // (owner audit, 2026-11-12).
+  const succeeded = run.outcome === ORCHESTRATION_OUTCOME.SUCCESS;
   const stage: UpdateStage =
-    run.outcome === ORCHESTRATION_OUTCOME.PARTIAL
-      ? UPDATE_STAGE.PARTIAL
-      : run.outcome !== ORCHESTRATION_OUTCOME.SUCCESS
-        ? UPDATE_STAGE.NOT_DONE
+    !prUrl && !evidence?.url
+      ? run.outcome === ORCHESTRATION_OUTCOME.PARTIAL
+        ? UPDATE_STAGE.PARTIAL
+        : UPDATE_STAGE.NOT_DONE
+      : !succeeded
+        ? UPDATE_STAGE.PARTIAL
         : prUrl
           ? UPDATE_STAGE.READY
-          : evidence?.url
-            ? UPDATE_STAGE.PUSHED
-            : UPDATE_STAGE.NOT_DONE;
+          : UPDATE_STAGE.PUSHED;
   const links: UpdateLink[] = [];
   if (prUrl) links.push({ label: "What changed", href: prUrl });
   else if (evidence?.url) links.push({ label: "The push", href: evidence.url });

@@ -1,4 +1,6 @@
 import { NOTE_NONE, type FixNote } from "@/lib/feedback/fix-note";
+import { withoutTechnicalTail } from "@/lib/feedback/asked-text";
+import { NAV } from "@/config/navigation";
 
 /**
  * A progress update Loki posts into a chat thread — the way an engineering
@@ -116,12 +118,23 @@ const tidy = (s: string | null | undefined, max = FIELD_MAX): string | null => {
 /** A handoff `next` that only says there is nothing to do is not a next step. */
 const NOTHING = /^(none|nothing|n\/a|-|—|no(ne)? (follow[- ]?ups?|next steps?))\.?$/i;
 
+/** A page of Loki, by the name its menu gives it ("/control" → "Home"). */
+function lokiPageName(path: string): string | null {
+  const item = Object.values(NAV).find((n) => n.href === path);
+  return item ? item.label : null;
+}
+
 function headlineFor(input: ProgressUpdateInput): string {
+  // Loki's own pages are named as its menu names them; it said "It's live on
+  // /control" while the menu calls that page Home (owner audit, 2026-11-12).
+  const named = input.project === "loki" && input.where ? lokiPageName(input.where) : null;
   const where = !input.where
     ? ""
-    : input.where === "/"
-      ? " on the home page"
-      : ` on ${input.where}`;
+    : named
+      ? ` on ${named}`
+      : input.where === "/"
+        ? " on the home page"
+        : ` on ${input.where}`;
   switch (input.stage) {
     case UPDATE_STAGE.READY:
       return "The change is written and checked. It merges on its own once its checks are green, and goes live with the deploy that follows.";
@@ -172,7 +185,7 @@ export function buildProgressUpdate(input: ProgressUpdateInput): ProgressUpdate 
     stage: input.stage,
     project: input.project,
     headline: headlineFor(input),
-    asked: tidy(input.asked, ASKED_MAX),
+    asked: tidy(input.asked ? withoutTechnicalTail(input.asked) : null, ASKED_MAX),
     problem: tidy(note?.problem),
     done: tidy(note?.change ?? input.didLine),
     detail: tidy(note?.detail),
@@ -208,6 +221,56 @@ export const UPDATE_SECTIONS = [
 
 /** Said for an owed section the developer left out. */
 export const NOT_STATED = "Not stated by the developer — worth asking.";
+
+/** The owed sections, as the one "Not stated: …" line names them. */
+export const OWED_WORDS: Record<OwedKey, string> = {
+  helps: "how it helps users",
+  us: "how it benefits us",
+  downsides: "downsides",
+  costs: "costs",
+};
+
+/** The same gaps, as the questions the "Ask" button sends. */
+const OWED_QUESTIONS: Record<OwedKey, string> = {
+  helps: "How does it help the people who use it?",
+  us: "How does it benefit us?",
+  downsides: "What are its downsides?",
+  costs: "What does it cost to run?",
+};
+
+/** The follow-up that asks for what an update left unsaid. */
+export function askForMissing(u: Pick<ProgressUpdate, "missing" | "asked">): string {
+  const about = u.asked ? `the change for “${u.asked}”` : "the last change";
+  return `About ${about}: ${u.missing.map((k) => OWED_QUESTIONS[k]).join(" ")}`;
+}
+
+/** The follow-up that asks for work that stopped short to be finished. */
+export function askToFinish(u: Pick<ProgressUpdate, "asked">): string | null {
+  return u.asked
+    ? `This was not finished: “${u.asked}”. Look at what went wrong, fix it, and finish it.`
+    : null;
+}
+
+/**
+ * Updates an earlier one is folded into: the same change ("What changed"
+ * link), said again later. The thread showed "Not done — nothing reached the
+ * site" and, in the next card, "Live" for the same pull request (owner audit,
+ * 2026-11-12). Returns the indexes to leave out; the latest word stays.
+ */
+export function supersededUpdates(updates: (ProgressUpdate | null)[]): Set<number> {
+  const key = (u: ProgressUpdate) => u.links.find((l) => l.label === "What changed")?.href ?? null;
+  const latest = new Map<string, number>();
+  updates.forEach((u, i) => {
+    const k = u && key(u);
+    if (k) latest.set(k, i);
+  });
+  const out = new Set<number>();
+  updates.forEach((u, i) => {
+    const k = u && key(u);
+    if (k && latest.get(k) !== i) out.add(i);
+  });
+  return out;
+}
 /** An owed section the developer answered with "none". */
 export const isNone = (v: string | null): boolean => v === NOTE_NONE;
 
@@ -238,12 +301,25 @@ export function readProgressUpdate(meta: unknown): ProgressUpdate | null {
   if (!u || u.v !== 1 || typeof u.stage !== "string" || !(u.stage in UPDATE_STAGE_LABEL))
     return null;
   if (typeof u.project !== "string" || typeof u.headline !== "string") return null;
+  const links = Array.isArray(u.links)
+    ? u.links.filter(
+        (l) => l && typeof l.href === "string" && /^(https?:\/\/|\/)/.test(l.href) && l.label,
+      )
+    : [];
+  // Stored before a run that opened a pull request stopped being called "Not
+  // done": a change exists, so it is part done (formatRunOutcomeMessage).
+  const madeChange = links.some((l) => l.label === "What changed" || l.label === "The push");
+  const stage =
+    u.stage === UPDATE_STAGE.NOT_DONE && madeChange
+      ? UPDATE_STAGE.PARTIAL
+      : (u.stage as UpdateStage);
   return {
     v: 1,
-    stage: u.stage as UpdateStage,
+    stage,
     project: u.project,
-    headline: u.headline,
-    asked: typeof u.asked === "string" ? u.asked : null,
+    headline: stage === u.stage ? u.headline : headlineFor({ stage, project: u.project }),
+    // Stored before the tail was dropped at write: dropped here too.
+    asked: typeof u.asked === "string" ? withoutTechnicalTail(u.asked) : null,
     problem: typeof u.problem === "string" ? u.problem : null,
     done: typeof u.done === "string" ? u.done : null,
     detail: typeof u.detail === "string" ? u.detail : null,
@@ -264,10 +340,6 @@ export function readProgressUpdate(meta: unknown): ProgressUpdate | null {
     images: Array.isArray(u.images)
       ? u.images.filter((i) => i && typeof i.src === "string" && i.src.startsWith("/api/"))
       : [],
-    links: Array.isArray(u.links)
-      ? u.links.filter(
-          (l) => l && typeof l.href === "string" && /^(https?:\/\/|\/)/.test(l.href) && l.label,
-        )
-      : [],
+    links,
   };
 }

@@ -119,7 +119,7 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
           {
             label: "How it works",
             href: "/how-it-works",
-            description: "From a sentence to a working site — and under the hood",
+            description: "From a sentence to a working site",
           },
           {
             label: "Compare",
@@ -129,7 +129,7 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
           {
             label: "No-screen mode",
             href: NO_SCREEN_PUBLIC_PATH,
-            description: "Hear your fleet and speak to it, with the phone in your pocket",
+            description: "Talk to Loki with your phone in your pocket",
           },
           {
             label: "Change a website",
@@ -139,7 +139,7 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
           {
             label: "Make it yours",
             href: "/take",
-            description: "Your own copy of an open-source project, renamed and shaped for you",
+            description: "Your own copy of an open-source project",
           },
           {
             label: "Pricing",
@@ -149,7 +149,7 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
           {
             label: "Download",
             href: "/download",
-            description: "Fleet Runner for Linux, Windows and Apple-silicon Macs",
+            description: "Fleet Runner, the free desktop app",
           },
         ],
       },

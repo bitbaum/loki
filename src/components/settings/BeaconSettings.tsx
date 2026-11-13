@@ -17,6 +17,7 @@ import {
   type AutoInjectMode,
 } from "@/config/beacon";
 import { LOKI_REFRESH_EVENT } from "@/lib/client-events";
+import { NAV } from "@/config/navigation";
 import {
   NIGHT_ALLOW_CHOICES,
   NIGHT_RUNS_DEFAULT,
@@ -112,7 +113,7 @@ export function BeaconSettings() {
 
       {loadError ? (
         <p className="ui-error">
-          Failed to load beacon settings — check that the server is reachable and try reloading.
+          Could not load these settings. Check your connection and reload the page.
         </p>
       ) : data === null ? (
         <div className="flex items-center gap-2 text-sm text-text-muted">
@@ -134,7 +135,7 @@ export function BeaconSettings() {
                     type="button"
                     onClick={() => setAutoInjectMode(m.value)}
                     className={[
-                      "text-left rounded-lg border p-3 transition-colors",
+                      "flex flex-col items-start justify-start text-left rounded-lg border p-3 transition-colors",
                       autoInjectMode === m.value
                         ? "border-accent-primary bg-accent-muted"
                         : "border-border-default bg-surface-base hover:border-border-interactive",
@@ -146,15 +147,13 @@ export function BeaconSettings() {
                 ))}
               </div>
               <p className="text-xs text-text-muted">
-                When an agent finishes a task, autopilot sends the next queued instruction. It
-                pauses on its own for busy agents, pending blockers, and failing health checks. Set
-                it Off to dispatch every prompt by hand.{" "}
+                It waits on its own while an agent is busy, stuck, or a check is failing.{" "}
                 <span className="text-text-tertiary">
-                  This is the account-wide default. A project that sets its own autopilot on{" "}
-                  <a href="/control" className="ui-link">
-                    Control
+                  This is the default for every project. A project that sets its own autopilot on{" "}
+                  <a href={NAV.control.href} className="ui-link">
+                    {NAV.control.label}
                   </a>{" "}
-                  overrides it.
+                  keeps its own.
                 </span>
               </p>
             </div>
@@ -275,7 +274,7 @@ export function BeaconSettings() {
 
             {/* ── Transcription provider ── */}
             <div className="space-y-1.5">
-              <label className="ui-kicker">Transcription provider</label>
+              <label className="ui-kicker">How your voice becomes text</label>
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
@@ -288,14 +287,13 @@ export function BeaconSettings() {
                 ))}
               </select>
               <p className="text-xs text-text-muted">
-                Force local Whisper when Groq is rate-limited, or force Groq when local runtime is
-                unavailable.
+                Auto suits almost everyone. Pick one only if the other keeps failing.
               </p>
             </div>
 
             {/* ── Whisper model ── */}
             <div className="space-y-1.5">
-              <label className="ui-kicker">Voice transcription model</label>
+              <label className="ui-kicker">Accuracy on Loki&apos;s computer</label>
               <select value={model} onChange={(e) => setModel(e.target.value)} className="ui-input">
                 {WHISPER_MODELS.map((m) => (
                   <option key={m.value} value={m.value}>
@@ -304,9 +302,7 @@ export function BeaconSettings() {
                 ))}
               </select>
               <p className="text-xs text-text-muted">
-                Whisper model used when provider is Local, or Auto with a server runtime available.
-                Larger models are more accurate but slower. Downloaded on the server and cached in{" "}
-                <code className="text-text-secondary">~/.cache/huggingface/</code>.
+                Used when Loki transcribes on its own computer. Larger is more accurate but slower.
               </p>
             </div>
           </div>

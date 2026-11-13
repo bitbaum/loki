@@ -1,5 +1,6 @@
 import { APP_NAME } from "@/config/brand";
 import type { BuilderChannel } from "@/lib/constants/statuses";
+import { NAV } from "@/config/navigation";
 
 /**
  * SSOT for user-facing execution copy.
@@ -8,6 +9,18 @@ import type { BuilderChannel } from "@/lib/constants/statuses";
  * "Builder" is a person: the role on a project and an approved builder.
  * Internal code, Settings, and /download may still say "Fleet Runner".
  */
+/**
+ * The two places agents work, named for someone who has never seen Loki.
+ * Public pages said "cloud runner", "cloud builder" and "Loki's engine" for
+ * one machine (2026-11-12); a first-time reader could not tell whether that
+ * was one thing or three. Public copy names it with these words only. In the
+ * app the same places are `EXECUTOR_COPY.cloud` / `thisComputer`.
+ */
+export const PUBLIC_WHERE = {
+  cloud: "Loki's computers",
+  local: "your own computer",
+} as const;
+
 export const EXECUTOR_COPY = {
   /** Unified executor — cloud (box-runner) and/or this computer (desktop app) */
   builder: {
@@ -22,8 +35,14 @@ export const EXECUTOR_COPY = {
     cloudOnline: "Cloud runner online",
     localComputerOnline: "This computer online",
     bothOnline: "Cloud + this computer online",
-    cloudOnlyDetail: "This computer offline — cloud runner runs the queue",
-    localOnlyDetail: "Cloud runner offline — this computer runs the queue",
+    // On a phone, "This computer offline" read as if the phone itself were
+    // offline (2026-11-12): name the app that is closed and who does the work.
+    cloudOnlyDetail: "Your desktop app is closed; the cloud does the work",
+    localOnlyDetail: "Loki's cloud is offline; your desktop app does the work",
+    /** Home's Settings row, in words a person uses: where builds run. */
+    plainCloud: "Builds run in Loki's cloud",
+    plainLocal: "Builds run on your computer",
+    plainBoth: "Builds run in Loki's cloud and on your computer",
     cloudOffline: "Cloud runner offline",
     // A private cloud is not an offline one: a new account's Terminal read
     // "Cloud builder offline" beside "private for this account" (2026-10-12).
@@ -79,8 +98,7 @@ export const EXECUTOR_COPY = {
 
   /** Cloud web app always queues; this means a live builder will drain it. */
   queuedWithBuilderOnline: "With runner — starting shortly",
-  queuedWithBuilderOnlineLong:
-    "a runner is online and will claim it shortly. Use Control for state, or open Sessions to watch the agent and talk to it. You get a notification when the run finishes.",
+  queuedWithBuilderOnlineLong: `a runner is online and will claim it shortly. ${NAV.control.label} shows where it is; ${NAV.terminal.label} lets you watch the agent and talk to it. You get a notification when the run finishes.`,
 
   // The first screens a new person reads. Written for someone who has never
   // heard "builder", "CLI" or "tenant" — the earlier copy said "dispatch agents
@@ -159,7 +177,31 @@ export const EXECUTOR_COPY = {
     hostedAndLocal:
       "Runner offline — cloud worker started; this computer runs it too when connected.",
     queuedOnly: "Queued — runs when the runner is online.",
+    // Either builder (cloud box-runner or desktop) can claim the queued
+    // command. "Queued — a connected runner (cloud or this computer) will
+    // claim it" was the whole of every row under "What Loki decided"
+    // (2026-11-12): builder words, twelve times.
+    queuedForRunner: "Waiting for a computer to pick it up",
   },
+
+  /**
+   * What Loki decided, one word per control action (System → More records →
+   * "What Loki decided"). The stored action ids are the audit's own.
+   */
+  decision: {
+    queued: "Waiting to start",
+    injected: "Started",
+    queue: "Waiting to start",
+    composed: "Written",
+    nextbest: "Picked next",
+    refused: "Refused",
+    off: "Refused",
+    failed: "Failed",
+    paused: "Paused",
+    resumed: "Resumed",
+    paused_all: "Paused everywhere",
+    resumed_all: "Resumed everywhere",
+  } as Record<string, string>,
 
   /** How Loki (and Control) reach the agent CLI — not a separate chat channel. */
   loki: {
@@ -181,6 +223,8 @@ export const EXECUTOR_COPY = {
     // confirmations keep their own "starting shortly" copy where it IS true.
     builderStarting: "Runner online",
     notificationWhenDone: "Notification when this run finishes.",
+    /** A start button while its request is on the way ("Sending to the runner…" said builder words). */
+    starting: "Starting…",
 
     // How a run that did NOT fail explains itself. These used to be written
     // into payload.error by the reaper, so a `partial` run — a success — was

@@ -29,9 +29,11 @@ import {
   LayoutGrid,
   Lightbulb,
   Boxes,
+  Cpu,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ORANGECAT_PUBLIC_ORIGIN } from "@/config/orangecat";
+import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 
 export type NavItem = {
   id: string;
@@ -61,7 +63,7 @@ export const NAV = {
   suggestions: {
     id: "suggestions",
     label: "Suggestions",
-    description: "What to do next, across every front — pick one and Loki takes it",
+    description: "What to do next, across every front — pick one and Loki starts on it",
     href: "/suggestions",
     icon: Lightbulb,
     active: true,
@@ -90,8 +92,11 @@ export const NAV = {
   },
   voice: {
     id: "voice",
-    label: "Voice",
-    description: "Talk to Loki with the screen off — it reads the fleet out and listens",
+    // The same thing as the chat's Talk button, under the same name: "Voice"
+    // beside "Talk" read as two features (owner, 2026-11-12).
+    label: "Talk",
+    description:
+      "A spoken conversation, screen on or off: Loki tells you what your projects are doing and listens",
     href: "/voice",
     icon: Headphones,
     active: true,
@@ -168,6 +173,18 @@ export const NAV = {
     label: "Feedback",
     description: "Visitor & review reports across your fleet — triage and implement",
     href: "/feedback",
+    icon: MessagesSquare,
+    active: true,
+    mobile: false,
+  },
+  // Not in any menu: reached from a report's mail and from /feedback
+  // ("Reports you sent"). Listed so the top bar names it like its siblings —
+  // it was the one page with a blank bar (2026-11-12).
+  myFeedback: {
+    id: "my-feedback",
+    label: "My feedback",
+    description: "Reports you sent, and where each one is",
+    href: "/my-feedback",
     icon: MessagesSquare,
     active: true,
     mobile: false,
@@ -285,7 +302,8 @@ export const NAV = {
 
   download: {
     id: "download",
-    label: "Download",
+    // "Download" alone did not say what gets downloaded (audit, 2026-11-12).
+    label: "Desktop app",
     description: "Get Fleet Runner for your machine",
     href: "/download",
     icon: Download,
@@ -330,6 +348,17 @@ export const NAV = {
     mobile: false,
   },
 
+  // Not in any menu: Settings → AI opens it ("Compare providers and prices").
+  // Listed so the phone's top bar names the page and the palette finds it.
+  models: {
+    id: "models",
+    label: "Models",
+    description: "Every model, what it costs, and who you pay",
+    href: MODEL_STORE_PATH,
+    icon: Cpu,
+    active: true,
+    mobile: false,
+  },
   settings: {
     id: "settings",
     label: "Settings",
@@ -455,6 +484,25 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     ],
   },
 ];
+
+// ─── The private zone — what the PIN protects ─────────────────────────────────
+// Derived from the "private" section above, so Settings → Privacy, /unlock and
+// the no-PIN page cannot each give their own list. They did: one named Crew
+// but not Robots, one Robots but not Crew, and /unlock added Commitments,
+// which are part of Money.
+export const PRIVATE_NAV_ITEMS: NavItem[] =
+  SIDEBAR_SECTIONS.find((s) => s.id === "private")?.items ?? [];
+
+/** "Memory, People, Crew, …, and Money" — the private areas as one phrase. */
+export const PRIVATE_AREAS_PHRASE = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction",
+}).format(PRIVATE_NAV_ITEMS.map((i) => i.label));
+
+/** Titles for pages that are reachable but not in NAV (the top bar's name). */
+export const UNLISTED_PAGE_TITLES: Record<string, string> = {
+  "/unlock": "Private",
+};
 
 // ─── Account menu — SSOT for the header account dropdown ─────────────────────
 // Identity-scoped destinations. They are NOT sidebar items: you do not browse

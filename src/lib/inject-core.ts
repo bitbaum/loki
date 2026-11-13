@@ -652,9 +652,7 @@ function recordInjectSuccess(
       result.mode === "queued"
         ? (result as { runnerConnected?: boolean }).runnerConnected === false
           ? EXECUTOR_COPY.inject.queuedOfflineApi
-          : // Either builder (cloud box-runner or desktop) can claim the queued
-            // command — "local runner" was a lie whenever the box served it.
-            "Queued — a connected runner (cloud or this computer) will claim it"
+          : EXECUTOR_COPY.inject.queuedForRunner
         : "Injected into local runtime",
     promptHash: fingerprint.promptHash,
     promptPreview: fingerprint.promptPreview,

@@ -37,7 +37,7 @@ assert.equal(
   "hiring the studio is the commission config's address",
 );
 for (const p of BUILD_PATHS) {
-  for (const field of ["who", "title", "body", "cta"] as const)
+  for (const field of ["title", "body", "cta"] as const)
     assert.ok(p[field].trim(), `${p.id}.${field}`);
   assert.ok(!/\bsats?\b|crypto/i.test(p.body), "house words");
 }

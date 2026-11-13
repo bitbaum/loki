@@ -122,11 +122,39 @@ export const UpdateDecisionBody = z.object({
   decision: z.enum([UPDATE_DECISION.UPDATE, UPDATE_DECISION.LATER, UPDATE_DECISION.STAY]),
 });
 
+/** Each answer says what it does: "Not now" beside "Stay on this version"
+ *  never said that one comes back in a week and the other does not
+ *  (2026-11-12). */
 export const UPDATE_DECISION_LABELS: Record<UpdateAction, string> = {
   update: "Update",
-  later: "Not now",
+  later: `Ask me again in ${UPDATE_SNOOZE_DAYS} days`,
   stay: "Stay on this version",
 };
+
+/**
+ * The card's first line, for a person rather than a developer: what the
+ * project would get and whether it may need work. Package names and version
+ * numbers sit behind "Details".
+ */
+export function updateLeadSentence(input: {
+  projectName: string;
+  count: number;
+  breaking: number;
+}): string {
+  const parts =
+    input.count === 1
+      ? "a newer version of one shared part"
+      : `newer versions of ${input.count} shared parts`;
+  const lead = `${input.projectName} can move to ${parts}.`;
+  if (input.breaking === 0) return lead;
+  const which =
+    input.count === 1
+      ? "It"
+      : input.breaking === input.count
+        ? "All of them"
+        : `${input.breaking} of them`;
+  return `${lead} ${which} may need changes to the project's code.`;
+}
 
 /** Said when Loki has no GitHub access that may write to a project's repository. */
 export const CANNOT_WRITE_MESSAGE =

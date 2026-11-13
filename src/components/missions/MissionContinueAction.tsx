@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Play } from "lucide-react";
 import { DispatchedNote, useProjectDispatch } from "@/components/projects/ProjectActionButtons";
 import type { MissionContinueOffer } from "@/lib/missions/continue-offer";
+import { EXECUTOR_COPY } from "@/config/executor-copy";
 
 /**
  * The sole user-approved action on the Mission detail page.
@@ -91,7 +92,7 @@ export function MissionContinueAction({
           <Play className="h-4 w-4" aria-hidden />
         )}
         {state.phase === "sending"
-          ? "Sending to the runner…"
+          ? EXECUTOR_COPY.honesty.starting
           : offer.kind === "next_step"
             ? "Continue mission"
             : "Start mission"}

@@ -6,7 +6,7 @@ import {
   AlertTriangle,
   Archive,
   Check,
-  ChevronRight,
+  ChevronDown,
   Code2,
   Inbox,
   Layers,
@@ -158,7 +158,8 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
       {summary.length > 0 && (
         <GroupRow
           icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />}
-          label="Feedback to triage"
+          // The same words Today uses for the same thing (2026-11-12).
+          label="Visitor reports to read"
           count={feedbackCount}
           note={feedbackCount === 0 ? `${inProgressCount} with an agent` : undefined}
           open={openGroup === "feedback"}
@@ -198,9 +199,7 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
               onChanged={inbox.refetch}
             />
           )}
-          {!openProjectId && (
-            <p className="ui-inbox-empty">Pick a project to triage its reports.</p>
-          )}
+          {!openProjectId && <p className="ui-inbox-empty">Pick a project to read its reports.</p>}
         </GroupRow>
       )}
 
@@ -252,10 +251,11 @@ function GroupRow({
         ) : (
           note && <span className="ui-inbox-group-note">{note}</span>
         )}
-        <ChevronRight
+        {/* Down, not right: the group opens here, it does not go to a page. */}
+        <ChevronDown
           className={cn(
             "h-4 w-4 shrink-0 text-text-muted transition-transform",
-            open && "rotate-90",
+            open && "rotate-180",
           )}
           aria-hidden="true"
         />
@@ -363,10 +363,10 @@ function WidgetCoverage({
         {shown.map((p) => {
           const outcome = outcomes[p.projectId];
           const reason = !p.hasToken
-            ? "not enabled"
+            ? "Not set up yet"
             : p.tokenStatus !== "active"
-              ? "token paused"
-              : "never seen a boot from the live site";
+              ? "Turned off"
+              : "Not seen on the live site yet";
           return (
             <li key={p.projectId} className="ui-inbox-row">
               <div className="ui-inbox-row-main">
@@ -379,8 +379,8 @@ function WidgetCoverage({
                     else. Everything else the meta line already says. */}
                 {!p.canInstall && (
                   <p className="ui-inbox-row-blocked">
-                    No repo URL or local directory — one-click install has nowhere to land code.
-                    Paste the snippet from the project&apos;s Widget card instead.
+                    Loki cannot reach this site&apos;s code, so it cannot add the button itself.
+                    Copy the code and add it to the site by hand.
                   </p>
                 )}
                 {outcome && (
@@ -406,7 +406,7 @@ function WidgetCoverage({
                   ) : (
                     <Rocket className="h-3 w-3" />
                   )}
-                  Install
+                  Add the button
                 </button>
                 {/* A token that exists but is paused does not need installing —
                     it needs turning back on, which was previously a trip into
@@ -429,16 +429,16 @@ function WidgetCoverage({
                     ) : (
                       <Play className="h-3 w-3" />
                     )}
-                    {p.tokenStatus === "active" ? "Pause" : "Resume"}
+                    {p.tokenStatus === "active" ? "Turn off feedback" : "Turn feedback on"}
                   </button>
                 )}
                 <Link
                   href={`/projects/${p.projectId}#feedback`}
-                  className="ui-btn-icon"
-                  title="Widget card — copy the snippet by hand"
-                  aria-label={`Open ${p.projectName}'s widget card`}
+                  className="ui-btn-secondary ui-btn-sm"
+                  aria-label={`Copy the feedback button code for ${projectTitle({ name: p.projectName })}`}
                 >
-                  <Code2 className="h-3.5 w-3.5" />
+                  <Code2 className="h-3 w-3" aria-hidden="true" />
+                  Copy code
                 </Link>
               </ActionRail>
             </li>

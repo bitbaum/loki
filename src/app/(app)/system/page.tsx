@@ -90,8 +90,10 @@ export default async function SystemPage() {
         <details className="ui-sys-more">
           <summary>
             <span className="ui-section-heading">More records</span>
+            {/* Names only what is always there: revenue and memory draw
+                nothing when they have nothing, and the hint promised them. */}
             <span className="ui-sys-more-hint">
-              {isFounder ? "Revenue, plans, " : ""}memory, what Loki decided, ideas
+              {isFounder ? "Plans, decisions, ideas and more" : "Decisions, ideas and more"}
             </span>
             <ChevronDown className="ui-sys-more-chevron" aria-hidden="true" />
           </summary>

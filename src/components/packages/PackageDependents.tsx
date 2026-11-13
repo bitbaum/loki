@@ -55,16 +55,15 @@ export function PackageDependents({
               >
                 {projectTitle({ name: row.projectName })}
               </Link>
-              <span className="block truncate font-mono text-xs text-text-muted" title={row.spec}>
-                {row.spec}
-              </span>
               {row.update && (
                 <div className="mt-1.5">
                   <OpenUpdateLine update={row.update} />
                 </div>
               )}
             </div>
-            <span className="font-mono text-sm text-text-secondary">
+            {/* The raw spec ("^1.5.2", "npm:@bitbaum/…@^1.7.1") repeated the
+                version below it in package-manager words; it stays a hover. */}
+            <span className="font-mono text-sm text-text-secondary" title={row.spec}>
               {row.version ? `v${row.version}` : "—"}
             </span>
             <span className="flex">

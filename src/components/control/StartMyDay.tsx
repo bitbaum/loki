@@ -16,11 +16,11 @@ const ENDPOINT = "/api/control/start-my-day";
 const SURFACE = "loki.start-my-day";
 const REASONS: Record<string, string> = {
   paused: "Paused — open the project to resume",
-  no_path: "Needs a repository or folder — open the project to connect it",
+  no_path: "Not connected to its code yet — open the project to connect it",
   pending_command: "Already queued",
   busy: "Already working",
   concurrency_cap: "All work slots are in use — try again when one finishes",
-  blocked: "Needs attention — open Control",
+  blocked: "Needs attention — open Home",
 };
 
 /** One small selection, shared by the actual front door and the fresh chat.
@@ -38,6 +38,7 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
   const [editing, setEditing] = useState(false);
   const [mainIds, setMainIds] = useState<string[]>([]);
   const [labels, setLabels] = useState<Record<string, string>>({});
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
   const projects = data?.projects ?? [];
@@ -64,7 +65,7 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
     try {
       const response = await postJson(ENDPOINT, { projectIds: ids });
       if (!response.ok)
-        await throwApiError(response, "Could not start. Check Control before trying again.");
+        await throwApiError(response, "Could not start. Check Home before trying again.");
       const body = (await response.json()) as { result: FleetKickResult; startedIds: string[] };
       setResult(body.result);
       setLastStarted(
@@ -79,9 +80,7 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
       refetch();
     } catch (e) {
       setFailure(
-        e instanceof Error
-          ? e.message
-          : "Could not confirm the start. Check Control before retrying.",
+        e instanceof Error ? e.message : "Could not confirm the start. Check Home before retrying.",
       );
     } finally {
       inFlight.current = false;
@@ -148,7 +147,7 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
       <div className="ui-away-head">
         <h2 className="ui-away-title">Start my day</h2>
         <Link href={NAV.control.href} className="ui-link-muted text-xs">
-          Control →
+          {NAV.control.label} →
         </Link>
       </div>
       <p className="mt-1 text-sm text-text-secondary">
@@ -169,20 +168,23 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
       )}
       {data && !error && (
         <>
-          <button
-            type="button"
-            className="ui-btn-secondary mt-3"
-            onClick={editProjects}
-            disabled={busy}
-          >
-            Choose main projects
-          </button>
+          {/* Not while the editor is open: a second "Choose main projects"
+              sat above the editor it had already opened (2026-11-12). */}
+          {!editing && (
+            <button
+              type="button"
+              className="ui-btn-secondary mt-3"
+              onClick={editProjects}
+              disabled={busy}
+            >
+              Choose main projects
+            </button>
+          )}
           {editing && (
             <div className="mt-3 space-y-3" aria-label="Your main projects">
               <p className="text-sm text-text-secondary">
-                Main projects stay here even when quiet, including projects shared with you. Names
-                you set here are personal labels; repositories and other members&apos; names stay
-                unchanged.
+                Main projects stay here even when quiet, including projects shared with you. A name
+                you give one here is only for you.
               </p>
               <input
                 className="ui-input w-full"
@@ -209,16 +211,35 @@ export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } 
                             )
                           }
                         />
-                        <span className="break-words min-w-0 text-sm">{p.name}</span>
+                        {/* Each project once, by its name: the raw folder name
+                            over a text box holding the same name read as two
+                            projects. Renaming is one tap further. */}
+                        <span className="break-words min-w-0 flex-1 text-sm">
+                          {labels[p.id]?.trim() || projectTitle(p)}
+                        </span>
+                        {renaming !== p.id && (
+                          <button
+                            type="button"
+                            className="ui-link-muted ui-tap text-xs"
+                            onClick={() => setRenaming(p.id)}
+                            disabled={busy}
+                          >
+                            Rename
+                          </button>
+                        )}
                       </label>
-                      <input
-                        className="ui-input w-full"
-                        aria-label={`Your name for ${p.name}`}
-                        maxLength={100}
-                        value={labels[p.id] ?? p.name}
-                        onChange={(e) => setLabels((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                        disabled={busy}
-                      />
+                      {renaming === p.id && (
+                        <input
+                          className="ui-input w-full"
+                          aria-label={`Your name for ${projectTitle(p)}`}
+                          maxLength={100}
+                          value={labels[p.id] ?? projectTitle(p)}
+                          onChange={(e) =>
+                            setLabels((prev) => ({ ...prev, [p.id]: e.target.value }))
+                          }
+                          disabled={busy}
+                        />
+                      )}
                       {p.unavailable && (
                         <p className="text-xs text-text-secondary">{p.unavailable}</p>
                       )}

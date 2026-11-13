@@ -1,5 +1,6 @@
 "use client";
 
+import { runnerErrorForPerson } from "@/lib/runner-error-words";
 import { useState, useMemo } from "react";
 import { AlertTriangle, CircleAlert, Loader2, X } from "lucide-react";
 import { List, ListRow } from "@/components/ui/list-row";
@@ -54,7 +55,9 @@ function failureTitle(f: FailedCommand): string {
 
 /** The error, without the advice the buttons below already give. */
 function failureBody(error: string): string {
-  return error.replace(/\s*Switch this project to an agent installed there[\s\S]*$/, "").trim();
+  return runnerErrorForPerson(
+    error.replace(/\s*Switch this project to an agent installed there[\s\S]*$/, "").trim(),
+  );
 }
 
 /** An agent the project's builder HAS, for "Use … instead". */

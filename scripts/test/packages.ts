@@ -29,7 +29,12 @@ import {
   parseSemver,
   statusRank,
 } from "../../src/lib/packages/status";
-import { buildBuiltFrom, buildDependents, buildPackageList } from "../../src/lib/packages/view";
+import {
+  buildBuiltFrom,
+  buildDependents,
+  buildPackageList,
+  installCommand,
+} from "../../src/lib/packages/view";
 import { packagesAreStale, pickReadToken, PACKAGES_STALE_MS } from "../../src/lib/packages/rules";
 import {
   getLatestVersions,
@@ -492,9 +497,20 @@ packages:
     });
     assert.deepEqual(packageStatus(null, "1.0.0"), { kind: "unknown", reason: "no-version" });
     assert.deepEqual(packageStatus("1.0.0", null), { kind: "unknown", reason: "no-latest" });
-    assert.equal(behindLabel(packageStatus("1.18.0", "1.20.1")), "2 minor versions behind");
-    assert.equal(behindLabel(packageStatus("1.9.0", "2.0.0")), "1 major version behind");
+    assert.equal(behindLabel(packageStatus("1.18.0", "1.20.1")), "2 updates behind");
+    assert.equal(behindLabel(packageStatus("1.9.0", "2.0.0")), "1 major update behind");
     assert.equal(behindLabel(packageStatus(null, "1.0.0")), "Version unknown");
+    // The install command follows the latest version, not the register's pin.
+    assert.equal(
+      installCommand("pnpm add @bitbaum/design-tokens@^1.5.2", "@bitbaum/design-tokens", "1.7.1"),
+      "pnpm add @bitbaum/design-tokens@^1.7.1",
+    );
+    assert.equal(
+      installCommand("pnpm add github:bitbaum/listkit#v0.1.0", "listkit", "0.2.0"),
+      "pnpm add github:bitbaum/listkit#v0.1.0",
+    );
+    assert.equal(installCommand("pnpm add x@1.0.0 -D", "x", null), "pnpm add x@1.0.0 -D");
+    assert.equal(installCommand("pnpm add x@1.0.0 -D", "x", "2.1.0"), "pnpm add x@^2.1.0 -D");
     assert.ok(
       statusRank(packageStatus("0.1.0", "0.2.0")) < statusRank(packageStatus("1.1.0", "1.2.0")),
     );

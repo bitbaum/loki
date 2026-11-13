@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOverlayLock } from "@/hooks/use-overlay-lock";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
@@ -84,11 +85,19 @@ export function Drawer({
   size = "lg",
   surface = "drawer",
   disableClose = false,
+  title,
   className,
   children,
 }: {
   onClose: () => void;
   size?: "md" | "lg" | "xl" | "2xl";
+  /**
+   * A heading and a 44px close button across the top. On a phone the panel
+   * is the whole width, so its backdrop cannot be tapped and there is no Esc
+   * key: without this a drawer could only be left by choosing something in
+   * it (owner audit, 2026-11-12).
+   */
+  title?: string;
   /** "drawer", "modal", or "background" (page bg). */
   surface?: "drawer" | "modal" | "background";
   disableClose?: boolean;
@@ -97,6 +106,7 @@ export function Drawer({
 }) {
   useEscapeToClose(onClose, disableClose);
   const panelRef = useDialogFocus();
+  const titleId = useId();
   useOverlayLock(true);
   // The opener often sits under this full-screen backdrop. Ignore the
   // leftover click from the same gesture so the drawer does not open+close.
@@ -125,6 +135,7 @@ export function Drawer({
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
         ref={panelRef}
         tabIndex={-1}
         className={cn(
@@ -134,6 +145,23 @@ export function Drawer({
           className,
         )}
       >
+        {title && (
+          <div className="ui-drawer-head">
+            <h2 id={titleId} className="ui-drawer-title">
+              {title}
+            </h2>
+            {!disableClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="ui-drawer-close"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            )}
+          </div>
+        )}
         {children}
       </div>
     </div>

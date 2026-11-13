@@ -40,6 +40,8 @@ export function List({
 }: {
   children: React.ReactNode;
   className?: string;
+  /** A scroll target ("See who is waiting"). */
+  id?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
 }) {

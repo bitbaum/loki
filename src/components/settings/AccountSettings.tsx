@@ -37,9 +37,14 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ElementType }> 
 function ConnectedAccountsSection({
   hasPassword,
   orangecatEnabled,
+  signInElsewhere = false,
 }: {
   hasPassword: boolean;
   orangecatEnabled: boolean;
+  /** AccountKit's panel lists the ways to sign in, so this list keeps only the
+   *  links Loki ACTS through. Showing "Google · Sign-in only" here as well
+   *  put the same fact on the screen twice, and the two copies disagreed. */
+  signInElsewhere?: boolean;
 }) {
   const { data, refetch } = useFetch<{ accounts: ConnectedAccount[] }>(
     "/api/me/connected-accounts",
@@ -48,13 +53,16 @@ function ConnectedAccountsSection({
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const connectedAccounts = data?.accounts ?? [];
+  const allAccounts = data?.accounts ?? [];
+  const connectedAccounts = signInElsewhere
+    ? allAccounts.filter((a) => a.capability !== "sign-in")
+    : allAccounts;
   // Bridge Part A settings-connect: existing FC users link their OrangeCat
   // identity here (the sign-in button only covers the login page). The OIDC
   // round-trip carries the capability scopes, so a successful link also
   // unlocks Publish to OrangeCat — no separate API-key step.
   const showOrangeCatConnect =
-    orangecatEnabled && !connectedAccounts.some((a) => a.provider === "orangecat");
+    orangecatEnabled && !allAccounts.some((a) => a.provider === "orangecat");
 
   /** Re-run the consent round-trip for whichever provider is broken. It was
    *  hardwired to OrangeCat, so a GitHub row — now health-checked, because it
@@ -98,13 +106,15 @@ function ConnectedAccountsSection({
 
   return (
     <div className="space-y-2">
-      {connectedAccounts.length === 0 && (
-        <p className="text-sm text-text-muted">No OAuth providers connected.</p>
+      {connectedAccounts.length === 0 && !showOrangeCatConnect && (
+        <p className="text-sm text-text-muted">
+          {signInElsewhere ? "Nothing connected yet." : "No accounts connected."}
+        </p>
       )}
       {connectedAccounts.map(({ provider, needsReconnect, capability, scope }) => {
         const meta = PROVIDER_META[provider] ?? { label: provider, icon: Globe };
         const Icon = meta.icon;
-        const isOnly = connectedAccounts.length === 1 && !hasPassword;
+        const isOnly = allAccounts.length === 1 && !hasPassword;
         return (
           <div
             key={provider}
@@ -149,7 +159,7 @@ function ConnectedAccountsSection({
                   ? "Set a password before disconnecting your only sign-in method"
                   : `Disconnect ${meta.label}`
               }
-              className="ml-2 p-1 rounded text-text-muted hover:text-status-negative/70 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="ui-icon-action-danger ml-2 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label={`Disconnect ${meta.label}`}
             >
               {disconnecting === provider ? (
@@ -348,8 +358,6 @@ export function AccountSettings({ user, orangecatEnabled, security = null }: Pro
 
   return (
     <section className="ui-settings-section">
-      <h2 className="font-medium text-text-primary">Account</h2>
-
       {/* Email.
 
           "Read-only" was the entire explanation, which is a dead end wearing a
@@ -371,12 +379,22 @@ export function AccountSettings({ user, orangecatEnabled, security = null }: Pro
         </p>
       </div>
 
-      {/* Connected OAuth accounts */}
+      {/* Connected OAuth accounts. On AccountKit the panel below owns the ways
+          to sign in; this keeps only what Loki works through on your behalf. */}
       <div className="space-y-2">
-        <label className="ui-kicker">Connected accounts</label>
+        <label className="ui-kicker">
+          {security ? "Accounts Loki works through" : "Connected accounts"}
+        </label>
+        {security && (
+          <p className="text-xs text-text-muted">
+            Loki uses these to reach your code and to publish for you. How you sign in is further
+            down, under Ways to sign in.
+          </p>
+        )}
         <ConnectedAccountsSection
           hasPassword={user.hasPassword}
           orangecatEnabled={orangecatEnabled}
+          signInElsewhere={!!security}
         />
       </div>
 

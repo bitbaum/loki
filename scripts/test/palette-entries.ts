@@ -7,16 +7,19 @@
  * component, so nothing could check them. They encode decisions that read as
  * arbitrary and get "tidied" away:
  *
- *   - Projects rank ABOVE navigation, because the most-common Cmd-K intent in a
- *     fleet product is "jump to project X".
+ *   - With nothing typed, PAGES lead (in the sidebar's order), then projects.
+ *     Forty-odd projects used to come first and pushed every page past the
+ *     row limit (audit, 2026-11-12).
+ *   - Once something is typed, a project still wins a tie with a page.
  *   - Recents lead the no-query list, in recency order, and are not repeated
  *     further down.
- *   - Any free text offers a "Run: …" row FIRST — the composer is the point of
- *     typing, not a fallback.
+ *   - Free text offers "Ask Loki to do: …" LAST, and Enter never picks it
+ *     unless the arrow keys chose it: the box is opened by a magnifier, and a
+ *     search that started a build on Enter was a build nobody meant.
  *   - While a resolved command waits for a project, the list IS the project
  *     picker and nothing else.
- *   - A project with no local path is still navigable, but cannot be switched
- *     to another agent (there is no checkout to relaunch in).
+ *   - A project row names the project the way a person does (its title, its
+ *     site), never the server folder; switching agents is not offered here.
  *   - One slip in a project or page name still finds it, FIRST ("lkoi" →
  *     Loki). The filter was `label.includes(q)`, so a single wrong letter
  *     emptied the list of the one thing the operator was reaching for. The
@@ -29,8 +32,9 @@ import { evaluate, typoCases, words } from "@bitbaum/searchkit";
 import { NAV_ITEMS } from "@/config/navigation";
 import {
   buildPaletteEntries,
+  enterTarget,
   filterPaletteEntries,
-  SWITCHABLE_AGENT_IDS,
+  PALETTE_RESULT_LIMIT,
   type PaletteEntry,
 } from "@/components/shell/palette-entries";
 
@@ -50,9 +54,14 @@ function check(label: string, fn: () => void) {
 }
 
 const PROJECTS = [
-  { id: "p1", name: "Loki", dirPath: "/home/g/dev/loki" },
-  { id: "p2", name: "OrangeCat", dirPath: null },
-  { id: "p3", name: "Retired", dirPath: "/tmp/x", isActive: false },
+  { id: "p1", name: "Loki", liveUrl: "https://loki.orangecat.ch/" },
+  { id: "p2", name: "OrangeCat" },
+  { id: "p3", name: "Retired", isActive: false },
+  {
+    id: "p4",
+    name: "xhiva-art-refresh-300d1519783b47d3ab1c7ddb77c5febf",
+    description: "Develop a new version of this existing website: https://www.xhiva.art/",
+  },
 ];
 
 const entries = buildPaletteEntries({ agentPrompts: [], projects: PROJECTS });
@@ -65,28 +74,46 @@ check("inactive projects are not offered at all", () => {
   );
 });
 
-check("projects rank above navigation", () => {
+check("with nothing typed, pages come first, in the sidebar's order, then projects", () => {
   const firstProject = kinds(entries).indexOf("project");
-  const firstNav = kinds(entries).indexOf("nav");
-  assert(firstProject === 0, "the list opens with projects");
-  assert(firstProject < firstNav, "and they outrank Go-to rows");
+  const lastNav = kinds(entries).lastIndexOf("nav");
+  assert(kinds(entries)[0] === "nav", "the list opens with pages");
+  assert(lastNav < firstProject, "every page is above the first project");
+  assert(entries[0].label === "Loki", "in the sidebar's order: Loki first");
 });
 
-check("only a project with a local path can be switched to another agent", () => {
-  const switches = entries.filter((e) => e.kind === "switch-agent");
-  assert(
-    switches.length === SWITCHABLE_AGENT_IDS.length,
-    "one row per agent, for the one project with a checkout",
-  );
-  assert(
-    switches.every((e) => e.label.includes("Loki")),
-    "OrangeCat has no dirPath, so it offers no relaunch",
-  );
+check("every page shows before the row limit, however many projects there are", () => {
+  const many = Array.from({ length: 80 }, (_, i) => ({ id: `m${i}`, name: `project-${i}` }));
+  const list = filterPaletteEntries({
+    entries: buildPaletteEntries({ agentPrompts: [], projects: many }),
+    query: "",
+    recent: [],
+    pending: false,
+    projectNames: [],
+  });
+  for (const page of ["Activity", "Prompts", "Settings"]) {
+    assert(
+      list.some((e) => e.kind === "nav" && e.label === page),
+      `${page} is reachable without typing`,
+    );
+  }
+  assert(list.length <= PALETTE_RESULT_LIMIT, "and the list stays bounded");
 });
 
-check("a pathless project still says so rather than lying about a path", () => {
+check("switching a project's agent is not a search result", () => {
+  assert(!entries.some((e) => /^Switch /.test(e.label)), "it lives on the project's own screen");
+});
+
+check("a project row names the project, never a server folder", () => {
+  const loki = entries.find((e) => e.kind === "project" && e.label === "Loki");
+  assert(loki?.sub === "Project · loki.orangecat.ch", `site shown: ${loki?.sub}`);
   const oc = entries.find((e) => e.kind === "project" && e.label === "OrangeCat");
-  assert(oc?.sub === "Project · no local path", "the row admits there is no checkout");
+  assert(oc?.sub === "Project", `no site, no path: ${oc?.sub}`);
+  assert(
+    entries.some((e) => e.kind === "project" && e.label === "Xhiva"),
+    "a minted id reads as the site it was made from",
+  );
+  assert(!entries.some((e) => /\/home\/|no local path/.test(e.sub)), "no folder anywhere");
 });
 
 check("recents lead the empty-query list, in order, and are not repeated", () => {
@@ -104,7 +131,7 @@ check("recents lead the empty-query list, in order, and are not repeated", () =>
   assert(list.filter((e) => e.key === navKey).length === 1, "and neither appears twice");
 });
 
-check("free text offers Run first, above the matches", () => {
+check("free text finds first; handing it to an agent is offered last", () => {
   const list = filterPaletteEntries({
     entries,
     query: "loki",
@@ -112,11 +139,37 @@ check("free text offers Run first, above the matches", () => {
     pending: false,
     projectNames: [],
   });
-  assert(list[0].kind === "run-command", "typing is a command before it is a search");
-  assert(list[0].label === "Run: loki", "and it quotes what was typed");
+  assert(list[0].kind !== "run-command", "typing is a search before it is a command");
   assert(
-    list.slice(1).some((e) => e.label === "Loki"),
-    "the matching project is still reachable below it",
+    list.some((e) => e.label === "Loki"),
+    "the matching project is found",
+  );
+  const last = list[list.length - 1];
+  assert(last.kind === "run-command", "the ask row is last");
+  assert(last.label === "Ask Loki to do: “loki”", `and says what it does: ${last.label}`);
+});
+
+check("Enter opens the best match, and never sends words to an agent by default", () => {
+  const found = filterPaletteEntries({
+    entries,
+    query: "loki",
+    recent: [],
+    pending: false,
+    projectNames: [],
+  });
+  assert(enterTarget(found, 0, false)?.kind !== "run-command", "Enter opens the top match");
+  const nothing = filterPaletteEntries({
+    entries,
+    query: "running",
+    recent: [],
+    pending: false,
+    projectNames: [],
+  });
+  const askAt = nothing.findIndex((e) => e.kind === "run-command");
+  assert(enterTarget(nothing, askAt, false) === null, "Enter alone does not start a task");
+  assert(
+    enterTarget(nothing, askAt, true)?.kind === "run-command",
+    "chosen with the arrow keys, it does",
   );
 });
 
@@ -167,7 +220,10 @@ check("the matched part of a label is handed to the row for marking", () => {
   });
   const oc = list.find((e) => e.kind === "project" && e.label === "OrangeCat");
   assert(!!oc?.labelMatches?.length, "a matched row carries its label ranges");
-  assert(list[0].labelMatches === undefined, "the Run row marks nothing — it quotes the query");
+  assert(
+    list[list.length - 1].labelMatches === undefined,
+    "the ask row marks nothing — it quotes the query",
+  );
 });
 
 check("a typo in the project picker still finds the project", () => {
@@ -195,7 +251,7 @@ const FLEET = [
   "chatkit",
   "whenkit",
   "Revamp Shop",
-].map((name, i) => ({ id: `f${i}`, name, dirPath: `/home/g/dev/${name.toLowerCase()}` }));
+].map((name, i) => ({ id: `f${i}`, name }));
 const fleetEntries = buildPaletteEntries({ agentPrompts: [], projects: FLEET });
 const keysFor = (query: string) =>
   filterPaletteEntries({
@@ -253,17 +309,19 @@ check("hand-picked slips land on the project first", () => {
       recent: [],
       pending: false,
       projectNames: [],
-    })[1];
-    assert(first?.kind === "project" && first.label === name, `${typed} → ${first?.label}`);
+    })[0];
+    assert(
+      first?.kind === "project" && first.label.toLowerCase() === name.toLowerCase(),
+      `${typed} → ${first?.label}`,
+    );
   }
 });
 
 async function main() {
-  // Six of 566 are not first, and each is a real collision rather than a
+  // Two of 544 are not first, and each is a real collision rather than a
   // failure to forgive: "dato"/"acto" are one slip from Cato AND from another
-  // word on the list (a "data" template, "account"), and "catto",
-  // "accountkitt", "chatkitt", "whenkitt" spell the joined words of a
-  // "Switch <project> to <agent>" row exactly ("cat to" → "catto").
+  // word on the list (a "data" template, "account"). The four that spelled a
+  // "Switch <project> to <agent>" row ("catto") went with those rows.
   await typoSuite(
     "one slip in a project name still puts that project first",
     FLEET.map((p) => ({ id: `project:${p.id}`, name: p.name })),

@@ -4,12 +4,17 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MOBILE_NAV_ITEMS, SIDEBAR_SECTIONS, FLEET_SURFACES } from "../../src/config/navigation";
 import { fleetSurfaceHref } from "../../src/lib/fleet-context";
-import { isCurrentPath, isProjectWorkspacePath } from "../../src/lib/navigation";
+import { isCurrentPath, isProjectPagePath, isProjectWorkspacePath } from "../../src/lib/navigation";
 
 assert.equal(isProjectWorkspacePath("/projects/example"), true);
 assert.equal(isProjectWorkspacePath("/projects/example/"), true);
 assert.equal(isProjectWorkspacePath("/projects"), false);
 assert.equal(isProjectWorkspacePath("/projects/example/watch"), false);
+// The top bar stays empty on every page of one project; each names itself.
+for (const p of ["/projects/x", "/projects/x/watch", "/projects/x/workbench", "/projects/x/review"])
+  assert.equal(isProjectPagePath(p), true, p);
+assert.equal(isProjectPagePath("/projects"), false);
+assert.equal(isProjectPagePath("/projects/"), false);
 
 // ─── How many things are telling the user where they are? ────────────────────
 // Loki ran six navigation surfaces at once: the sidebar, the top bar, the

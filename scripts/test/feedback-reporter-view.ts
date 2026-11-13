@@ -219,4 +219,56 @@ for (const tone of ["neutral", "accent", "warning", "positive"] satisfies Report
   );
 }
 
+// One set of facts, one story (2026-11-12): the owner's inbox said "Last try
+// failed · Try again" while this page said "Fix is live" for the same report.
+{
+  const deployed = (over: Record<string, unknown> = {}, detail: string | null = null) =>
+    ({
+      phase: FEEDBACK_WORK_PHASE.NEEDS_VERIFY,
+      label: "Live — check it",
+      detail,
+      checkLive: true,
+      ship: { state: FIX_SHIP_STATE.DEPLOYED, ...over },
+    }) as unknown as Parameters<typeof reporterStatusFor>[0];
+  const live = { liveHref: "https://example.ch/x" };
+  assert.equal(
+    reporterStatusFor(
+      deployed({ verify: { verdict: "not_visible", evidence: null, checkedAt: "" } }),
+      live,
+    ).label,
+    "Not fixed yet",
+  );
+  assert.equal(reporterStatusFor(deployed(), live).label, "Fix shipped, being checked");
+  assert.equal(
+    reporterStatusFor(
+      deployed({ verify: { verdict: "looks_fixed", evidence: null, checkedAt: "" } }),
+      live,
+    ).label,
+    "Fix is live",
+  );
+  assert.equal(
+    reporterStatusFor(
+      deployed({}, "The agent reported only partial success — worth a closer look."),
+      live,
+    ).label,
+    "Partly fixed",
+  );
+  // Finished, no change on the site, for days: Stalled, not "Being implemented".
+  const noLedger = {
+    phase: FEEDBACK_WORK_PHASE.NEEDS_VERIFY,
+    label: "x",
+    detail: null,
+    ship: null,
+    since: "2026-10-22T10:00:00.000Z",
+  } as unknown as Parameters<typeof reporterStatusFor>[0];
+  assert.equal(
+    reporterStatusFor(noLedger, { now: new Date("2026-11-12T10:00:00.000Z") }).label,
+    "Stalled",
+  );
+  assert.equal(
+    reporterStatusFor(noLedger, { now: new Date("2026-10-22T12:00:00.000Z") }).label,
+    "Being implemented",
+  );
+}
+
 console.log("feedback-reporter-view: ok");

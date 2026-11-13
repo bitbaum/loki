@@ -184,6 +184,7 @@ export function ProjectWatchLive({
             currentOverride={autopilot.override}
             inheritedMode={autopilot.inherited}
             onOverrideChange={setOverride}
+            actionLabels
           />
           <p className="min-w-0 flex-1 text-xs text-text-secondary">
             {autopilotOn

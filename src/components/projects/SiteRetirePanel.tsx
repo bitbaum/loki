@@ -67,7 +67,9 @@ const MODES: {
 ];
 
 export function SiteRetirePanel({ projectId, liveUrl }: { projectId: string; liveUrl: string }) {
-  const [mode, setMode] = useState<Mode>("offline");
+  // Nothing chosen to begin with: on a live site the first option is "Take
+  // it off the internet", and it sat pre-selected (2026-11-12).
+  const [mode, setMode] = useState<Mode | null>(null);
   /** The plan, and the mode it was produced for — they travel together. */
   const [plan, setPlan] = useState<{ mode: Mode; text: string } | null>(null);
   const [typed, setTyped] = useState("");
@@ -75,17 +77,18 @@ export function SiteRetirePanel({ projectId, liveUrl }: { projectId: string; liv
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const chosen = MODES.find((m) => m.id === mode)!;
+  const chosen = MODES.find((m) => m.id === mode) ?? null;
   const host = liveUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
   const siteName = host.split(".")[0];
   const planShown = plan?.mode === mode ? plan.text : null;
   const typedOk = mode !== "delete" || typed.trim() === siteName;
 
   async function send(confirm: boolean) {
+    if (!chosen) return;
     setBusy(confirm ? "run" : "plan");
     setError(null);
     try {
-      const res = await postJson(`/api/projects/${projectId}/retire`, { mode, confirm });
+      const res = await postJson(`/api/projects/${projectId}/retire`, { mode: chosen.id, confirm });
       if (!res.ok) await throwApiError(res, "Could not reach the site");
       const body = (await res.json()) as { commandId: string; plan?: string | null };
       if (confirm) {
@@ -98,7 +101,7 @@ export function SiteRetirePanel({ projectId, liveUrl }: { projectId: string; liv
         setTyped("");
       } else {
         setPlan({
-          mode,
+          mode: chosen.id,
           text:
             body.plan ??
             `The server has not answered yet (command ${body.commandId.slice(0, 8)}). Its reply appears in Activity — nothing has happened.`,
@@ -170,7 +173,10 @@ export function SiteRetirePanel({ projectId, liveUrl }: { projectId: string; liv
                   >
                     {m.label}
                   </span>
-                  <span className={m.reversible ? "ui-tag-positive" : "ui-tag-warning"}>
+                  {/* Plain words: the danger option is already red, and a
+                      green tag on three of four options taught the eye to
+                      skip colour. */}
+                  <span className="text-xs text-text-tertiary">
                     {m.reversible ? "Reversible" : "Permanent"}
                   </span>
                 </span>
@@ -186,7 +192,7 @@ export function SiteRetirePanel({ projectId, liveUrl }: { projectId: string; liv
         <button
           type="button"
           onClick={() => void send(false)}
-          disabled={busy !== null}
+          disabled={busy !== null || !chosen}
           className="ui-btn-secondary min-h-11 gap-1.5"
         >
           {busy === "plan" ? (
@@ -198,12 +204,12 @@ export function SiteRetirePanel({ projectId, liveUrl }: { projectId: string; liv
         </button>
         {!planShown && (
           <span className="text-xs text-text-tertiary">
-            Nothing happens until you have seen this.
+            {chosen ? "Nothing happens until you have seen this." : "Pick one above first."}
           </span>
         )}
       </div>
 
-      {planShown && (
+      {planShown && chosen && (
         <div className="space-y-3">
           <h4 className="ui-kicker">
             {chosen.reversible ? "What will happen" : "What will be removed"}

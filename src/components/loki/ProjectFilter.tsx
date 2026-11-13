@@ -2,15 +2,28 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Search } from "lucide-react";
+import { Circle, CircleCheck, Search } from "lucide-react";
 import { LOKI_IMPORT_PROJECT_HREF, LOKI_NEW_PROJECT_HREF } from "@/config/loki-suggested-actions";
 import { LokiPaneBody } from "./LokiPaneBody";
 import type { LokiProject } from "./types";
 import { rankByQuery, type SearchSpec } from "@/lib/search";
+import { projectTitle } from "@/lib/project-display";
+import { List, ListRow } from "@/components/ui/list-row";
 
 const PROJECT_NAME_SPEC: SearchSpec<LokiProject> = {
-  fields: [{ name: "name", get: (p) => p.name }],
+  fields: [
+    { name: "title", get: (p) => projectTitle(p) },
+    { name: "name", get: (p) => p.name },
+  ],
 };
+
+/** The goal under a project's name, with its progress said in words. A bare
+ *  "· 0%" at the end of every row explained nothing (owner audit, 2026-11-12). */
+function goalLine(goal: LokiProject["topGoal"]): string | undefined {
+  if (!goal) return undefined;
+  const pct = goal.progress;
+  return typeof pct === "number" && pct > 0 ? `${goal.title} · ${pct}% done` : goal.title;
+}
 
 export function ProjectFilter({
   projects,
@@ -42,28 +55,27 @@ export function ProjectFilter({
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="ui-kicker">Projects{selected.length > 0 ? ` · ${selected.length}` : ""}</h2>
-        <div className="flex items-center gap-1">
-          <Link href={LOKI_NEW_PROJECT_HREF} className="ui-btn-xs">
-            New
-          </Link>
-          {onSelectMany && filtered.length > 0 && (
-            <button
-              type="button"
-              className="ui-btn-xs"
-              onClick={() => onSelectMany(filtered.map((p) => p.name))}
-              title={query ? "Select all matching" : "Select all projects"}
-            >
-              All{query ? ` (${filtered.length})` : ""}
-            </button>
-          )}
-          {onClear && selected.length > 0 && (
-            <button type="button" className="ui-btn-xs" onClick={onClear}>
-              Clear
-            </button>
-          )}
-        </div>
+      {/* The drawer's own heading names this list. "All" used to sit here,
+          32px wide, choosing every one of ~50 projects for the next message;
+          picking many is now offered only for what a search matched. */}
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        <Link href={LOKI_NEW_PROJECT_HREF} className="ui-btn-xs ui-tap">
+          New project
+        </Link>
+        {onSelectMany && query && filtered.length > 1 && (
+          <button
+            type="button"
+            className="ui-btn-xs ui-tap"
+            onClick={() => onSelectMany(filtered.map((p) => p.name))}
+          >
+            Pick all {filtered.length} matches
+          </button>
+        )}
+        {onClear && selected.length > 0 && (
+          <button type="button" className="ui-btn-xs ui-tap" onClick={onClear}>
+            Clear {selected.length === 1 ? "choice" : `${selected.length} choices`}
+          </button>
+        )}
       </div>
 
       {projects.length > 8 && (
@@ -96,34 +108,23 @@ export function ProjectFilter({
           ) : filtered.length === 0 ? (
             <p className="ui-loki-convo-meta">No projects match “{query}”.</p>
           ) : (
-            <div className="flex flex-col gap-1">
+            <List aria-label="Projects">
               {filtered.map((p) => {
                 const isOn = selected.includes(p.name);
+                const name = projectTitle(p);
                 return (
-                  <button
+                  <ListRow
                     key={p.id}
-                    type="button"
                     onClick={() => onToggle(p.name)}
-                    className={`ui-loki-project ${isOn ? "ui-loki-project-active" : ""}`}
-                  >
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-                      {isOn && <Check className="h-4 w-4" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate">{p.name}</span>
-                      {p.topGoal && (
-                        <span className="ui-loki-project-goal" title={p.topGoal.title}>
-                          {p.topGoal.title}
-                          {typeof p.topGoal.progress === "number"
-                            ? ` · ${p.topGoal.progress}%`
-                            : ""}
-                        </span>
-                      )}
-                    </span>
-                  </button>
+                    icon={isOn ? CircleCheck : Circle}
+                    className={isOn ? "ui-loki-project-active" : undefined}
+                    title={name}
+                    secondary={goalLine(p.topGoal)}
+                    label={isOn ? `${name}, chosen` : name}
+                  />
                 );
               })}
-            </div>
+            </List>
           )}
         </LokiPaneBody>
       </div>

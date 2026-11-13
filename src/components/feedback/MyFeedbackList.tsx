@@ -11,6 +11,7 @@ import { projectTitle } from "@/lib/project-display";
 import type { ReporterFeedbackRow } from "@/lib/feedback/attach-reporter-view";
 import { ReporterFeedbackCard } from "./ReporterFeedbackCard";
 import { OwnerFeedbackActions } from "./OwnerFeedbackActions";
+import { reportTitle } from "@/lib/feedback/report-title";
 
 /**
  * /my-feedback as rows: what you reported (your words, one line), where it
@@ -87,12 +88,7 @@ export function MyFeedbackList({
   );
 }
 
-/** The report as a row's title: its first words, on one line. */
+/** The report as a row's title: what is different about it, on one line. */
 function oneLine(text: string): string {
-  return (
-    text
-      .split(/\s*---\s*technical details/i)[0]!
-      .replace(/\s+/g, " ")
-      .trim() || "A report"
-  );
+  return reportTitle(text) || "A report";
 }

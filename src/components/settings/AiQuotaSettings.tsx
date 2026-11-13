@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, ChevronDown, Gauge, Loader2 } from "lucide-react";
+import { aiFeatureLabel } from "@/config/ai-feature-labels";
 import type { QuotaRowView } from "@/lib/ai/quota-view";
 import { SettingsRefresh, SettingsSectionHeader } from "./SettingsSectionHeader";
 
 /**
  * What is left at each AI vendor, and what happens when it runs out — the
  * OPERATOR's card. These are the server's counters, not the person's share
- * (that is "What you have left"), and the feature names in "Spent today" are
- * the codebase's. Settings → AI shows it to the operator only; for anyone
+ * (that is "What you have left"); the features in "Spent today" are named in
+ * plain words (config/ai-feature-labels.ts). Settings → AI shows it to the operator only; for anyone
  * else it repeated the pool card above it in different units.
  *
  * The rule this panel is built to: a number that does not imply an action is
@@ -239,7 +240,9 @@ function SpendToday({ spend, total }: { spend: SpendRow[]; total: number }) {
         {spend.map((r) => (
           <div key={r.feature}>
             <div className="ui-quota-row-head">
-              <span className="ui-quota-provider min-w-0 break-all">{r.feature}</span>
+              <span className="ui-quota-provider min-w-0 wrap-break-word">
+                {aiFeatureLabel(r.feature)}
+              </span>
               <span className="ui-quota-state">
                 {r.tokens.toLocaleString("en-US")} tokens · {r.calls} call
                 {r.calls === 1 ? "" : "s"}

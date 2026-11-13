@@ -85,7 +85,7 @@ async function attemptLocalWhisper(audio: File, model: string): Promise<AttemptR
       recoverable: false,
       status: 503,
       error:
-        "Local Whisper runtime not available on this server (no ffmpeg / python3 / model). Pick Groq under Settings → Agent, or install Whisper.",
+        "Loki cannot turn speech into text on its own computer yet. In Settings → Agent, set How your voice becomes text to Auto or Online only.",
     };
   }
   const webmPath = join(tmpdir(), `beacon-${randomUUID()}.webm`);

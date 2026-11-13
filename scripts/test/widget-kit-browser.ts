@@ -153,8 +153,11 @@ async function main() {
     const kb = (t: string) => Math.round(gzipSync(t).length / 1024);
     // Measured 24 KB when it landed and 33 KB on chatkit 0.13 (option cards,
     // citation chips, the layered figure, the thinking row — the shapes the
-    // conversation is there to draw). The budget leaves room, not a blank cheque.
-    ok(kb(b.chat) <= 40, `the chat chunk stays small (${kb(b.chat)} KB gzipped, budget 40)`);
+    // conversation is there to draw), and 41 KB on chatkit 0.26 (the agent
+    // mark, the paperclip's sources, dictation's sign-in and busy problems,
+    // no mic where the page's policy refuses one). The budget leaves room,
+    // not a blank cheque.
+    ok(kb(b.chat) <= 42, `the chat chunk stays small (${kb(b.chat)} KB gzipped, budget 42)`);
   }
 
   try {

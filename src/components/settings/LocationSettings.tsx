@@ -9,6 +9,17 @@ import { DateInput } from "@/components/ui/date-input";
 
 const TIMEZONES = Intl.supportedValuesOf("timeZone");
 
+/** This device's timezone. Settings sections mount in the browser (the open
+ *  section is the URL hash), so this is the phone's own answer. */
+function deviceTimezone(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+  } catch {
+    return "";
+  }
+}
+
 type Props = { initialPrefs: UserPreferencesData };
 
 export function LocationSettings({ initialPrefs }: Props) {
@@ -17,7 +28,10 @@ export function LocationSettings({ initialPrefs }: Props) {
 
   // Home base
   const [homeCity, setHomeCity] = useState(initialPrefs.homeCity ?? "");
-  const [homeTimezone, setHomeTimezone] = useState(initialPrefs.homeTimezone ?? "");
+  // No home timezone yet: start from the device's, so one tap on Save sets it
+  // instead of a search through ~420 zone names.
+  const [deviceTz] = useState(deviceTimezone);
+  const [homeTimezone, setHomeTimezone] = useState(initialPrefs.homeTimezone ?? deviceTz);
   const [homeSaving, setHomeSaving] = useState(false);
   const [homeError, setHomeError] = useState("");
   const [homeSaved, setHomeSaved] = useState(false);
@@ -127,10 +141,9 @@ export function LocationSettings({ initialPrefs }: Props) {
 
   return (
     <section className="ui-settings-section">
-      <h2 className="font-medium text-text-primary">Location</h2>
       <p className="text-sm text-text-secondary -mt-1">
-        Your timezone is what scheduled jobs run against, and your city is what the weather panel
-        reports. Set a home base and optionally override it when traveling.
+        Loki uses this for times and weather. Set where you live, and, when you travel, where you
+        are for now.
       </p>
 
       {/* Home base */}
@@ -160,11 +173,15 @@ export function LocationSettings({ initialPrefs }: Props) {
               {TIMEZONES.map((tz) => (
                 <option key={tz} value={tz}>
                   {tz.replace(/_/g, " ")}
+                  {tz === deviceTz ? " (this device's)" : ""}
                 </option>
               ))}
             </select>
           </div>
         </div>
+        {homeDirty && !savedPrefs.homeTimezone && homeTimezone === deviceTz && deviceTz && (
+          <p className="text-xs text-text-tertiary">Filled in from this device. Save to keep it.</p>
+        )}
         {homeError && <p className="ui-error-xs">{homeError}</p>}
         {homeSaved && <p className="text-sm text-status-positive">Saved.</p>}
         <button onClick={saveHome} disabled={homeSaving || !homeDirty} className="ui-btn-primary">
@@ -255,7 +272,7 @@ export function LocationSettings({ initialPrefs }: Props) {
           className="ui-btn-secondary"
         >
           {currentSaving && <Loader2 className="ui-spinner" />}
-          Save current location
+          Save while traveling
         </button>
       </div>
     </section>

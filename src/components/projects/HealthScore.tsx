@@ -209,7 +209,10 @@ export function HealthScoreBar({
     </span>
   ) : (
     <>
-      <span className="ui-health-label">Profile</span>
+      {/* "Setup", not "Profile": the Story tab right under it counts its own
+          answers ("8 of 10 answered"), and "Profile 10/10" beside that read
+          as the same thing counted twice, differently (2026-11-12). */}
+      <span className="ui-health-label">Setup</span>
       {bar}
       <span className="ui-health-score">
         {score}/{health.max}

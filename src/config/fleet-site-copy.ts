@@ -22,6 +22,10 @@ export const FLEET_SITE_COPY: Readonly<
     name: "AOZ Begleitung",
     blurb: "Gemeinsam wohnen — kompatibilitätsbasierte Wohnplatzierung.",
   },
+  biaslens: {
+    name: "BiasLens",
+    blurb: "Explore questions, inspect the evidence, challenge the explanations.",
+  },
   botsmann: { name: "Botsmann", blurb: "Private AI that works with your own documents." },
   causius: {
     name: "Causius",

@@ -102,7 +102,7 @@ export function builderHoldsNewWork(
 
 /** One quiet clause for the builder line, or null when it is current. */
 export function builderUpdateNote(cloudVersion: string | null | undefined): string | null {
-  return builderBehind(cloudVersion) ? "a newer version waits for its agents to finish" : null;
+  return builderBehind(cloudVersion) ? "An update installs when current work finishes" : null;
 }
 
 /** True when the last runtime-state push came from the headless box-runner. */
@@ -149,6 +149,16 @@ export function builderCompactLabel(
     connected: EXECUTOR_COPY.builder.online,
   };
   return map[stateKey];
+}
+
+/** Where builds run, in plain words — Home's Settings row. Null with none on. */
+export function builderPlainLine(
+  channels: Pick<BuilderChannelPresence, "cloud" | "local"> | null | undefined,
+): string | null {
+  if (channels?.cloud && channels.local) return EXECUTOR_COPY.builder.plainBoth;
+  if (channels?.cloud) return EXECUTOR_COPY.builder.plainCloud;
+  if (channels?.local) return EXECUTOR_COPY.builder.plainLocal;
+  return null;
 }
 
 /** Detail line under the compact label — which builder is missing when partially offline. */

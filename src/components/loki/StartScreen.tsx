@@ -4,12 +4,14 @@ import { NAV } from "@/config/navigation";
 import { useLocalNow } from "@/hooks/use-local-now";
 import { APP_LOCALE } from "@/lib/constants/locale";
 import { shortTimeAgo } from "@/lib/dates";
-import { projectTitle } from "@/lib/project-display";
+import { deriveThreadState } from "@/lib/loki/thread-state";
 import { BrandMark } from "@/components/shell/BrandMark";
-import { List, ListRow, RowInitial } from "@/components/ui/list-row";
+import { List, ListRow } from "@/components/ui/list-row";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { BuildSuggestions } from "./BuildSuggestions";
+import { StartNow } from "./StartNow";
 import { ThreadInbox } from "./ThreadInbox";
+import { rowProject, stateInputOf } from "./ThreadRail";
 import type { ConversationSummary } from "./types";
 
 /** Threads offered for resuming. Three rows and two suggestions fit between
@@ -57,6 +59,8 @@ export function startDateLine(now: Date): string {
 export function StartScreen({
   conversations,
   loading,
+  error,
+  onRetry,
   onResume,
   onBrowseAll,
   onBuild,
@@ -64,6 +68,10 @@ export function StartScreen({
 }: {
   conversations: ConversationSummary[];
   loading: boolean;
+  /** The chat list did not load: said here, not only inside the drawer, or
+   *  an empty Recent reads as "you have no chats". */
+  error?: string | null;
+  onRetry?: () => void;
   onResume: (id: string) => void;
   onBrowseAll: () => void;
   /** A "Build next" suggestion was tapped: send it, scoped to its project. */
@@ -90,6 +98,7 @@ export function StartScreen({
       {/* One line of truth above the greeting: what needs you, what runs,
           what came back while you looked elsewhere — each a tap into the
           first such thread. Nothing at all when there is nothing to say. */}
+      <StartNow />
       <ThreadInbox conversations={conversations} onOpen={onResume} />
       <div className="ui-loki-start-hello">
         <BrandMark showWordmark={false} />
@@ -97,6 +106,17 @@ export function StartScreen({
         {/* A non-breaking space holds the line until the clock is known. */}
         <p className="ui-loki-start-date">{now ? startDateLine(now) : "\u00a0"}</p>
       </div>
+
+      {error && conversations.length === 0 && (
+        <div className="ui-loki-start-section gap-2" role="alert">
+          <p className="ui-loki-convo-meta mb-0">Couldn&rsquo;t load your chats.</p>
+          {onRetry && (
+            <button type="button" className="ui-btn-chip self-start" onClick={onRetry}>
+              Try again
+            </button>
+          )}
+        </div>
+      )}
 
       <nav aria-label="Your day" className="ui-loki-start-section">
         <List>
@@ -127,17 +147,21 @@ export function StartScreen({
             }
           />
           <List>
+            {/* The rail's row, minus its menu: the same chat drawn the same
+                way one tap apart (owner audit, 2026-11-12). */}
             {recent.map((convo) => {
-              const project = convo.projectKeys[0];
+              const line = [
+                deriveThreadState(stateInputOf(convo)).label || null,
+                rowProject(convo.title, convo.projectKeys[0]),
+              ]
+                .filter(Boolean)
+                .join(" · ");
               return (
                 <ListRow
                   key={convo.id}
                   onClick={() => onResume(convo.id)}
-                  avatar={
-                    <RowInitial name={project ? projectTitle({ name: project }) : convo.title} />
-                  }
                   title={convo.title}
-                  secondary={project ? projectTitle({ name: project }) : undefined}
+                  secondary={line || undefined}
                   trailing={shortTimeAgo(Date.parse(convo.updatedAt))}
                 />
               );

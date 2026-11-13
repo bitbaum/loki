@@ -14,6 +14,7 @@ import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { fleetSurfaceHref, withTerminalView } from "@/lib/fleet-context";
 import { decisionFacts } from "@/lib/feedback/decision-facts";
+import { FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
 import { NOTE_NONE } from "@/lib/feedback/fix-note";
 import { READ_SIZE_WORD, type FeedbackRead } from "@/lib/feedback/read-report";
 import { ReadBlock } from "@/components/feedback/ReadBlock";
@@ -84,6 +85,19 @@ export function DecisionCard({
         "terminal",
       )
     : null;
+  // "Watch" promised "watch the agent, live" on a run that ended 21 days
+  // before, as a second watch button beside "Watch the fix" (2026-11-12).
+  // While the run is open it is "Watch it work" in the row; once it has
+  // ended it is "See what the agent did", under More, so the row keeps one
+  // primary and its answers.
+  const runOpen =
+    f.work.phase === FEEDBACK_WORK_PHASE.QUEUED || f.work.phase === FEEDBACK_WORK_PHASE.WORKING;
+  const watchLink = (label: string) =>
+    watchHref ? (
+      <a href={watchHref} className="ui-btn-secondary">
+        {label}
+      </a>
+    ) : null;
   return (
     <article className={cn("ui-fb-decision", taken && "ui-fb-decision-taken")}>
       <div className="ui-fb-decision-top">
@@ -230,15 +244,7 @@ export function DecisionCard({
             {rec.label}
           </button>
         )}
-        {watchHref && (
-          <a
-            href={watchHref}
-            className="ui-btn-secondary"
-            title="Open this run's terminal and watch the agent, live"
-          >
-            Watch
-          </a>
-        )}
+        {runOpen ? watchLink("Watch it work") : taken ? watchLink("See what the agent did") : null}
         {!taken && (
           <button
             type="button"
@@ -250,6 +256,9 @@ export function DecisionCard({
           </button>
         )}
       </div>
+      {other && !runOpen && watchHref && (
+        <div className="ui-fb-decision-actions">{watchLink("See what the agent did")}</div>
+      )}
       {other && (
         <div className="ui-fb-decision-row">
           <FeedbackItemRow

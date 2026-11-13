@@ -195,6 +195,7 @@ const mixed = buildActivityEvents({
     run({ id: "e4", projectKey: "d", outcome: "success", finishedAt: at(1) }),
     run({ id: "e5", projectKey: "e", state: "running", finishedAt: null }),
   ],
+  nowMs: T0.getTime() + 60_000,
 });
 
 check("tallies count what a person triages by", () => {
@@ -216,6 +217,40 @@ check("running and done filters are exact", () => {
   assert.equal(filterActivityEvents(mixed, "running").length, 1);
   assert.equal(filterActivityEvents(mixed, "done").length, 1);
   assert.equal(filterActivityEvents(mixed, "all").length, 5);
+});
+
+check("an unfinished run is only Running when it is (Home's rule, 2026-11-12)", () => {
+  const now = T0.getTime() + 3 * 3_600_000;
+  const fresh = new Date(now - 60_000).toISOString();
+  const stale = new Date(now - 2 * 3_600_000).toISOString();
+  const events = buildActivityEvents({
+    prompts: [],
+    runs: [
+      run({ id: "w", projectKey: "w", payload: { blocked: "permission" } }),
+      run({
+        id: "s",
+        projectKey: "s",
+        payload: { lastProgressAt: stale, lastStep: { text: "x" } },
+      }),
+      run({ id: "n", projectKey: "n" }),
+      run({
+        id: "r",
+        projectKey: "r",
+        payload: { lastProgressAt: fresh, lastStep: { text: "x" } },
+      }),
+    ],
+    nowMs: now,
+  });
+  const by = new Map(events.map((e) => [e.projectKey, e]));
+  assert.equal(by.get("w")?.outcome, "waiting");
+  assert.equal(by.get("w")?.outcomeLabel, "Waiting for you");
+  assert.equal(by.get("s")?.outcome, "silent");
+  assert.equal(by.get("n")?.outcome, "not_started");
+  assert.equal(by.get("r")?.outcome, "running");
+  const t = tallyActivityEvents(events);
+  assert.equal(t.running, 1, "only the run that is working counts as running");
+  assert.equal(t.attention, 1, "a run waiting for you needs you");
+  assert.equal(t.queued, 1, "a run never picked up is queued");
 });
 
 check("an unknown filter value falls back to all", () => {
@@ -273,6 +308,54 @@ check("a locally-typed prompt is marked custom and flagged as local", () => {
     true,
     "local chat was never dispatched, so it must not offer a re-dispatch",
   );
+});
+
+console.log("\nbuildActivityEvents - open runs and quiet closes (2026-11-12)");
+
+check("an open run that just started is Running", () => {
+  const [event] = buildActivityEvents({ prompts: [], runs: [run()], nowMs: at(60_000).getTime() });
+  assert.equal(event.outcome, "running");
+});
+
+check("an open run never picked up hours later is not Running (lib/open-run-state)", () => {
+  const [event] = buildActivityEvents({
+    prompts: [],
+    runs: [run()],
+    nowMs: at(2 * 60 * 60_000).getTime(),
+  });
+  assert.notEqual(event.outcome, "running");
+  assert.equal(filterActivityEvents([event], "running").length, 0);
+});
+
+check("a brief a newer one replaced does not need you", () => {
+  const [event] = buildActivityEvents({
+    prompts: [],
+    runs: [
+      run({
+        outcome: "error",
+        finishedAt: at(1000),
+        payload: { error: "superseded: the same brief was typed into the live solon session" },
+      }),
+    ],
+  });
+  assert.equal(event.outcome, "replaced");
+  assert.equal(event.outcomeLabel, "Replaced");
+  assert.equal(tallyActivityEvents([event]).attention, 0);
+});
+
+check("a wait the owner cancelled reads Stopped by you, not Failed", () => {
+  const [event] = buildActivityEvents({
+    prompts: [],
+    runs: [
+      run({
+        outcome: "error",
+        finishedAt: at(1000),
+        payload: { error: "you stopped waiting from Control after no runner picked it up" },
+      }),
+    ],
+  });
+  assert.equal(event.outcomeLabel, "Stopped by you");
+  assert.equal(tallyActivityEvents([event]).attention, 0);
 });
 
 console.log(`\n${passed}/${passed} activity-events cases passed`);

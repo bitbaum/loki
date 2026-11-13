@@ -2,21 +2,17 @@
 
 import { Fragment, type ReactNode } from "react";
 import { ArrowDown, Loader2, Square } from "lucide-react";
-import {
-  ChatReplies,
-  DEFAULT_THREAD_LABELS,
-  ThinkingRow,
-  useStickToBottom,
-} from "@bitbaum/chatkit/react";
+import { DEFAULT_THREAD_LABELS, ThinkingRow, useStickToBottom } from "@bitbaum/chatkit/react";
 import { AnswerMarkdown } from "./AnswerMarkdown";
 import { readReplies } from "@/lib/loki/replies";
 import { projectSwitches } from "@/lib/loki/project-switches";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
 import { useLiveStatus } from "@/hooks/use-live-status";
-import { FollowUps } from "./FollowUps";
+import { FollowUpRows, FollowUps } from "./FollowUps";
 import { MessageTurn } from "./MessageTurn";
 import { WorkTrail } from "./WorkTrail";
 import type { LokiMessage } from "./types";
+import { readProgressUpdate, supersededUpdates } from "@/lib/loki/progress-update";
 
 /**
  * The conversation.
@@ -30,6 +26,14 @@ import type { LokiMessage } from "./types";
  * 2. **A way back down.** Once you have scrolled away, following again is a
  *    button, not a guess.
  */
+/** The person's words a dispatch turn carried: the last user turn before it. */
+function askedBefore(messages: LokiMessage[], index: number): string | undefined {
+  for (let i = index - 1; i >= 0; i--) {
+    if (messages[i]!.role === "user") return messages[i]!.content;
+  }
+  return undefined;
+}
+
 export function Thread({
   conversationId = null,
   messages,
@@ -113,6 +117,8 @@ export function Thread({
   const replies = showFollowUps ? readReplies(lastAssistant.meta) : [];
   // Where this one chat moved to another project (lib/loki/project-switches).
   const switches = projectSwitches(messages);
+  // An update said again later for the same change shows only its latest word.
+  const folded = supersededUpdates(messages.map((m) => readProgressUpdate(m.meta)));
 
   return (
     <div className="ui-loki-thread-wrap">
@@ -121,25 +127,28 @@ export function Thread({
             of stranding it at the top of the pane; it is inert once the content
             is tall enough to scroll. */}
         <div className="ui-loki-thread-inner">
-          {messages.map((m, i) => (
-            <Fragment key={m.id}>
-              {switches.has(i) && (
-                <div className="ui-loki-project-switch" role="separator">
-                  <span>Now on {switches.get(i)}</span>
-                </div>
-              )}
-              <MessageTurn
-                message={m}
-                conversationId={conversationId}
-                onReply={!live && !sending && m.id === lastAssistant?.id ? onFollowUp : undefined}
-                onPickProject={onPickProject}
-                onContinue={onContinue}
-                onAnswerAnyway={onAnswerAnyway}
-                onAnswerFree={onAnswerFree}
-                onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}
-              />
-            </Fragment>
-          ))}
+          {messages.map((m, i) =>
+            folded.has(i) ? null : (
+              <Fragment key={m.id}>
+                {switches.has(i) && (
+                  <div className="ui-loki-project-switch" role="separator">
+                    <span>Now on {switches.get(i)}</span>
+                  </div>
+                )}
+                <MessageTurn
+                  message={m}
+                  conversationId={conversationId}
+                  onReply={!live && !sending && m.id === lastAssistant?.id ? onFollowUp : undefined}
+                  onPickProject={onPickProject}
+                  onContinue={onContinue}
+                  asked={m.kind === "dispatch" ? askedBefore(messages, i) : undefined}
+                  onAnswerAnyway={onAnswerAnyway}
+                  onAnswerFree={onAnswerFree}
+                  onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}
+                />
+              </Fragment>
+            ),
+          )}
 
           {live && (
             <div className="ui-loki-turn">
@@ -176,7 +185,7 @@ export function Thread({
           )}
 
           {showFollowUps && replies.length > 0 && (
-            <ChatReplies replies={replies} onPick={onFollowUp} />
+            <FollowUpRows items={replies} onPick={onFollowUp} />
           )}
 
           {showFollowUps && replies.length === 0 && (

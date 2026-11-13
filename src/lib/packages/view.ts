@@ -359,3 +359,25 @@ export function buildDecidedUpdates(
     ];
   });
 }
+
+/**
+ * The install command at the latest version. The register's own line pinned
+ * whatever was current when it was written ("pnpm add
+ * @bitbaum/design-tokens@^1.5.2" under "Latest version v1.7.1", 2026-11-12),
+ * so a copy installed an old release. Only a `<name>@<version>` spec is
+ * rewritten; a git or tag spec, or an unknown latest, keeps its words.
+ */
+export function installCommand(
+  install: string | null,
+  name: string,
+  latest: string | null,
+): string | null {
+  if (!install || !latest) return install;
+  const at = `${name}@`;
+  const i = install.indexOf(at);
+  if (i === -1) return install;
+  const rest = install.slice(i + at.length);
+  const spec = /^[\^~]?\d+\.\d+\.\d+\S*/.exec(rest);
+  if (!spec) return install;
+  return `${install.slice(0, i)}${at}^${latest}${rest.slice(spec[0].length)}`;
+}

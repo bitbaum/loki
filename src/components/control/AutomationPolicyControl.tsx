@@ -80,7 +80,7 @@ export function AutomationPolicyControl({
           className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-accent-primary"
         />
       )}
-      {building ? "Pause fleet" : "Start building"}
+      {building ? "Pause all building" : "Start building"}
     </button>
   );
 }

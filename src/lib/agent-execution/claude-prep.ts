@@ -30,6 +30,17 @@ export const UNATTENDED_ALLOW = [
   "TodoWrite",
 ];
 
+/**
+ * What a runner-launched claude writes under a commit and a pull request.
+ * Org rule: no model identifier in anything pushed. Claude Code's default
+ * trailer names the model ("Co-Authored-By: Claude Opus 5.5"), and a commit
+ * Loki dispatched on 2026-11-11 (orangecat#1601) carried it.
+ */
+export const AGENT_ATTRIBUTION = {
+  commit: "Co-Authored-By: Claude <noreply@anthropic.com>",
+  pr: "🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+} as const;
+
 export function ensureClaudeReady(dir: string): void {
   const home = os.homedir();
   migrateLegacyHandoffs(home);
@@ -50,7 +61,10 @@ export function ensureClaudeReady(dir: string): void {
   fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
 
   const setPath = path.join(home, ".claude", "settings.json");
-  let settings: { permissions?: { allow?: string[] } } = {};
+  let settings: {
+    permissions?: { allow?: string[] };
+    attribution?: unknown;
+  } = {};
   try {
     settings = JSON.parse(fs.readFileSync(setPath, "utf-8"));
   } catch {
@@ -60,6 +74,9 @@ export function ensureClaudeReady(dir: string): void {
   const allow = new Set(settings.permissions.allow ?? []);
   for (const t of UNATTENDED_ALLOW) allow.add(t);
   settings.permissions.allow = [...allow];
+  // Only when nothing is set: a person who chose their own attribution (or
+  // none) keeps it. Unset means Claude Code's default, which names the model.
+  if (settings.attribution === undefined) settings.attribution = { ...AGENT_ATTRIBUTION };
   fs.mkdirSync(path.dirname(setPath), { recursive: true });
   fs.writeFileSync(setPath, JSON.stringify(settings, null, 2));
 }

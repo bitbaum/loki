@@ -5,6 +5,7 @@ import {
   answer,
   cleanDescription,
   projectHeadline,
+  projectTitle,
   isPublicTestArtifact,
   publicHeroNote,
   summarizeDescription,
@@ -92,3 +93,10 @@ assert.equal(
 );
 
 console.log("✓ project-display tests passed");
+
+// A run's own lane reads as its project, never as "substrata~39554470"
+// (owner audit, 2026-11-12).
+{
+  assert.equal(projectTitle({ name: "substrata~39554470" }), "Substrata");
+  assert.equal(projectTitle({ name: "substrata" }), "Substrata");
+}

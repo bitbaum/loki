@@ -26,7 +26,7 @@ export default async function PackagesPage() {
       <ReadCoverageNote
         coverage={coverage}
         catalogueSource={catalogue.source}
-        refresh={<PackagesRefresh autoStart={coverage.stale} variant="link" label="Read again" />}
+        refresh={<PackagesRefresh autoStart={coverage.stale} variant="link" />}
       />
       <NpmPublishPanel />
       {rows.length === 0 ? (

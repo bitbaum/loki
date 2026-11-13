@@ -13,6 +13,7 @@ import { Loader2, GitBranch } from "lucide-react";
 import Link from "next/link";
 import { PageLayout } from "@/components/ui/page-layout";
 import { RepoMultiPicker } from "@/components/onboarding/RepoMultiPicker";
+import { NAV } from "@/config/navigation";
 
 type BulkResponse = {
   created: { id: string; name: string; repoId: number }[];
@@ -58,16 +59,19 @@ export default function ImportFromGithubPage() {
   }
 
   return (
-    <PageLayout title="Import from GitHub" back={{ href: "/control", label: "Back to Home" }}>
+    <PageLayout
+      title="Import from GitHub"
+      back={{ href: NAV.control.href, label: `Back to ${NAV.control.label}` }}
+    >
       <div className="max-w-2xl space-y-6">
         <div className="ui-card-shell space-y-4 p-5 sm:p-6">
           <div className="flex items-start gap-3">
-            <GitBranch className="h-5 w-5 text-text-secondary mt-0.5" />
+            <GitBranch className="mt-0.5 h-5 w-5 shrink-0 text-text-secondary" />
             <div className="space-y-1">
-              <h2 className="ui-page-subtitle">Pick the repos you want to manage</h2>
+              <h2 className="ui-page-subtitle">Choose the code you want Loki to look after</h2>
               <p className="text-sm text-text-muted">
-                Each selected repo becomes a Loki project. You can import all of them now and remove
-                individual ones later — duplicates by name are silently skipped.
+                Each one becomes a project. Ones you already have are left as they are, and you can
+                remove any of them later.
               </p>
             </div>
           </div>
@@ -76,8 +80,8 @@ export default function ImportFromGithubPage() {
             <div className="ui-tag-warning p-3 rounded-md text-sm">
               Imported {result.created.length} project{result.created.length === 1 ? "" : "s"}.
               Skipped {result.skipped.length}: {result.skipped.map((s) => s.reason).join(", ")}.{" "}
-              <Link href="/control" className="underline">
-                Go to Control →
+              <Link href={NAV.control.href} className="underline">
+                Go to {NAV.control.label} →
               </Link>
             </div>
           )}
@@ -108,7 +112,7 @@ export default function ImportFromGithubPage() {
               type="button"
               onClick={handleImport}
               disabled={importing || selectedIds.length === 0}
-              className="ui-btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+              className="ui-btn-primary inline-flex items-center gap-2"
             >
               {importing ? (
                 <>

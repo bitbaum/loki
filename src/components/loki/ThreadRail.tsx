@@ -57,6 +57,16 @@ export function stateInputOf(c: ConversationSummary): ThreadStateInput {
 }
 
 /**
+ * The project, as the chat row's grey line names it — unless the title
+ * already starts with it ("loki · updates" over "Loki" said it twice).
+ */
+export function rowProject(title: string, project: string | null | undefined): string | null {
+  if (!project) return null;
+  const name = projectTitle({ name: project });
+  return title.trim().toLowerCase().startsWith(name.toLowerCase()) ? null : name;
+}
+
+/**
  * Every chat, as a list — Claude's chat list, row for row: the title, one grey
  * line, the time on the right, and the rest in the row's own "…".
  *
@@ -124,7 +134,7 @@ export function ThreadRail({
     const stateWord = running && c.id === busyId ? "Working" : state.label;
     const line = [
       stateWord || null,
-      project ? projectTitle({ name: project }) : null,
+      rowProject(c.title, project),
       count > 1 ? `${count} alike` : null,
     ]
       .filter(Boolean)

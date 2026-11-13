@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import {
   PROJECT_STAGE_MEANING,
+  PROJECT_STAGE_WORD,
   PROJECT_STAGES,
   resolveProjectStage,
 } from "@/lib/constants/statuses";
@@ -106,14 +107,14 @@ export function StatusBadge({ value }: { value: string }) {
       className={`ui-projects-badge max-w-[180px] overflow-hidden ${cls}`}
       title={
         stage
-          ? `Stage: ${stage} — ${PROJECT_STAGE_MEANING[stage]}${
+          ? `Stage: ${PROJECT_STAGE_WORD[stage]} — ${PROJECT_STAGE_MEANING[stage]}${
               stage !== value.trim().toLowerCase() ? `\n\nStored as: "${value}"` : ""
             }`
           : `"${value}" is not one of Loki's stages (${PROJECT_STAGES.join(", ")}). Set a stage on the project to make this meaningful.`
       }
     >
       <span className="ui-badge-prefix">Stage</span>
-      <span className="truncate">{stage ?? value}</span>
+      <span className="truncate">{stage ? PROJECT_STAGE_WORD[stage] : value}</span>
       {/* The badge stops short of claiming a vocabulary it cannot back. A
           dashed border and a "?" say "this is not a stage Loki knows" — which
           is information; rendering nothing was not. */}

@@ -82,11 +82,15 @@ export function heroHasNewsFor(
   dashboard: { countsKnown?: boolean } | null,
   pulseKey: string,
   attentionCount: number,
+  /** Failed runs "Done" already lists, each with "Ask it to finish". The card
+   *  repeating them ("Stalled … [Review failures]") was one fact told twice,
+   *  with two different fixes (2026-11-12). */
+  doneFailures = 0,
 ): boolean {
   return (
     !(dashboard?.countsKnown ?? true) ||
     ["stalled", "partial", "unknown"].includes(pulseKey) ||
-    (pulseKey === "failing" && attentionCount === 0)
+    (pulseKey === "failing" && attentionCount === 0 && doneFailures === 0)
   );
 }
 

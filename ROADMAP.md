@@ -10,7 +10,7 @@ work that is actually moving; finished items live under "Shipped".
 ## Now
 
 ### Private builders
-One sealed builder per account on the box you already have: its own Linux user, home, token and agent sign-ins, and the rule that whoever asks for a change pays for it with their own engine — a Loki plan, their own key, or their own subscription signed in with the CLI's `/login`. Nobody's request runs on another person's subscription. Plan: `docs/architecture/private-builders.md`.
+Your work runs in its own private space on Loki's computer, and whoever asks for a change pays for it their own way: a Loki plan, their own AI key, or their own AI subscription. Nobody's request runs on another person's subscription.
 - [x] Design note: tenant model, credential handling, what a request without an engine becomes
 - [x] A request on a shared project from someone with no engine goes to the owner as a suggestion; the per-site allowance is retired {#seat-suggests}
 - [x] Agent terminals get an allowlisted environment, never the runner's whole one {#agent-env}
@@ -39,14 +39,14 @@ The numbers that decide when the next wall is hit, published on the System page 
 - [ ] Drop-off at "add your API key"
 
 ### Sealed builds
-After private builders: each build in its own throwaway box (a container, then a microVM when the box exposes KVM), so a tricked agent cannot reach even its own tenant's other work. `SandboxExecutor` is the seed.
+After private builders: every build runs in its own throwaway space, so an agent that is tricked cannot reach anything else, not even your other projects.
 - [ ] A container per build with the agent CLIs inside, on the same machine
 - [ ] Per-build CPU, memory and network limits
 - [ ] A microVM per build where the hardware allows it
 
 ### One box becomes a pool
-Runners on several boxes claim from the one queue; each site knows which box serves it.
-- [ ] `new-site.sh --host`, and a register that records the host per site
+Loki's work spreads over several computers instead of one, and each site knows which computer serves it.
+- [ ] A new site can be placed on any of Loki's computers, and the record says which one
 - [ ] Runner units on a second box claiming from the shared queue
 - [ ] Deploy reconciler that targets the right box
 
@@ -57,7 +57,7 @@ The builder pays their model vendor directly and pays Loki for the platform; eve
 - [x] Passes paid in Bitcoin: the Billing tab shows the pass, its end date, the Buy button and the ledger; the operator grants, extends and revokes from System → Plans
 - [x] A key marked "for building" reaches your private builder, not only your chat {#your-engine}
 - [x] Tokens per run per tenant recorded and shown on the run, and which engine paid for it {#welcome-changes}
-- [ ] BYOK as the default execution path for new accounts
+- [ ] New accounts build on their own AI key by default
 - [x] Welcome changes: a few free builds for a newcomer on Loki's key, under a monthly cap in CHF {#welcome-changes}
 - [ ] A metered pool (wholesale tokens sold inside a plan) once the numbers say so
 

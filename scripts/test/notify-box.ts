@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import { boxKey, boxNotice, isIntrusion } from "@/lib/notify/box";
 import { validateNotice } from "@/lib/notify/policy";
+import { bellWords } from "@/lib/notify/intrusion-words";
 
 let failures = 0;
 function check(name: string, cond: boolean) {
@@ -42,7 +43,38 @@ check(
   validateNotice(intrusion).ok && intrusion.urgency === "now",
 );
 check("its button opens the list it is on (/today)", intrusion.actions[0]?.url === `${APP}/today`);
-check("it names the machine", intrusion.title.startsWith("bitbaum: "));
+check("it names the machine", intrusion.title.includes("bitbaum"));
+check(
+  "its title is words, not the server's line",
+  intrusion.title === "Someone signed in to bitbaum with a password",
+);
+check(
+  "the raw line is kept, behind a blank line (Details)",
+  /\n\n🚨 SSH PASSWORD LOGIN ACCEPTED for root from 1\.2\.3\.4$/.test(intrusion.body ?? ""),
+);
+{
+  const proc = boxNotice(
+    "☠️ SUSPICIOUS PROCESS: pid 951241 running /tmp/x/esbuild. Kill it: sudo kill -9 951241",
+    APP,
+  );
+  check(
+    "a suspicious process reads plainly, with no pid or command in the title",
+    proc.title === "An unexpected program ran on bitbaum" && !/\d|sudo|☠/.test(proc.title),
+  );
+}
+{
+  // A row recorded before the plain titles reads the same way in the bell.
+  const legacy = bellWords({
+    title: "bitbaum: ☠️ SUSPICIOUS PROCESS",
+    description: "pid 951241 running /tmp/x. Kill it: sudo kill -9 951241",
+  });
+  check(
+    "an old intrusion row reads plainly too",
+    legacy.title === "An unexpected program ran on bitbaum",
+  );
+  const other = { title: "Deploy finished", description: "ok" };
+  check("any other row is shown as stored", bellWords(other) === other);
+}
 check(
   "two different intrusion lines are two notices, not a held reminder",
   boxNotice("🚨 SSH PASSWORD LOGIN ACCEPTED for root from 1.2.3.4", APP).key !==

@@ -116,10 +116,27 @@ function builderName(channel: BuilderChannel | null | undefined): string | null 
   return channel ? (EXECUTOR_COPY.ranOn[channel] ?? null) : null;
 }
 
+/** Work that was sent and did not start, in the words of the person who sent
+ *  it. It read "Dispatch failed" (owner audit, 2026-11-12). */
+export const DISPATCH_FAILED_LABEL = "Couldn't start";
+
+/**
+ * A dispatch whose record no longer exists. Cards from a month ago polled a
+ * 404 every 2.5 seconds and kept saying, in the present tense, that the work
+ * was waiting for a runner (owner audit, 2026-11-12).
+ */
+export const GONE_DISPATCH_VIEW: DispatchLiveView = {
+  status: "gone",
+  label: "No longer tracked",
+  detail: null,
+  tone: "neutral",
+  terminal: true,
+};
+
 /** SSOT for dispatch outcome copy — Loki footer, Control toasts, etc. */
 export function dispatchStatusLabel(input: DispatchStatusInput): { label: string; warn: boolean } {
   if (input.ok === false) {
-    return { label: "Dispatch failed", warn: true };
+    return { label: DISPATCH_FAILED_LABEL, warn: true };
   }
   const on = builderName(input.channel);
   if (
@@ -235,7 +252,9 @@ export type DispatchLiveStatus =
   | "partial"
   | "stopped"
   | "unconfirmed"
-  | "failed";
+  | "failed"
+  /** The record is gone (404/410): an old card no one can track any more. */
+  | "gone";
 
 export type CommandLiveInput = {
   claimedAt: string | Date | null;
@@ -340,7 +359,7 @@ export function deriveDispatchLiveStatus(
   if (r.ok === false) {
     return {
       status: "failed",
-      label: "Dispatch failed",
+      label: DISPATCH_FAILED_LABEL,
       detail: r.error ?? "the agent could not run",
       tone: "negative",
       terminal: true,

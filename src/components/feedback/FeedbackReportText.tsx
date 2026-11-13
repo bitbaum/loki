@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { splitDiagnostics } from "@/lib/terminal-conversation";
 
 /**
  * The body of a feedback report inside a list row: three lines, then "more".
@@ -18,7 +19,11 @@ import { cn } from "@/lib/utils";
  * on a phone and fits on a desktop, so a length heuristic would both hide the
  * toggle where it is needed and print "more" next to text that is all there.
  */
-export function FeedbackReportText({ text }: { text: string }) {
+export function FeedbackReportText({ text: raw }: { text: string }) {
+  // "--- technical details --- code: provider_unavailable surface: …" read
+  // as part of the note (2026-11-12). The agent needs it; the person gets it
+  // folded under the note, not in it.
+  const { text, details } = splitDiagnostics(raw);
   const [open, setOpen] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const ref = useRef<HTMLParagraphElement | null>(null);
@@ -65,6 +70,12 @@ export function FeedbackReportText({ text }: { text: string }) {
         >
           {open ? "less" : "more"}
         </button>
+      )}
+      {details && (
+        <details className="ui-fb-row-details">
+          <summary>Technical details</summary>
+          <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-micro">{details}</pre>
+        </details>
       )}
     </>
   );

@@ -25,9 +25,9 @@ import {
   deriveFleetPulse,
 } from "./control-presenter";
 import { rememberFleetProject } from "@/lib/fleet-context";
-import { builderCompactLabel, builderUpdateNote } from "@/lib/builder-presence";
-import { buildDoneJobs, buildNowJobs } from "./control-now";
-import { ControlDone, ControlFoot, ControlNow } from "./ControlNow";
+import { builderPlainLine, builderUpdateNote } from "@/lib/builder-presence";
+import { buildDoneJobs, buildNowJobs, type NowJob } from "./control-now";
+import { ControlDone, ControlFoot, ControlNow, ControlWaiting } from "./ControlNow";
 import { ControlFleetStatus } from "./ControlFleetStatus";
 import { useRouter } from "next/navigation";
 import { BuildSuggestions } from "@/components/loki/BuildSuggestions";
@@ -234,7 +234,12 @@ export function ControlPanel({
   const nowMs = nowS * 1000;
   const nowJobs = snapshots ? buildNowJobs(snapshots, nowMs) : [];
   const doneJobs = snapshots ? buildDoneJobs(snapshots, nowMs) : [];
-  const heroHasNews = heroHasNewsFor(dashboard, fleetPulse.key, attention.length);
+  const heroHasNews = heroHasNewsFor(
+    dashboard,
+    fleetPulse.key,
+    attention.length,
+    doneJobs.filter((j) => j.tone === "bad").length,
+  );
 
   // Keep the selection valid as the snapshot set changes. Guarded render-time
   // adjustment (React's "adjusting state when props change" pattern) instead
@@ -337,6 +342,7 @@ export function ControlPanel({
   // standalone variant repeated the <summary>'s "Workspaces · N open" header
   // inside the panel — the page showed the same heading and count twice.
   const livePanel = <LiveTerminalPanel {...livePanelProps} embedded />;
+  const reply = (tab: string, text: string) => inject(tab, undefined, text);
 
   // A read that failed says so (and how to get in), not skeletons forever.
   if (!data)
@@ -441,7 +447,9 @@ export function ControlPanel({
             .filter((tab, i, all) => all.indexOf(tab) === i)
             .map((tab) => ({
               tab,
-              detail: nowJobs.some((j) => j.tab === tab) ? "Being built now" : undefined,
+              // From the job's own state: every open job read "Being built
+              // now", including ones waiting for the owner (2026-11-12).
+              detail: jobDetail(nowJobs.find((j) => j.tab === tab)?.tone),
             }))}
           onSend={(tab, text, attachments) => inject(tab, undefined, text, attachments)}
         />
@@ -488,6 +496,12 @@ export function ControlPanel({
           replaced (#367). Add a GROUP to the inbox; never add a strip here. */}
         <ControlInbox inbox={inbox} />
 
+        {/* Agents that stopped to ask you something, each with its question.
+          They sat under "Being built" though nothing was being built. */}
+        {data.projects.length > 0 && (
+          <ControlWaiting jobs={nowJobs} nowMs={nowMs} onReply={reply} />
+        )}
+
         {/* ControlFleetStatus shows runner health + working/ready/open counters
           + autopilot pill. When the user has 0 projects, all counters are 0
           and the panel reads as noise stacked under the empty-state welcome
@@ -519,7 +533,7 @@ export function ControlPanel({
               name: a.project.tab,
             }))}
             onFocusProject={openAndShow}
-            onOpenSettings={() => setFleetSettingsOpen(true)}
+            waitingJobs={nowJobs.filter((j) => j.tone === "you")}
             onRunInCloud={async () => {
               const said = await runQueueInCloud();
               refresh(true);
@@ -530,9 +544,6 @@ export function ControlPanel({
               refresh(true);
               return said;
             }}
-            onNewProject={() =>
-              runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true)
-            }
             onFocusCategory={(category) => {
               const match = snapshots?.find(
                 (s) => STATE_DEFINITIONS[s.phase].counterCategory === category,
@@ -551,13 +562,7 @@ export function ControlPanel({
 
       {/* What is being built for you right now. Each row opens the live
           session. */}
-      {data.projects.length > 0 && (
-        <ControlNow
-          jobs={nowJobs}
-          nowMs={nowMs}
-          onReply={(tab, text) => inject(tab, undefined, text)}
-        />
-      )}
+      {data.projects.length > 0 && <ControlNow jobs={nowJobs} nowMs={nowMs} />}
 
       {/* Nothing running, nothing waiting on you: that used to be the whole
           message — a grey "Paused" card over "28 idle projects". Idle is the
@@ -624,11 +629,7 @@ export function ControlPanel({
           fault they could neither cause nor fix (walk as a client, 2026-10-19). */}
       {data && !onlyShared && (
         <ControlFoot
-          builderLabel={
-            builderPresence?.any
-              ? builderCompactLabel("connected", runnerVersion, builderPresence)
-              : null
-          }
+          builderLine={builderPresence?.any ? builderPlainLine(builderPresence) : null}
           builderNote={builderUpdateNote(data?.builderVersions?.cloud)}
           onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
           onOpenSettings={() => setFleetSettingsOpen(true)}
@@ -653,7 +654,9 @@ export function ControlPanel({
                     onAgentSelect={handleAgentSelect}
                     onModelChange={handleModelChange}
                     onSave={saveAgent}
-                    onRequestInstall={requestAgentInstall}
+                    // Installing opens a terminal on the desktop app: offered
+                    // only when one is connected, not to a phone (2026-11-12).
+                    onRequestInstall={builderPresence?.local ? requestAgentInstall : undefined}
                   />
                 ),
                 automationPolicy,
@@ -724,4 +727,12 @@ export function ControlPanel({
       <ControlNotices error={error} queuedNotice={queuedNotice} switchNotice={switchNotice} />
     </div>
   );
+}
+
+/** The composer picker's note on a project with open work, from its state. */
+function jobDetail(tone: NowJob["tone"] | undefined): string | undefined {
+  if (tone === "working") return "Being built now";
+  if (tone === "you") return "Waiting for you";
+  if (tone === "quiet") return "Gone quiet";
+  return undefined;
 }

@@ -18,6 +18,23 @@ export function ownerSiteUrl(liveUrl: string, pass: string): string {
   return `${base}#${OWNER_PASS_HASH_KEY}=${encodeURIComponent(pass)}`;
 }
 
+/**
+ * Keep a pass handed over by the page itself rather than by a link: Loki's own
+ * app knows who is signed in, so on its own origin it seeds the pass the
+ * owner would otherwise fetch through "I own or build this site — sign in
+ * with Loki" (src/components/shell/OwnSitePass.tsx).
+ */
+export function storeOwnerPass(token: string, pass: string): { first: boolean } {
+  try {
+    const first = localStorage.getItem(storageKey(token)) === null;
+    localStorage.setItem(storageKey(token), pass);
+    return { first };
+  } catch {
+    /* private mode: the owner gets the visitor's panel, as before */
+    return { first: false };
+  }
+}
+
 /** Read a pass from the URL fragment, if this visit brought one. */
 export function passFromHash(hash: string): string | null {
   const raw = hash.replace(/^#/, "");

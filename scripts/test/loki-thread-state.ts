@@ -137,4 +137,17 @@ assert.deepEqual(
 );
 assert.equal(groups[0]!.counts.needsYou, 1);
 
+// A run's lane falls under its project, not under a heading of its own.
+const laned = groupThreadsByProject(
+  [
+    thread("s1", { projectKeys: ["substrata"], lastRole: "user", updatedAt: ago(1) }),
+    thread("s2", { projectKeys: ["substrata~39554470"], lastRole: "user", updatedAt: ago(2) }),
+  ],
+  NOW,
+);
+assert.deepEqual(
+  laned.map((g) => g.project),
+  ["substrata"],
+);
+
 console.log("✓ loki thread state");

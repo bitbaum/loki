@@ -16,6 +16,8 @@ export type AlertListItem = {
   title: string;
   description: string | null;
   actionUrl: string | null;
+  /** The button's words when the row says them itself (box alarms, config/box-alert-copy). */
+  actionLabel?: string;
   createdAt: Date | string;
 };
 
@@ -133,7 +135,7 @@ function AlertRow({
                 tabIndex={-1}
                 aria-hidden="true"
               >
-                {alertActionLabel(alert.type, href)}
+                {alert.actionLabel ?? alertActionLabel(alert.type, href)}
               </Link>
             )}
           </div>

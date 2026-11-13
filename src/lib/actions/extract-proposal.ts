@@ -18,6 +18,7 @@
  * create_event, create_commitment). FOLLOW_UP / OTHER are deferred no-ops, so
  * proposing them would only queue dead drafts.
  */
+import { usableChatChain } from "@/config/chat-models";
 import { z } from "zod";
 import { callGroqText, GROQ_FAST_MODEL } from "@/lib/groq";
 import { ACTION_TYPE, type ActionType } from "@/lib/constants/statuses";
@@ -118,7 +119,8 @@ export async function extractActionProposal(
 ): Promise<ExtractedProposal | null> {
   const text = userMessage.trim();
   if (!text) return null;
-  if (!process.env.GROQ_API_KEY) return null; // extraction needs Groq; silent no-op
+  // The call walks the whole free chain; with no usable link it is a no-op.
+  if (usableChatChain().length === 0) return null;
 
   const raw = await callGroqText(`Current time: ${nowISO}\n\nMessage:\n${text}`, {
     feature: "proposal-extract",

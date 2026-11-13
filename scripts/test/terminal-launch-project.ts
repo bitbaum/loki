@@ -66,5 +66,26 @@ check("the rule is stable across the render where scope arrives", () => {
   assert(afterHydration === "loki", "post-hydration follows the scope");
 });
 
+check("opened from inside a session, a project with no session is offered first", () => {
+  // From the loki session, "New session" opened on loki with "already has a
+  // session" and a primary that started a duplicate (audit, 2026-11-12).
+  assert(
+    preferredLaunchProject(PROJECTS, "loki", ["loki"]) === "Bitbaum",
+    "the first free project, not the busy one in scope",
+  );
+  assert(
+    preferredLaunchProject(PROJECTS, "loki", ["loki", "Bitbaum"]) === "orangecat",
+    "skips every project that already has a session",
+  );
+  assert(
+    preferredLaunchProject(PROJECTS, "orangecat", ["loki"]) === "orangecat",
+    "a free project in scope still wins",
+  );
+  assert(
+    preferredLaunchProject(PROJECTS, "loki", ["loki", "Bitbaum", "orangecat~1a2b3c4d"]) === "loki",
+    "with every project busy, the one in scope",
+  );
+});
+
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`);
 process.exit(failures === 0 ? 0 : 1);

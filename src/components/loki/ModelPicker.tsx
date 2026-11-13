@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Check, ChevronDown, Gauge, KeyRound, Lock, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Gauge, KeyRound, Lock, Sparkles, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getJson } from "@/lib/api/fetch";
@@ -194,6 +194,9 @@ export function ModelPicker({
       : option.usable && budget
         ? (leftOn.get(`${option.provider}/${option.id}`) ?? budget.freePool.short ?? undefined)
         : undefined;
+    // The header already says how many free answers are left; a row repeats
+    // it only when its own count differs ("186 left today" on eleven rows).
+    const rowLeft = !option.own && left === budget?.freePool?.short ? undefined : left;
     return (
       <ModelRow
         key={`${option.provider}/${option.id}`}
@@ -206,7 +209,7 @@ export function ModelPicker({
               : `${option.reason ?? note ?? "Not available on this connection"} · ${providerName(option.provider)}`
         }
         title={option.reason ?? note ?? undefined}
-        left={left}
+        left={rowLeft}
         selected={value === option.id}
         locked={locked}
         onPick={() => pick(option.id)}
@@ -225,15 +228,17 @@ export function ModelPicker({
             <span>
               {sharedSelection && budget.freePool ? budget.freePool.line : budget.headline}
             </span>
+            {/* It opens Settings → AI: the chevron says it is a way there. */}
+            <ChevronRight className="ml-auto mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           </a>
         )}
         <ModelRow
           name="Auto"
-          blurb={
-            data?.autoSummary
-              ? data.autoSummary.replace(/^Auto · /, "")
-              : "Chooses for each request, with available alternatives"
-          }
+          // Which model Auto starts on is routing, not a choice a person
+          // makes: "best — light turns on Grok Build 0.1, heavy ones on Grok
+          // 4.7" named a model that is not in this list (2026-11-12).
+          blurb="Loki picks the model for each message"
+          title={data?.autoSummary ?? undefined}
           selected={value === undefined}
           onPick={() => pick(undefined)}
         />

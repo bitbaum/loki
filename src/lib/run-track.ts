@@ -247,6 +247,9 @@ function readFacts(input: RunTrackInput): Facts {
   const finishedWell =
     finished &&
     (outcome === ORCHESTRATION_OUTCOME.SUCCESS || outcome === ORCHESTRATION_OUTCOME.PARTIAL);
+  const pushed =
+    ship === FIX_SHIP_STATE.PUSHED ||
+    (!prUrl && (input.evidence?.kind === "push" || commits.length > 0));
   return {
     input,
     finished,
@@ -254,7 +257,14 @@ function readFacts(input: RunTrackInput): Facts {
     // A run that finished well was run by a builder, whether or not its claim
     // was recorded — seeded and older runs carry no claim event, and "No
     // builder picked it up" above "Claude Code finished" is a contradiction.
-    started: [...kinds].some((k) => STARTED.has(k)) || finishedWell,
+    // The same for a change already on GitHub: on 2026-11-12 the watch page
+    // said "Waiting for a runner" above a pull request the agent had opened.
+    started:
+      [...kinds].some((k) => STARTED.has(k)) ||
+      finishedWell ||
+      Boolean(prUrl) ||
+      pushed ||
+      commits.length > 0,
     unfollowed: finishedWell && input.followable === false,
     noPrFound:
       input.followable !== false && noPrFound(input, prUrl, commits.length > 0, finishedWell),
@@ -266,9 +276,7 @@ function readFacts(input: RunTrackInput): Facts {
     prAt: (input.evidence?.kind === "pr" ? iso(input.evidence.atMs) : null) ?? repo?.pr?.at ?? null,
     checks: repo?.pr?.checks ?? null,
     commits,
-    pushed:
-      ship === FIX_SHIP_STATE.PUSHED ||
-      (!prUrl && (input.evidence?.kind === "push" || commits.length > 0)),
+    pushed,
     site: hostOf(input.fix?.liveUrl ?? input.liveUrl),
     working: input.phase === "working" && !input.stalled,
     provider: input.providerLabel,
@@ -326,7 +334,7 @@ function askedStage(f: Facts): TrackStage {
 
 function builderStage(f: Facts): TrackStage {
   const t = f.input.eventTimes;
-  const who = f.input.builderLabel ?? "A runner";
+  const who = f.input.builderLabel ?? "A computer";
   const facts: TrackFact[] = [];
   if (t.claimed) facts.push({ text: `${who} claimed the job.`, at: t.claimed });
   if (t.launched) facts.push({ text: `Opened an agent session.`, at: t.launched });
@@ -339,23 +347,27 @@ function builderStage(f: Facts): TrackStage {
     });
   // The reason is the card's headline (summaryOf); saying it twice, one line
   // apart, is what the first preview showed.
-  if (f.finished) return stage("builder", "No runner picked it up", "failed", { at: f.askedAt });
+  if (f.finished) return stage("builder", "No computer picked it up", "failed", { at: f.askedAt });
   if (f.input.queueNote)
-    return stage("builder", f.input.queueLabel ?? "Waiting for the runner's update", "now", {
+    return stage("builder", f.input.queueLabel ?? "Waiting for the computer's update", "now", {
       note: f.input.queueNote,
       at: f.askedAt,
-      facts: [{ text: "The job is on the queue; nothing is lost while it waits." }],
+      facts: [{ text: "It is in line; nothing is lost while it waits." }],
     });
   if (f.input.stalled)
-    return stage("builder", "Waiting for a runner", "attention", {
+    return stage("builder", "Waiting for a computer to start it", "attention", {
       note: "Nobody has picked it up for a while.",
       at: f.askedAt,
-      facts: [{ text: "Runners claim work every few seconds; a long wait means none is online." }],
+      facts: [
+        {
+          text: "A computer takes new work every few seconds; a long wait means none is switched on.",
+        },
+      ],
     });
-  return stage("builder", "Waiting for a runner", "now", {
+  return stage("builder", "Waiting for a computer to start it", "now", {
     note: "Usually under a minute.",
     at: f.askedAt,
-    facts: [{ text: "The job is on the queue; the next free runner claims it." }],
+    facts: [{ text: "It is next in line; the first free computer starts it." }],
   });
 }
 
@@ -438,9 +450,10 @@ function prStage(f: Facts): TrackStage {
   const fix = f.input.fix;
   if (f.prUrl) {
     const title = fix?.prTitle ?? (ev?.kind === "pr" ? ev.title : null) ?? f.input.repo?.pr?.title;
-    const number = fix?.prNumber ?? f.input.repo?.pr?.number;
-    return stage("pr", "Pull request opened", "done", {
-      note: title ? (number ? `#${number} · ${title}` : title) : null,
+    // The pull request's own title is written for tools ("#1625 · fix(a11y):
+    // …"); the person gets its headline, and the number stays behind the link.
+    return stage("pr", "The change is ready for checks", "done", {
+      note: title ? commitHeadline(title) : null,
       link: { href: f.prUrl, label: "See the change" },
       at: f.prAt,
       facts: [
@@ -452,7 +465,9 @@ function prStage(f: Facts): TrackStage {
     });
   }
   if (f.pushed)
-    return stage("pr", "Pushed to a branch", f.finished ? "attention" : "now", {
+    // While the agent is still in its session the push is done and the agent
+    // is the thing happening; two "Happening now" rows read as two jobs.
+    return stage("pr", "Pushed to a branch", f.finished ? "attention" : "done", {
       note: f.finished
         ? "No pull request was opened, so it cannot merge by itself."
         : "A pull request usually follows in a moment.",
@@ -509,8 +524,8 @@ function mergedStage(f: Facts): TrackStage {
       facts: [{ text: "Every check on the pull request passed.", href: checksLink }],
     });
   if (f.ship === FIX_SHIP_STATE.PR_OPEN || (f.checks === "running" && f.prUrl))
-    return stage("merged", "Testing", "now", {
-      note: "It merges by itself once they pass.",
+    return stage("merged", "Checking the change", "now", {
+      note: "It goes live by itself once the checks pass.",
       at: f.prAt,
       facts: [
         {
@@ -611,8 +626,8 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   if (f.checks === "passed" && f.prUrl) return "Checks passed — it merges and deploys by itself.";
   if (f.prUrl)
     return f.finished
-      ? "Pull request open — checks run, then it merges and deploys by itself."
-      : `Pull request open — ${p} is finishing up.`;
+      ? "The change is ready — checks run, then it goes live by itself."
+      : "The change is ready — the agent is finishing up.";
   if (f.pushed)
     return f.finished
       ? "Pushed to a branch, but no pull request — it cannot ship by itself."
@@ -626,10 +641,28 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   if (f.finished) return f.input.failure ?? `${p} stopped before the change shipped.`;
   if (work.state === "attention") return work.note ?? `${p} needs you.`;
   if (!f.started && f.input.queueNote) return f.input.queueNote;
-  if (builder.state === "attention") return "Sent, but no runner has picked it up.";
+  if (builder.state === "attention") return "Sent, but no computer has started it yet.";
   if (f.working || f.generated) return `${p} is making the change.`;
   if (f.started) return `${p} is starting.`;
-  return "Waiting for a runner to pick it up — usually under a minute.";
+  return "Waiting for a computer to start it — usually under a minute.";
+}
+
+/**
+ * One thing happens at a time. The agent is still in its session while the
+ * checks run on its pull request, and both stages said "Happening now" — with
+ * "Waiting for a runner" a third, on the owner's phone on 2026-11-12. The
+ * furthest stage is the one happening; an earlier one is behind it.
+ */
+function oneNow(stages: TrackStage[], provider: string): void {
+  const last = stages.map((s) => s.state).lastIndexOf("now");
+  stages.forEach((st, i) => {
+    if (st.state !== "now" || i === last) return;
+    st.state = "done";
+    if (st.id === "working") {
+      st.label = `${provider} made the change`;
+      st.note = null;
+    }
+  });
 }
 
 /** What a stage that was still moving reads once nobody follows it any more. */
@@ -645,6 +678,7 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
   const work = workingStage(f);
   if (input.savedLive) return savedLiveTrack(f, builder, work);
   const stages = [askedStage(f), builder, work, prStage(f), mergedStage(f), liveStage(f)];
+  oneNow(stages, f.provider);
 
   // Past the window Loki follows a change in, nothing will be looked up again:
   // a stage still "happening" would happen — and its clock tick — forever.
@@ -676,7 +710,7 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
     "asked";
 
   const summary = stale
-    ? `${f.prUrl ? "Pull request opened" : `${f.provider} finished`} — this ran more than two days ago, so what happened after is not on record here.`
+    ? `${f.prUrl ? "The change was ready for checks" : `${f.provider} finished`} — this ran more than two days ago, so what happened after is not on record here.`
     : summaryOf(f, builder, work);
   return { stages, summary, settled, current, live: liveStatusOf(f, builder, work) };
 }

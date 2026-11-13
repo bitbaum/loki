@@ -1,51 +1,42 @@
 import Link from "next/link";
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, Info, SquareTerminal } from "lucide-react";
+import { NAV } from "@/config/navigation";
 import { WORKSPACES_CLOUD_DISABLED } from "@/lib/runtime";
 
+/**
+ * The workspace page when it cannot open. It used to be an amber warning box
+ * of server words ("PTY", "control plane", "peek stream", "dispatch") with
+ * three links in one sentence. Not a warning, and not a dead end: one plain
+ * line and one way forward, to Terminal, where agents are watched.
+ */
 export function WorkspaceUnavailable({ error, code }: { error: string; code?: string }) {
   const message = error || WORKSPACES_CLOUD_DISABLED;
 
   return (
     <div className="app-page app-page-compact app-viewport-pane flex flex-col gap-4">
-      <Link href="/control" className="ui-btn-ghost ui-btn-xs self-start gap-1.5">
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to Control
+      <Link href={NAV.control.href} className="ui-btn-ghost ui-tap self-start gap-1.5">
+        <ArrowLeft className="h-3.5 w-3.5" /> Back to {NAV.control.label}
       </Link>
-      <div>
-        <h1 className="ui-page-title">Workspace terminal</h1>
-        <p className="ui-page-subtitle mt-1">
-          Server-owned PTY workspaces are not available on this host.
-        </p>
-      </div>
-      <div className="ui-callout-warning">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
+      <h1 className="ui-page-title">Watch your agents</h1>
+      <div className="ui-callout">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
         <div className="space-y-3 text-sm leading-relaxed text-text-secondary">
           <p>{message}</p>
-          <p>
-            Use{" "}
-            <Link href="/terminal" className="text-accent-text underline">
-              Terminal
-            </Link>{" "}
-            → Cloud or This computer to watch and type into agent sessions, or dispatch from{" "}
-            <Link href="/control" className="text-accent-text underline">
-              Control
-            </Link>{" "}
-            /{" "}
-            <Link href="/loki" className="text-accent-text underline">
-              Loki
-            </Link>
-            .
-          </p>
           {code === "cloud-builder-private" && (
             <p>
-              Hosted sandboxes are private beta — connect{" "}
+              To run agents on your own computer,{" "}
               <Link href="/download" className="text-accent-text underline">
-                Fleet Runner
-              </Link>{" "}
-              on this computer for the default execution path.
+                install Fleet Runner
+              </Link>
+              .
             </p>
           )}
         </div>
       </div>
+      <Link href={NAV.terminal.href} className="ui-btn-primary self-start gap-1.5">
+        <SquareTerminal className="h-4 w-4" aria-hidden="true" />
+        Open Terminal
+      </Link>
     </div>
   );
 }

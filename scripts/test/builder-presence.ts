@@ -6,6 +6,7 @@ import {
   builderBehind,
   builderCompactLabel,
   builderUpdateNote,
+  builderPlainLine,
   builderPresenceDetail,
   inferBuilderChannelPresence,
   isCloudRunnerVersion,
@@ -36,7 +37,7 @@ const cloudOnly = inferBuilderChannelPresence({
   localConnected: false,
 });
 if (!cloudOnly.cloud || cloudOnly.local) throw new Error("cloud-only infer");
-if (builderPresenceDetail(cloudOnly) !== "This computer offline — cloud runner runs the queue") {
+if (builderPresenceDetail(cloudOnly) !== "Your desktop app is closed; the cloud does the work") {
   throw new Error("cloud-only detail");
 }
 
@@ -50,7 +51,11 @@ if (builderBehind("box-0.8.45", "0.8.45")) throw new Error("same version is not 
 if (builderBehind("box-0.8.46", "0.8.45")) throw new Error("newer is not behind");
 if (builderBehind("box", "0.8.45")) throw new Error("no number: no claim");
 if (builderBehind(null, "0.8.45")) throw new Error("no runner: no claim");
-if (builderUpdateNote("box-0.0.1") !== "a newer version waits for its agents to finish")
+if (builderUpdateNote("box-0.0.1") !== "An update installs when current work finishes")
   throw new Error("update note");
 if (builderUpdateNote(null) !== null) throw new Error("no runner, no note");
+// Home's Settings row says where builds run, without "runner" (2026-11-12).
+if (builderPlainLine({ cloud: true, local: false }) !== "Builds run in Loki's cloud")
+  throw new Error("plain cloud line");
+if (builderPlainLine({ cloud: false, local: false }) !== null) throw new Error("none on, no line");
 console.log("✓ builder-presence");

@@ -132,7 +132,7 @@ check("the badge renders unknown stages instead of hiding them", () => {
   ).replace(/\/\*[\s\S]*?\*\//g, "");
   assert(src.includes("resolveProjectStage"), "StatusBadge does not use the vocabulary");
   assert(
-    /stage \?\? value/.test(src),
+    /stage \?\? value|stage \? PROJECT_STAGE_WORD\[stage\] : value/.test(src),
     "the badge does not fall back to the raw value — an unknown stage would render blank",
   );
 });

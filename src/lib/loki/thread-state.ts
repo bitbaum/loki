@@ -13,6 +13,8 @@
  * Pure. No I/O, no dates read except the `now` the caller passes.
  */
 
+import { baseProjectKey } from "@/lib/run-tab";
+
 export type ThreadStateKind = "needs-you" | "running" | "done" | "unread" | "quiet";
 
 export type ThreadState = {
@@ -162,7 +164,9 @@ export function groupThreadsByProject<T extends ThreadForSort & { projectKeys: s
 ): ProjectGroup<T>[] {
   const buckets = new Map<string, T[]>();
   for (const t of threads) {
-    const key = t.projectKeys[0] ?? NO_PROJECT_GROUP;
+    // A run's lane ("substrata~39554470") belongs under its project.
+    const first = t.projectKeys[0];
+    const key = first ? baseProjectKey(first) : NO_PROJECT_GROUP;
     const bucket = buckets.get(key);
     if (bucket) bucket.push(t);
     else buckets.set(key, [t]);

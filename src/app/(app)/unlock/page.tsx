@@ -4,6 +4,7 @@ import { isPrivateZoneConfigured, isPrivateZoneUnlocked } from "@/lib/private-zo
 import { getPrivateZoneStats } from "@/db/queries/private-zone-stats";
 import { UnlockForm } from "@/components/private/UnlockForm";
 import { PageLayout } from "@/components/ui/page-layout";
+import { PRIVATE_AREAS_PHRASE, PRIVATE_NAV_ITEMS } from "@/config/navigation";
 
 export const metadata = { title: "Unlock private zone" };
 
@@ -20,9 +21,8 @@ export default async function UnlockPage({ searchParams }: { searchParams: Searc
       <PageLayout title="Private zone is open" maxWidth="max-w-xl">
         <div className="ui-settings-section">
           <p className="text-sm text-text-secondary">
-            You haven&apos;t set a PIN yet, so the private zone is unlocked by default. Set one in
-            Settings → Privacy to gate Memory, People, Robots, Goals, Habits, Events, and Money
-            behind a PIN.
+            You haven&apos;t set a PIN yet, so the private zone is open. Set one in Settings →
+            Privacy to keep {PRIVATE_AREAS_PHRASE} behind a PIN.
           </p>
           <a href="/settings#privacy" className="ui-btn-primary mt-2 inline-flex">
             Open Settings → Privacy
@@ -51,56 +51,38 @@ export default async function UnlockPage({ searchParams }: { searchParams: Searc
     commitments: 0,
   }));
 
-  const areas = [
-    {
-      label: "Memory",
-      description: "Knowledge graph — people, projects, decisions, conversations.",
+  // One row per private page, from the navigation SSOT — so this list and
+  // Settings → Privacy name the same areas. Counts in plain nouns.
+  const facts: Record<string, { description: string; count?: number; unit?: string }> = {
+    memory: {
+      description: "What Loki remembers about people, projects and decisions.",
       count: stats.memoryEntities,
-      unit: "entities",
+      unit: "things",
     },
-    {
-      label: "People",
-      description: "Your private address book. Other users have their own.",
+    people: {
+      description: "Your private address book. Other people have their own.",
       count: stats.people,
       unit: "contacts",
     },
-    {
-      label: "Robots",
-      description: "Machines you own — profile, book, rent, or sell.",
+    crew: { description: "People you ask to do what an agent cannot." },
+    robots: {
+      description: "Machines you own.",
       count: stats.robots,
       unit: "robots",
     },
-    {
-      label: "Goals",
-      description: "Your personal goals. A project's roadmap always shows on its own page.",
-      count: stats.goals,
-      unit: "goals",
-    },
-    {
-      label: "Habits",
-      description: "Daily streaks and 30-day heatmaps.",
-      count: stats.habits,
-      unit: "habits",
-    },
-    {
-      label: "Events",
-      description: "Deadlines and opportunities.",
-      count: stats.events,
-      unit: "events",
-    },
-    {
-      label: "Money",
-      description: "Subscriptions and monthly burn.",
+    goals: { description: "Your personal goals.", count: stats.goals, unit: "goals" },
+    habits: { description: "Daily streaks.", count: stats.habits, unit: "habits" },
+    events: { description: "Deadlines and opportunities.", count: stats.events, unit: "events" },
+    money: {
+      description: "Subscriptions, monthly spending and what you have promised to pay.",
       count: stats.subscriptions,
       unit: "subscriptions",
     },
-    {
-      label: "Commitments",
-      description: "Promises you have made and what they will cost.",
-      count: stats.commitments,
-      unit: "commitments",
-    },
-  ];
+  };
+  const areas = PRIVATE_NAV_ITEMS.map((item) => ({
+    label: item.label,
+    ...(facts[item.id] ?? { description: item.description }),
+  }));
 
   return (
     <PageLayout title="Unlock private zone" maxWidth="max-w-xl">

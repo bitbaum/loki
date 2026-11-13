@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { debugLogs, type NewDebugLog } from "@/db/schema/debug-logs";
-import { and, desc, eq, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { DAY_MS } from "@/lib/constants/time";
 
 /**
@@ -29,6 +29,16 @@ export function logDebug(entry: Omit<NewDebugLog, "id" | "createdAt">): Promise<
 /** Most-recent N debug log entries, newest first. UI helper for a future admin view. */
 export async function getRecentDebugLogs(limit = 50) {
   return db.select().from(debugLogs).orderBy(desc(debugLogs.createdAt)).limit(limit);
+}
+
+/** Most-recent N errors and warnings, newest first — the heartbeats left out. */
+export async function getRecentProblemLogs(limit = 10) {
+  return db
+    .select()
+    .from(debugLogs)
+    .where(inArray(debugLogs.level, ["error", "warn"]))
+    .orderBy(desc(debugLogs.createdAt))
+    .limit(limit);
 }
 
 /**

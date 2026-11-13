@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   dispatchMessageDisplay,
+  splitDiagnostics,
   isTranscriptInterruption,
   transcriptActivity,
   toolWasInterrupted,
@@ -24,14 +25,18 @@ const tool: Extract<TranscriptItem, { kind: "tool" }> = {
   result: null,
 };
 const packet = `<pasted_content id="example">\n# Loki operator dispatch\nInternal framing.\n\n## The operator's goals & deadlines (background)\nPrivate life goal.\n\n## Your task (direct operator instruction)\nFix the homepage spacing.\n\n## Exit contract\nInternal handoff.\n</pasted_content>`;
+const unwrap = (t: string) =>
+  t.replace(/^<pasted_content\b[^>]*>\s*/, "").replace(/\s*<\/pasted_content\b[^>]*>\s*$/, "");
 const display = dispatchMessageDisplay(packet);
 assert.equal(display.text, "Fix the homepage spacing.");
-assert.equal(display.details, packet);
+// The fold shows what the agent received, without Claude Code's paste markers.
+assert.equal(display.details, unwrap(packet));
+assert(!display.details?.includes("pasted_content"));
 const concisePacket =
   '<pasted_content id="short">\n## Task\nFix the homepage spacing.\n\n## Exit contract (operator requirement)\nUpdate ~/.loki/sessions/petvity.md.\n</pasted_content>';
 assert.deepEqual(dispatchMessageDisplay(concisePacket), {
   text: "Fix the homepage spacing.",
-  details: concisePacket,
+  details: unwrap(concisePacket),
 });
 assert.deepEqual(dispatchMessageDisplay("A normal message\nwith a second line."), {
   text: "A normal message\nwith a second line.",
@@ -70,6 +75,19 @@ const stale = transcriptActivity(
   true,
 );
 assert.equal(stale.label, "No recent update from the agent");
+// Busy reads as busy, named; "waiting" is kept for "waiting for you".
+assert.equal(transcriptActivity([tool], now, true, "Claude").label, "Claude is working");
+assert(!/waiting/i.test(transcriptActivity([user("Go")], now, true, "Claude").label ?? ""));
+// An answer with nothing running is the person's turn, said in words.
+assert.equal(
+  transcriptActivity(
+    [user("Go"), { id: "a", kind: "assistant", at: null, text: "Done" }],
+    now,
+    true,
+  ).label,
+  "Done. Waiting for your reply",
+);
+assert.equal(transcriptActivity([], now, true).label, null, "an empty session claims nothing");
 assert.equal(stale.working, true, "a quiet command may still need Stop; silence is not completion");
 assert.equal(transcriptActivity([tool], now, false).working, false);
 assert.equal(transcriptActivity([user("New task")], now, true).working, true);
@@ -103,3 +121,17 @@ assert(!toolWasInterrupted({ ...tool, status: "error", result: "command exited 1
 console.log(
   "✓ dispatch presentation preserves requests; interruption, quiet and disconnected sessions report honest state",
 );
+
+// A feedback note shows its words, not its diagnostics tail (2026-11-12:
+// "--- technical details --- code: provider_unavailable …" inside the note).
+{
+  const note =
+    "The form fill button does nothing.\n\n--- technical details ---\ncode: provider_unavailable";
+  const split = splitDiagnostics(note);
+  assert.equal(split.text, "The form fill button does nothing.");
+  assert.equal(split.details, "--- technical details ---\ncode: provider_unavailable");
+  assert.deepEqual(splitDiagnostics("Just words."), { text: "Just words.", details: null });
+  const only = "--- technical details ---\ncode: x";
+  assert.deepEqual(splitDiagnostics(only), { text: only, details: null }, "nothing else: keep it");
+}
+console.log("✓ a feedback note folds its technical details away");

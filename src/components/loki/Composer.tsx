@@ -255,26 +255,38 @@ export function LokiComposer({
       )}
       {selectedProjects.map((project) => (
         <span key={project} className="ui-loki-scope-pill">
-          {/* Whether work sent to it will run — a dot on the project itself,
-              not a separate chip squeezing the row (its words in the title). */}
-          {dispatchHonesty && (
-            <span
-              className={SCOPE_DOT[dispatchHonesty.kind]}
-              title={`${dispatchHonesty.label} — ${dispatchHonesty.title}`}
-              aria-label={dispatchHonesty.label}
-            />
-          )}
+          {/* The whole pill is the button, dot and name: only the 27px name
+              could be tapped (owner audit, 2026-11-12). The dot says whether
+              work sent to it will run; its words are in the label. */}
           {onOpenProjects ? (
             <button
               type="button"
-              className="truncate"
+              className="ui-loki-scope-name"
               onClick={onOpenProjects}
-              title="Change project scope"
+              aria-label={`Choose project — now ${projectTitle({ name: project })}${
+                dispatchHonesty ? ` (${dispatchHonesty.label})` : ""
+              }`}
             >
-              {projectTitle({ name: project })}
+              {dispatchHonesty && (
+                <span
+                  className={SCOPE_DOT[dispatchHonesty.kind]}
+                  title={`${dispatchHonesty.label} — ${dispatchHonesty.title}`}
+                  aria-hidden
+                />
+              )}
+              <span className="truncate">{projectTitle({ name: project })}</span>
             </button>
           ) : (
-            <span className="truncate">{projectTitle({ name: project })}</span>
+            <>
+              {dispatchHonesty && (
+                <span
+                  className={SCOPE_DOT[dispatchHonesty.kind]}
+                  title={`${dispatchHonesty.label} — ${dispatchHonesty.title}`}
+                  aria-label={dispatchHonesty.label}
+                />
+              )}
+              <span className="truncate">{projectTitle({ name: project })}</span>
+            </>
           )}
           {onRemoveProject && (
             <button
@@ -331,10 +343,14 @@ export function LokiComposer({
               className="ui-loki-talk"
               onClick={onTalk}
               disabled={disabled}
-              aria-label="Talk — a hands-free voice conversation"
-              title="Talk — a hands-free voice conversation"
+              // Its name on the button: two unlabelled sound icons side by side
+              // (this and the dictation mic) could not be told apart (owner,
+              // 2026-11-12). The mic types your words; Talk is a conversation.
+              aria-label="Talk to Loki out loud"
+              title="Talk to Loki out loud — it answers and listens again"
             >
               <AudioLines className="h-5 w-5" aria-hidden />
+              <span>Talk</span>
             </button>
           )}
         </>

@@ -71,12 +71,20 @@ export function AccountMenu() {
     {
       id: "help",
       items: [
-        {
-          id: "report",
-          label: "Report a problem",
-          icon: <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />,
-          onSelect: () => openFeedback(() => router.push("/support")),
-        },
+        // One door to the feedback panel: while the top bar shows its spiral
+        // (FeedbackLauncher), that is the door, and this row was the same
+        // panel a second time (audit, 2026-11-12). Without the spiral it is
+        // the only way to report a problem.
+        ...(feedbackButton.hidden === false
+          ? []
+          : [
+              {
+                id: "report",
+                label: "Report a problem",
+                icon: <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />,
+                onSelect: () => openFeedback(() => router.push("/support")),
+              },
+            ]),
         // The one place to switch the floating feedback button off and on
         // again, named for what it does. Only offered while there is a widget
         // to switch; the widget's own menu flips the same stored choice.
@@ -85,7 +93,11 @@ export function AccountMenu() {
           : [
               {
                 id: "feedback-button",
-                label: feedbackButton.hidden ? "Show feedback button" : "Hide feedback button",
+                // Named by what it looks like: nobody could point at "the
+                // feedback button" — it is the spiral in the top bar.
+                label: feedbackButton.hidden
+                  ? "Show the spiral (feedback) in the top bar"
+                  : "Hide the spiral (feedback) from the top bar",
                 icon: feedbackButton.hidden ? (
                   <Eye className="h-4 w-4" aria-hidden="true" />
                 ) : (
@@ -100,12 +112,18 @@ export function AccountMenu() {
 
   return (
     <SharedAccountMenu
-      user={{ name: user?.name, email: user?.email, image: user?.image }}
+      user={{
+        name: user?.name,
+        email: user?.email,
+        image: user?.image,
+        // No name: the menu shows @handle, not "Account".
+        handle: (user as { username?: string | null } | undefined)?.username ?? undefined,
+      }}
       groups={groups}
       extra={
-        <div className="flex min-h-11 items-center gap-3">
+        <div className="flex flex-col gap-2 py-1">
           <span>Appearance</span>
-          <ThemeToggle showLabel className="ml-auto" />
+          <ThemeToggle variant="segmented" />
         </div>
       }
       renderLink={(props) => <Link {...props} />}

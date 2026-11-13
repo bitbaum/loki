@@ -92,3 +92,29 @@ function clip(text: string, max = 60): string {
   const t = text.trim().replace(/\s+/g, " ");
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
+
+/**
+ * "Is anything running, and where do I watch it?" — asked of every page, not
+ * only Home (owner, 2026-11-12: "I would like to know if anything is actively
+ * running, and I would like to watch it"). The top bar shows it only while an
+ * agent is working; the link opens that session when there is one, the
+ * terminal's list when there are several.
+ */
+export function workingNow<T extends { session: SessionListRow; tab: string | null; name: string }>(
+  items: readonly T[],
+  terminalHref: string,
+): { count: number; href: string; label: string } | null {
+  const working = items.filter((i) => i.session.open && i.session.status === "working");
+  if (working.length === 0) return null;
+  const only = working.length === 1 ? working[0]! : null;
+  const href = only
+    ? only.tab
+      ? `${terminalHref}?tab=${encodeURIComponent(only.tab)}`
+      : `${terminalHref}?project=${encodeURIComponent(only.name)}`
+    : terminalHref;
+  const label =
+    working.length === 1
+      ? "1 agent working now — watch it"
+      : `${working.length} agents working now — watch them`;
+  return { count: working.length, href, label };
+}

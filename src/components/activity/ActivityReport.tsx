@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { FileText, Loader2, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { PageActionButton } from "@/components/ui/page-action";
 import { MarkdownText } from "@/components/ui/markdown-text";
@@ -48,7 +48,9 @@ export function ActivityReport({ window, project }: { window: string; project: s
     <>
       <PageActionButton
         label="Write a report"
-        icon={Sparkles}
+        // A page, not a sparkle: the sparkle read as "AI magic" in the slot
+        // where every other page puts a "+" (audit, 2026-11-12).
+        icon={FileText}
         onClick={() => {
           setOpen(true);
           if (!result && !loading) void generate(false);

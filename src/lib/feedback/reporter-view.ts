@@ -80,6 +80,10 @@ const ON_THE_WAY: ReadonlySet<string> = new Set([
   FIX_SHIP_STATE.DEPLOYING,
 ]);
 
+/** A finished run whose change has not reached the site after this long has
+ *  stopped moving: deploys take minutes, a slow review a day or two. */
+const STALLED_AFTER_MS = 3 * 24 * 60 * 60_000;
+
 export function reporterStatusFor(
   work: FeedbackWorkView,
   opts: Parameters<typeof reporterSentenceFor>[1] = {},
@@ -99,6 +103,9 @@ function reporterSentenceFor(
     liveHref?: string | null;
     tourHref?: string | null;
     client?: ClientChange | null;
+    /** The clock, for "this has not moved in days". Without it nothing is
+     *  called stalled by age. */
+    now?: Date;
   } = {},
 ): Omit<ReporterStatus, "state"> {
   const liveHref = opts.liveHref ?? null;
@@ -185,6 +192,41 @@ function reporterSentenceFor(
           action: null,
         };
       }
+      // Live, but Loki read the page (or the agent's own account) and it is
+      // not all there. The owner's inbox says "Try again" from these same
+      // facts; this page said "Fix is live" for the same report on
+      // 2026-11-12, so neither could be trusted. One set of facts, one story.
+      const verdict = work.ship?.verify?.verdict ?? null;
+      if (ship === FIX_SHIP_STATE.DEPLOYED && /partial success/i.test(work.detail ?? "")) {
+        return {
+          label: "Partly fixed",
+          tone: "warning",
+          detail: "Part of the change is live. The rest is back with the maintainer.",
+          action: checkLive,
+        };
+      }
+      if (ship === FIX_SHIP_STATE.DEPLOYED && verdict === "not_visible") {
+        return {
+          label: "Not fixed yet",
+          tone: "warning",
+          detail:
+            "A change went live, but the page does not show it yet. It is back with the maintainer.",
+          action: null,
+        };
+      }
+      if (
+        ship === FIX_SHIP_STATE.DEPLOYED &&
+        verdict !== "looks_fixed" &&
+        work.ship?.pr?.note?.shows !== "behind"
+      ) {
+        return {
+          label: "Fix shipped, being checked",
+          tone: "accent",
+          detail:
+            "A fix went live and is being checked. Have a look and tell us if it is still wrong.",
+          action: checkLive,
+        };
+      }
       if (ship === FIX_SHIP_STATE.DEPLOYED || work.checkLive === true) {
         return {
           label: "Fix is live",
@@ -195,6 +237,16 @@ function reporterSentenceFor(
       }
       // No ledger yet, or a PR that was closed without merging. Claiming a fix
       // shipped here is the closed-loop lie work-phase.ts exists to prevent.
+      // Days of that is not "being implemented" (21 days of it on 2026-11-12).
+      const since = work.since ? Date.parse(work.since) : NaN;
+      if (opts.now && Number.isFinite(since) && opts.now.getTime() - since > STALLED_AFTER_MS)
+        return {
+          label: "Stalled",
+          tone: "warning",
+          detail:
+            "The work finished but its change never reached the site. It is back with the maintainer.",
+          action: null,
+        };
       return {
         label: "Being implemented",
         tone: "accent",

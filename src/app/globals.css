@@ -473,8 +473,22 @@
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
+  /* Native radios and checkboxes take the ink, not the browser's default blue
+     (the same choice .ui-inspection-choice makes). A component may still set
+     its own accent-color. */
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--text-primary);
+  }
   * {
     @apply border-border outline-ring/50;
+  }
+  /* The browser's own bright blue is a colour outside the tokens, in both
+     themes (Settings' radios, 2026-11-12). The same ink .ui-inspection-choice
+     already uses; a control with its own accent-color still wins. */
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--text-primary);
   }
   /* The keyboard's place on the page, wherever a component has not drawn its
      own: 2px in the text colour, set off from the control. The fallback above
@@ -895,7 +909,7 @@
     @apply h-4 w-4 shrink-0 text-text-muted;
   }
   .ui-public-drawer-footer {
-    @apply flex shrink-0 items-center justify-between gap-3 border-t border-border-subtle px-4 py-3;
+    @apply flex shrink-0 items-center justify-start gap-3 border-t border-border-subtle px-4 py-3;
   }
   .ui-public-badge {
     @apply inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-raised px-4 py-1.5 text-xs font-medium tracking-[0.02em] text-text-tertiary;
@@ -1109,6 +1123,13 @@
      address was not scrolled off, it was gone. */
   .ui-public-link {
     @apply break-words text-text-secondary;
+  }
+  /* A link inside a sentence took its paragraph's colour and had no
+     underline, so "whitepaper" and "docs" on /how-it-works read as plain
+     words (2026-11-12). In prose it is underlined, in a token colour that
+     does not depend on the paragraph's. */
+  :is(p, li, .ui-journey-line) > .ui-public-link {
+    @apply text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
   }
   /* Standalone variant, for a link that is its own row rather than a word
      inside a sentence — "Forgot password?", "← Back to homepage".
@@ -2043,11 +2064,6 @@
   .ui-journey-stop[data-phase="now"] .ui-journey-ring-fill {
     stroke: var(--text-primary);
   }
-  .ui-journey-ring-text {
-    @apply font-semibold tabular-nums;
-    fill: var(--text-secondary);
-    font-size: 11px;
-  }
   .ui-journey-card {
     @apply flex min-w-0 flex-1 flex-col gap-2 pb-4 pt-2.5;
   }
@@ -2451,31 +2467,35 @@
   .ui-public-drawer-item-label {
     @apply block text-base font-medium text-text-primary;
   }
+  /* Wraps, at most two lines. One truncated line cut every description off
+     mid-sentence ("From a sentence to a working site — and under t…"), so the
+     text meant to say where a link goes was never readable (2026-11-12). */
   .ui-public-drawer-item-desc {
-    @apply mt-0.5 block truncate text-sm text-text-tertiary;
+    @apply mt-0.5 line-clamp-2 text-sm text-text-tertiary;
   }
 
-  /* Desktop Fleet Runner download/install promo — x.ai-style pure-black band for the
-     local authoritative runtime CTA. All color, typography, and opacity decisions live
-     inside these class definitions (per design system Layer 3). JSX uses only the
-     semantic names + layout utilities. */
+  /* Desktop Fleet Runner download/install band. It follows the page theme:
+     it used to be hard-coded black with white text, so in Light the band stayed
+     black and the accent button (black in Light) vanished into it (2026-11-12).
+     Surface, text and border tokens only. JSX uses only the semantic names +
+     layout utilities. */
   .ui-public-download {
-    @apply border-t border-white/10 bg-black py-14 text-white sm:py-20;
+    @apply border-t border-border-subtle bg-surface-page py-14 text-text-primary sm:py-20;
   }
   .ui-public-download-title {
     font-size: clamp(2rem, 9vw, 3.5rem);
     line-height: 1.02;
     font-weight: 600;
     letter-spacing: -0.035em;
-    @apply mb-3 text-white;
+    @apply mb-3 text-text-primary;
     text-wrap: balance;
   }
   .ui-public-download-lede {
-    @apply mx-auto max-w-sm text-base text-white/60 sm:text-lg;
+    @apply mx-auto max-w-sm text-base text-text-secondary sm:text-lg;
     text-wrap: pretty;
   }
   .ui-public-download-note {
-    @apply text-center text-xs text-white/40 mb-8;
+    @apply text-center text-xs text-text-tertiary mb-8;
   }
   /* Stacks label over note and goes full width on a phone. Side by side, the
      ~30-character label and its ~45-character note each wrapped to three lines
@@ -2490,31 +2510,31 @@
     @apply text-xs font-medium opacity-90 sm:ml-2;
   }
   .ui-public-download-secondary {
-    @apply inline-flex min-h-11 items-center rounded-full border border-white/20 px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:border-white/40 hover:text-white;
+    @apply inline-flex min-h-11 items-center rounded-full border border-border-default px-4 py-2 text-xs font-medium text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary;
   }
   .ui-public-download-platform-bar {
-    @apply mx-auto mb-8 flex w-full max-w-sm gap-1 rounded-full border border-white/15 p-1 sm:mb-12;
+    @apply mx-auto mb-8 flex w-full max-w-sm gap-1 rounded-full border border-border-subtle p-1 sm:mb-12;
   }
   .ui-public-download-platform {
     @apply inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-sm font-medium transition-colors;
   }
   .ui-public-download-platform-active {
-    @apply bg-white text-black;
+    @apply bg-accent-primary text-on-accent;
   }
   .ui-public-download-platform-idle {
-    @apply text-white/70 hover:text-white;
+    @apply text-text-secondary hover:text-text-primary;
   }
   .ui-public-download-command {
-    @apply mb-10 rounded-2xl border border-white/10 bg-white/5 p-4 text-left;
+    @apply mb-10 rounded-2xl border border-border-subtle bg-surface-raised p-4 text-left;
   }
   /* Sentence case at readable size. This slot carries two full sentences of
      instructions, and tracked 10px uppercase turned them into four lines of
      shouting that nobody reads before pasting a sudo command. */
   .ui-public-download-command span {
-    @apply mb-3 block text-sm leading-relaxed text-white/60;
+    @apply mb-3 block text-sm leading-relaxed text-text-secondary;
   }
   .ui-public-download-command code {
-    @apply block whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-white/70;
+    @apply block whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-text-secondary;
   }
   /* Command above, Copy below-right on a phone: side by side the copy button
      stole a third of the width and the command broke every ~22 characters. */
@@ -2522,55 +2542,52 @@
     @apply flex flex-col items-stretch gap-2 sm:flex-row sm:items-start sm:gap-3;
   }
   .ui-public-download-command-row code {
-    @apply block flex-1 whitespace-pre-wrap break-all rounded-lg bg-black/40 p-3 font-mono text-xs leading-relaxed text-white/85 sm:bg-transparent sm:p-0;
+    @apply block flex-1 whitespace-pre-wrap break-all rounded-lg bg-surface-base p-3 font-mono text-xs leading-relaxed text-text-primary sm:bg-transparent sm:p-0;
   }
   .ui-public-download-command-copy {
-    @apply inline-flex shrink-0 items-center justify-center gap-1.5 self-end rounded-lg border border-white/15 bg-white/10 px-3.5 py-2.5 text-xs font-medium text-white/80 transition hover:border-white/30 hover:bg-white/15 hover:text-white sm:self-auto sm:rounded-md sm:px-2.5 sm:py-1.5;
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 self-end rounded-lg border border-border-subtle bg-surface-overlay px-3.5 py-2.5 text-xs font-medium text-text-secondary transition hover:border-border-strong hover:bg-surface-overlay hover:text-text-primary sm:self-auto sm:rounded-md sm:px-2.5 sm:py-1.5;
   }
   .ui-public-download-prereqs {
-    @apply mb-10 border-t border-white/10 pt-9 text-left;
+    @apply mb-10 border-t border-border-subtle pt-9 text-left;
   }
   .ui-public-download-prereqs-heading {
-    @apply mb-4 text-center text-micro font-mono text-white/40;
+    @apply mb-4 text-center text-micro font-mono text-text-tertiary;
   }
   .ui-public-download-prereq-card {
-    @apply border-t border-white/10 py-5;
+    @apply border-t border-border-subtle py-5;
   }
   .ui-public-download-prereq-title {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-prereq-role {
-    @apply mt-0.5 text-xs text-white/40;
+    @apply mt-0.5 text-xs text-text-tertiary;
   }
   .ui-public-download-prereq-card p {
-    @apply mt-3 text-xs leading-relaxed text-white/55;
+    @apply mt-3 text-xs leading-relaxed text-text-secondary;
   }
   .ui-public-download-prereq-card code {
-    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white/65;
+    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-base px-3 py-2 font-mono text-xs text-text-secondary;
   }
   .ui-public-download-prereq-link {
-    @apply mt-3 inline-flex text-xs font-medium text-white underline underline-offset-4;
+    @apply mt-3 inline-flex text-xs font-medium text-text-primary underline underline-offset-4;
   }
   .ui-public-download-fallback {
-    @apply border-t border-white/10 pt-9 text-center text-sm;
+    @apply border-t border-border-subtle pt-9 text-center text-sm;
   }
   .ui-public-download-fallback-label {
-    @apply text-white/50 mb-1;
+    @apply text-text-tertiary mb-1;
   }
   .ui-public-download-fallback-desc {
-    @apply text-white/40 text-xs max-w-xs mx-auto mb-4;
+    @apply text-text-tertiary text-xs max-w-xs mx-auto mb-4;
   }
   .ui-public-download-fallback-code {
-    @apply font-mono text-xs bg-white/5 border border-white/10 px-3 py-1.5 rounded text-white/70 inline-block;
+    @apply font-mono text-xs bg-surface-raised border border-border-subtle px-3 py-1.5 rounded text-text-secondary inline-block;
   }
   .ui-public-download-build {
-    @apply mt-8 text-micro text-white/40;
+    @apply mt-8 text-micro text-text-tertiary;
   }
   .ui-public-download-build-step {
-    @apply font-mono text-white/60;
-  }
-  .ui-public-download-footer {
-    @apply text-center text-white/40 text-xs mt-16 tracking-wide max-w-md mx-auto;
+    @apply font-mono text-text-secondary;
   }
 
   /* ── Download page additions ──────────────────────────────────────────
@@ -2579,7 +2596,7 @@
      band, a status-aware platform panel, a numbered post-install step grid,
      plain-language prereq cards with required/optional badges, and a
      collapsed developer drawer. All live inside the same dark Fleet Runner
-     band, so they keep the existing white-on-black token vocabulary. */
+     band, so they use the same surface/text/border tokens. */
   .ui-public-download-compare {
     @apply mb-3 grid md:grid-cols-2 md:gap-x-8;
   }
@@ -2797,33 +2814,33 @@
     display: none;
   }
   .ui-public-download-compare-card {
-    @apply border-t border-white/12 py-5 text-left;
+    @apply border-t border-border-subtle py-5 text-left;
   }
   .ui-public-download-compare-card-emphasis {
-    @apply border-white/30;
+    @apply border-border-strong;
   }
   .ui-public-download-compare-label {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-compare-tagline {
-    @apply mt-1 text-xs text-white/45;
+    @apply mt-1 text-xs text-text-tertiary;
   }
   .ui-public-download-compare-list {
-    @apply mt-4 space-y-2 text-sm text-white/65;
+    @apply mt-4 space-y-2 text-sm text-text-secondary;
   }
   .ui-public-download-compare-list li {
     @apply relative pl-4;
   }
   .ui-public-download-compare-list li::before {
     content: "·";
-    @apply absolute left-0 text-white/40;
+    @apply absolute left-0 text-text-tertiary;
   }
   .ui-public-download-compare-note {
-    @apply mb-10 mt-3 text-center text-sm leading-relaxed text-white/55 max-w-2xl mx-auto;
+    @apply mb-10 mt-3 text-center text-sm leading-relaxed text-text-secondary max-w-2xl mx-auto;
   }
 
   .ui-public-download-platform-soon {
-    @apply ml-1.5 rounded-full bg-white/10 px-1.5 py-0.5 text-micro font-medium text-white/55;
+    @apply ml-1.5 rounded-full bg-surface-overlay px-1.5 py-0.5 text-micro font-medium text-text-secondary;
   }
 
   .ui-public-download-panel {
@@ -2836,73 +2853,73 @@
      downloads folder, name the situation and give them the two things that do
      work from here: open the web control plane, or send themselves the link. */
   .ui-public-download-handoff {
-    @apply mb-10 rounded-2xl border border-white/12 bg-white/[0.06] p-5 text-left sm:p-6;
+    @apply mb-10 rounded-2xl border border-border-subtle bg-surface-raised p-5 text-left sm:p-6;
   }
   .ui-public-download-handoff-badge {
-    @apply mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-micro font-medium text-white/65;
+    @apply mb-3 inline-flex items-center gap-2 rounded-full bg-surface-overlay px-3 py-1 text-micro font-medium text-text-secondary;
   }
   .ui-public-download-handoff-title {
-    @apply text-xl font-semibold leading-snug text-white;
+    @apply text-xl font-semibold leading-snug text-text-primary;
     text-wrap: pretty;
   }
   .ui-public-download-handoff-body {
-    @apply mt-2 text-sm leading-relaxed text-white/60;
+    @apply mt-2 text-sm leading-relaxed text-text-secondary;
     text-wrap: pretty;
   }
   .ui-public-download-handoff-actions {
     @apply mt-5 flex flex-col gap-2.5;
   }
   .ui-public-download-handoff-primary {
-    @apply inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-white px-5 text-[15px] font-medium text-black transition active:scale-[0.985];
+    @apply inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent-primary px-5 text-[15px] font-medium text-on-accent transition active:scale-[0.985];
   }
   .ui-public-download-handoff-secondary {
-    @apply inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/20 px-5 text-[15px] font-medium text-white/80 transition hover:border-white/40 hover:text-white active:scale-[0.985];
+    @apply inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border-default px-5 text-[15px] font-medium text-text-secondary transition hover:border-border-strong hover:text-text-primary active:scale-[0.985];
   }
   .ui-public-download-handoff-link {
-    @apply mt-4 block w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-center font-mono text-xs text-white/50;
+    @apply mt-4 block w-full rounded-lg border border-border-subtle bg-surface-base px-3 py-2 text-center font-mono text-xs text-text-tertiary;
   }
   /* Everything the phone cannot use, behind one deliberate tap. */
   .ui-public-download-reveal {
-    @apply mb-10 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-white/60 transition-colors hover:border-white/25 hover:text-white;
+    @apply mb-10 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface-raised px-4 text-sm text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary;
   }
 
   .ui-public-download-soon {
-    @apply rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center;
+    @apply rounded-2xl border border-border-subtle bg-surface-raised p-8 text-center;
   }
   .ui-public-download-soon-badge {
-    @apply mb-3 inline-block rounded-full bg-white/10 px-3 py-1 text-micro font-medium text-white/65;
+    @apply mb-3 inline-block rounded-full bg-surface-overlay px-3 py-1 text-micro font-medium text-text-secondary;
   }
   .ui-public-download-soon-message {
-    @apply mx-auto mb-6 max-w-md text-sm leading-relaxed text-white/65;
+    @apply mx-auto mb-6 max-w-md text-sm leading-relaxed text-text-secondary;
   }
 
   .ui-public-download-steps {
-    @apply mb-12 border-t border-white/10 pt-10;
+    @apply mb-12 border-t border-border-subtle pt-10;
   }
   .ui-public-download-steps-heading {
-    @apply mb-6 text-center text-micro font-mono text-white/40;
+    @apply mb-6 text-center text-micro font-mono text-text-tertiary;
   }
   .ui-public-download-steps-grid {
     @apply grid md:grid-cols-3 md:gap-x-8;
   }
   .ui-public-download-step {
-    @apply border-t border-white/10 py-5 text-left;
+    @apply border-t border-border-subtle py-5 text-left;
   }
   .ui-public-download-step-num {
-    @apply mb-3 font-mono text-xs text-white/40;
+    @apply mb-3 font-mono text-xs text-text-tertiary;
   }
   .ui-public-download-step-title {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-step-body {
-    @apply mt-2 text-sm leading-relaxed text-white/65;
+    @apply mt-2 text-sm leading-relaxed text-text-secondary;
   }
 
   .ui-public-download-prereqs-title {
-    @apply mb-2 text-center text-base font-medium text-white;
+    @apply mb-2 text-center text-base font-medium text-text-primary;
   }
   .ui-public-download-prereqs-desc {
-    @apply mx-auto mb-6 max-w-xl text-center text-sm leading-relaxed text-white/60;
+    @apply mx-auto mb-6 max-w-xl text-center text-sm leading-relaxed text-text-secondary;
   }
   .ui-public-download-prereqs-grid {
     @apply grid gap-x-8 grid-cols-[repeat(auto-fit,minmax(16rem,1fr))];
@@ -2911,47 +2928,47 @@
     @apply mb-3 flex items-start justify-between gap-3;
   }
   .ui-public-download-prereq-required {
-    @apply rounded-full bg-white/10 px-2 py-0.5 text-micro font-medium text-white;
+    @apply rounded-full bg-surface-overlay px-2 py-0.5 text-micro font-medium text-text-primary;
   }
   .ui-public-download-prereq-optional {
-    @apply rounded-full border border-white/15 px-2 py-0.5 text-micro font-medium text-white/45;
+    @apply rounded-full border border-border-subtle px-2 py-0.5 text-micro font-medium text-text-tertiary;
   }
   .ui-public-download-prereq-why {
-    @apply mb-3 text-sm leading-relaxed text-white/65;
+    @apply mb-3 text-sm leading-relaxed text-text-secondary;
   }
   .ui-public-download-prereq-command {
-    @apply mb-3 block whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white/65;
+    @apply mb-3 block whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-base px-3 py-2 font-mono text-xs text-text-secondary;
   }
   .ui-public-download-prereq-link-icon {
     @apply ml-1 h-3 w-3 inline-block;
   }
 
   .ui-public-download-dev {
-    @apply mt-4 border-t border-white/10 pt-8;
+    @apply mt-4 border-t border-border-subtle pt-8;
   }
   .ui-public-download-dev-toggle {
-    @apply flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white/70 transition-colors hover:border-white/20 hover:text-white;
+    @apply flex w-full items-center justify-between rounded-xl border border-border-subtle bg-surface-raised px-4 py-3 text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
   .ui-public-download-dev-toggle-icon {
-    @apply font-mono text-base leading-none text-white/40;
+    @apply font-mono text-base leading-none text-text-tertiary;
   }
   .ui-public-download-dev-body {
     @apply mt-4 space-y-6 text-left;
   }
   .ui-public-download-dev-desc {
-    @apply text-xs leading-relaxed text-white/50;
+    @apply text-xs leading-relaxed text-text-tertiary;
   }
   .ui-public-download-dev-block {
-    @apply rounded-xl border border-white/10 bg-white/[0.02] p-4;
+    @apply rounded-xl border border-border-subtle bg-surface-raised p-4;
   }
   .ui-public-download-dev-block-title {
-    @apply text-sm font-medium text-white;
+    @apply text-sm font-medium text-text-primary;
   }
   .ui-public-download-dev-block-body {
-    @apply mt-2 text-xs leading-relaxed text-white/55;
+    @apply mt-2 text-xs leading-relaxed text-text-secondary;
   }
   .ui-public-download-dev-command {
-    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white/65;
+    @apply mt-3 block whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-base px-3 py-2 font-mono text-xs text-text-secondary;
   }
 
   .ui-brand-mark {
@@ -3361,6 +3378,13 @@
   }
   .ui-term-split-pty {
     @apply min-h-0 min-w-0 flex-1;
+  }
+  /* The raw terminal on a phone keeps clear of the feedback edge tab
+     (data-fc-place="tab", widget/theme.ts: 28px wide at the screen edge).
+     The page gutter is 16px, so 12px more keeps line ends readable; it sat
+     over "…attern resolv…" (audit, 2026-11-12). */
+  .ui-term-split-pty:has(.xterm) {
+    @apply max-md:pr-3;
   }
   .ui-term-split-rail {
     @apply hidden min-h-0 w-80 shrink-0 lg:flex xl:w-96;
@@ -3844,6 +3868,13 @@
   }
   .ui-sheet-hint {
     @apply mt-0.5 text-xs leading-snug text-text-muted;
+  }
+  /* The sheet's own name, and a fold for the diagnostics nobody reads daily. */
+  .ui-sheet-title {
+    @apply text-base font-semibold text-text-primary;
+  }
+  .ui-sheet-details-summary {
+    @apply flex min-h-11 cursor-pointer items-center text-sm text-text-secondary;
   }
   .ui-sheet-foot {
     @apply shrink-0 border-t border-border-subtle p-4;
@@ -4406,8 +4437,8 @@
     @apply inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-text-tertiary;
     font-family: var(--font-mono);
     font-size: var(--text-micro);
-    background: oklch(1 0 0 / 0.04);
-    box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.06);
+    background: var(--surface-raised);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
     line-height: 1;
     min-width: 1.25rem;
     min-height: 1.25rem;
@@ -4445,13 +4476,14 @@
     font-size: var(--text-micro);
     box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.04);
   }
+  /* Raised on the overlay panel, with a hairline, so it reads as a button in
+     light as well as dark (it was white at 4%: invisible on the light theme). */
   .ui-palette-mic {
-    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors;
-    background: oklch(1 0 0 / 0.04);
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-raised text-text-tertiary transition-colors;
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
   }
   .ui-palette-mic:hover {
-    @apply text-text-secondary;
-    background: oklch(1 0 0 / 0.08);
+    @apply text-text-primary;
   }
   .ui-palette-mic:disabled {
     @apply opacity-60;
@@ -4489,6 +4521,11 @@
   .ui-card-shell-raised {
     @apply rounded-2xl border border-border-subtle bg-surface-raised;
     box-shadow: var(--shadow-panel);
+  }
+  /* A card that is a choice (the studio's request list): the chosen one is
+     raised and outlined, so the detail below it has a visible owner. */
+  .ui-card-shell[aria-pressed="true"] {
+    @apply border-border-strong bg-surface-raised;
   }
   .ui-card-padding {
     @apply p-4 sm:p-5 md:p-6;
@@ -4563,6 +4600,10 @@
   }
   .ui-callout-accent {
     @apply flex items-start gap-3 rounded-xl border border-accent-primary/20 bg-accent-muted px-4 py-3 text-sm;
+  }
+  /* Neutral: information that is not a warning. Amber is kept for a real one. */
+  .ui-callout {
+    @apply flex items-start gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3 text-sm;
   }
 
   /* Clickable row inside a list — subtle hover, no shadow. */
@@ -5177,7 +5218,7 @@
     @apply max-w-[88%] rounded-2xl rounded-br-md bg-surface-raised px-4 py-3 text-sm leading-relaxed text-text-primary sm:text-base;
   }
   .ui-chat-more {
-    @apply mt-1 text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary;
+    @apply inline-flex min-h-11 items-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary;
   }
   .ui-chat-meta {
     @apply text-xs text-text-muted;
@@ -5313,13 +5354,13 @@
     @apply text-status-warning;
   }
   .ui-track-link {
-    @apply mt-1 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
+    @apply mt-1 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
   }
   /* The row is a button: the label, the time on the right, a chevron when
      there is something behind it. A row with nothing to open keeps the same
      shape and simply does not react. */
   .ui-track-row {
-    @apply flex min-h-9 w-full items-start gap-2 text-left;
+    @apply flex min-h-11 w-full items-start gap-2 text-left;
   }
   .ui-track-row:disabled {
     @apply cursor-default;
@@ -5625,11 +5666,6 @@
   .ui-hero-answer {
     @apply min-w-0 flex-1;
   }
-  /* New-project and settings. Icons, top-right, out of the reading path —
-     they are how you get somewhere else, not part of the answer. */
-  .ui-hero-tools {
-    @apply flex shrink-0 items-center gap-1;
-  }
   /* The headline is the largest text on the page, because it is the answer to
      the only question the page exists to answer. It used to be a 14px bold
      "Fleet autopilot" — a section label, not an answer. */
@@ -5672,8 +5708,11 @@
   /* A count you can follow. The bare counts stay plain text — a chip that only
      reports is a button that lies, and the old card drew all four identically
      whether or not clicking them did anything. */
+  /* A link inside the sentence, and it has to read as one: the underline
+     was border-subtle, so on a phone "Reply" looked like plain text — on a
+     31px target (2026-11-12). */
   .ui-hero-count-link {
-    @apply underline decoration-border-subtle underline-offset-2 transition-colors hover:decoration-current;
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center font-medium text-text-primary underline decoration-current underline-offset-2;
   }
   .ui-hero-sync {
     @apply text-text-muted;
@@ -5770,8 +5809,10 @@
   }
   /* The rail. Right-aligned on a phone (the thumb lives there and the text it
      acts on is directly above), inline on sm+ where the row is horizontal. */
+  /* Wraps: the buttons say what they do now ("Add the button", "Turn off
+     feedback", "Copy code"), and three labels do not fit one phone line. */
   .ui-inbox-actions {
-    @apply flex shrink-0 items-center justify-end gap-1.5 sm:justify-start;
+    @apply flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:justify-start;
   }
   .ui-inbox-batch {
     @apply mb-2 flex flex-wrap items-center gap-1.5;
@@ -5996,13 +6037,13 @@
     @apply ml-auto flex flex-wrap items-center gap-x-3 gap-y-1;
   }
   .ui-fb-row-quiet-btn {
-    @apply min-h-9 text-xs text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline disabled:opacity-50;
+    @apply min-h-11 text-xs text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline disabled:opacity-50;
   }
   .ui-fb-row-details {
     @apply text-xs text-text-muted;
   }
   .ui-fb-row-details > summary {
-    @apply min-h-9 cursor-pointer list-none py-1 hover:text-text-secondary;
+    @apply min-h-11 cursor-pointer list-none py-1 hover:text-text-secondary;
   }
   .ui-fb-row-details > ul {
     @apply mt-1 space-y-1 border-l border-border-subtle pl-3;
@@ -6183,8 +6224,7 @@
      md up, a bottom sheet on a phone (NotificationsPill). Inside, alerts are
      ListRows — what still needs you, then "Earlier" (lib/alerts/relevance). */
   .ui-notification-badge {
-    @apply absolute right-0 top-0 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-status-negative px-1 text-micro font-medium tabular-nums;
-    color: white;
+    @apply absolute right-0 top-0 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-status-negative px-1 text-micro font-medium tabular-nums text-text-inverted;
   }
   .ui-notification-panel {
     @apply fixed right-2 top-14 z-50 w-[min(26rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised shadow-panel-strong;
@@ -6269,7 +6309,7 @@
     @apply mt-1 flex items-center gap-3 text-xs text-text-tertiary;
   }
   .ui-alert-quiet {
-    @apply relative z-10 inline-flex min-h-11 items-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-50;
+    @apply relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-50;
   }
   .ui-alert-action {
     @apply relative z-10 ml-auto inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-overlay;
@@ -7192,6 +7232,18 @@
     @apply -mx-2 block w-[calc(100%+1rem)] rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-raised;
   }
   /* The detail sheet: header, body, and the actions as full-width rows. */
+  /* A drawer's own heading and close: a phone has no Esc key and no backdrop
+     strip beside a full-width panel. */
+  .ui-drawer-head {
+    @apply flex shrink-0 items-center gap-2 border-b border-border-subtle py-1 pl-4 pr-1;
+    padding-top: max(0.25rem, env(safe-area-inset-top));
+  }
+  .ui-drawer-title {
+    @apply min-w-0 flex-1 truncate text-base font-semibold text-text-primary;
+  }
+  .ui-drawer-close {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary;
+  }
   .ui-detail-sheet-head {
     @apply flex items-start gap-3 px-5 pb-2 pt-5;
   }
@@ -7425,7 +7477,7 @@
   .ui-claude-chat .ui-loki-thread-inner {
     @apply mt-0;
   }
-  /* "Dispatch details" under a sent task: a 44px row with its words centred,
+  /* "Full instructions Loki sent" under a sent task: a 44px row with its words centred,
      reaching into the bubble's own padding. As a bare <summary> its text sat
      at the top of the 44px and left a blank band under it. */
   .ui-bubble-details {
@@ -7973,7 +8025,7 @@
      grey send arrow: two primary-looking controls, the louder one not the one
      you came to use. */
   .ui-loki-talk {
-    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-text-primary text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
+    @apply inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-text-primary px-4 text-sm font-medium text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
   }
   /* A conversation carried in from the owner's site (SiteHandoffCard): read
      like the start of this thread — your words a pill, Loki's prose, a remark
@@ -8210,17 +8262,6 @@
   .ui-store-toolbar {
     @apply flex flex-wrap items-center gap-3;
   }
-  /* Open weights earn the positive tone: it is the property that makes a
-     model free to run on your own machine. Closed is neutral, not negative. */
-  .ui-store-badge-open {
-    @apply inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium;
-    color: var(--status-positive);
-    background-color: var(--status-positive-subtle);
-    border-color: color-mix(in oklch, var(--status-positive) 25%, transparent);
-  }
-  .ui-store-badge-closed {
-    @apply inline-flex items-center rounded-full border border-border-subtle bg-surface-overlay px-2 py-0.5 text-xs font-medium text-text-muted;
-  }
   /* The intelligence index as a small bar beside its number. */
   .ui-store-index {
     @apply inline-block h-1.5 w-16 overflow-hidden rounded-full bg-surface-overlay;
@@ -8228,13 +8269,6 @@
   .ui-store-index > i {
     @apply block h-full rounded-full;
     background-color: var(--accent-primary);
-  }
-  /* One way to run the model: the lab's key, a router, your endpoint. Lit when the key is held. */
-  .ui-store-via {
-    @apply inline-flex items-center gap-1 rounded-md border border-border-subtle px-1.5 py-0.5 text-xs text-text-muted;
-  }
-  .ui-store-via-on {
-    @apply border-accent-primary/30 bg-accent-muted text-text-primary;
   }
   /* overflow-x-auto is the backstop: a table wider than its column scrolls
      inside its own box, never the page. */
@@ -8302,7 +8336,7 @@
   .ui-auto-pick {
     @apply flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-overlay/40 p-3;
   }
-  /* "On your own machine": a quiet panel with a numbered recipe. */
+  /* "Run a model on your own computer": a quiet panel with a numbered recipe. */
   .ui-store-local {
     @apply rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
   }
@@ -8360,6 +8394,12 @@
   .ui-loki-provenance {
     @apply mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 px-1 text-micro text-text-muted;
   }
+  .ui-loki-provenance-details > summary {
+    @apply inline-flex items-center text-text-tertiary underline-offset-2 hover:underline;
+  }
+  .ui-loki-provenance-details[open] {
+    @apply basis-full;
+  }
   .ui-loki-provenance-sep {
     @apply text-text-muted/60;
   }
@@ -8403,6 +8443,13 @@
     @apply mt-0.5 text-sm leading-relaxed text-text-secondary;
   }
   /* "Nobody said how this helps users" — a visible gap, not a guess. */
+  /* What an update left unsaid, once, with the way to ask for it. */
+  .ui-loki-update-gap {
+    @apply flex flex-wrap items-center justify-between gap-2;
+  }
+  .ui-loki-update-gap > .ui-loki-update-missing {
+    @apply mb-0 min-w-0 flex-1;
+  }
   .ui-loki-update-missing {
     @apply mt-0.5 text-sm leading-relaxed text-text-tertiary italic;
   }
@@ -8541,13 +8588,19 @@
   .ui-loki-queue-item {
     @apply inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-surface-raised py-0.5 pl-2.5 pr-1 text-xs text-text-secondary;
   }
+  /* 44px to take a message back, the chip itself staying slim: the hit area
+     overhangs it (it was 20×20, owner audit 2026-11-12). */
   .ui-loki-queue-remove {
-    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary;
+    @apply -my-3 -mr-3 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary;
   }
   /* The scope a message is aimed at — a quiet pill beside the model, like a
      recipient chip. Tap the name to change it, × to drop it. */
   .ui-loki-scope-pill {
     @apply inline-flex min-h-9 max-w-36 items-center gap-1 rounded-full bg-surface-raised pl-3 text-sm font-medium text-text-primary;
+  }
+  /* The pill's own button: dot and name, the pill's full height and more. */
+  .ui-loki-scope-name {
+    @apply -my-1 -ml-3 inline-flex min-h-11 min-w-0 items-center gap-1 rounded-full pl-3 pr-2;
   }
   .ui-loki-scope-remove {
     @apply -mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent-text/70 transition-colors hover:bg-accent-primary/15 hover:text-accent-text;
@@ -8556,16 +8609,10 @@
     @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-text-tertiary transition-colors hover:border-border-default hover:text-text-primary;
   }
 
-  /* Project multi-select (right pane). */
-  .ui-loki-project {
-    @apply flex w-full items-center gap-2 rounded-lg border border-border-subtle px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
-  }
-  .ui-loki-project-active {
-    @apply border-accent-primary/30 bg-accent-muted text-text-primary;
-  }
-  /* The active goal each project is aiming at, shown under its name. */
-  .ui-loki-project-goal {
-    @apply mt-0.5 block truncate text-xs text-text-tertiary;
+  /* Project multi-select (the project drawer). */
+  /* A chosen row in the project picker: its check reads as ink, not grey. */
+  .ui-loki-project-active .ui-listrow-lead {
+    @apply text-text-primary;
   }
 
   /* ══ Design reset primitives (2026-10) ═══════════════════════════════════
@@ -8653,6 +8700,12 @@
   .ui-listrow-menu {
     @apply relative z-[1] -mr-2 flex shrink-0 items-center;
   }
+  /* Each menu is its own stacking context (z-1), which trapped the open
+     popover under the NEXT row's "…": the other row's button showed through
+     "Not now" and took the tap (2026-11-12). The open one rises. */
+  .ui-listrow-menu:has([aria-expanded="true"]) {
+    @apply z-30;
+  }
   /* ListSearch — a list's search is its first row and scrolls with it, never
      a pinned block above it (rule 6). */
   .ui-list-search {
@@ -8696,8 +8749,9 @@
   /* PageAction — the page's ONE primary action. A filled 40px circle in the
      phone top bar (the place Claude puts "new chat"); a pill with its verb
      at the right of the page header from md up. */
+  /* 44px, the tap-target floor: it was 40 (2026-11-12). */
   .ui-page-action {
-    @apply inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted;
+    @apply inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted;
   }
   /* On a phone: a 44px box for the finger with the 40px circle drawn inside
      it (the fill is clipped to the content box), the way .ui-topbar-btn does
@@ -8837,6 +8891,7 @@
      of finding. */
   .ui-theme-cycle-btn,
   .ui-topbar-btn,
+  .ui-palette-mic,
   .ui-loki-topbar-btn,
   .ui-loki-jump {
     min-height: 2.75rem;
@@ -8872,6 +8927,8 @@
      thing), so they were the worst possible link to leave un-tappable. */
   .ui-public-fleet-name,
   .ui-public-fleet-site,
+  /* bip-kit's Copy button on code blocks (/whitepaper, /docs): 30px tall. */
+  .bp-copy,
   .ui-auth-hint-link,
   .ui-auth-footer-link,
   .ui-auth-muted-link,
@@ -9133,6 +9190,9 @@
 .ck-screen-header .ui-loki-thread-header {
   position: static;
   flex: 1;
+  /* A flex item is as wide as its min-content unless told otherwise: a long
+     thread name pushed the menu off a 390px screen (owner audit, 2026-11-12). */
+  min-width: 0;
   margin: 0;
   padding: 0;
   background: transparent;
@@ -9144,6 +9204,18 @@
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   backdrop-filter: blur(16px) saturate(1.4);
   color: var(--text-primary);
+}
+/* The name floats too, so it gets the same frosted backing: drawn bare, it
+   sat on the scrolled words and both were unreadable (owner audit,
+   2026-11-12). */
+.ck-screen-header .ui-loki-thread-header .ui-loki-thread-header-title {
+  flex: 0 1 auto;
+  margin-inline: auto;
+  padding-inline: 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface-base) 70%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
 }
 /* Start screen. On a phone it is laid out exactly like a thread: the header
    and the composer float, and whatever is on the screen — the greeting, the

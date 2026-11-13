@@ -82,7 +82,7 @@ const TABS = [
   { id: "ai", label: "AI", icon: Sparkles, about: "Your own models and what is left today" },
   { id: "privacy", label: "Privacy", icon: Lock, about: "Your PIN, and your data" },
   { id: "location", label: "Location", icon: MapPin, about: "Where you are, for weather and time" },
-  { id: "agent", label: "Agent", icon: Bot, about: "Your computer, and which agent goes first" },
+  { id: "agent", label: "Agent", icon: Bot, about: "Your computer, agents and autopilot" },
   { id: "projects", label: "Projects", icon: FolderKanban, about: "Every project and your limit" },
   { id: "team", label: "Team", icon: Users, about: "Invite someone to work with you" },
   { id: "billing", label: "Billing", icon: CreditCard, about: "Your plan and payments" },
@@ -233,6 +233,13 @@ export function SettingsTabs({
             Settings
           </button>
         </div>
+        {/* The section's own name, as phone settings apps do: the top bar and
+            the back control both said "Settings", and several sections
+            opened straight onto a sub-heading ("What you have left", "Members"),
+            so nothing said where you were. */}
+        <h2 className="mb-4 text-xl font-semibold text-text-primary">
+          {TABS.find((t) => t.id === shown)?.label}
+        </h2>
         <div>
           {shown === "profile" && (
             <ProfileSettings
@@ -287,7 +294,7 @@ export function SettingsTabs({
           {shown === "team" && <TeamSettings invitations={invitations} />}
           {shown === "billing" && (
             <Suspense>
-              <BillingSettings {...billing} />
+              <BillingSettings {...billing} operator={user.operator} />
             </Suspense>
           )}
         </div>

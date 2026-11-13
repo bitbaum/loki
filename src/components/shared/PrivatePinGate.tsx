@@ -1,23 +1,26 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { postJson, deleteJson } from "@/lib/api/fetch";
-import { PIN_MAX_DIGITS } from "@/lib/constants/auth";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { deleteJson } from "@/lib/api/fetch";
+import { PRIVATE_NAV_ITEMS } from "@/config/navigation";
+import { isCurrentPath } from "@/lib/navigation";
+import { UnlockForm } from "@/components/private/UnlockForm";
 
 type PinStatus = {
   configured: boolean;
   unlocked: boolean;
 };
 
+/**
+ * The PIN gate in front of a private page. It renders the same form /unlock
+ * does (UnlockForm), named for the page it guards: "Memory is private", not
+ * "This section is PIN-protected". A forgotten PIN still has its way out on
+ * the form itself (there is no reset flow, and the form says so).
+ */
 export function PrivatePinGate({ children }: { children?: React.ReactNode }) {
-  const router = useRouter();
+  const pathname = usePathname() ?? "/";
   const [status, setStatus] = useState<PinStatus | null>(null);
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/auth/pin")
@@ -26,84 +29,27 @@ export function PrivatePinGate({ children }: { children?: React.ReactNode }) {
       .catch(() => setStatus({ configured: true, unlocked: false }));
   }, []);
 
-  useEffect(() => {
-    if (status && !status.unlocked) {
-      inputRef.current?.focus();
-    }
-  }, [status]);
-
-  if (!status) return null;
+  if (!status) {
+    return (
+      <div className="app-page app-page-compact" aria-busy="true" aria-label="Loading">
+        <div className="mx-auto h-56 w-full max-w-xl animate-pulse rounded-xl bg-surface-raised" />
+      </div>
+    );
+  }
 
   if (!status.configured || status.unlocked) {
     return <>{children}</>;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!pin) return;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await postJson("/api/auth/pin", { pin });
-      const data = (await res.json()) as { ok: boolean; error?: string };
-      if (data.ok) {
-        setStatus({ configured: true, unlocked: true });
-        router.refresh();
-      } else {
-        setError(data.error ?? "Incorrect PIN");
-        setPin("");
-        inputRef.current?.focus();
-      }
-    } catch {
-      setError("Network error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  const page = PRIVATE_NAV_ITEMS.find((item) => isCurrentPath(pathname, item.href));
   return (
-    <div className="app-page flex items-center justify-center">
-      <div className="ui-panel w-full max-w-sm p-8">
-        <p className="ui-kicker mb-4">Private Zone</p>
-        <h1 className="ui-page-title mb-2">Enter PIN</h1>
-        <p className="text-text-secondary mb-6 text-sm">
-          This section is PIN-protected. Your unlock lasts 30 minutes.
-        </p>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            ref={inputRef}
-            type="password"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="PIN"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            className="ui-input text-center text-xl tracking-widest"
-            disabled={loading}
-            autoComplete="one-time-code"
-            maxLength={PIN_MAX_DIGITS}
-          />
-          {error && <p className="ui-error text-center">{error}</p>}
-          <button type="submit" className="ui-btn-primary" disabled={loading || !pin}>
-            {loading ? "Checking…" : "Unlock"}
-          </button>
-        </form>
-        {/* A gate records; it never blocks — and this one blocked absolutely.
-            Changing or removing the PIN both require the CURRENT one (on
-            purpose: it stops a hijacked session swapping it), and there is no
-            reset flow anywhere. So a forgotten PIN meant a screen with an
-            input, "Incorrect PIN", and nothing else — while the zone behind it
-            holds thousands of contacts and the whole knowledge graph. The way
-            out is not to weaken the gate, it is to stop pretending there is a
-            way in. */}
-        <p className="mt-6 text-xs text-text-tertiary">
-          Forgotten it? There is no automatic reset — the private zone stays locked until the PIN is
-          entered.{" "}
-          <Link href="/support" className="underline underline-offset-2 hover:text-text-secondary">
-            Get help
-          </Link>
-          .
-        </p>
+    <div className="app-page app-page-compact">
+      <div className="mx-auto w-full max-w-xl">
+        <UnlockForm
+          next={pathname}
+          heading={page ? `${page.label} is private` : "This page is private"}
+          lede="Enter your PIN to open it. It stays open for 30 minutes."
+        />
       </div>
     </div>
   );

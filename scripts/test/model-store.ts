@@ -235,6 +235,24 @@ check("labs are derived from the models, with the direct Loki vendor where one e
   assert.equal(byId["qwen/qwen3.8-27b"]!.labLabel, "Qwen (Alibaba)");
 });
 
+check("one lab, one entry: meta and meta-llama are both Meta, and the filter keeps both", () => {
+  const nemotron = RAW.find((m) => m.id.startsWith("nvidia/"))!;
+  const meta = shapeStoreCatalog(
+    [
+      { ...nemotron, id: "meta-llama/llama-5-70b", name: "Meta: Llama 5 70B" },
+      { ...nemotron, id: "meta/llama-5-8b", name: "Meta: Llama 5 8B" },
+    ],
+    NOW,
+  );
+  const metaLabs = meta.labs.filter((l) => l.label === "Meta");
+  assert.equal(metaLabs.length, 1, "no 'Meta · 1' twice");
+  assert.equal(metaLabs[0]!.count, 2);
+  for (const lab of ["meta", "meta-llama"]) {
+    const shown = applyFilters(meta.models, { ...DEFAULT_FILTERS, lab }, () => true);
+    assert.equal(shown.length, 2, `lab=${lab} shows every Meta model`);
+  }
+});
+
 check("tiers follow the stated rule: price first, then 'within five of the top'", () => {
   assert.equal(byId["anthropic/claude-fable-5.1"]!.tier, "frontier", "$50 out");
   assert.equal(byId["moonshotai/kimi-k3"]!.tier, "frontier", "69 is within five of 72");
@@ -369,7 +387,10 @@ check("phone cards include price units and a truthful preference action", () => 
   );
   assert.match(html, /Input \$10/);
   assert.match(html, /Output \$50/);
-  assert.match(html, /USD per 1M tokens/);
+  assert.match(html, /Price per 1M tokens/, "the unit is the card's label");
+  assert.doesNotMatch(html, /OpenRouter USD per 1M tokens/, "not a line under every price");
+  assert.match(html, /Direct \(your key\) or OpenRouter/, "runs via is words, not boxes");
+  assert.doesNotMatch(html, /ui-tag-positive|ui-store-badge/, "facts are neutral tags");
   assert.match(html, /Save model/);
 });
 

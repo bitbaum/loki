@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { ChevronDown, ExternalLink, Gauge, KeyRound, Loader2, Ticket } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import type { BudgetView, FreePoolBudget, OwnKeyBudget } from "@/lib/ai/budget-view";
 import { describeChatModel } from "@/lib/loki/models";
-import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import { SettingsRefresh, SettingsSectionHeader } from "./SettingsSectionHeader";
 
 /**
@@ -72,35 +70,10 @@ export function AiBudgetSettings() {
               <FreePoolSource pool={data.freePool} models={data.models} meaning={data.meaning} />
             </li>
           </ul>
-          <AddMore onPlan={data.plan !== null} />
           <WhatThisMeans explain={data.meaning.explain} />
         </>
       )}
     </section>
-  );
-}
-
-/**
- * The two ways to add more, as equal cells. Both say where they go: the
- * store, where providers are compared and a key is added in one paste; or
- * the plans, where a monthly allowance is bought.
- */
-function AddMore({ onPlan }: { onPlan: boolean }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <Link href={MODEL_STORE_PATH} className="ui-btn-secondary min-h-11 w-full">
-        Add a provider
-      </Link>
-      {onPlan ? (
-        <a href="#billing" className="ui-btn-secondary min-h-11 w-full">
-          Manage plan
-        </a>
-      ) : (
-        <Link href="/pricing" className="ui-btn-secondary min-h-11 w-full">
-          Upgrade plan
-        </Link>
-      )}
-    </div>
   );
 }
 

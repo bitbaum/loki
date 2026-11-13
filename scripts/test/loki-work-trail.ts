@@ -16,6 +16,7 @@ import {
   describeArgs,
   groupWork,
   readWork,
+  searchedFor,
   summarizeTools,
   type WorkStep,
 } from "../../src/lib/loki/work";
@@ -144,5 +145,13 @@ assert.match(
   /<WorkTrail work=\{live\.work\} live \/>/,
   "the live turn shows the same list",
 );
+
+// A step shows what it looked for, never its raw arguments (2026-11-12).
+assert.equal(
+  searchedFor(describeArgs({ query: "claude not authenticated", limit: 5 })),
+  "“claude not authenticated”",
+);
+assert.equal(searchedFor(describeArgs({ state: "error", hours: 24, limit: 10 })), undefined);
+assert.equal(searchedFor(undefined), undefined);
 
 console.log("loki-work-trail: ok");

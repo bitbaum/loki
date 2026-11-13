@@ -12,6 +12,7 @@ import {
   buildNowJobs,
   elapsedLabel,
   sessionHref,
+  waitingLine,
 } from "@/components/control/control-now";
 import type { ProjectOperationsSnapshot } from "@/components/control/control-presenter";
 import type { ProjectState } from "@/lib/control-types";
@@ -155,6 +156,34 @@ const permJob = buildNowJobs([perm], NOW)[0];
 ok(permJob?.question === "It asks: Run pnpm install?", "the permission it asks for");
 ok(permJob?.reply === false, "a keypress in a dialog is not a typed reply");
 
+// A waiting row shows the question, not "Waiting for you" twice (2026-11-12).
+// The "Needs you" row shows what is needed — the question — once; the
+// section heading already says it needs you.
+ok(
+  waitingLine({
+    title: "Fix the footer",
+    status: "Needs you",
+    question: "Which logo should I use?",
+  }) === "Which logo should I use?",
+  "a waiting row shows the question",
+);
+ok(
+  waitingLine({ title: "Fix the footer", status: "Needs you", question: null }) ===
+    "Fix the footer",
+  "without a question, the task",
+);
+
+// A run sent long ago that never reported a step: not started, said plainly.
+const unstarted = snap("u", "not_running", {
+  latestOrchestrationRun: run({ startedAt: new Date(NOW - 2 * 3600_000).toISOString() }),
+});
+const unstartedJob = buildNowJobs([unstarted], NOW)[0];
+ok(unstartedJob?.tone === "quiet", "an unstarted run is quiet");
+ok(
+  unstartedJob?.status === "Not started yet — sent 2h ago",
+  `an unstarted run says when it was sent, not 'runner' (${unstartedJob?.status})`,
+);
+
 // Idle projects are not jobs.
 ok(buildNowJobs([snap("idle", "not_running")], NOW).length === 0, "idle is not a job");
 
@@ -164,7 +193,7 @@ const quiet = snap("q", "not_running", {
 });
 ok(buildNowJobs([quiet], NOW)[0]?.tone === "quiet", "an open run that went quiet says so");
 ok(
-  /^No word from the agent for \d+m$/.test(buildNowJobs([quiet], NOW)[0]?.status ?? ""),
+  /^No word from it for \d+m$/.test(buildNowJobs([quiet], NOW)[0]?.status ?? ""),
   "and says for how long, not 'No update for a while'",
 );
 

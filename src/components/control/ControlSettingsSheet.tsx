@@ -28,11 +28,11 @@ import { AutomationPolicyControl } from "./AutomationPolicyControl";
 // The explanation belongs with the control it explains. It used to render on
 // Control itself, permanently, for a setting that changes about once a month.
 const AUTOMATION_HINTS: Record<AutoInjectMode, { primary: string; secondary?: string }> = {
-  off: { primary: "Agents stop when a task ends. You dispatch every next step yourself." },
+  off: { primary: "Agents stop when a task ends. You start every next step yourself." },
   on: {
     primary:
-      "Agents work through each project's queue; overnight Loki builds from your feedback under the run budget and reads one site.",
-    secondary: "Busy agents, blockers, and failing health checks still pause dispatch.",
+      "Loki keeps working through each project's list, and builds overnight from visitor feedback within your budget.",
+    secondary: "It waits while an agent is busy or a site is failing its checks.",
   },
 };
 
@@ -69,9 +69,21 @@ export function ControlSettingsSheet({
   children?: ReactNode;
 }) {
   return (
-    <Modal onClose={onClose} position="bottom-mobile" padded={false} size="md" className="ui-sheet">
+    <Modal
+      onClose={onClose}
+      position="bottom-mobile"
+      padded={false}
+      size="md"
+      className="ui-sheet"
+      labelledBy="control-settings-title"
+    >
       <div className="ui-sheet-grip" aria-hidden="true" />
       <div className="ui-sheet-body">
+        {/* The sheet had no title: it opened on "Autopilot / On" with nothing
+            saying what this was (2026-11-12). */}
+        <h2 id="control-settings-title" className="ui-sheet-title">
+          Settings
+        </h2>
         <section className="ui-sheet-section">
           <h3 className="ui-sheet-label">Autopilot</h3>
           <div className="ui-sheet-row">
@@ -102,28 +114,33 @@ export function ControlSettingsSheet({
         </section>
 
         <section className="ui-sheet-section">
-          <h3 className="ui-sheet-label">Runner</h3>
+          <h3 className="ui-sheet-label">Where builds run</h3>
           <p className="ui-sheet-value">{runnerLabel}</p>
-          {runnerDetail && <p className="ui-sheet-hint">{runnerDetail}</p>}
-          {versionDetail && <p className="ui-sheet-hint">{versionDetail}</p>}
-          <div className="ui-sheet-row">
-            <span className="min-w-0 flex-1 text-sm text-text-secondary">
-              {lastUpdated ? `Page data ${timeAgo(lastUpdated)}` : "Page data not loaded yet"}
-            </span>
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={refreshing}
-              className="ui-btn-secondary ui-btn-sm"
-            >
-              {refreshing ? (
-                <Loader2 className="ui-spinner-xs" />
-              ) : (
-                <RefreshCw className={cn("h-3.5 w-3.5")} aria-hidden="true" />
-              )}
-              Refresh
-            </button>
-          </div>
+          {/* Versions, sync age and page age are for diagnosing, not for
+              reading every time: one tap away. */}
+          <details className="ui-sheet-details">
+            <summary className="ui-sheet-details-summary">Details</summary>
+            {runnerDetail && <p className="ui-sheet-hint">{runnerDetail}</p>}
+            {versionDetail && <p className="ui-sheet-hint">{versionDetail}</p>}
+            <div className="ui-sheet-row">
+              <span className="min-w-0 flex-1 text-sm text-text-secondary">
+                {lastUpdated ? `Page data ${timeAgo(lastUpdated)}` : "Page data not loaded yet"}
+              </span>
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={refreshing}
+                className="ui-btn-secondary ui-btn-sm"
+              >
+                {refreshing ? (
+                  <Loader2 className="ui-spinner-xs" />
+                ) : (
+                  <RefreshCw className={cn("h-3.5 w-3.5")} aria-hidden="true" />
+                )}
+                Refresh
+              </button>
+            </div>
+          </details>
         </section>
         {children}
       </div>

@@ -66,11 +66,15 @@ check("the list links every package to its page and counts who is behind", () =>
   );
   assert.match(html, /href="\/packages\/ai-kit"/);
   assert.match(html, /href="\/packages\/listkit"/);
-  assert.match(html, /latest v1\.20\.1/);
-  assert.match(html, /latest —/, "an unknown latest says so rather than inventing one");
-  // One line per row (design reset): who uses it, and only the counts that
-  // need a word — on latest is what "used by" means unless the line says so.
-  assert.match(html, /used by 3 projects, 1 behind, 1 unknown/);
+  assert.match(html, /v1\.20\.1/);
+  assert.match(
+    html,
+    /— · not in your projects/,
+    "an unknown latest says so rather than inventing one",
+  );
+  // One line per row (design reset), the behind count first so the ellipsis
+  // at 390px never takes it (2026-11-12).
+  assert.match(html, /1 of 3 projects behind · 1 unknown · v1\.20\.1/);
   assert.match(html, /not in your projects/);
   assert.ok(!/ui-tag|ui-badge/.test(html), "no badge stack on a package row");
   assert.match(html, /type="search"/);
@@ -80,8 +84,8 @@ check("status tags: one colour per meaning", () => {
   const tag = (v: string | null, l: string | null) =>
     renderToStaticMarkup(createElement(PackageStatusTag, { status: packageStatus(v, l) }));
   assert.match(tag("1.0.0", "1.0.0"), /ui-tag-positive/);
-  assert.match(tag("1.0.0", "1.1.0"), /ui-tag-warning/);
-  assert.match(tag("0.1.0", "0.2.0"), /ui-tag-warning/, "behind is a warning, never red");
+  assert.match(tag("1.0.0", "1.1.0"), /ui-tag-neutral/, "an update not taken is not a problem");
+  assert.match(tag("0.1.0", "0.2.0"), /ui-tag-warning/, "a breaking bump is a warning, never red");
   assert.match(tag("0.1.0", "0.2.0"), /may need changes/, "a breaking bump says so");
   assert.match(tag(null, "1.0.0"), /ui-tag-neutral/);
 });
@@ -119,7 +123,11 @@ check(
     assert.ok(html.indexOf("Heidi") < html.indexOf("Loki"), "the project behind comes first");
     assert.match(html, /href="\/projects\/e-b"/);
     assert.match(html, /v0\.1\.0/);
-    assert.match(html, /1 minor version behind/);
+    assert.match(html, /1 update behind/);
+    assert.ok(
+      !/>github:bitbaum\/listkit#v0\.1\.0</.test(html),
+      "the raw spec is not a line of its own",
+    );
 
     const empty = renderToStaticMarkup(
       createElement(PackageDependents, { rows: [], install: "pnpm add listkit" }),

@@ -8,7 +8,8 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { NARROW_QUERY } from "@/hooks/use-is-narrow";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
-import { splitBell } from "@/lib/alerts/relevance";
+import { groupBell, splitBell } from "@/lib/alerts/relevance";
+import { bellWords } from "@/lib/notify/intrusion-words";
 import { NotificationPanel } from "./NotificationPanel";
 import { useDialogFocus } from "@/hooks/use-dialog-focus";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
@@ -66,7 +67,11 @@ export function NotificationsPill() {
   // It counts only what is still news (lib/alerts/relevance): a red "9+"
   // over nudges 8, 19 and 28 days old was a number no action could lower
   // (owner, 2026-10-21). Older ones are listed under "Earlier", uncounted.
-  const totalCount = splitBell(data?.alerts ?? []).current.length;
+  // Rows that say the same thing count once, as the sheet shows them once.
+  const totalCount = groupBell(splitBell(data?.alerts ?? []).current, (a) => ({
+    title: bellWords(a).title,
+    summary: "",
+  })).length;
   const close = () => {
     setPanelOpen(false);
     // A dismissal inside the panel lowers the count when it closes.
@@ -86,7 +91,11 @@ export function NotificationsPill() {
         title={
           hasAlerts ? `${totalCount} notification${totalCount === 1 ? "" : "s"}` : "Notifications"
         }
-        aria-label={hasAlerts ? `${totalCount} notifications` : "Notifications"}
+        aria-label={
+          hasAlerts
+            ? `${totalCount > 9 ? "More than 9" : totalCount} notifications`
+            : "Notifications"
+        }
         aria-haspopup="dialog"
         aria-expanded={panelOpen}
       >

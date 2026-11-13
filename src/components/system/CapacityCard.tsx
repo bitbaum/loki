@@ -19,6 +19,16 @@ function seconds(n: number | null): string {
   if (n < 90) return `${Math.round(n)} s`;
   return `${Math.round(n / 60)} min`;
 }
+/** A wait longer than this is worth a look; shorter ones are the queue doing its job. */
+const SLOW_WAIT_S = 30 * 60;
+
+/** Where work ran, in words: the queue's channel ids are "cloud", "local", or none. */
+function channelName(channel: string | null): string {
+  if (channel === "cloud") return "On Loki's servers";
+  if (channel === "local") return "On your computer";
+  return channel ? channel : "On any computer";
+}
+
 const chf = (usd: number) => `CHF ${(usd * CHF_PER_USD).toFixed(2)}`;
 const k = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : `${Math.round(n)}`;
@@ -33,23 +43,33 @@ export async function CapacityCard() {
 
   return (
     <SystemBlock>
-      <SystemBlockHeader icon={Gauge} title="Room for more work" />
+      <SystemBlockHeader icon={Gauge} title="Builds and cost" />
       <div className="space-y-4">
         <p className="text-sm text-text-secondary">
           Welcome builds this month: {chf(welcomeUsd)} of CHF {WELCOME_MONTHLY_CAP_CHF}.
         </p>
         <div>
-          <p className="ui-micro-label mb-1">Waited for a runner, last 24 h</p>
+          <p className="ui-micro-label mb-1">How long work waited to start, last 24 h</p>
           {waits.length === 0 ? (
-            <EmptyState>No work was claimed in the last day.</EmptyState>
+            <EmptyState>No work started in the last day.</EmptyState>
           ) : (
             <ul className="divide-y divide-border-subtle text-sm">
               {waits.map((w) => (
-                <li key={w.channel ?? "any"} className="flex items-center gap-3 py-1.5">
-                  <span className="font-medium text-text-primary">{w.channel ?? "any runner"}</span>
-                  <span className="text-text-secondary">{w.claimed} claimed</span>
+                <li
+                  key={w.channel ?? "any"}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5"
+                >
+                  <span className="font-medium text-text-primary">{channelName(w.channel)}</span>
+                  <span className="text-text-secondary">{w.claimed} started</span>
                   <span className="ml-auto text-xs text-text-tertiary">
-                    median {seconds(w.medianSeconds)} · worst {seconds(w.worstSeconds)}
+                    usually {seconds(w.medianSeconds)} ·{" "}
+                    <span
+                      className={
+                        (w.worstSeconds ?? 0) > SLOW_WAIT_S ? "text-status-warning" : undefined
+                      }
+                    >
+                      longest {seconds(w.worstSeconds)}
+                    </span>
                   </span>
                 </li>
               ))}

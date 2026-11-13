@@ -124,15 +124,19 @@ export function packageStatus(
   return { kind: "behind", part: "pre-release", steps: 1, breaking: false };
 }
 
-/** "2 minor versions behind", "1 major version behind", "on a pre-release". */
+/**
+ * "2 updates behind", "1 major update behind", "on a pre-release". Minor and
+ * patch are the publisher's words; to the owner both are an update that
+ * should just be taken. Major stays named: it may need code changes.
+ */
 export function behindLabel(status: PackageStatus): string {
   if (status.kind === "latest") return "Latest";
   if (status.kind === "unknown") {
     return status.reason === "no-version" ? "Version unknown" : "Latest unknown";
   }
   if (status.part === "pre-release") return "On a pre-release";
-  const noun = status.steps === 1 ? "version" : "versions";
-  return `${status.steps} ${status.part} ${noun} behind`;
+  const noun = status.steps === 1 ? "update" : "updates";
+  return `${status.steps} ${status.part === "major" ? "major " : ""}${noun} behind`;
 }
 
 /** Sort weight: behind first (breaking before not), then unknown, then latest. */

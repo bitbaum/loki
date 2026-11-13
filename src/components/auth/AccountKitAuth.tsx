@@ -33,6 +33,16 @@ export const LOKI_AUTH_CLASSES: Partial<AuthClasses> = {
   field: "space-y-1.5",
 };
 
+/**
+ * "Create an account" offered "Sign in with a Lightning wallet": a newcomer
+ * with no account was told to sign in (2026-11-12). The sign-up screen says
+ * continue, as every other button on it does.
+ */
+const SIGN_UP_LABELS: typeof L = {
+  ...L,
+  lightning: L.lightning && { ...L.lightning, withLightning: "Continue with a Lightning wallet" },
+};
+
 export function LokiSignIn({
   methods,
   next,
@@ -53,7 +63,11 @@ export function LokiSignIn({
       next={next}
       signInPath={ROUTES.SIGN_IN}
       initialError={initialError}
-      signUpLink={<Link href={signUpHref}>{L.createAccount}</Link>}
+      signUpLink={
+        <Link href={signUpHref} className="ui-auth-hint-link">
+          {L.createAccount}
+        </Link>
+      }
     />
   );
 }
@@ -71,12 +85,16 @@ export function LokiSignUp({
     <SignUpForm
       client={sharedAuthClient}
       methods={methods}
-      labels={L}
+      labels={SIGN_UP_LABELS}
       classes={LOKI_AUTH_CLASSES}
       next={next}
       signUpPath={ROUTES.SIGN_UP}
       signInPath={ROUTES.SIGN_IN}
-      signInLink={<Link href={signInHref}>{L.signIn}</Link>}
+      signInLink={
+        <Link href={signInHref} className="ui-auth-hint-link">
+          {L.signIn}
+        </Link>
+      }
     />
   );
 }

@@ -1,5 +1,6 @@
 import { PageLayout } from "@/components/ui/page-layout";
-import { Card } from "@/components/ui/card";
+import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requirePageUserId } from "@/lib/session";
 import { resolveBrowserTask, type BrowserRecipeId } from "@/config/browser-tasks";
 import { FillHandoff } from "@/components/fill/FillHandoff";
@@ -32,13 +33,18 @@ export default async function FillPage({
   if (!task) {
     return (
       <PageLayout title="Fill a form" subtitle="Loki fills it and stops at the final button">
-        <Card>
-          <p className="text-sm md:text-base">This link doesn&apos;t name a form Loki knows.</p>
-          <p className="text-xs md:text-sm text-text-secondary mt-1">
-            Ask Loki again — for example &ldquo;set up npm trusted publishing for my package&rdquo;
-            — and open the new link it gives you.
-          </p>
-        </Card>
+        {/* It said "ask Loki again" with no way to (2026-11-12). */}
+        <EmptyState
+          title="This link doesn't name a form Loki knows"
+          action={
+            <Link href="/loki" className="ui-btn-primary inline-flex min-h-11 items-center px-4">
+              Ask Loki to fill a form
+            </Link>
+          }
+        >
+          Tell Loki which form, for example &ldquo;publish my package on npm&rdquo;, and open the
+          new link it gives you.
+        </EmptyState>
       </PageLayout>
     );
   }

@@ -17,7 +17,7 @@ import { StudioVoiceNotice } from "@/components/voice/StudioVoiceNotice";
  * The start screen: read once, before the phone goes away. Start, the
  * choices, and what can be said.
  *
- * Its title is the app top bar's h1 ("Voice", from the nav config). It is
+ * Its title is the app top bar's h1 ("Talk", from the nav config). It is
  * built from the same pieces as every other page (design reset, 2026-10-21):
  * one line and the one button, then titled sections of rows — each switch a
  * row with its one line under it — not a paragraph of instructions, capital
@@ -51,24 +51,27 @@ export function NoScreenStart({
       trailing={<span className={on ? "ui-switch ui-switch-on" : "ui-switch"} aria-hidden />}
     />
   );
+  const voiceNote = NO_SCREEN_VOICES.find((v) => v.id === settings.voice)?.note;
   return (
     <div className="ui-voice-start">
       <div className="ui-voice-start-head">
         <Headphones className="h-10 w-10 text-text-tertiary" aria-hidden />
-        <p className="ui-voice-start-line">Loki reads your fleet aloud and listens.</p>
+        <p className="ui-voice-start-line">
+          Loki tells you what your projects are doing, and listens.
+        </p>
         {error && <p className="ui-error text-center">{error}</p>}
         <button type="button" className="ui-voice-start-btn" onClick={onStart}>
           <Mic className="h-6 w-6" aria-hidden />
-          Start
+          Start talking
         </button>
       </div>
 
       <Section
-        title="Voice"
+        title="Loki's voice"
         right={
           <ChoiceMenu
             bare
-            label="Voice"
+            label="Loki's voice"
             value={settings.voice}
             options={NO_SCREEN_VOICES.map((v) => ({ value: v.id, label: v.label }))}
             onChange={(id) => update({ voice: id as NoScreenSettings["voice"] })}
@@ -77,9 +80,7 @@ export function NoScreenStart({
       >
         {/* Seven names are a menu, not a grid: 4 + 3 never lines up, and one
             scrolling chip row cut the fifth off at the screen's edge. */}
-        <p className="ui-settings-lede">
-          {NO_SCREEN_VOICES.find((v) => v.id === settings.voice)?.note}
-        </p>
+        {voiceNote && <p className="ui-settings-lede">{voiceNote}</p>}
         {studioOff && settings.voice !== "phone" && <StudioVoiceNotice failure={studioOff} />}
       </Section>
 

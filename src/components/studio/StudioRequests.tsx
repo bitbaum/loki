@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { STUDIO, STUDIO_STATUS } from "@/config/studio";
+import { STUDIO, STUDIO_REVIEW, STUDIO_STATUS } from "@/config/studio";
+import { timeAgo } from "@/lib/dates";
 import type { listStudioRequests, StudioReviewView } from "@/db/queries/studio-requests";
 
 type RequestList = Awaited<ReturnType<typeof listStudioRequests>>;
@@ -20,6 +21,7 @@ export function StudioRequests({
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const retries = useRef(new Map<string, string>());
+  const detail = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
@@ -86,11 +88,14 @@ export function StudioRequests({
       )}
     </label>
   );
-  const send = (title: string) => (
-    <button className="ui-btn-primary min-h-11" disabled={busy}>
+  // One primary action per request: "Send reply". Every form here used to
+  // end in the same solid button, four on one screen (2026-11-12).
+  const send = (title: string, tone: "primary" | "secondary" | "danger" = "secondary") => (
+    <button className={`ui-btn-${tone} min-h-11`} disabled={busy}>
       {busy ? "Saving…" : title}
     </button>
   );
+  const selected = requests.find((r) => r.id === id);
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="min-w-0 space-y-3">
@@ -109,19 +114,25 @@ export function StudioRequests({
               setView(null);
               setError("");
               setId(r.id);
+              // On a phone the detail sits under the whole list: tapping a
+              // card looked like it did nothing (2026-11-12).
+              if (window.matchMedia("(max-width: 1023px)").matches)
+                detail.current?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
           >
-            <span className="block break-words font-medium text-text-primary">
-              {r.kind === "partner" ? (r.partnerName ?? r.changes.slice(0, 70)) : r.website}
+            {/* The whole title, two lines at most: slice(0, 70) cut words
+                in half ("Checking the partner f"). */}
+            <span className="line-clamp-2 break-words font-medium text-text-primary">
+              {r.kind === "partner" ? (r.partnerName ?? r.changes) : r.website}
             </span>
             <span className="block text-sm text-text-secondary">
               {STUDIO_STATUS[r.status][0]}
-              {r.revoked ? " · Link revoked" : ""}
+              {r.revoked ? " · Link revoked" : ""} · {timeAgo(new Date(r.updatedAt).getTime())}
             </span>
           </button>
         ))}
       </div>
-      <div className="min-w-0 space-y-5 lg:col-span-2">
+      <div ref={detail} className="min-w-0 scroll-mt-4 space-y-5 lg:col-span-2">
         {error && (
           <div role="alert" className="ui-error space-y-2">
             <p>{error}</p>
@@ -135,7 +146,10 @@ export function StudioRequests({
           <>
             <section className="ui-card-shell space-y-3 p-5">
               <h2 className="text-xl font-semibold text-text-primary">{view.status.title}</h2>
-              <p className="text-text-secondary">{view.status.next}</p>
+              {/* The studio owner's next step, not the applicant's. */}
+              <p className="text-text-secondary">
+                {(selected && STUDIO_REVIEW[selected.status]) ?? view.status.next}
+              </p>
               <p className="whitespace-pre-wrap break-words text-text-primary">{view.changes}</p>
               {view.website && (
                 <a
@@ -212,7 +226,7 @@ export function StudioRequests({
                 }
               >
                 {label("body", "Reply visible in this request", true)}
-                {send("Send reply")}
+                {send("Send reply", "primary")}
               </form>
               {!view.partner?.approved && (
                 <form
@@ -419,25 +433,21 @@ export function StudioRequests({
                   </form>
                 )}
                 {!view.revoked && (
+                  // Two buttons that say what they do. A select pre-set to
+                  // "Approve this builder" over "Record builder decision"
+                  // hid which way the button would go (2026-11-12).
                   <form
                     className="space-y-3"
-                    onSubmit={(e) =>
+                    onSubmit={(e) => {
+                      const submitter = (e.nativeEvent as SubmitEvent).submitter;
                       void submit(e, {
-                        action: value(e.currentTarget, "result"),
+                        action: submitter?.getAttribute("value") ?? "decline_partner",
                         body: value(e.currentTarget, "body"),
-                      })
-                    }
+                      });
+                    }}
                   >
-                    <select name="result" className="ui-input w-full">
-                      {!view.partner.approved && (
-                        <option value="approve_partner">Approve this builder</option>
-                      )}
-                      <option value="decline_partner">
-                        {view.partner.approved ? "Withdraw approval" : "Decline application"}
-                      </option>
-                    </select>
                     {label("body", "Studio decision and reasons (they receive this)", true)}
-                    {send("Record builder decision")}
+                    <DecisionButtons approved={view.partner.approved} busy={busy} />
                   </form>
                 )}
                 {view.partner.profile && (
@@ -470,7 +480,13 @@ export function StudioRequests({
               {view.history.map((h) => (
                 <article key={h.id} className="space-y-1">
                   <p className="text-sm text-text-muted">
-                    {h.actor} · {new Date(h.at).toLocaleString()}
+                    {h.actor} ·{" "}
+                    <time
+                      dateTime={new Date(h.at).toISOString()}
+                      title={new Date(h.at).toLocaleString("en-CH")}
+                    >
+                      {timeAgo(new Date(h.at).getTime())}
+                    </time>
                     {h.version ? ` · version ${h.version}` : ""}
                   </p>
                   <p className="whitespace-pre-wrap break-words text-text-secondary">{h.body}</p>
@@ -482,17 +498,52 @@ export function StudioRequests({
                 className="ui-card-shell space-y-3 p-5"
                 onSubmit={(e) => void submit(e, { action: "revoke_access" })}
               >
-                <label className="flex items-start gap-3 text-sm text-text-secondary">
-                  <input type="checkbox" required className="mt-1" />
-                  Revoke this guest link. The customer or applicant will no longer be able to open
-                  it.
-                </label>
-                {send("Revoke guest access")}
+                <RevokeConfirm />
+                {send("Stop their link", "danger")}
               </form>
             )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/** The partner decision as two buttons that say what they do (the form reads which was pressed). */
+function DecisionButtons({ approved, busy }: { approved: boolean; busy: boolean }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {!approved && (
+        <button
+          name="result"
+          value="approve_partner"
+          className="ui-btn-secondary min-h-11"
+          disabled={busy}
+        >
+          {busy ? "Saving…" : "Approve builder"}
+        </button>
+      )}
+      <button
+        name="result"
+        value="decline_partner"
+        className="ui-btn-secondary min-h-11"
+        disabled={busy}
+      >
+        {busy ? "Saving…" : approved ? "Withdraw approval" : "Decline application"}
+      </button>
+    </div>
+  );
+}
+
+/** The confirmation before a guest link stops working; the box is a finger's width. */
+function RevokeConfirm() {
+  return (
+    <label className="flex items-start gap-3 text-sm text-text-secondary">
+      <span className="ui-checkbox-hit mt-0.5">
+        <input type="checkbox" required />
+      </span>
+      Stop their link from working. The customer or applicant will no longer be able to open this
+      request.
+    </label>
   );
 }

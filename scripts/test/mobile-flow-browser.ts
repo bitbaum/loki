@@ -25,6 +25,7 @@ async function main() {
         import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';
         import{MarkdownText}from'./src/components/ui/markdown-text';
         const controls=new URLSearchParams(location.search).has('controls');
+        const LONG={id:'00000000-0000-4000-8000-000000000001',title:'Work through the 4 open visitor reports on Bitbaum: fix what is broken',projectKeys:[],updatedAt:new Date().toISOString()};
         createRoot(document.getElementById('app')).render(controls?
           <main className="app-page"><TerminalMobileHeader title="Loki" agent="Claude" state="live"
             onOpenSheet={()=>{}} view="terminal" onViewChange={()=>{}}/>
@@ -34,7 +35,7 @@ async function main() {
             <div className="app-main-column"><div className="ui-app-topbar"><span style={{height:48}}>Loki</span></div>
             <div style={{height:48,minHeight:48}}>Account notice</div>
             <main className="app-main"><div className="app-page ui-loki-page app-viewport-pane flex flex-col" data-fc-place="tab">
-              <LokiWorkspace initialProjects={[]} initialConversations={[]}/></div></main></div><MobileNav/></div>);`,
+              <LokiWorkspace initialProjects={[]} initialConversations={[LONG]}/></div></main></div><MobileNav/></div>);`,
     },
     bundle: true,
     write: false,
@@ -136,6 +137,24 @@ async function main() {
         "tab",
         "the app conversation keeps the launcher, as the slim edge tab — never hidden",
       );
+      // A long thread name is cut, not allowed to push the menu off a phone
+      // (owner audit, 2026-11-12: the header grew to 578px at 390).
+      const head = await page.evaluate(() => ({
+        header: document.querySelector(".ui-loki-thread-header")!.getBoundingClientRect().right,
+        menu: document.querySelector("[aria-label='Conversation menu']")!.getBoundingClientRect()
+          .right,
+        width: innerWidth,
+      }));
+      assert(head.header <= head.width, `header fits the phone: ${JSON.stringify(head)}`);
+      assert(head.menu <= head.width, `the menu is on screen: ${JSON.stringify(head)}`);
+      // The chats drawer covers a phone's whole width: it has its own way out.
+      await page.getByRole("button", { name: "Conversation menu" }).click();
+      await page.getByRole("menuitem", { name: "All chats" }).click();
+      const close = page.getByRole("dialog").getByRole("button", { name: "Close" });
+      const closeBox = await close.boundingBox();
+      assert(closeBox && closeBox.height >= 44 && closeBox.width >= 44, "a 44px close");
+      await close.click();
+      await page.getByRole("dialog").waitFor({ state: "hidden" });
       await page.getByRole("button", { name: "Conversation menu" }).click();
       await page.getByRole("menuitem", { name: "Report a problem" }).click();
       assert.equal(

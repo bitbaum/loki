@@ -13,7 +13,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CornerDownRight, MessageCircle, Sparkles, TerminalSquare } from "lucide-react";
+import { ArrowRight, MessageCircle, Sparkles, TerminalSquare } from "lucide-react";
 import { nextStepPrompt, type RunHandoff } from "@/lib/run-handoff";
 import type { CitationMap } from "@/components/ui/markdown-text";
 import {
@@ -24,17 +24,23 @@ import {
 } from "@/lib/dispatch-status";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { useBuilderPresence } from "@/hooks/use-builder-presence";
-import { isDispatchCardAction, presentDispatchCard, watchHref } from "@/lib/dispatch-card";
+import {
+  isDispatchCardAction,
+  presentDispatchCard,
+  watchHref,
+  type DispatchCardAction,
+} from "@/lib/dispatch-card";
 import { cloudBuilderState } from "@/lib/builder-way-forward";
 import { isBuilderChannel } from "@/lib/constants/statuses";
 import { postJson } from "@/lib/api/fetch";
 import { RunTrack } from "@/components/projects/RunTrack";
 import { RunLook } from "@/components/projects/RunLook";
+import { FollowUpRows } from "./FollowUps";
 import { rankByQuery, TEXT_SPEC } from "@/lib/search";
 /** Human-readable label for an assistant turn's kind badge. SSOT for the
  *  small set of kinds the messages route emits. */
 export const KIND_LABEL: Record<string, string> = {
-  dispatch: "Dispatched",
+  dispatch: "Sent",
   chat: "Loki",
   command: "Needs project",
   outcome: "Update",
@@ -66,9 +72,12 @@ export function citationsFrom(meta: Record<string, unknown> | null): CitationMap
 
 export function DispatchFooter({
   meta,
+  asked,
   onContinue,
 }: {
   meta: Record<string, unknown> | null;
+  /** The words that were sent, so a failed or forgotten one can go again. */
+  asked?: string;
   /** A next step was tapped: send it in this chat, on this project. */
   onContinue?: (text: string, project: string) => void;
 }) {
@@ -161,6 +170,7 @@ export function DispatchFooter({
         project: primaryProject,
         projectCount: projectKeys.length,
         cloud,
+        canResend: Boolean(onContinue && asked?.trim()),
       });
 
   async function runInCloud() {
@@ -195,6 +205,13 @@ export function DispatchFooter({
   // it, "successful outcome recorded" is the least useful line on the card.
   const handoff = live?.terminal ? (live.handoff ?? null) : null;
   const detail = handoff?.done.length ? null : card.detail;
+  // A failure the card already explains is not told again by the track's
+  // own sentence, which carries the runner's raw words.
+  const showTrack = Boolean(live?.track) && !(card.tone === "negative" && detail);
+  const runAction = (action: DispatchCardAction["action"]) => {
+    if (action === "run-in-cloud") return void runInCloud();
+    if (asked && primaryProject) onContinue?.(asked, primaryProject);
+  };
 
   return (
     <div className="ui-loki-dispatch-card">
@@ -213,7 +230,7 @@ export function DispatchFooter({
       {/* Where the change is — the same six stages Watch draws, from the same
           loader, so the chat and the Watch page never tell two stories. A
           settled track folds to its one sentence; a tap opens the road. */}
-      {live?.track && (
+      {showTrack && live?.track && (
         <div className="ui-loki-track">
           <RunTrack track={live.track} collapsible />
         </div>
@@ -236,8 +253,10 @@ export function DispatchFooter({
             (isDispatchCardAction(card.primary) ? (
               <button
                 type="button"
-                onClick={runInCloud}
-                disabled={moved === "moving" || !commandId}
+                onClick={() => runAction((card.primary as DispatchCardAction).action)}
+                disabled={
+                  card.primary.action === "run-in-cloud" && (moved === "moving" || !commandId)
+                }
                 className="ui-dispatch-watch-link ui-dispatch-primary disabled:opacity-50"
               >
                 {moved === "moving" ? "Moving…" : card.primary.label}
@@ -292,22 +311,7 @@ function RunHandoffBlock({
       {handoff.next.length > 0 && onNext && (
         <div>
           <p className="ui-micro-label">Next, if you want it</p>
-          <ul className="ui-loki-followups" aria-label="Next steps">
-            {handoff.next.map((step, i) => (
-              <li key={step}>
-                <button
-                  type="button"
-                  className={
-                    i === 0 ? "ui-loki-followup ui-loki-followup-next" : "ui-loki-followup"
-                  }
-                  onClick={() => onNext(step)}
-                >
-                  <CornerDownRight className="h-4 w-4 shrink-0" aria-hidden />
-                  <span>{step}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <FollowUpRows items={handoff.next} onPick={onNext} label="Next steps" />
         </div>
       )}
     </div>

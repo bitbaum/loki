@@ -160,7 +160,7 @@ export function SuggestionsBoard() {
       {lastDismissed && (
         <div className="ui-sugg-undo" role="status">
           <span className="min-w-0 truncate">
-            Put away for a month: {lastDismissed.suggestion.label}
+            Hidden for a month: {lastDismissed.suggestion.label}
           </span>
           <button type="button" className="ui-btn-ghost" onClick={undo}>
             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
@@ -186,6 +186,9 @@ export function SuggestionsBoard() {
         // In the "All" view a quiet avenue is one line at the end, not a
         // heading over nothing; filtered, it is the page and says the way in.
         if (filter === "all" && a.suggestions.length === 0 && !a.locked) return null;
+        // Locked avenues are one row together in "All" (LockedFronts): three
+        // identical "Unlock to see these" rows said one thing three times.
+        if (filter === "all" && a.locked) return null;
         return (
           <Section
             key={a.id}
@@ -227,6 +230,10 @@ export function SuggestionsBoard() {
         );
       })}
 
+      {filter === "all" && (
+        <LockedFronts avenues={avenues.filter((a) => a.locked).map((a) => a.id)} />
+      )}
+
       {filter === "all" && total > 0 && (
         <QuietFronts
           avenues={avenues.filter((a) => a.suggestions.length === 0 && !a.locked).map((a) => a.id)}
@@ -254,5 +261,24 @@ function QuietFronts({ avenues }: { avenues: AvenueId[] }) {
         );
       })}
     </p>
+  );
+}
+
+/** Every locked avenue, named, behind one unlock: "Goals, People and Money". */
+function LockedFronts({ avenues }: { avenues: AvenueId[] }) {
+  if (avenues.length === 0) return null;
+  const names = avenues.map((id) => AVENUE_BY_ID[id].label);
+  const listed =
+    names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return (
+    <List aria-label="Locked suggestions">
+      <ListRow
+        href="/unlock?next=/suggestions"
+        icon={Lock}
+        title={`${listed} — unlock to see`}
+        secondary="They are behind your private-zone PIN."
+        chevron
+      />
+    </List>
   );
 }

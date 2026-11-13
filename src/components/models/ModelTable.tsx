@@ -97,14 +97,16 @@ function ModelRow({
             {m.labLabel}
             {region && REGION[region] ? ` · ${REGION[region]}` : ""}
           </span>
+          {/* Facts, one shape: every tag neutral. Green "Open weights" and
+              "Free tier" read as approval on a list of sixty (status colour
+              is for status), and "Weights not listed" on every closed model
+              was noise: no tag says the same (2026-11-12). */}
           <span className="flex flex-wrap gap-1">
-            <span className={m.open ? "ui-store-badge-open" : "ui-store-badge-closed"}>
-              {m.open ? "Open weights" : "Weights not listed"}
-            </span>
-            {m.isNew && <span className="ui-tag ui-tag-accent">New</span>}
+            {m.open && <span className="ui-tag ui-tag-neutral">Open weights</span>}
+            {m.isNew && <span className="ui-tag ui-tag-neutral">New</span>}
             {(m.free || m.freeVariant) && (
-              <span className="ui-tag ui-tag-positive">
-                {m.free ? "Free tier" : "Free variant available"}
+              <span className="ui-tag ui-tag-neutral">
+                {m.free ? "Free" : "Free version available"}
               </span>
             )}
             {m.vision && <span className="ui-tag ui-tag-neutral">Vision</span>}
@@ -121,10 +123,12 @@ function ModelRow({
         </span>
         {value !== null && <span className="block text-xs text-text-muted">value {value}</span>}
       </td>
-      <td data-label="Price" className="ui-store-num">
+      {/* The unit is the label (and the desktop column head), not a line
+          repeated under every price. */}
+      <td data-label="Price per 1M tokens" className="ui-store-num">
         <div className="min-w-0">
           {m.free ? (
-            <span className="text-status-positive">Free catalog rate</span>
+            <span>Free</span>
           ) : m.inPerM === null || m.outPerM === null ? (
             <span className="text-text-muted">Price unavailable or variable</span>
           ) : (
@@ -133,7 +137,6 @@ function ModelRow({
               <span className="block">Output ${money(m.outPerM)}</span>
             </>
           )}
-          <span className="block text-xs text-text-secondary">OpenRouter USD per 1M tokens</span>
         </div>
       </td>
       <td data-label="Context" className="ui-store-num hidden md:table-cell">
@@ -143,21 +146,12 @@ function ModelRow({
         {releasedLabel(m.released) || "—"}
       </td>
       <td data-label="Runs via">
-        <span className="flex flex-wrap gap-1">
-          {vias.map((v) => (
-            <span
-              key={v.vendor}
-              className={v.connected ? "ui-store-via ui-store-via-on" : "ui-store-via"}
-              title={
-                v.connected
-                  ? `You hold a ${viaLabel(v.vendor)} key`
-                  : `Add a ${viaLabel(v.vendor)} key to run it there`
-              }
-            >
-              {v.connected && <Check className="h-3 w-3" aria-hidden="true" />}
-              {viaLabel(v.vendor, m.vendor)}
-            </span>
-          ))}
+        {/* Plain words: bordered boxes here looked like buttons and did
+            nothing when pressed. */}
+        <span className="text-sm text-text-secondary">
+          {vias
+            .map((v) => `${viaLabel(v.vendor, m.vendor)}${v.connected ? " (your key)" : ""}`)
+            .join(" or ")}
         </span>
       </td>
       <td data-label="" className="md:hidden">

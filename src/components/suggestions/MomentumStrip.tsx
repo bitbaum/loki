@@ -10,10 +10,11 @@ import type { Momentum } from "@/lib/suggestions/board";
  */
 export function momentumSentence(m: Momentum): string | null {
   if (m.takenAllTime === 0) return null;
-  const parts = [
-    m.takenThisWeek === 0 ? "None chosen this week" : `${m.takenThisWeek} chosen this week`,
-    `${m.takenAllTime} in total`,
-  ];
+  // "None chosen this week, 2 in total" beside "Show: All (40)" read as two
+  // totals that disagree (2026-11-12): say what the number counts.
+  const taken = m.takenAllTime === 1 ? "1 suggestion" : `${m.takenAllTime} suggestions`;
+  const parts = [`You've taken ${taken} so far`];
+  if (m.takenThisWeek > 0) parts.push(`${m.takenThisWeek} this week`);
   if (m.dayStreak > 1) parts.push(`${m.dayStreak} days in a row`);
   return `${parts.join(", ")}.`;
 }

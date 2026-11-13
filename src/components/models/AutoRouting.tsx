@@ -192,15 +192,19 @@ export function AutoRouting({
       {error && <p className="ui-error text-sm">{error}</p>}
       {/* Where the numbers come from, and how old they are. A price and an
           index with no source read as typed by hand — and typed numbers rot
-          the week a lab moves its prices. These are read, and say when. */}
-      <p className="text-xs text-text-muted">
-        Prices are OpenRouter&apos;s quoted USD rates and the intelligence index is Artificial
-        Analysis&apos; as OpenRouter relays it, read from its public catalogue
-        {view.catalogReadAt === null
-          ? " — not read yet"
-          : ` at ${new Date(view.catalogReadAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
-        . Your provider&apos;s own page has the price you are billed.
-      </p>
+          the week a lab moves its prices. These are read, and say when.
+          Compact, inside the store, the store's footer says it once, with
+          one time: two paragraphs gave 06:05 and 06:18 (2026-11-12). */}
+      {!compact && (
+        <p className="text-xs text-text-muted">
+          Prices are OpenRouter&apos;s quoted USD rates and the intelligence index is Artificial
+          Analysis&apos; as OpenRouter relays it, read from its public catalogue
+          {view.catalogReadAt === null
+            ? " — not read yet"
+            : ` at ${new Date(view.catalogReadAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
+          . Your provider&apos;s own page has the price you are billed.
+        </p>
+      )}
     </section>
   );
 }

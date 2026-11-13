@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, MonitorSmartphone } from "lucide-react";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { AGENT_SWITCH_COPY } from "@/config/terminal-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
@@ -141,6 +142,21 @@ function terminalHonesty(input: {
       ? { runnerConnected, runtimeAvailable: false, scope: "machine" }
       : { runnerConnected, runtimeAvailable: local || presence.runtimeAvailable, scope: "cloud" },
   );
+}
+
+/** Why this session's agent cannot be switched, or null when it can. */
+function agentSwitchBlocked(tab: string | null, dir: string | null | undefined): string | null {
+  if (!tab) return AGENT_SWITCH_COPY.noSession;
+  return dir ? null : AGENT_SWITCH_COPY.noProject;
+}
+
+/**
+ * "What's going on?" is a chip above the session box. The ⋮ sheet offers it
+ * only while that chip is not on screen (raw terminal with the keys deck or
+ * full screen up), so one screen never asks the same question twice.
+ */
+function explainChipHidden(hasSession: boolean, view: string, boxCovered: boolean): boolean {
+  return hasSession && view === "terminal" && boxCovered;
 }
 
 const channelFor = (source: TerminalSource): BuilderChannel =>
@@ -518,11 +534,7 @@ export function TerminalSurface({
     dir: tabContext?.dir ?? null,
     activeAgentId,
   });
-  const agentSwitchDisabledReason = !activeTab
-    ? "Open a session first — switching swaps the CLI running in a tab."
-    : !tabContext?.dir
-      ? "This session has no project folder, so its agent cannot be changed."
-      : null;
+  const agentSwitchDisabledReason = agentSwitchBlocked(activeTab, tabContext?.dir);
   const news = useSessionStatuses(activeTab);
   const stripTabs = useMemo(
     () => buildStripTabs(tabs, context, activeTab, ta.aliases, ta.layout, news.statuses),
@@ -557,8 +569,10 @@ export function TerminalSurface({
     activeProject: tabContext?.projectName ?? fleetProject,
     channel,
     openTabs: tabs,
+    currentTab: activeTab,
     select: setUserSelection,
   });
+  const explainInMore = explainChipHidden(!!(projectKey && activeTab), view, keysOpen || immersive);
   const mobileHeader = (
     <TerminalMobileHeader
       title={headerTitle}
@@ -570,6 +584,7 @@ export function TerminalSurface({
       backHref={fleetSurfaceHref("control", projectKey ?? fleetProject)}
       onOpenSheet={() => setSheetOpen(true)}
       onOpenMore={() => setMoreOpen(true)}
+      moreHasExplain={explainInMore}
       view={view}
       onViewChange={activeTab && chatAvailable ? termView.setView : undefined}
     />
@@ -639,11 +654,12 @@ export function TerminalSurface({
       onSwitchAgent={(id) => void ta.switchAgent(id)}
       switchingAgent={ta.switchingAgent}
       agentSwitchDisabledReason={agentSwitchDisabledReason}
+      machineOffline={presence.builderPresence?.local === false}
     />
   ) : moreOpen ? (
     <TerminalMoreSheet
       onClose={() => setMoreOpen(false)}
-      onExplain={projectKey && activeTab ? explainer.ask : undefined}
+      onExplain={explainInMore ? explainer.ask : undefined}
       immersive={immersive}
       onToggleImmersive={onToggleImmersive}
       font={font}

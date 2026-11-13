@@ -184,7 +184,7 @@ export function composeNeedsYou(input: NeedsYouInputs): {
     const n = input.feedbackCount;
     items.push({
       key: "feedback",
-      label: `${n} feedback ${n === 1 ? "report" : "reports"} to triage`,
+      label: `${n} visitor ${n === 1 ? "report" : "reports"} to read`,
       href: "/feedback",
       weight: n,
       tier: "decide",
@@ -195,7 +195,7 @@ export function composeNeedsYou(input: NeedsYouInputs): {
     const n = input.widgetCount;
     items.push({
       key: "widget",
-      label: `${n} ${n === 1 ? "site is" : "sites are"} missing the feedback widget`,
+      label: `${n} ${n === 1 ? "site" : "sites"} without the feedback button`,
       href: "/feedback",
       weight: n,
       tier: "tidy",

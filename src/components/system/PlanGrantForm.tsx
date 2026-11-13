@@ -95,7 +95,7 @@ export function PlanGrantForm({ users }: { users: { id: string; label: string; p
           type="number"
           min={1}
           max={3660}
-          className="ui-input ui-input-compact mt-1 w-24"
+          className="ui-input ui-input-compact mt-1 block w-24"
           value={days}
           onChange={(e) => setDays(Math.max(1, Number(e.target.value) || 1))}
           disabled={plan === "free"}
