@@ -32,8 +32,8 @@ importers:
         specifier: ^1.7.14
         version: 1.7.14(@better-auth/core@1.7.14(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(@opentelemetry/api@1.9.1)(better-call@1.4.4(zod@4.6.7))(jose@6.2.14)(kysely@0.29.7)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-auth@1.7.14(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.23.1)(better-sqlite3@13.0.3)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(next@16.4.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(better-call@1.4.4(zod@4.6.7))(nanostores@1.5.5)
       '@bitbaum/accountkit':
-        specifier: ^0.31.0
-        version: 0.31.0(1c063a8d533e1c0868e2670c08919caa)
+        specifier: ^0.32.0
+        version: 0.32.0(1c063a8d533e1c0868e2670c08919caa)
       '@bitbaum/ai-kit':
         specifier: ^1.29.0
         version: 1.29.0(react@19.3.1)
@@ -539,8 +539,8 @@ packages:
   '@better-fetch/fetch@1.3.3':
     resolution: {integrity: sha512-U6SlDt/GUWtK2JAxS/NhdoYTEim+EL1G5byz2TUj83KjLZBUpYzb5SmX0aXaCnbGkAjFKnV/o/0+cyXMbEcqqg==}
 
-  '@bitbaum/accountkit@0.31.0':
-    resolution: {integrity: sha512-sQgKtQ0vbktnnlYIK6JDxKuEDlhb1KTeCyd0UbReN88IcyrF2/Vn10BkG/9NRBqD2L6kBh11LGI8/vzOgQ9iVg==}
+  '@bitbaum/accountkit@0.32.0':
+    resolution: {integrity: sha512-rn5cmYsbHyDTdE/dtRVl3nRE+yH3tLVtaMZCcCJeVoqmSDK5F237fe316hvuV7TozT6uNW0xBcY4xNTnKs0GdA==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -6016,7 +6016,7 @@ snapshots:
 
   '@better-fetch/fetch@1.3.3': {}
 
-  '@bitbaum/accountkit@0.31.0(1c063a8d533e1c0868e2670c08919caa)':
+  '@bitbaum/accountkit@0.32.0(1c063a8d533e1c0868e2670c08919caa)':
     dependencies:
       '@noble/curves': 2.4.0
       '@scure/base': 2.4.0
