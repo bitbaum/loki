@@ -16,6 +16,13 @@ into this file.
   `package-plan.json` before building anything. When a second product needs
   what one product built (a map, a globe, a calculator), extract it into a
   package before writing the second copy.
+- **The experience belongs to the package.** Anywhere a person types words
+  there is a microphone (`@bitbaum/chatkit`: `Composer`, `DictationField`);
+  articles are `@bitbaum/writingkit/react`, comments are chatkit's
+  `CommentThread`, header, menu, tab bar and footer are `@bitbaum/sitekit`.
+  Apps own brand, words and backend, not the behaviour or the layout. If a
+  component cannot do what the product needs, extend the package in the same
+  session (fleet `AGENTS.md`, "The experience belongs to the package").
 - **A gap is a task, not an answer.** Never end the work, or a reply, at "not
   supported" or "not available". When a source cannot be read or a case does
   not fit the model, find another way (another format or publisher, the
