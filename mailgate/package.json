@@ -17,7 +17,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@bitbaum/mail-kit": "^0.2.0",
+    "@bitbaum/mail-kit": "^0.4.0",
     "mailauth": "^8.0.1",
     "mailparser": "^3.12.2",
     "smtp-server": "^3.21.0"

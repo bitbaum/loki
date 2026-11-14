@@ -41,6 +41,8 @@ if bash "$HERE/fleet-env.sh" secret NOT_A_FLEET_KEY >/dev/null 2>&1; then fail "
 printf 'GEMINI_API_KEY="AIza_live"\n' >> "$FLEET_ENV"
 printf 'GEMINI_API_KEY=AIza_live\nKEEP=1\n' >> "$T/a/shared/.env"
 printf 'export GEMINI_API_KEY="AIza_other"\n' >> "$T/c/app/.env"
+# The box's layout: app/.env is a symlink to shared/.env. It is one file.
+mkdir -p "$T/a/app"; ln -s "$T/a/shared/.env" "$T/a/app/.env"
 out="$(bash "$HERE/fleet-env.sh" where GEMINI_API_KEY)"
 grep -q 'set in 4 file' <<<"$out" || fail "where counts every file that sets the key, a placeholder included"
 case "$out" in *AIza_*) fail "where never prints a value" ;; esac
@@ -51,9 +53,34 @@ for f in "$FLEET_ENV" "$T/a/shared/.env" "$T/c/app/.env" "$T/b/shared/.env"; do
 done
 grep -q '^# retired [0-9-]*: GEMINI_API_KEY="AIza_live"$' "$FLEET_ENV" || fail "retire keeps the value as a dated comment"
 grep -q '^KEEP=1$' "$T/a/shared/.env" || fail "retire touches no other line"
+[ -L "$T/a/app/.env" ] || fail "retire leaves a symlinked .env a symlink"
+grep -qE '^GEMINI_API_KEY=' "$T/a/app/.env" && fail "the link reads the retired file"
 grep -q '^GROQ_API_KEY=' "$FLEET_ENV" || fail "retire touches no other key"
 grep -q 'set in 0 file' <<<"$(bash "$HERE/fleet-env.sh" where GEMINI_API_KEY)" || fail "after retire the key is nowhere"
 bash "$HERE/fleet-env.sh" seed >/dev/null
 grep -qE '^GEMINI_API_KEY=' "$FLEET_ENV" && fail "seed never brings a retired key back"
 if bash "$HERE/fleet-env.sh" retire NODE_ENV >/dev/null 2>&1; then fail "retire refuses a name that is not a credential"; fi
+
+# A key is found outside the app layout too: the builder's env, a named
+# runner's, the gateway's. Example files are not env files.
+mkdir -p "$T/sweep/loki/runner" "$T/sweep/etc/runners" "$T/sweep/app/node_modules/x" "$T/stubbin"
+printf '#!/usr/bin/env bash\n[ "$1" = -n ] && shift\nexec "$@"\n' > "$T/stubbin/sudo"; chmod +x "$T/stubbin/sudo"
+printf 'GEMINI_API_KEY=AIza_builder\n' > "$T/sweep/loki/runner/.env"
+printf 'export GEMINI_API_KEY="AIza_runner"\n' > "$T/sweep/etc/runners/george.env"
+printf 'GEMINI_API_KEY=your-key\n' > "$T/sweep/loki/.env.example"
+printf 'GEMINI_API_KEY=AIza_dep\n' > "$T/sweep/app/node_modules/x/.env"
+out="$(PATH="$T/stubbin:$PATH" SWEEP_ROOTS="$T/sweep" bash "$HERE/fleet-env.sh" where GEMINI_API_KEY)"
+grep -q 'set in 2 file' <<<"$out" || fail "where finds a key in the builder's and a runner's env, not in examples or node_modules"
+case "$out" in *AIza_*) fail "the sweep never prints a value" ;; esac
+PATH="$T/stubbin:$PATH" SWEEP_ROOTS="$T/sweep" RESTART=0 bash "$HERE/fleet-env.sh" retire GEMINI_API_KEY >/dev/null
+grep -qE '^(export )?GEMINI_API_KEY=' "$T/sweep/loki/runner/.env" "$T/sweep/etc/runners/george.env" && fail "retire reaches the files the sweep found"
+grep -q '^GEMINI_API_KEY=your-key$' "$T/sweep/loki/.env.example" || fail "retire leaves an example file alone"
+
+# usage-log: one line in the fleet file, once, and the directory exists.
+out="$(RESTART=0 FLEET_USAGE_DIR="$T/usage" bash "$HERE/fleet-env.sh" usage-log)"
+[ -d "$T/usage" ] || fail "usage-log makes the directory"
+grep -q "^AI_USAGE_DIR=\"$T/usage\"$" "$FLEET_ENV" || fail "usage-log sets AI_USAGE_DIR in the fleet file"
+RESTART=0 FLEET_USAGE_DIR="$T/usage" bash "$HERE/fleet-env.sh" usage-log | grep -q already || fail "usage-log is idempotent"
+[ "$(grep -c '^AI_USAGE_DIR=' "$FLEET_ENV")" = 1 ] || fail "usage-log never adds a second line"
+grep -q '^GROQ_API_KEY=' "$FLEET_ENV" || fail "usage-log touches no key"
 echo "fleet-env: all checks passed"

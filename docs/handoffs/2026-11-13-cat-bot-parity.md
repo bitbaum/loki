@@ -129,3 +129,67 @@ instead of asking for it again, for the linked account only.
   none. This is what lets a bot use tools the way its model was trained to.
 - OrangeCat half (the offer in Settings → AI and the model row, and the
   service that calls this door) is the next pull request there.
+
+## Talk is held by the rollout gate (2026-11-13 10:40 UTC)
+
+OrangeCat #1717 was green and did not merge: the sweep's shared-package
+rollout gate holds any pull request that bumps `@bitbaum/chatkit` until the
+canaries (bitbaum/kivvi and bitbaum/causius) have deployed that version. The
+Talk button needs chatkit 0.30.0, so it was taken off that pull request
+(two revert commits) and the pull request now carries only the key held in
+Loki and native tool calls.
+
+To bring Talk back once kivvi and causius run chatkit 0.30.0: on the OrangeCat
+branch, `git revert` the two revert commits ("Revert chore(deps): chatkit
+0.30.0" and "Revert feat(companions): Talk"), run `pnpm install`, verify, open
+a pull request.
+
+## State when this session handed over (2026-11-13 11:15 UTC)
+
+Live:
+
+- Loki #1703: `POST /api/orangecat/model` (keys, share, models, complete with
+  native tool calls). Deployed; refuses unsigned requests.
+- OrangeCat #1717 (deployed 11:07 UTC): a key held in Loki answers the
+  person's bots (Settings → AI, "Use my <provider> key here"), and on the
+  person's own key each model gets its tools in its native format
+  (`src/config/model-profiles.ts`, `src/services/companions/native-tools.ts`,
+  `src/services/ai/direct-reply.ts`), with a prose retry when a provider
+  refuses them.
+- Checked live as a new person at 390px: Settings → AI opens with no page
+  errors; no offer without a Loki account; a share request without a Loki
+  account is refused with Loki's own sentence (so the signed rail works in
+  production); models route answers "pool".
+
+Not proven yet:
+
+- A bot answering on the owner's xAI key. It needs the owner's account: tap
+  "Use my xAI key here" in Settings → AI, then message a bot. The xAI balance
+  may be exhausted (Grok Build was, on the builder).
+- Three real jobs on Grok, end to end: walk a site and file a finding; send a
+  build task to Loki and report the answer; a routine on schedule. This is the
+  test that decides parity.
+
+Talk: causius is already on chatkit 0.31.2 (Messenger work, another session),
+so 0.30.0 will never be the canary version. Bring Talk back on top of
+whichever chatkit bump lands on OrangeCat: re-apply only the Talk commit
+(OrangeCat `453234806`), not the 0.30.0 bump.
+
+The owner's plan for the plumbing, in order (agreed 2026-11-13):
+
+1. A profile per model (done for native tools; prompt shape, limits and vision
+   still to add; not yet on the shared free pool or the Cat's own chat).
+2. A test bench: the same real tasks on each model, scored on done or not,
+   time and cost.
+3. Cost in the chat: per answer, and next to each model in the picker.
+4. Switching by asking ("use Claude for this"), and the chat suggesting a
+   switch when a task is too hard or a cheaper model would do.
+5. Auto mode that picks by task and price from the bench results.
+
+Remaining parity gaps: connectors (none built; default first targets GitHub
+and Google mail and calendar unless the owner says otherwise), several
+routines per bot, group avatar, suggestion chips, voice (Talk, above).
+
+Open questions for the owner: Google billing for the Gemini key; Grok Build
+top-up or move the builder to Claude Code; whether to close the stale
+`starter-sync/*` pull requests on Loki (not closed).

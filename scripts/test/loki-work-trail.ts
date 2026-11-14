@@ -111,12 +111,12 @@ assert.deepEqual(
 const workspace = readFileSync("src/components/loki/LokiWorkspace.tsx", "utf8");
 assert.match(
   workspace,
-  /if \(sending && !dispatchOnly\) \{\s*queue\.add/,
-  "a send while running is queued",
+  /if \(sending && !dispatchOnly && threadId\) \{\s*queue\.add\(threadId,/,
+  "a send while running is queued, in the thread it was typed in",
 );
 assert.match(
   workspace,
-  /if \(landed\) \{\s*const next = queue\.takeNext\(\)/,
+  /if \(landed\) \{\s*sendQueued\(convoId\);/,
   "drained after a turn lands, never from an effect",
 );
 assert.match(workspace, /<QueuedMessages items=\{queue\.items\}/, "queued messages are shown");

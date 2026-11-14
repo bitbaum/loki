@@ -34,7 +34,11 @@ async function main() {
   assert.equal(openSecret(sealed), key, "opens to the same key");
   assert.notEqual(sealSecret(key), sealed, "a fresh IV every time");
   const [v, iv, tag, body] = sealed.split(".");
-  const flipped = body.slice(0, -2) + (body.endsWith("A") ? "BB" : "AA");
+  // The FIRST character, not the last: the final base64url character of a body
+  // carries bits that are not part of any byte, so changing only the tail can
+  // decode to the same bytes, which is rightly accepted. That made this
+  // assertion fail on an unlucky random value (CI, 2026-11-13).
+  const flipped = (body.startsWith("A") ? "B" : "A") + body.slice(1);
   assert.equal(openSecret([v, iv, tag, flipped].join(".")), null, "tampering is refused");
   assert.equal(openSecret("v2.x.y.z"), null, "an unknown version opens nothing");
   process.env.AUTH_SECRET = "a-different-server";

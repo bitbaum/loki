@@ -27,6 +27,7 @@ import { LocationSettings } from "./LocationSettings";
 import { VoiceSettings } from "./VoiceSettings";
 import { AiBudgetSettings } from "./AiBudgetSettings";
 import { AiQuotaSettings } from "./AiQuotaSettings";
+import { AiFleetSettings } from "./AiFleetSettings";
 import { OwnModelSettings } from "./OwnModelSettings";
 import { BuildEngineChoice } from "./BuildEngineChoice";
 import { ProviderOrderSettings } from "./ProviderOrderSettings";
@@ -271,6 +272,7 @@ export function SettingsTabs({
               <AiBudgetSettings />
               <OwnModelSettings cloudBuilder={user.cloudBuilder} />
               {user.cloudBuilder && <BuildEngineChoice />}
+              {user.operator && <AiFleetSettings />}
               {user.operator && <AiQuotaSettings />}
             </div>
           )}

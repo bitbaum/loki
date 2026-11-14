@@ -19,6 +19,8 @@
 #   fleet-env.sh seed          # fill keys MISSING from /opt/fleet/env with the value most
 #                              # apps already share; never overwrites a key already there
 #   fleet-env.sh secret KEY    # generate KEY (32 random bytes, hex) if the file lacks it
+#   fleet-env.sh usage-log     # every app writes its AI calls to one log: sets AI_USAGE_DIR in
+#                              # /opt/fleet/env (once), makes the directory, restarts the apps
 #   fleet-env.sh where KEY     # every env file on the box that sets KEY, by fingerprint
 #   fleet-env.sh retire KEY    # switch KEY off everywhere: its line in /opt/fleet/env and in
 #                              # every app env becomes a dated comment (the value is kept, so
@@ -36,7 +38,8 @@ files=(${ENV_FILES:-/opt/*/shared/.env /opt/*/app/.env})
 keys() { grep -vE '^[[:space:]]*(#|$)' "$KEYS_FILE"; }
 
 value_of() {  # first VAR=… in a file, quotes and `export ` stripped
-  sed -nE "s/^(export[[:space:]]+)?$2=//p" "$1" 2>/dev/null | head -1 \
+  local run=""; [ -r "$1" ] || run="sudo -n"
+  $run sed -nE "s/^(export[[:space:]]+)?$2=//p" "$1" 2>/dev/null | head -1 \
     | sed -E 's/^["'\'']//; s/["'\'']$//; s/[[:space:]]+$//'
 }
 
@@ -103,11 +106,28 @@ key_name() {
   esac
 }
 
+# Env files outside the app layout: the builder's, each named runner's, the
+# Telegram gateway's, and anything else named like an env file. On 2026-11-13
+# the platform's Google key was retired from the app files while nothing had
+# looked at these; a key that bills is found wherever it is. Root-owned files
+# are read through sudo.
+elsewhere() {
+  [ -n "${ENV_FILES-}" ] && [ -z "${SWEEP_ROOTS-}" ] && return 0   # tests name their files
+  # shellcheck disable=SC2086
+  sudo -n find ${SWEEP_ROOTS:-/opt /etc/loki /home /root} -maxdepth 5 \
+    \( -name '.env' -o -name '.env.*' -o -name '*.env' -o -name 'env' \) -type f \
+    -not -path '*/node_modules/*' -not -path '*/releases/*' -not -path '*/.git/*' \
+    -not -name '.env.example' -not -name '*.example' 2>/dev/null || true
+}
+
 holders() {  # env files that set KEY to a non-empty value, the fleet file first
   local k="$1" f
-  for f in "$FLEET_ENV" "${files[@]}"; do
-    [ -f "$f" ] || continue
-    [ -n "$(value_of "$f" "$k")" ] && printf '%s\n' "$f"
+  for f in "$FLEET_ENV" "${files[@]}" $(elsewhere); do
+    [ -f "$f" ] || sudo -n test -f "$f" 2>/dev/null || continue
+    # The file itself, not a link to it: /opt/<app>/app/.env is a symlink to
+    # shared/.env, and an in-place edit of a symlink replaces it with a copy
+    # that later changes to shared/.env never reach.
+    [ -n "$(value_of "$f" "$k")" ] && readlink -f "$f"
   done | awk '!seen[$0]++'
 }
 
@@ -124,31 +144,52 @@ where() {
 # of one file left it in the others, and a running app keeps the value it
 # started with, so retiring is one command that does all three.
 retire() {
-  local k="${1:-}" f unit n=0; key_name "$k"
+  local k="${1:-}" f n=0 run; key_name "$k"
   local stamp; stamp="$(date -u +%F)"
   while IFS= read -r f; do
-    sed -i -E "s/^([[:space:]]*(export[[:space:]]+)?$k=)/# retired $stamp: \\1/" "$f"
+    run=""; [ -w "$f" ] || run="sudo -n"
+    $run sed -i -E "s/^([[:space:]]*(export[[:space:]]+)?$k=)/# retired $stamp: \\1/" "$f"
     echo "retired $k in $f"; n=$((n + 1))
   done < <(holders "$k")
   echo "retired $k in $n file(s)"
+  # The fleet file feeds every app, so with it changed every app restarts.
+  [ "$n" -gt 0 ] && restart_apps
+  return 0
+}
+
+restart_apps() {  # one at a time, so the box never loses them together
   [ "${RESTART:-1}" = 1 ] || return 0
-  # The fleet file feeds every app, so with it changed every app restarts;
-  # one at a time, so the box never loses them together.
-  local units
-  if [ "$n" -gt 0 ]; then
-    units="$(systemctl list-units --type=service --state=running --no-legend --plain '*-app.service' 2>/dev/null | awk '{print $1}')"
-    for unit in $units; do
-      sudo systemctl restart "$unit" && echo "restarted $unit" || echo "could not restart $unit" >&2
-      sleep 5
-    done
-  fi
+  local unit
+  for unit in $(systemctl list-units --type=service --state=running --no-legend --plain '*-app.service' 2>/dev/null | awk '{print $1}'); do
+    sudo systemctl restart "$unit" && echo "restarted $unit" || echo "could not restart $unit" >&2
+    sleep 5
+  done
+}
+
+# One usage log for the whole box (@bitbaum/ai-kit usage-log): each model call
+# an app makes is one line under AI_USAGE_DIR. Every launch script sources
+# /opt/fleet/env with export on, so one line here reaches every app, including
+# those whose launch script predates the template that sets it. Not a key: the
+# value is a path and is printed.
+usage_log() {
+  local dir="${FLEET_USAGE_DIR:-/opt/fleet/ai-usage}"
+  mkdir -p "$dir" && chmod 755 "$dir"
+  mkdir -p "$(dirname "$FLEET_ENV")"
+  [ -f "$FLEET_ENV" ] || { umask 077; : > "$FLEET_ENV"; }
+  chmod 600 "$FLEET_ENV"
+  if [ "$(value_of "$FLEET_ENV" AI_USAGE_DIR)" = "$dir" ]; then echo "AI_USAGE_DIR already $dir"; return 0; fi
+  sed -i -E '/^[[:space:]]*(export[[:space:]]+)?AI_USAGE_DIR=/d' "$FLEET_ENV"
+  printf 'AI_USAGE_DIR="%s"\n' "$dir" >> "$FLEET_ENV"
+  echo "AI_USAGE_DIR set to $dir"
+  restart_apps
 }
 
 case "${1:-show}" in
   show) show ;;
   seed) seed; show ;;
   secret) secret "${2:-}" ;;
+  usage-log) usage_log ;;
   where) where "${2:-}" ;;
   retire) retire "${2:-}" ;;
-  *) echo "usage: fleet-env.sh show|seed|secret KEY|where KEY|retire KEY" >&2; exit 2 ;;
+  *) echo "usage: fleet-env.sh show|seed|secret KEY|usage-log|where KEY|retire KEY" >&2; exit 2 ;;
 esac
