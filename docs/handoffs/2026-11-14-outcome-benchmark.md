@@ -26,9 +26,21 @@ Working branch: `feat/outcome-benchmark`. Source revision for the initial cases:
 
 ## Verification at preparation
 
-The focused accounting tests passed. The docs-truth audit passed before this
-checkpoint was added; repeat after its final update. Full `pnpm run verify`
-is running; no claim is made here that it passed, merged or deployed.
+Nine focused accounting tests passed, as did the changed-file formatting and
+docs-truth audit. The initial full `pnpm run verify` passed its format,
+register, type, lint, design and desktop stages, then reported 628/636 unit
+files passing. Seven failures came from missing browser binaries or release
+tags in this fresh checkout; those prerequisites were installed/fetched.
+The eighth was reproduced separately: the spoken-walk browser fixture used
+fixed speech offsets that no longer matched its actual navigation times.
+
+The fixture now timestamps simulated speech on the browser's own recording
+clock, independently of the product's captured moments. Its assertion checks
+all four pages. This is a test-only prerequisite fix, not a change to voice
+alignment behavior. Deployment-gate fixtures, operations fixtures and mailgate
+checks passed separately. The normal push gates rerun the application checks
+against the final working tree; publication and CI outcomes are recorded on
+the resulting pull request. This checkpoint makes no merge or deployment claim.
 
 ## Findings from the additional industry comparison
 
@@ -53,7 +65,7 @@ establish production reliability or an industry percentile:
 
 1. Complete full verification, publish the branch through normal hooks, open a
    non-draft PR and use the fleet sweep as merge authority. Record exact check,
-   PR and deployment evidence here before claiming those stages.
+   PR and deployment evidence in the publication report before claiming those stages.
 2. Provision isolated replay fixtures and deliberately failing code snapshots.
    The case descriptions are not executable agent adapters by themselves.
 3. Freeze a private runtime configuration manifest and provider-enforced budget;
