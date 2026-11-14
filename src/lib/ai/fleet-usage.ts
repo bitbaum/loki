@@ -95,6 +95,12 @@ export interface FleetVendorView {
 export interface FleetAppView {
   app: string;
   line: string;
+  /**
+   * What the app's calls were for, when it said (ai-kit 1.29 `feature`):
+   * "law translate: 40 answered · 200 failed". The owner's words were "what
+   * it was used up for"; until an app names its features this is null.
+   */
+  usedFor: string | null;
   vendors: { label: string; paid: boolean; line: string }[];
 }
 
@@ -118,6 +124,11 @@ const plural = (v: number, word: string) => `${n(v)} ${word}${v === 1 ? "" : "s"
 export function appLabel(id: string): string {
   const s = id.trim().toLowerCase().replace(/_/g, " ");
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : "Unnamed app";
+}
+
+/** "law-translate" → "law translate": the app's own word, readable. */
+export function featureLabel(id: string): string {
+  return id.trim().replace(/[-_]+/g, " ") || "unnamed";
 }
 
 function ago(at: number, now: number): string {
@@ -261,6 +272,9 @@ export function fleetUsageView(input: {
   const apps: FleetAppView[] = summary.apps.map((a) => ({
     app: appLabel(a.app),
     line: tallyLine(a),
+    usedFor: a.features.length
+      ? a.features.map((f) => `${featureLabel(f.feature)}: ${tallyLine(f)}`).join(" · ")
+      : null,
     vendors: a.providers.map((p) => ({
       label: labelOf(p.provider),
       paid: p.paid,

@@ -101,6 +101,7 @@ export function AiFleetSettings() {
                       <span className="ui-quota-provider">{a.app}</span>
                       <span className="ui-quota-state">{a.line}</span>
                     </div>
+                    {a.usedFor && <p className="ui-quota-detail">Used for: {a.usedFor}</p>}
                     {a.vendors.map((p) => (
                       <p key={p.label} className="ui-quota-detail">
                         {p.label}
