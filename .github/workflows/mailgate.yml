@@ -22,7 +22,7 @@ jobs:
       HETZNER_IP: ${{ vars.HETZNER_IP }}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
