@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import type { UsageEvent } from "@bitbaum/ai-kit";
-import { appLabel, fleetUsageView, problemWords } from "@/lib/ai/fleet-usage";
+import { appLabel, featureLabel, fleetUsageView, problemWords } from "@/lib/ai/fleet-usage";
 
 let passed = 0;
 const check = (label: string, fn: () => void) => {
@@ -191,6 +191,27 @@ check("words for every way a link does not answer; an app id reads as a name", (
     /server's daily paid allowance/,
   );
   assert.equal(appLabel("SBB_FUNDBUERO"), "Sbb fundbuero");
+});
+
+check("per app: what the calls were for, when the app said (2026-11-14)", () => {
+  const v = fleetUsageView({
+    events: [
+      e(9, "SOLON", "groq", "served", { feature: "law-translate" }),
+      e(8, "SOLON", "groq", "failed", { feature: "law-translate", status: 429 }),
+      e(7, "SOLON", "groq", "served", { feature: "law-ask" }),
+      e(6, "LOKI", "groq", "served"),
+    ],
+    keysSet: keys,
+    now,
+  });
+  const solon = v.apps.find((a) => a.app === "Solon");
+  assert.equal(solon?.usedFor, "law translate: 1 answered · 1 failed · law ask: 1 answered");
+  assert.equal(
+    v.apps.find((a) => a.app === "Loki")?.usedFor,
+    null,
+    "an app that names nothing says nothing",
+  );
+  assert.equal(featureLabel("statistics_explain"), "statistics explain");
 });
 
 console.log(`fleet-usage: ${passed} checks passed`);
