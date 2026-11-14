@@ -16,16 +16,15 @@ allowBuilds:
 
 # Our own packages are published by our own tagged workflows and are refused by
 # minimumReleaseAge until they age, which fails `pnpm install --frozen-lockfile`
-# with a bare exit 1. Exempt them BY NAME (fleet SHARED.md, "If one breaks").
+# with a bare exit 1. One scope glob covers every @bitbaum package, including
+# ones published tomorrow; the four unscoped ones are named (fleet SHARED.md,
+# "If one breaks").
 minimumReleaseAgeExclude:
-  - "@bitbaum/ai-kit"
-  - "@bitbaum/design-tokens"
-  - "@bitbaum/mail-kit"
+  - "@bitbaum/*"
   - limitkit
   - bip-kit
-  - "@bitbaum/sitekit"
-  - "@bitbaum/chatkit"
-  - "@bitbaum/accountkit"
+  - threadkit
+  - ai-forms
 
 # drizzle-kit still reaches esbuild <=0.24 through the legacy @esbuild-kit
 # loader (GHSA-67mh-4wv8-2f99: its dev server answers any website). Nothing

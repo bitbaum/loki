@@ -60,5 +60,8 @@
         }
       ]
     }
+  },
+  "experience": {
+    "ceiling": {}
   }
 }
