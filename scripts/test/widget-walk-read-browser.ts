@@ -70,7 +70,7 @@ document.addEventListener("click", (e) => {
 </script><script src="http://host.fixture/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`;
 };
 
-async function walkAndTalk(page: Page) {
+async function walkAndTalk(page: Page, setSegments: (segments: typeof SAID) => void) {
   const host = page.locator("#loki-feedback-host");
   await page
     .getByRole("button", {
@@ -79,11 +79,29 @@ async function walkAndTalk(page: Page) {
     })
     .click();
   await page.getByText("Recording 0:00", { exact: true }).waitFor();
+  // The recording and navigation run on the browser's clock. Fixed speech
+  // offsets drifted before Settings on a slower machine and made correctly
+  // aligned words look like a product failure. Measure when the fixture
+  // actually speaks, independently of the widget's captured moments.
+  const speechTime = () =>
+    page.evaluate(
+      () =>
+        (Date.now() -
+          (window as unknown as { fixtureRecordingStartedAt: number }).fixtureRecordingStartedAt) /
+        1000,
+    );
+  await page.waitForTimeout(200);
+  const starts = [await speechTime()];
   for (let i = 1; i < PAGES.length; i++) {
-    await page.waitForTimeout(1700);
+    await page.waitForTimeout(900);
     await page.locator(`a.go[data-i="${i}"]`).click();
+    await page.locator("#title").filter({ hasText: PAGES[i].h1 }).waitFor();
     await page.evaluate(() => scrollBy(0, 40));
+    // Speak once the new page has drawn and its scroll has settled.
+    await page.waitForTimeout(800);
+    starts.push(await speechTime());
   }
+  setSegments(SAID.map((s, i) => ({ ...s, start: starts[i] })));
   await page.waitForTimeout(1500);
   await host.locator(".browse-voice").getByRole("button", { name: "Done", exact: true }).click();
 }
@@ -110,6 +128,7 @@ async function main() {
       const posted: Array<Record<string, unknown>> = [];
       const advised: Array<Record<string, unknown>> = [];
       const understood: Array<Record<string, unknown>> = [];
+      let spokenSegments = SAID;
       await page.addInitScript({ content: "globalThis.__name = (target) => target;" });
       await page.addInitScript(() => {
         class Recorder extends EventTarget {
@@ -120,6 +139,8 @@ async function main() {
           }
           start() {
             this.state = "recording";
+            (window as unknown as { fixtureRecordingStartedAt: number }).fixtureRecordingStartedAt =
+              Date.now();
           }
           stop() {
             this.state = "inactive";
@@ -156,7 +177,7 @@ async function main() {
             placement: { corner: "bottom-right", offsetX: 16, offsetY: 16, autoAvoid: true },
           });
         if (url.pathname === "/api/widget/transcribe")
-          return json({ text: SAID.map((s) => s.text).join(" "), segments: SAID });
+          return json({ text: SAID.map((s) => s.text).join(" "), segments: spokenSegments });
         if (url.pathname === "/api/widget/understand") {
           understood.push(route.request().postDataJSON());
           // Slow enough that a person can start editing before it lands.
@@ -194,12 +215,14 @@ async function main() {
         (window as unknown as { Loki: { report(input: object): void } }).Loki.report({}),
       );
       const host = page.locator("#loki-feedback-host");
-      await walkAndTalk(page);
+      await walkAndTalk(page, (segments) => {
+        spokenSegments = segments;
+      });
 
       // "Did it hear me?" — answered first, with how long and where.
       const title = host.locator(".voice-note .changes-title");
       await title.waitFor();
-      assert.match(await title.innerText(), /^Loki heard you · 0:0\d across 4 pages$/);
+      assert.match(await title.innerText(), /^Loki heard you · \d+:\d{2} across 4 pages$/);
       const box = host.locator(".voice-note textarea.chatinput");
 
       if (scenario === "edited") {
@@ -232,11 +255,11 @@ async function main() {
       );
       assert.equal(await box.isVisible(), false, "the list is the note");
       assert.equal(understood.length, 1, "read once");
-      assert.match(
-        String(understood[0].note),
-        /On \/portal\/settings — “Your data”/,
-        "Loki reads the note as aligned",
-      );
+      for (const p of PAGES)
+        assert.ok(
+          String(understood[0].note).includes(`On ${p.path} — “${p.h1}”`),
+          `Loki reads the note aligned to ${p.path}`,
+        );
       assert.equal(
         (understood[0].moments as unknown[]).length >= 4,
         true,

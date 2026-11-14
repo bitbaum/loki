@@ -106,6 +106,10 @@ content/                 Public essays and whitepaper content
 
 ## Quality Bar
 
+For comparisons of agent configurations on product work, use the
+[outcome benchmark](evals/outcomes/README.md). It separates verified outcomes
+from run completion and accounts for retries, unknown pricing and human time.
+
 Every change should preserve:
 
 - `pnpm run verify` — the one canonical gate. CI runs it verbatim, so green

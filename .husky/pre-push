@@ -72,7 +72,7 @@ done
 _base=$(git merge-base HEAD "origin/${_def:-main}" 2>/dev/null || echo "")
 
 _changed=$(mktemp)
-trap 'pkill -P "$_watchdog" 2>/dev/null; kill "$_watchdog" 2>/dev/null; rm -f "$_changed"' EXIT
+trap 'pkill -P "$_watchdog" 2>/dev/null || :; kill "$_watchdog" 2>/dev/null || :; rm -f "$_changed"' EXIT
 if [ -n "$_base" ]; then
   git diff --name-only "$_base"...HEAD > "$_changed" 2>/dev/null
 else

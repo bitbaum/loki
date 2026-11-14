@@ -584,6 +584,8 @@ address, default from the name). Full flow:
 
 ## Checkpoints
 
+Outcome benchmark work: [implementation checkpoint](docs/handoffs/2026-11-14-outcome-benchmark.md).
+
 For the work to make Loki, and a Cat bot through Loki, something the owner
 builds with (2026-11-12): what was found, what shipped, what is still open and
 how production was checked, read
