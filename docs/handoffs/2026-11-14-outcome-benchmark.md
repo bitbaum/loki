@@ -38,8 +38,12 @@ The fixture now timestamps simulated speech on the browser's own recording
 clock, independently of the product's captured moments. Its assertion checks
 all four pages. This is a test-only prerequisite fix, not a change to voice
 alignment behavior. Deployment-gate fixtures, operations fixtures and mailgate
-checks passed separately. The normal push gates rerun the application checks
-against the final working tree; publication and CI outcomes are recorded on
+checks passed separately. A subsequent normal push passed all 636 unit files
+and 130 home/runtime tests, then failed in its EXIT trap: watchdog cleanup used
+`pkill` without tolerating a timer with no children. Cleanup now preserves the
+checks' exit status when the watchdog is already gone, with a shell regression
+test for both successful and failing checks. The normal push gates rerun the
+application checks against this final working tree; publication and CI outcomes are recorded on
 the resulting pull request. This checkpoint makes no merge or deployment claim.
 
 ## Findings from the additional industry comparison
