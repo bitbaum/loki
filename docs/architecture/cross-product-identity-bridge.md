@@ -214,8 +214,22 @@ the curated public projection.
   already runs for embeddings). "Best-effort" must *not* mean "silently lossy."
 - Delivery: OC API now; `webhook_endpoints` for reverse delivery/confirmation.
 
-This is the "building in public funds itself" loop: agents ship → curated changelog posts →
-followers back it.
+**Decision, 2026-11-14: a build log is not a post.** Closed runs and dev-log entries are no
+longer sent to OrangeCat. They are agents' working notes ("e2e ok — no changes", pull request
+numbers, commit hashes) and were 78 of 80 posts on OrangeCat's public feed on 2026-11-13. They
+stay in Loki: the project's page, its dev log and Control. The one moment that still reaches
+OrangeCat's timeline is a project going public. The rule for adding another: a person who has
+never seen the repository would want to read it. A release written for people (the repository's
+`CHANGELOG.md`) is the candidate, to be added as its own entry in `PROMOTE_POLICY`
+(`src/config/orangecat-publish.ts`, pinned by `scripts/test/oc-run-promote.ts`). The activity
+switch beside the Publish button is removed with the feed it governed; the stored answer
+(`user_projects.orangecat_autopost`) is kept. Posts already on OrangeCat are not deleted from
+here; OrangeCat hides them from its community page.
+
+The fleet map (`/api/fleet/map`) publishes an OrangeCat project link only when the page
+answered a read-only check at build time (`keepVerifiedOrangecatLinks`,
+`src/lib/register/orangecat.ts`). A project deleted on OrangeCat can be let go of from Loki:
+"Take it down" clears the stored id when OrangeCat's API says the project does not exist.
 
 ### Teams: map, don't migrate
 

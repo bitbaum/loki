@@ -201,9 +201,10 @@ export async function updateOrchestrationRun(
   // Feedback stays dispatched → "Check live" until operator Resolve (or a
   // future live-stamp / merged-PR closer calls resolveFeedbackForRun).
   //
-  // Run→wall loop still fires: successful agent work surfaces as OrangeCat
-  // activity for OC-published projects. Idempotent (external_id = run id) and
-  // re-sent by the daily promote backfill, so a dropped emit here is never lost.
+  // The run→wall call stays wired, and the promote policy decides: since
+  // 2026-11-14 a closed run is not posted to OrangeCat (a build log is not a
+  // post — src/config/orangecat-publish.ts), so this is a no-op until that
+  // policy says otherwise.
   if (updated && patch.finishedAt && patch.outcome === ORCHESTRATION_OUTCOME.SUCCESS) {
     void promoteRunClose(updated);
   }

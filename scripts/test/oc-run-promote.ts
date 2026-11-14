@@ -5,10 +5,23 @@ import {
   buildRunMoment,
   type RunPromoteInput,
 } from "../../src/lib/integrations/orangecat-run-moment";
-import { PROMOTE_POLICY } from "../../src/config/orangecat-publish";
+import { PROMOTE_POLICY, isPromoted } from "../../src/config/orangecat-publish";
 
-// Policy: run_closed must exist, be enabled, and map onto an OC-accepted type.
-assert.ok(PROMOTE_POLICY.run_closed?.enabled, "run_closed policy must be enabled");
+// Policy (decision of 2026-11-14, src/config/orangecat-publish.ts): a build
+// log is not a post. Closed runs and dev-log entries stay in Loki; the one
+// moment sent to OrangeCat's timeline is a project going public. Switching
+// either back on puts "e2e ok — no changes" on a community feed again, so it
+// has to be done here too, on purpose.
+assert.equal(isPromoted("run_closed"), false, "a closed run is not a public post");
+assert.equal(isPromoted("devlog_entry"), false, "a dev-log entry is not a public post");
+assert.equal(isPromoted("project_published"), true, "a project going public is");
+assert.deepEqual(
+  Object.entries(PROMOTE_POLICY)
+    .filter(([, p]) => p.enabled)
+    .map(([k]) => k),
+  ["project_published"],
+  "a new moment is a decision: add it to the policy and to this list",
+);
 assert.equal(PROMOTE_POLICY.run_closed.eventType, "project_updated");
 
 const run: RunPromoteInput = {
