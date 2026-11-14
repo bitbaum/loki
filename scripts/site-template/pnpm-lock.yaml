@@ -15,14 +15,14 @@ importers:
         specifier: ^1.7.7
         version: 1.7.7(@better-auth/core@1.7.7(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-call@1.4.0(zod@4.6.6))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-auth@1.7.7(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1))(next@16.4.1(@babel/core@7.29.7)(@types/node@26.6.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.12(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))))(better-call@1.4.0(zod@4.6.6))(nanostores@1.5.5)
       '@bitbaum/accountkit':
-        specifier: ^0.14.0
-        version: 0.14.0(4588812a18475fb6fbc8f9b9c08891f0)
+        specifier: ^0.26.1
+        version: 0.26.1(4588812a18475fb6fbc8f9b9c08891f0)
       '@bitbaum/ai-kit':
         specifier: ^1.21.5
         version: 1.21.5(react@19.3.0)
       '@bitbaum/chatkit':
-        specifier: ^0.21.3
-        version: 0.21.3(react@19.3.0)
+        specifier: ^0.21.4
+        version: 0.21.4(react@19.3.0)
       '@bitbaum/design-tokens':
         specifier: ^1.2.0
         version: 1.2.0
@@ -265,9 +265,10 @@ packages:
   '@better-fetch/fetch@1.3.2':
     resolution: {integrity: sha512-Gs7n99b5tqUC6cQAPbV0uED3IraHB6xQbHLQ/C3l7ZFafHScOx9pQ+DYmP5blbLFShVWLqxNUlI9wi4xU/X+ow==}
 
-  '@bitbaum/accountkit@0.14.0':
-    resolution: {integrity: sha512-WN0M7WrKzMCyPA0y4VMC+dyr4a0cY/swZ7nx5FVGCDBxW0QIn5lecKCTjRYeS+WLDDirKpq9k1BbobpDTfxTJA==}
+  '@bitbaum/accountkit@0.26.1':
+    resolution: {integrity: sha512-eVl3vfUWPqXq54rQx2HIrAbJ55xcVk9mD3yUOYgkjynMIPKvcLv39RAckqlWV2Xg/N5OaY/ijIKfHjbozVnNrA==}
     engines: {node: '>=20'}
+    hasBin: true
     peerDependencies:
       '@better-auth/passkey': ^1.7.10
       '@bitbaum/mail-kit': ^0.2.0
@@ -296,8 +297,8 @@ packages:
       react:
         optional: true
 
-  '@bitbaum/chatkit@0.21.3':
-    resolution: {integrity: sha512-41WN8SNWXxS5YUaXGWuNexaQ4/LYU012TnLew9fGJt+ogwTrlQ8DOrNH9D7DSgJ9ggPxah/jaWWDMyXxrtI75Q==}
+  '@bitbaum/chatkit@0.21.4':
+    resolution: {integrity: sha512-vNSbTUSbaX1DYCofcnd7CpybNn1YISUEDQZRpJRO+9L8s5C7+I7/W0ZJ59Yrd8/PufMzmuXbZ0+1Odhk3e05fA==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -1082,6 +1083,10 @@ packages:
     resolution: {integrity: sha512-AnjFn0Jv92laAkvMrghlFZq4qQCIN/4DxFV/eooqtC2YTjB7kBeLMS2T9KJX4Dn+ZVXLOwK0lSgqDtx9gvxtiw==}
     engines: {node: '>= 20.19.0'}
 
+  '@noble/curves@2.4.0':
+    resolution: {integrity: sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==}
+    engines: {node: '>= 20.19.0'}
+
   '@noble/hashes@2.4.0':
     resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
     engines: {node: '>= 20.19.0'}
@@ -1346,6 +1351,9 @@ packages:
 
   '@schummar/icu-type-parser@1.21.5':
     resolution: {integrity: sha512-bXHSaW5jRTmke9Vd0h5P7BtWZG9Znqb8gSDxZnxaGSJnGwPLDPfS+3g0BKzeWqzgZPsIVZkM7m2tbo18cm5HBw==}
+
+  '@scure/base@2.4.0':
+    resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
 
   '@simplewebauthn/browser@13.3.0':
     resolution: {integrity: sha512-BE/UWv6FOToAdVk0EokzkqQQDOWtNydYlY6+OrmiZ5SCNmb41VehttboTetUM3T/fr6EAFYVXjz4My2wg230rQ==}
@@ -3512,6 +3520,9 @@ packages:
     peerDependencies:
       browserslist: '>= 4.21.0'
 
+  uqr@0.1.3:
+    resolution: {integrity: sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==}
+
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
@@ -3836,10 +3847,13 @@ snapshots:
 
   '@better-fetch/fetch@1.3.2': {}
 
-  '@bitbaum/accountkit@0.14.0(4588812a18475fb6fbc8f9b9c08891f0)':
+  '@bitbaum/accountkit@0.26.1(4588812a18475fb6fbc8f9b9c08891f0)':
     dependencies:
+      '@noble/curves': 2.4.0
+      '@scure/base': 2.4.0
       limitkit: 0.2.1
       react: 19.3.0
+      uqr: 0.1.3
       zod: 4.6.7
     optionalDependencies:
       '@better-auth/passkey': 1.7.7(@better-auth/core@1.7.7(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-call@1.4.0(zod@4.6.6))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.5))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-auth@1.7.7(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1))(next@16.4.1(@babel/core@7.29.7)(@types/node@26.6.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.12(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))))(better-call@1.4.0(zod@4.6.6))(nanostores@1.5.5)
@@ -3858,7 +3872,7 @@ snapshots:
     transitivePeerDependencies:
       - canvas
 
-  '@bitbaum/chatkit@0.21.3(react@19.3.0)':
+  '@bitbaum/chatkit@0.21.4(react@19.3.0)':
     dependencies:
       pdfjs-dist: 6.4.299
       react: 19.3.0
@@ -4383,6 +4397,10 @@ snapshots:
 
   '@noble/ciphers@2.4.0': {}
 
+  '@noble/curves@2.4.0':
+    dependencies:
+      '@noble/hashes': 2.4.0
+
   '@noble/hashes@2.4.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
@@ -4609,6 +4627,8 @@ snapshots:
   '@rtsao/scc@1.1.0': {}
 
   '@schummar/icu-type-parser@1.21.5': {}
+
+  '@scure/base@2.4.0': {}
 
   '@simplewebauthn/browser@13.3.0': {}
 
@@ -6887,6 +6907,8 @@ snapshots:
       browserslist: 4.29.3
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  uqr@0.1.3: {}
 
   uri-js@4.4.1:
     dependencies:
