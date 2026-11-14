@@ -91,6 +91,12 @@ solon|4018|*-*-* *:30:00|/api/cron/places|POST
 # lib/channels/sweep.ts). No AI: XML and one HTTP call per phone. The route
 # refuses without CRON_SECRET in heidi's .env; VAPID_* there turns the push on.
 heidi|4025|*-*-* *:19:00|/api/cron/channels|POST
+# Hourly, because «their evening» is a different hour in every time zone: sends
+# the opt-in «questions are due» email to whoever is at 18:00 where they are
+# (heidi lib/mail/reminder-sweep.ts). The policy sends at most one per person
+# every other day, whatever the cadence here; the sweep calls no model. Needs
+# RESEND_API_KEY (+ RESEND_FROM) in heidi's .env, like account mail.
+heidi|4025|*-*-* *:41:00|/api/cron/reminders|POST
 REG
 )"
 
