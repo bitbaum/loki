@@ -52,3 +52,16 @@ export function wallLinkFor(project: WallLinkProject | undefined): string {
   const slug = canonicalSlug(project.slug || repoFromGitUrl(project.gitUrl) || project.name);
   return slug ? `${LOKI_PUBLIC_ORIGIN}${publicProfilePath(slug)}` : `${LOKI_PUBLIC_ORIGIN}/fleet`;
 }
+
+/**
+ * Did OrangeCat's API say this project does not exist?
+ *
+ * A 404 has two meanings on this seam and they need opposite handling. JSON is
+ * the API answering "no such project": there is nothing left to take down and
+ * the stored id can be let go. Anything else is a route that is not there (an
+ * OrangeCat from before 2026-09-11), where clearing the id would leave a
+ * public page up with nobody pointing at it.
+ */
+export function projectIsGoneOnOrangeCat(res: Pick<Response, "status" | "headers">): boolean {
+  return res.status === 404 && (res.headers.get("content-type") ?? "").includes("application/json");
+}

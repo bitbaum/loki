@@ -20,9 +20,9 @@ import { db } from "@/db";
 import { userProjects, type DevLogEntry } from "@/db/schema";
 import { getOrangeCatLink } from "./orangecat-identity";
 import { OC_BASE } from "./orangecat";
-import { PROMOTE_POLICY, type PromotableMoment } from "@/config/orangecat-publish";
+import { PROMOTE_POLICY, isPromoted, type PromotableMoment } from "@/config/orangecat-publish";
 import { linkOrangeCatEntity, unlinkOrangeCatEntity } from "@/db/queries/orangecat-links";
-import { mayPostActivity, wallLinkFor } from "./orangecat-wall-link";
+import { mayPostActivity, projectIsGoneOnOrangeCat, wallLinkFor } from "./orangecat-wall-link";
 import { ECOSYSTEM } from "@/config/ecosystem";
 import { cleanDescription } from "@/lib/project-display";
 import { buildRunMoment, type RunPromoteInput } from "./orangecat-run-moment";
@@ -177,13 +177,19 @@ export async function unpublishProjectFromOrangeCat(
       body: JSON.stringify({ status: "draft" }),
       signal: AbortSignal.timeout(15_000),
     });
-    if (res.status === 404 || res.status === 405) {
+    const gone = projectIsGoneOnOrangeCat(res);
+    if (!gone && (res.status === 404 || res.status === 405)) {
       // The endpoint that makes this possible shipped on 2026-09-11. An
       // OrangeCat older than that cannot be asked, and saying so is better
       // than clearing our back-link and leaving their page public.
       return { ok: false, reason: "oc_too_old" };
     }
-    if (!res.ok) {
+    // `gone`: OrangeCat's own API said the project does not exist. There is
+    // nothing left to take down, so the back-link is cleared below. Before
+    // this, a project deleted over there kept its dead id here for good (the
+    // fleet map published Bitbaum's until 2026-11-13) and "Take it down"
+    // answered that OrangeCat was too old.
+    if (!gone && !res.ok) {
       const detail = (await res.text()).slice(0, 300);
       console.warn("[orangecat-publish] unpublish failed", {
         userProjectId,
@@ -233,7 +239,7 @@ export async function promoteMomentToOrangeCat(
   input: PromoteContent,
 ): Promise<PromoteOutcome> {
   const policy = PROMOTE_POLICY[moment];
-  if (!policy?.enabled) return "skipped";
+  if (!isPromoted(moment)) return "skipped";
 
   try {
     // Read the row even when the caller supplied a subject id: the wall entry
@@ -339,6 +345,7 @@ export function promoteDevLogEntry(
  * re-sent by the daily backfill janitor.
  */
 export async function promoteRunClose(run: RunPromoteInput): Promise<PromoteOutcome> {
+  if (!isPromoted("run_closed")) return "skipped";
   try {
     // runs carry projectKey (= user_projects.name, the tab identifier);
     // the promote layer addresses projects by their user_projects row.

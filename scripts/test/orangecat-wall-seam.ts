@@ -19,7 +19,11 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mayPostActivity, wallLinkFor } from "@/lib/integrations/orangecat-wall-link";
+import {
+  mayPostActivity,
+  projectIsGoneOnOrangeCat,
+  wallLinkFor,
+} from "@/lib/integrations/orangecat-wall-link";
 import { LOKI_PUBLIC_ORIGIN } from "@/config/orangecat-publish";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -79,6 +83,23 @@ ok(
   "and neither does silence — an unanswered question is not consent",
 );
 ok(!mayPostActivity(undefined), "nor a project that cannot be read");
+
+// ------------------------------------------- a project deleted over there --
+
+// Bitbaum's OrangeCat project was deleted there and its id stayed here for
+// good: "Take it down" read OrangeCat's "no such project" as "too old to ask".
+const reply = (status: number, type: string) =>
+  new Response(null, { status, headers: { "content-type": type } });
+ok(
+  projectIsGoneOnOrangeCat(reply(404, "application/json; charset=utf-8")),
+  "the API answering 404 means the project is gone, and the id can be let go",
+);
+ok(
+  !projectIsGoneOnOrangeCat(reply(404, "text/html")),
+  "a 404 page is a missing route, not a missing project",
+);
+ok(!projectIsGoneOnOrangeCat(reply(405, "application/json")), "a 405 is not an answer about it");
+ok(!projectIsGoneOnOrangeCat(reply(200, "application/json")), "nor is a project that exists");
 
 // ------------------------------------------------- the rule reaches the wire --
 
