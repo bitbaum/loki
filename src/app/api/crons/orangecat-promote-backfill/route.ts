@@ -28,6 +28,7 @@ import {
 } from "@/lib/integrations/orangecat-publish";
 import { getRecentSuccessfulRuns } from "@/db/queries/orchestration-runs";
 import { getOrangeCatLinksForProject } from "@/db/queries/orangecat-links";
+import { isPromoted } from "@/config/orangecat-publish";
 
 /** Upper bound on how far back we look — never past publish consent (below). */
 const BACKFILL_WINDOW_DAYS = 14;
@@ -132,11 +133,13 @@ export async function GET(req: NextRequest) {
           description: project.description ?? undefined,
           subjectId: project.orangecatProjectId ?? undefined,
         }),
-      ...((project.devLog ?? []) as DevLogEntry[])
+      // A moment the policy has switched off is not queued: it would post
+      // nothing and still take a paced turn from one that would.
+      ...(isPromoted("devlog_entry") ? ((project.devLog ?? []) as DevLogEntry[]) : [])
         .filter((entry) => historyCutoffDate != null && entry.date >= historyCutoffDate)
         .map((entry) => () => promoteDevLogEntry(project.userId, project.id, project.name, entry)),
       // Run→wall reconcile: only runs finished at/after publish consent.
-      ...(historyCutoffIso
+      ...(historyCutoffIso && isPromoted("run_closed")
         ? (
             await getRecentSuccessfulRuns(project.userId, project.name, new Date(historyCutoffIso))
           ).map((run) => () => promoteRunClose(run))
