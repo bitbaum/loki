@@ -16,6 +16,7 @@ import {
   repoForProjectRecords,
 } from "@/lib/register/build";
 import { solonClaims } from "@/lib/register/solon";
+import { keepVerifiedOrangecatLinks } from "@/lib/register/orangecat";
 import { loadRepoRecords } from "@/lib/register/repo-records";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import {
@@ -46,6 +47,8 @@ export async function loadFleetMap(
   const rows = buildFleetRegister(projects.map(registerInput), readAppsConf(), solon.claims, {
     audience,
   });
+  // The map is published for other sites to copy: only links seen to exist.
+  await keepVerifiedOrangecatLinks(rows);
 
   // The identity half of the profile lives on the ENTITY, not on user_projects:
   // the four public attributes in `attributes`, the roadmap in `goals`. Both are

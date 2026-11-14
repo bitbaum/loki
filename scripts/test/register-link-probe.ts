@@ -16,7 +16,11 @@
  *
  * Run: npx tsx scripts/test/register-link-probe.ts
  */
-import { orangecatProjectsThatResolve, __resetOrangecatCache } from "@/lib/register/orangecat";
+import {
+  keepVerifiedOrangecatLinks,
+  orangecatProjectsThatResolve,
+  __resetOrangecatCache,
+} from "@/lib/register/orangecat";
 
 let pass = 0;
 let fail = 0;
@@ -86,6 +90,52 @@ async function main() {
   ok(calls === 1, "a second read inside the TTL reuses the answer");
   await orangecatProjectsThatResolve(["x"], 10_000 + 11 * 60_000);
   ok(calls === 2, "…and re-probes once the TTL has passed");
+
+  // ── an incomplete answer is asked again within a minute, not ten
+  __resetOrangecatCache();
+  calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return new Response(null, { status: 502 });
+  }) as typeof fetch;
+  await orangecatProjectsThatResolve(["y"], 20_000);
+  await orangecatProjectsThatResolve(["y"], 20_000 + 30_000);
+  ok(calls === 1, "an unchecked answer is reused for a short while");
+  await orangecatProjectsThatResolve(["y"], 20_000 + 61_000);
+  ok(calls === 2, "…and asked again after a minute");
+
+  // ── what Loki PUBLISHES (the fleet map) carries only links seen to exist.
+  // 2026-11-13: Bitbaum's tile on orangecat.ch opened a deleted project page,
+  // because the map emitted the stored id without asking.
+  __resetOrangecatCache();
+  stubFetch({ alive: { status: 200 }, gone: { status: 404 }, flaky: { status: 502 } });
+  r = await orangecatProjectsThatResolve(["alive", "gone", "flaky"], 30_000);
+  ok(r.verified.has("alive"), "a page that answered is verified");
+  ok(!r.verified.has("gone"), "a deleted page is not verified");
+  ok(!r.verified.has("flaky") && r.live.has("flaky"), "an unanswered probe is live, not verified");
+
+  __resetOrangecatCache();
+  stubFetch({ alive: { status: 200 }, gone: { status: 404 }, offline: { throw: true } });
+  const rows: { slug: string; orangecat?: { projectId: string } | null }[] = [
+    { slug: "loki", orangecat: { projectId: "alive" } },
+    { slug: "bitbaum", orangecat: { projectId: "gone" } },
+    { slug: "heidi", orangecat: { projectId: "offline" } },
+    { slug: "plain" },
+  ];
+  await keepVerifiedOrangecatLinks(rows);
+  ok(rows[0].orangecat?.projectId === "alive", "the map keeps a link that answered");
+  ok(rows[1].orangecat === null, "the map drops a link to a deleted project");
+  ok(rows[2].orangecat === null, "the map does not publish a link it could not check");
+  ok(rows[3].orangecat === undefined, "a project with no link is left alone");
+
+  __resetOrangecatCache();
+  calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return new Response(null, { status: 200 });
+  }) as typeof fetch;
+  await keepVerifiedOrangecatLinks([{ slug: "plain" }]);
+  ok(calls === 0, "a map with no OrangeCat links asks nothing");
 
   globalThis.fetch = realFetch;
   console.log(`register-link-probe: ${pass} passed, ${fail} failed`);
