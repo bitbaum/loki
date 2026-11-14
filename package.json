@@ -155,7 +155,7 @@
     "libsodium-wrappers": "0.8.4",
     "listkit": "npm:@bitbaum/listkit@^0.2.2",
     "lucide-react": "^1.58.0",
-    "mermaid": "^11.17.2",
+    "mermaid": "^12.3.0",
     "next": "16.4.2",
     "next-auth": "^5.0.0-beta.32",
     "next-themes": "^0.4.6",
