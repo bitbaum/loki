@@ -181,7 +181,8 @@
       "lead": "Jemand möchte das Passwort deines Kontos bei {site} zurücksetzen.",
       "action": "Neues Passwort wählen"
     },
-    "ignore": "Wenn du das nicht warst, ignoriere diese E-Mail — es ändert sich nichts."
+    "ignore": "Wenn du das nicht warst, ignoriere diese E-Mail — es ändert sich nichts.",
+    "code": "Auf einem anderen Gerät? Gib diesen Code auf der Seite ein, auf der du den Link angefordert hast: {code}"
   },
   "Journal": {
     "title": "Journal",
